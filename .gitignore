@@ -1,0 +1,41 @@
+# Xcode
+*.xcuserdatad
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+xcuserdata/
+DerivedData/
+build/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# CocoaPods
+Pods/
+
+# Swift Package Manager
+.build/
+Package.resolved
+.swiftpm/
+
+# macOS
+.DS_Store
+*.swp
+
+# Sparkle
+Sparkle.framework/
+
+# Archives
+*.zip
+*.dmg
+*.tar.gz
+
+# IDE
+.idea/
+*.swp
+*.swo
