@@ -22,11 +22,11 @@
   {
     "type": "appleScriptTitledButton",
     "source": {
-      "inline": "if application \"Spotify\" is running then\rtell application \"Spotify\"\rif player state is playing then\rreturn (get artist of current track) & \" – \" & (get name of current track)\relse\rreturn \"\"\rend if\rend tell\rend if\rreturn \"\"\r"
+      "inline": "if application \"Spotify\" is running then\ntell application \"Spotify\"\nif player state is playing then\nreturn (get artist of current track) & \" - \" & (get name of current track)\nelse\nreturn \"\"\nend if\nend tell\nend if\nreturn \"\"\n"
     },
     "action": "appleScript",
     "actionAppleScript": {
-      "inline": "if application \"Spotify\" is running then\rtell application \"Spotify\"\rif player state is playing then\rnext track\rend if\rend tell\rend if\r"
+      "inline": "if application \"Spotify\" is running then\ntell application \"Spotify\"\nif player state is playing then\nnext track\nend if\nend tell\nend if\n"
     },
     "refreshInterval": 1,
     "image": {
@@ -38,15 +38,15 @@
   {
     "type": "appleScriptTitledButton",
     "source": {
-      "inline": "if application \"Music\" is running then\rtell application \"Music\"\rif player state is playing then\rreturn (get artist of current track) & \" – \" & (get name of current track)\relse\rreturn \"\"\rend if\rend tell\rend if\rreturn \"\"\r"
+      "inline": "if application \"Music\" is running then\ntell application \"Music\"\nif player state is playing then\nreturn (get artist of current track) & \" - \" & (get name of current track)\nelse\nreturn \"\"\nend if\nend tell\nend if\nreturn \"\"\n"
     },
     "action": "appleScript",
     "actionAppleScript": {
-      "inline": "if application \"Music\" is running then\rtell application \"Music\"\rif player state is playing then\rnext track\rend if\rend tell\rend if\r"
+      "inline": "if application \"Music\" is running then\ntell application \"Music\"\nif player state is playing then\nnext track\nend if\nend tell\nend if\n"
     },
     "longAction": "appleScript",
     "longActionAppleScript": {
-      "inline": "if application \"Music\" is running then\rtell application \"Music\"\rif player state is playing then\rprev track\rend if\rend tell\rend if\r"
+      "inline": "if application \"Music\" is running then\ntell application \"Music\"\nif player state is playing then\nprev track\nend if\nend tell\nend if\n"
     },
     "refreshInterval": 2,
     "image": {
@@ -58,15 +58,15 @@
   {
     "type": "appleScriptTitledButton",
     "source": {
-      "inline": "if application \"iTunes\" is running then\rtell application \"iTunes\"\rif player state is playing then\rreturn (get artist of current track) & \" – \" & (get name of current track)\relse\rreturn \"\"\rend if\rend tell\rend if\rreturn \"\"\r"
+      "inline": "if application \"iTunes\" is running then\ntell application \"iTunes\"\nif player state is playing then\nreturn (get artist of current track) & \" - \" & (get name of current track)\nelse\nreturn \"\"\nend if\nend tell\nend if\nreturn \"\"\n"
     },
     "action": "appleScript",
     "actionAppleScript": {
-      "inline": "if application \"iTunes\" is running then\rtell application \"iTunes\"\rif player state is playing then\rnext track\rend if\rend tell\rend if\r"
+      "inline": "if application \"iTunes\" is running then\ntell application \"iTunes\"\nif player state is playing then\nnext track\nend if\nend tell\nend if\n"
     },
     "longAction": "appleScript",
     "longActionAppleScript": {
-      "inline": "if application \"iTunes\" is running then\rtell application \"iTunes\"\rif player state is playing then\rprev track\rend if\rend tell\rend if\r"
+      "inline": "if application \"iTunes\" is running then\ntell application \"iTunes\"\nif player state is playing then\nprev track\nend if\nend tell\nend if\n"
     },
     "refreshInterval": 2,
     "image": {

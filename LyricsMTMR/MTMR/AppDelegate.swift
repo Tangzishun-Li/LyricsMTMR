@@ -132,6 +132,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    @objc func requestAccessibility(_: Any?) {
+        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary
+        let trusted = AXIsProcessTrustedWithOptions(options)
+        print("[App] 🔑 Accessibility trusted after prompt: \(trusted)")
+        if !trusted {
+            // Dynamically get the current app path
+            let appPath = Bundle.main.bundlePath
+            let appFolder = (appPath as NSString).deletingLastPathComponent
+
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = """
+            LyricsMTMR needs Accessibility permission to simulate keyboard shortcuts (volume, brightness, play/pause, etc.).
+
+            Please follow these steps:
+
+            1. Open System Settings → Privacy & Security → Accessibility
+            2. Click the + button (or drag the app into the list)
+            3. Navigate to this folder:
+               \(appFolder)
+            4. Select LyricsMTMR.app
+            5. Make sure the toggle is ON (blue)
+            6. Restart LyricsMTMR (press ⌘R in Xcode)
+            """
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Later")
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+        }
+    }
+
     func createMenu() {
         let menu = NSMenu()
 
@@ -154,6 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingSeparator.isEnabled = false
 
         menu.addItem(withTitle: "Open JSON Editor", action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
+        menu.addItem(withTitle: "Request Accessibility Permission", action: #selector(requestAccessibility(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Preferences (Edit JSON File)", action: #selector(openPreferences(_:)), keyEquivalent: ",")
         menu.addItem(withTitle: "Open preset...", action: #selector(openPreset(_:)), keyEquivalent: "O")
         menu.addItem(withTitle: "Check for Updates...", action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "").target = SUUpdater.shared()
