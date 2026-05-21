@@ -240,21 +240,18 @@ final class MultiClickGestureRecognizer: NSClickGestureRecognizer {
     }
     
     override func touchesBegan(with event: NSEvent) {
-        print("[Gesture] 👆 touchesBegan")
         HapticFeedback.instance.tap(type: .click)
         super.touchesBegan(with: event)
     }
 
     override func touchesEnded(with event: NSEvent) {
-        print("[Gesture] 👆 touchesEnded (clickCount=\(_clickCount + 1))")
         HapticFeedback.instance.tap(type: .back)
         super.touchesEnded(with: event)
         _clickCount += 1
-        
+
         var delayThreshold: TimeInterval // fine tune this as needed
-        
+
         guard isDoubleClickEnabled || isTripleClickEnabled else {
-            print("[Gesture] 🎯 Performing single tap action")
             _ = target?.perform(_action)
             return
         }
@@ -263,14 +260,12 @@ final class MultiClickGestureRecognizer: NSClickGestureRecognizer {
             delayThreshold = 0.4
             perform(#selector(_resetAndPerformActionIfNecessary), with: nil, afterDelay: delayThreshold)
             if _clickCount == 3 {
-                print("[Gesture] 🎯 Performing triple tap action")
                 _ = target?.perform(_tripleAction)
             }
         } else {
             delayThreshold = 0.3
             perform(#selector(_resetAndPerformActionIfNecessary), with: nil, afterDelay: delayThreshold)
             if _clickCount == 2 {
-                print("[Gesture] 🎯 Performing double tap action")
                 _ = target?.perform(_doubleAction)
             }
         }

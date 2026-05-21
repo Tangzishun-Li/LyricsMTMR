@@ -86,38 +86,29 @@ class HapticFeedback {
 
     func tap(type: HapticType) {
         guard !isUnavailable else {
-            print("[Haptic] ⏭️ Skip (unavailable)")
             return
         }
         guard AppSettings.hapticFeedbackState else {
-            print("[Haptic] ⏭️ Skip (disabled in settings)")
             return
         }
         guard let actuator = self.actuatorRef else {
-            print("[Haptic] ⏭️ Skip (no actuator ref)")
             return
         }
 
-        print("[Haptic] 🔓 Opening actuator...")
         guard MTActuatorOpen(actuator) == kIOReturnSuccess else {
-            print("[Haptic] ❌ MTActuatorOpen failed — disabling permanently")
             isUnavailable = true
             self.actuatorRef = nil
             return
         }
 
-        print("[Haptic] ⚡ Actuating type=\(type.rawValue)...")
         _ = MTActuatorActuate(actuator, type.rawValue, 0, 0, 0)
         _ = MTActuatorClose(actuator)
-        print("[Haptic] ✅ Tap complete")
     }
 
     // MARK: - Device ID Finder
 
-    /// Scans a broad range of possible multitouch device IDs and reports which ones are valid.
-    /// Runs at init and prints results to console.
+    /// Scans a broad range of possible multitouch device IDs to find a working one.
     func scanAllDeviceIDs() {
-        print("[Haptic] 🔍 Scanning all possible device IDs...")
         // Try all plausible device IDs in the multitouch range
         let testRange: [UInt64] = [
             0x200_0000_0100_0000,
@@ -143,15 +134,8 @@ class HapticFeedback {
             }
         }
 
-        if found.isEmpty {
-            print("[Haptic] ❌ No valid device IDs found in scanned range.")
-            print("[Haptic] 💡 Try: system_profiler SPiBridgeDataType | grep -i 'Multitouch ID'")
-        } else {
-            print("[Haptic] ✅ Found \(found.count) valid device IDs:")
-            for id in found {
-                print("[Haptic]    0x\(String(format: "%llX", id))")
-            }
+        if !found.isEmpty && self.actuatorRef == nil {
+            self.actuatorRef = MTActuatorCreateFromDeviceID(found.first!).takeRetainedValue()
         }
-        print("[Haptic] 🔍 Scan complete")
     }
 }

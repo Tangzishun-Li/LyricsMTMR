@@ -5,6 +5,9 @@
 //  Created by Anton Palgunov on 17/03/2018.
 //  Copyright © 2018 Anton Palgunov. All rights reserved.
 //
+//  This source code is licensed under MIT.
+//  See LICENSE file in the project root for full license information.
+//
 
 import Foundation
 

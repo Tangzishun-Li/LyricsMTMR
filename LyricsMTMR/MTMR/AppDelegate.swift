@@ -28,7 +28,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Accessibility permission check
         let trusted = AXIsProcessTrusted()
-        print("[App] 🔑 Accessibility trusted: \(trusted)")
         AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary)
 
         // Scan for haptic device ID
@@ -99,6 +98,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         TouchBarController.shared.basicView?.legacyGesturesEnabled = item.state == .on
     }
 
+    @objc func selectLanguage(_ sender: NSMenuItem) {
+        guard let lang = sender.representedObject as? AppLanguage else { return }
+        let prevLang = AppSettings.appLanguage
+        AppSettings.appLanguage = lang
+
+        if lang == prevLang { return }
+
+        if lang == .system {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.set([lang.rawValue], forKey: "AppleLanguages")
+        }
+        UserDefaults.standard.synchronize()
+
+        let alert = NSAlert()
+        alert.messageText = Localized.languageChanged
+        alert.informativeText = Localized.restartPrompt
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
     @objc func openPreset(_: Any?) {
         let dialog = NSOpenPanel()
 
@@ -135,30 +156,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func requestAccessibility(_: Any?) {
         let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
-        print("[App] 🔑 Accessibility trusted after prompt: \(trusted)")
         if !trusted {
-            // Dynamically get the current app path
             let appPath = Bundle.main.bundlePath
             let appFolder = (appPath as NSString).deletingLastPathComponent
 
             let alert = NSAlert()
-            alert.messageText = "Accessibility Permission Required"
-            alert.informativeText = """
-            LyricsMTMR needs Accessibility permission to simulate keyboard shortcuts (volume, brightness, play/pause, etc.).
-
-            Please follow these steps:
-
-            1. Open System Settings → Privacy & Security → Accessibility
-            2. Click the + button (or drag the app into the list)
-            3. Navigate to this folder:
-               \(appFolder)
-            4. Select LyricsMTMR.app
-            5. Make sure the toggle is ON (blue)
-            6. Restart LyricsMTMR (press ⌘R in Xcode)
-            """
+            alert.messageText = Localized.accessibilityTitle
+            alert.informativeText = Localized.accessibilityMessage + appFolder
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "Later")
+            alert.addButton(withTitle: Localized.openSettings)
+            alert.addButton(withTitle: Localized.later)
             if alert.runModal() == .alertFirstButtonReturn {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
             }
@@ -168,29 +175,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func createMenu() {
         let menu = NSMenu()
 
-        let startAtLogin = NSMenuItem(title: "Start at login", action: #selector(toggleStartAtLogin(_:)), keyEquivalent: "L")
+        let startAtLogin = NSMenuItem(title: Localized.startAtLogin, action: #selector(toggleStartAtLogin(_:)), keyEquivalent: "L")
         startAtLogin.state = LaunchAtLoginController().launchAtLogin ? .on : .off
 
-        let toggleBlackList = NSMenuItem(title: "Toggle current app in blacklist", action: #selector(toggleBlackListedApp(_:)), keyEquivalent: "B")
+        let toggleBlackList = NSMenuItem(title: Localized.toggleBlacklist, action: #selector(toggleBlackListedApp(_:)), keyEquivalent: "B")
         toggleBlackList.state = isBlockedApp ? .on : .off
 
-        let hideControlStrip = NSMenuItem(title: "Hide Control Strip", action: #selector(toggleControlStrip(_:)), keyEquivalent: "T")
+        let hideControlStrip = NSMenuItem(title: Localized.hideControlStrip, action: #selector(toggleControlStrip(_:)), keyEquivalent: "T")
         hideControlStrip.state = AppSettings.showControlStripState ? .off : .on
 
-        let hapticFeedback = NSMenuItem(title: "Haptic Feedback", action: #selector(toggleHapticFeedback(_:)), keyEquivalent: "H")
+        let hapticFeedback = NSMenuItem(title: Localized.hapticFeedback, action: #selector(toggleHapticFeedback(_:)), keyEquivalent: "H")
         hapticFeedback.state = AppSettings.hapticFeedbackState ? .on : .off
 
-        let multitouchGestures = NSMenuItem(title: "Volume/Brightness gestures", action: #selector(toggleMultitouch(_:)), keyEquivalent: "")
+        let multitouchGestures = NSMenuItem(title: Localized.multitouchGestures, action: #selector(toggleMultitouch(_:)), keyEquivalent: "")
         multitouchGestures.state = AppSettings.multitouchGestures ? .on : .off
 
-        let settingSeparator = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
+        let settingSeparator = NSMenuItem(title: Localized.settings, action: nil, keyEquivalent: "")
         settingSeparator.isEnabled = false
 
-        menu.addItem(withTitle: "Open JSON Editor", action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
-        menu.addItem(withTitle: "Request Accessibility Permission", action: #selector(requestAccessibility(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Preferences (Edit JSON File)", action: #selector(openPreferences(_:)), keyEquivalent: ",")
-        menu.addItem(withTitle: "Open preset...", action: #selector(openPreset(_:)), keyEquivalent: "O")
-        menu.addItem(withTitle: "Check for Updates...", action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "").target = SUUpdater.shared()
+        let isTrusted = AXIsProcessTrusted()
+        let accessibilityItem = NSMenuItem(
+            title: isTrusted ? Localized.accessibilityGranted : Localized.accessibilityNeeded,
+            action: #selector(requestAccessibility(_:)),
+            keyEquivalent: ""
+        )
+
+        menu.addItem(withTitle: Localized.openJSONEditor, action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
+        menu.addItem(accessibilityItem)
+        menu.addItem(withTitle: Localized.preferences, action: #selector(openPreferences(_:)), keyEquivalent: ",")
+        menu.addItem(withTitle: Localized.openPreset, action: #selector(openPreset(_:)), keyEquivalent: "O")
+        menu.addItem(withTitle: Localized.checkForUpdates, action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "").target = SUUpdater.shared()
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(settingSeparator)
@@ -199,8 +213,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(toggleBlackList)
         menu.addItem(startAtLogin)
         menu.addItem(multitouchGestures)
+
+        // Language submenu
+        let langItem = NSMenuItem(title: Localized.language, action: nil, keyEquivalent: "")
+        let langMenu = NSMenu()
+        for lang in AppLanguage.allCases {
+            let item = NSMenuItem(title: lang.displayName, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            item.state = AppSettings.appLanguage == lang ? .on : .off
+            item.representedObject = lang
+            langMenu.addItem(item)
+        }
+        langItem.submenu = langMenu
+        menu.addItem(langItem)
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: Localized.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
     }
 

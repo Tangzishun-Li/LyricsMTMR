@@ -171,10 +171,30 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
     
     func prepareTouchBar() {
+        var oldDockOffset: CGFloat = 0
+        for (_, item) in items {
+            if let dockItem = item as? AppScrubberTouchBarItem {
+                oldDockOffset = dockItem.currentScrollOffset()
+                break
+            }
+        }
+
         let prevItems = items
         let prevSwipeItems = swipeItems
 
         createItems()
+
+        if oldDockOffset > 0 {
+            DispatchQueue.main.async { [weak self] in
+                guard let selfie = self else { return }
+                for (_, item) in selfie.items {
+                    if let dockItem = item as? AppScrubberTouchBarItem {
+                        dockItem.restoreScrollOffset(oldDockOffset)
+                        break
+                    }
+                }
+            }
+        }
 
         let changed = didItemsChange(prevItems: prevItems, prevSwipeItems: prevSwipeItems)
 
@@ -580,8 +600,6 @@ protocol CanSetWidth {
 
 extension NSCustomTouchBarItem: CanSetWidth {
     func setWidth(value: CGFloat) {
-        // Remove any existing width constraints to avoid conflicts
-        view.constraints.filter { $0.firstAttribute == .width && $0.secondItem == nil }.forEach { $0.isActive = false }
         view.widthAnchor.constraint(equalToConstant: value).isActive = true
     }
 }

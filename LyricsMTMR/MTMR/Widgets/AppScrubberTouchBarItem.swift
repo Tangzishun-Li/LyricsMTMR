@@ -1,10 +1,3 @@
-//
-//  AppScrubberTouchBarItem.swift
-//  MTMR
-//
-//  Created by Daniel Apatin on 18.04.2018.
-//  Copyright © 2018 Anton Palgunov. All rights reserved.
-
 import Cocoa
 
 class AppScrubberTouchBarItem: NSCustomTouchBarItem {
@@ -48,7 +41,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
         softReloadItems()
         updateSize()
     }
-    
+
     @objc func softReloadItems() {
         let frontMostAppId = self.frontmostApplicationIdentifier
         let runningAppsIds = NSWorkspace.shared.runningApplications.map { $0.bundleIdentifier }
@@ -58,17 +51,17 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
             barItem.isFrontmost = frontMostAppId == bundleId
         }
     }
-    
+
     func updateSize() {
         if self.autoResize {
             self.widthConstraint?.isActive = false
-            
+
             let width = self.scrollView.documentView?.fittingSize.width ?? 0
             self.widthConstraint = self.scrollView.widthAnchor.constraint(equalToConstant: width)
             self.widthConstraint!.isActive = true
         }
     }
-    
+
     func reloadData() {
         items = applications.map { self.createAppButton(for: $0) }
         let stackView = NSStackView(views: items.compactMap { $0.view })
@@ -77,6 +70,15 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
         let visibleRect = self.scrollView.documentVisibleRect
         scrollView.documentView = stackView
         stackView.scroll(visibleRect.origin)
+    }
+
+    func currentScrollOffset() -> CGFloat {
+        return scrollView.documentVisibleRect.origin.x
+    }
+
+    func restoreScrollOffset(_ offset: CGFloat) {
+        guard offset > 0, let docView = scrollView.documentView else { return }
+        docView.scroll(NSPoint(x: offset, y: 0))
     }
 
     public func createAppButton(for app: DockItem) -> DockBarItem {
@@ -93,10 +95,10 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
         item.killAppClosure = {[weak self] in
             self?.handleLongPress(item: app)
         }
-        
+
         return item
     }
-    
+
     public func switchToApp(app: DockItem) {
         let bundleIdentifier = app.bundleIdentifier
         if bundleIdentifier!.contains("file://") {
@@ -105,13 +107,8 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
             NSWorkspace.shared.launchApplication(withBundleIdentifier: bundleIdentifier!, options: [.default], additionalEventParamDescriptor: nil, launchIdentifier: nil)
         }
         softReloadItems()
-
-        // NB: if you can't open app which on another space, try to check mark
-        // "When switching to an application, switch to a Space with open windows for the application"
-        // in Mission control settings
     }
-    
-    //todo
+
     private func handleLongPress(item: DockItem) {
         if let pid = item.pid, let app = NSRunningApplication(processIdentifier: pid) {
             if !app.terminate() {
@@ -120,7 +117,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
             hardReloadItems()
         }
     }
-    
+
     private func handleHalfLongPress(item: DockItem) {
         if let index = self.persistentAppIdentifiers.firstIndex(of: item.bundleIdentifier) {
             persistentAppIdentifiers.remove(at: index)
@@ -131,7 +128,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
 
         AppSettings.dockPersistentAppIds = persistentAppIdentifiers
     }
-    
+
     private func launchedApplications() -> [DockItem] {
         runningAppsIdentifiers = []
         var returnable: [DockItem] = []
@@ -143,7 +140,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
                 filter.numberOfMatches(in: name, options: [], range: NSRange(location: 0, length: name.count)) == 0 {
                 continue
             }
-            
+
             runningAppsIdentifiers.append(bundleIdentifier)
 
             let dockItem = DockItem(bundleIdentifier: bundleIdentifier, icon: app.icon ?? getIcon(forBundleIdentifier: bundleIdentifier), pid: app.processIdentifier)
@@ -196,24 +193,24 @@ class DockBarItem: CustomButtonTouchBarItem {
     let dockItem: DockItem
     fileprivate var killGestureRecognizer: LongPressGestureRecognizer!
     var killAppClosure: () -> Void = { }
-    
+
     var isRunning = false {
         didSet {
             redrawDotView()
         }
     }
-    
+
     var isFrontmost = false {
         didSet {
             redrawDotView()
         }
     }
-    
+
     init(_ app: DockItem) {
         self.dockItem = app
         super.init(identifier: .init(app.bundleIdentifier), title: "")
         dotView.wantsLayer = true
-        
+
         image = app.icon
         image?.size = NSSize(width: iconWidth, height: iconWidth)
 
@@ -222,7 +219,7 @@ class DockBarItem: CustomButtonTouchBarItem {
         killGestureRecognizer.recognizeTimeout = 1.5
         killGestureRecognizer.minimumPressDuration = 1.5
         killGestureRecognizer.isEnabled = isRunning
-        
+
         self.finishViewConfiguration = { [weak self] in
             guard let selfie = self else { return }
             selfie.dotView.layer?.cornerRadius = 1.5
@@ -231,17 +228,17 @@ class DockBarItem: CustomButtonTouchBarItem {
             selfie.view.addGestureRecognizer(selfie.killGestureRecognizer)
         }
     }
-    
+
     func redrawDotView() {
         dotView.layer?.backgroundColor = isRunning ? NSColor.white.cgColor : NSColor.clear.cgColor
         dotView.frame.size = NSSize(width: isFrontmost ? iconWidth - 14 : 3, height: 3)
         dotView.setFrameOrigin(NSPoint(x: 18.0 - Double(dotView.frame.size.width) / 2.0, y: iconWidth - 5))
     }
-    
+
     @objc func firePanGestureRecognizer() {
         self.killAppClosure()
     }
-    
+
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
