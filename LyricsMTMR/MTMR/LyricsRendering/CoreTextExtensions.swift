@@ -51,9 +51,8 @@ extension CTLine {
     }
 
     func offset(charIndex: Int) -> (primary: CGFloat, secondary: CGFloat) {
-        var primary: CGFloat = 0
         var secondary: CGFloat = 0
-        CTLineGetOffsetForStringIndex(self, charIndex, &primary, &secondary)
+        let primary = CTLineGetOffsetForStringIndex(self, charIndex, &secondary)
         return (primary, secondary)
     }
 }

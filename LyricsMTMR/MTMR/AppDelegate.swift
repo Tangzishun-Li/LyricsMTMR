@@ -21,10 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var fileSystemSource: DispatchSourceFileSystemObject?
 
     func applicationDidFinishLaunching(_: Notification) {
-        // Configure Sparkle
-        SUUpdater.shared().automaticallyDownloadsUpdates = false
-        SUUpdater.shared().automaticallyChecksForUpdates = true
-        SUUpdater.shared().checkForUpdatesInBackground()
+        // Sparkle auto-update is disabled (no EdDSA key configured).
+        // Manual check is available via the status menu.
 
         // Accessibility permission check
         let trusted = AXIsProcessTrusted()
@@ -45,6 +43,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didLaunchApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+
+        LyricsEngine.shared.start()
     }
 
     func applicationWillTerminate(_: Notification) {}
@@ -238,7 +238,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileSystemSource = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: DispatchQueue(label: "DefaultConfigChanged"))
 
         fileSystemSource?.setEventHandler(handler: {
-            print("Config changed, reloading...")
+            AppLog.appEvent("Config file changed, reloading...")
             DispatchQueue.main.async {
                 TouchBarController.shared.reloadPreset(path: file.path)
             }

@@ -88,6 +88,9 @@
 		CA8F2B622FBF864200D189D1 /* JSONEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */; };
 		CA8F2B632FBF864200D189D1 /* JSONEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */; };
 		F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */; };
+		CA8F2B6D2FBF862D00D189D1 /* LyricsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */; };
+		CA8F2B6E2FBF862D00D189D1 /* LyricsItemConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */; };
+		CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -189,6 +192,9 @@
 		CA8F2B512FBF862D00D189D1 /* LyricsTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsTouchBarItem.swift; sourceTree = "<group>"; };
 		CA8F2B522FBF862D00D189D1 /* Then.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Then.swift; sourceTree = "<group>"; };
 		CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONEditorController.swift; sourceTree = "<group>"; };
+		CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsEngine.swift; sourceTree = "<group>"; };
+		CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsItemConfig.swift; sourceTree = "<group>"; };
+		CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
 		F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextScrubberTouchBarItem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -253,7 +259,9 @@
 		B082B251205C7D8000BC04DC /* MTMR */ = {
 			isa = PBXGroup;
 			children = (
+				CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */,
 				B0B88A07208CD12000A2C160 /* Widgets */,
+				CA8F2B6F2FBF862D00D189D1 /* LyricsIntegration */,
 				B0B1743B207D6ED40004B740 /* CBridge */,
 				B0B17426207D6AFE0004B740 /* AppleScripts */,
 				B082B256205C7D8000BC04DC /* Assets.xcassets */,
@@ -377,6 +385,15 @@
 				CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */,
 			);
 			path = Preferences;
+			sourceTree = "<group>";
+		};
+		CA8F2B6F2FBF862D00D189D1 /* LyricsIntegration */ = {
+			isa = PBXGroup;
+			children = (
+				CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */,
+				CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */,
+			);
+			path = LyricsIntegration;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -568,6 +585,9 @@
 				6027D1B92080E52A004FFDC7 /* BrightnessViewController.swift in Sources */,
 				368EDDE720812A1D00E10953 /* ScrollViewItem.swift in Sources */,
 				B04B7BB72087398C00C835D0 /* BatteryBarItem.swift in Sources */,
+				CA8F2B6D2FBF862D00D189D1 /* LyricsEngine.swift in Sources */,
+				CA8F2B6E2FBF862D00D189D1 /* LyricsItemConfig.swift in Sources */,
+				CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

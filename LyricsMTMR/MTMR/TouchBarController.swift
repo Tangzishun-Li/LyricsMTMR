@@ -416,8 +416,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = SwipeItem(identifier: identifier, direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
-        case let .lyrics(style: style):
-            barItem = LyricsTouchBarItem(identifier: identifier, style: style)
+        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction):
+            let lyricsItem = LyricsTouchBarItem(identifier: identifier)
+            let config = LyricsItemConfig.shared
+            config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
+            config.karaokeStyle = karaokeStyle
+            config.showArtwork = showArtwork
+            config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
+            lyricsItem.applyConfig(config)
+            barItem = lyricsItem
         }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {
@@ -458,46 +465,43 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         switch action.value {
         case let .hidKey(keycode: keycode):
             return {
-                print("[Action] ⌨️ HIDPostAuxKey(keycode: \(keycode))")
+                AppLog.touchBar("HIDPostAuxKey(keycode: \(keycode))")
                 HIDPostAuxKey(keycode)
             }
         case let .keyPress(keycode: keycode):
             return {
-                print("[Action] ⌨️ GenericKeyPress(keyCode: \(keycode))")
+                AppLog.touchBar("GenericKeyPress(keyCode: \(keycode))")
                 GenericKeyPress(keyCode: CGKeyCode(keycode)).send()
             }
         case let .appleScript(source: source):
             guard let appleScript = source.appleScript else {
-                print("cannot create apple script for item \(action)")
+                AppLog.error("cannot create apple script for item \(action)")
                 return {}
             }
             return {
-                print("[Action] 📜 Running AppleScript")
+                AppLog.touchBar("Running AppleScript")
                 DispatchQueue.appleScriptQueue.async {
                     var error: NSDictionary?
                     appleScript.executeAndReturnError(&error)
                     if let error = error {
-                        print("error \(error) when handling \(action) ")
+                        AppLog.error("AppleScript error: \(error)")
                     }
                 }
             }
         case let .shellScript(executable: executable, parameters: parameters):
             return {
-                print("[Action] 🖥️ shell: \(executable) \(parameters.joined(separator: " "))")
+                AppLog.touchBar("shell: \(executable) \(parameters.joined(separator: " "))")
                 let task = Process()
                 task.launchPath = executable
                 task.arguments = parameters
                 task.launch()
+                task.waitUntilExit()
             }
         case let .openUrl(url: url):
             return {
-                print("[Action] 🌐 openUrl: \(url)")
-                if let url = URL(string: url), NSWorkspace.shared.open(url) {
-                    #if DEBUG
-                        print("URL was successfully opened")
-                    #endif
-                } else {
-                    print("error", url)
+                AppLog.touchBar("openUrl: \(url)")
+                if let url = URL(string: url) {
+                    NSWorkspace.shared.open(url)
                 }
             }
         case let .custom(closure: closure):
@@ -515,7 +519,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             return { GenericKeyPress(keyCode: CGKeyCode(keycode)).send() }
         case let .appleScript(source: source):
             guard let appleScript = source.appleScript else {
-                print("cannot create apple script for item \(item)")
+                AppLog.error("cannot create apple script for item \(item)")
                 return {}
             }
             return {
@@ -523,7 +527,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     var error: NSDictionary?
                     appleScript.executeAndReturnError(&error)
                     if let error = error {
-                        print("error \(error) when handling \(item) ")
+                        AppLog.error("AppleScript error: \(error)")
                     }
                 }
             }
@@ -536,12 +540,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             }
         case let .openUrl(url: url):
             return {
-                if let url = URL(string: url), NSWorkspace.shared.open(url) {
-                    #if DEBUG
-                        print("URL was successfully opened")
-                    #endif
-                } else {
-                    print("error", url)
+                if let url = URL(string: url) {
+                    NSWorkspace.shared.open(url)
                 }
             }
         case let .custom(closure: closure):
@@ -559,14 +559,14 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             return { GenericKeyPress(keyCode: CGKeyCode(keycode)).send() }
         case let .appleScript(source: source):
             guard let appleScript = source.appleScript else {
-                print("cannot create apple script for item \(item)")
+                AppLog.error("cannot create apple script for item \(item)")
                 return {}
             }
             return {
                 var error: NSDictionary?
                 appleScript.executeAndReturnError(&error)
                 if let error = error {
-                    print("error \(error) when handling \(item) ")
+                    AppLog.error("AppleScript error: \(error)")
                 }
             }
         case let .shellScript(executable: executable, parameters: parameters):
@@ -578,12 +578,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             }
         case let .openUrl(url: url):
             return {
-                if let url = URL(string: url), NSWorkspace.shared.open(url) {
-                    #if DEBUG
-                        print("URL was successfully opened")
-                    #endif
-                } else {
-                    print("error", url)
+                if let url = URL(string: url) {
+                    NSWorkspace.shared.open(url)
                 }
             }
         case let .custom(closure: closure):
@@ -600,13 +596,16 @@ protocol CanSetWidth {
 
 extension NSCustomTouchBarItem: CanSetWidth {
     func setWidth(value: CGFloat) {
+        view.constraints.filter { $0.firstAttribute == .width && $0.isActive }.forEach { $0.isActive = false }
         view.widthAnchor.constraint(equalToConstant: value).isActive = true
     }
 }
 
 extension NSPopoverTouchBarItem: CanSetWidth {
     func setWidth(value: CGFloat) {
-        view?.widthAnchor.constraint(equalToConstant: value).isActive = true
+        guard let v = view else { return }
+        v.constraints.filter { $0.firstAttribute == .width && $0.isActive }.forEach { $0.isActive = false }
+        v.widthAnchor.constraint(equalToConstant: value).isActive = true
     }
 }
 

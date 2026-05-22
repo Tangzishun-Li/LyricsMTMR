@@ -13,6 +13,11 @@
 import Cocoa
 import CoreText
 
+enum KaraokeStyle {
+    case progressive
+    case jump
+}
+
 class KaraokeLabel: NSTextField {
     @objc dynamic var isVertical = false {
         didSet {
@@ -78,26 +83,22 @@ class KaraokeLabel: NSTextField {
         let string = attrString.string as NSString
         let shouldDrawFurigana = drawFurigana && string.dominantLanguage == "ja"
         let shouldDrawRomajin = drawRomajin && string.dominantLanguage == "ja"
-        let tokenizer = CFStringTokenizer.create(string: .from(string))
         romajinAnnotations = []
-        for tokenType in IteratorSequence(tokenizer) where tokenType.contains(.isCJWordMask) {
-            if isVertical {
-                let tokenRange = tokenizer.currentTokenRangeNS()
-                let attr: [NSAttributedString.Key: Any] = [
-                    .verticalGlyphForm: true,
-                    .baselineOffset: (font?.pointSize ?? 24) * 0.25,
-                ]
-                attrString.addAttributes(attr, range: tokenRange.asNS)
-            }
-            guard shouldDrawFurigana else { continue }
-            if let (furigana, range) = tokenizer.currentFuriganaAnnotation(in: string) {
-                let annotation = CTRubyAnnotation.create(furigana as String, attributes: [:])
+
+        if shouldDrawFurigana {
+            for (furigana, range) in string.furiganaAnnotations() {
+                let cfStr = furigana as CFString
+                var unmanaged: Unmanaged<CFString>? = Unmanaged.passUnretained(cfStr)
+                let annotation = withUnsafeMutablePointer(to: &unmanaged) { ptr in
+                    CTRubyAnnotationCreate(.auto, .auto, 0.5, ptr)
+                }
                 attrString.addAttribute(kCTRubyAnnotationAttributeName as NSAttributedString.Key, value: annotation, range: range)
             }
-            if shouldDrawRomajin, let (romajin, range) = tokenizer.currentRomanjiAnnotation(in: string) {
-                romajinAnnotations.append((romajin as String, range))
-            }
         }
+        if shouldDrawRomajin {
+            romajinAnnotations = string.romajiAnnotations().map { ($0.0 as String, $0.1) }
+        }
+
         if let color = textColor {
             attrString.addAttributes([.foregroundColor: color], range: NSRange(location: 0, length: attrString.length))
         }
@@ -161,17 +162,17 @@ class KaraokeLabel: NSTextField {
         }
     }
 
-    func setProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)]) {
+    func setProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle = .progressive) {
         removeProgressAnimation()
         guard let line = ctFrame().lines.first,
               let origin = ctFrame().lineOrigins(range: CFRange(location: 0, length: 1)).first else {
             return
         }
         var lineBounds = line.bounds()
-        var transform = CGAffineTransform.translate(x: origin.x, y: origin.y)
+        var transform = CGAffineTransform(translationX: origin.x, y: origin.y)
         if isVertical {
-            transform = transform.concatenating(.swap().concatenating(.translateBy(x: 0, y: -lineBounds.width)))
-            transform = transform.concatenating(.flip(height: bounds.height))
+            transform = transform.concatenating(CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0).concatenating(CGAffineTransform(translationX: 0, y: -lineBounds.width)))
+            transform = transform.concatenating(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height))
         }
         lineBounds = lineBounds.applying(transform)
 
@@ -180,10 +181,10 @@ class KaraokeLabel: NSTextField {
         progressLayer.backgroundColor = color.cgColor
         let mask = CALayer()
         mask.frame = progressLayer.bounds
-        let img = NSImage(size: progressLayer.bounds.size, flipped: false) { _ in
+        let img = NSImage(size: progressLayer.bounds.size, flipped: false) { [self] _ in
             let context = NSGraphicsContext.current!.cgContext
-            let ori = lineBounds.applying(.flip(height: self.bounds.height)).origin
-            context.concatenate(CGAffineTransform.translateBy(x: -ori.x, y: -ori.y))
+            let ori = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height)).origin
+            context.concatenate(CGAffineTransform(translationX: -ori.x, y: -ori.y))
             CTFrameDraw(self.ctFrame(), context)
             return true
         }
@@ -198,11 +199,27 @@ class KaraokeLabel: NSTextField {
         }
 
         let duration = map.last!.0
+        guard duration > 0 else { return }
+
+        // Set the initial bounds to the first value (initial progress) before animation starts
+        if let initialValue = map.first?.1 {
+            if isVertical {
+                progressLayer.bounds.size.height = initialValue
+            } else {
+                progressLayer.bounds.size.width = initialValue
+            }
+        }
+
         let animation = CAKeyframeAnimation()
         animation.keyTimes = map.map { ($0.0 / duration) as NSNumber }
         animation.values = map.map { $0.1 }
         animation.keyPath = isVertical ? "bounds.size.height" : "bounds.size.width"
         animation.duration = duration
+
+        if style == .jump {
+            animation.calculationMode = .discrete
+        }
+
         progressLayer.add(animation, forKey: "inlineProgress")
     }
 

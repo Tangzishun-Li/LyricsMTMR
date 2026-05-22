@@ -15,8 +15,62 @@ extension String {
     }
 
     func stripComments() -> String {
-        // ((\s|,)\/\*[\s\S]*?\*\/)|(( |, ")\/\/.*)
-        return replacingOccurrences(of: "((\\s|,)\\/\\*[\\s\\S]*?\\*\\/)|(( |, \\\")\\/\\/.*)", with: "", options: .regularExpression)
+        let lines = split(separator: "\n", omittingEmptySubsequences: false)
+        var result: [String] = []
+        var inBlockComment = false
+
+        for line in lines {
+            var lineStr = String(line)
+            var i = lineStr.startIndex
+            var out = ""
+
+            while i < lineStr.endIndex {
+                if inBlockComment {
+                    if i < lineStr.index(before: lineStr.endIndex),
+                       lineStr[i] == "*",
+                       lineStr[lineStr.index(after: i)] == "/" {
+                        inBlockComment = false
+                        i = lineStr.index(i, offsetBy: 2)
+                    } else {
+                        i = lineStr.index(after: i)
+                    }
+                } else {
+                    if lineStr[i] == "\"" || lineStr[i] == "'" {
+                        let quote = lineStr[i]
+                        out.append(quote)
+                        i = lineStr.index(after: i)
+                        while i < lineStr.endIndex {
+                            out.append(lineStr[i])
+                            if lineStr[i] == "\\" {
+                                i = lineStr.index(after: i)
+                                if i < lineStr.endIndex {
+                                    out.append(lineStr[i])
+                                }
+                            } else if lineStr[i] == quote {
+                                i = lineStr.index(after: i)
+                                break
+                            }
+                            i = lineStr.index(after: i)
+                        }
+                    } else if i < lineStr.index(before: lineStr.endIndex),
+                              lineStr[i] == "/",
+                              lineStr[lineStr.index(after: i)] == "*" {
+                        inBlockComment = true
+                        i = lineStr.index(i, offsetBy: 2)
+                    } else if i < lineStr.index(before: lineStr.endIndex),
+                              lineStr[i] == "/",
+                              lineStr[lineStr.index(after: i)] == "/" {
+                        break
+                    } else {
+                        out.append(lineStr[i])
+                        i = lineStr.index(after: i)
+                    }
+                }
+            }
+            result.append(out)
+        }
+
+        return result.joined(separator: "\n")
     }
 
     var hexColor: NSColor? {

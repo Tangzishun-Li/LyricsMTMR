@@ -40,16 +40,28 @@
 - [Sparkle](https://github.com/sparkle-project/Sparkle) — 应用更新框架
 - [Then](https://github.com/devxoul/Then) — Swift 语法糖
 
-## 免责声明
+## ⚠️ 重要免责声明
 
-这是一个**个人实验项目**，仅作为学习与尝试用途。
+> 这是一个**个人实验项目**，仅用于学习与技术探索，不提供任何形式的保证。
 
-所有歌词数据的版权归各自所有者所有。如果你认为本项目侵犯了你的权益，请通过 GitHub Issues 联系我，我会立即删除相关内容或整个仓库。
+### 版权说明
+所有歌词数据的版权归各自所有者所有。本项目仅用于展示技术实现，不用于商业用途。
+
+### 侵权请告知
+如果你认为本项目侵犯了你的合法权益，请通过 GitHub Issues 与我联系，我会立即：
+- 删除相关内容
+- 或关闭整个仓库
 
 ---
 
-**⚠️ Disclaimer**
+## ⚠️ Important Disclaimer
 
-This is a personal experimental project for learning purposes only.
+> This is a **personal experimental project** solely for learning and technical exploration. No warranties of any kind are provided.
 
-All lyrics are property and copyright of their respective owners. If you believe this project infringes your rights, please contact me via GitHub Issues and I will immediately remove the relevant content or this repository.
+### Copyright Notice
+All lyrics content is the property and copyright of their respective owners. This project is for demonstrating technical implementation only and is not intended for commercial use.
+
+### Takedown Request
+If you believe this project infringes upon your legal rights, please contact me via GitHub Issues and I will promptly:
+- Remove the relevant content
+- Or take down this entire repository

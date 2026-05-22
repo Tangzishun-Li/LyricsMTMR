@@ -14,7 +14,9 @@ import Foundation
 
 extension Data {
     func barItemDefinitions() -> [BarItemDefinition]? {
-           return try! JSONDecoder().decode([BarItemDefinition].self, from: utf8string!.stripComments().data(using: .utf8)!)
+        guard let str = utf8string?.stripComments(),
+              let data = str.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode([BarItemDefinition].self, from: data)
     }
 }
 
@@ -289,7 +291,7 @@ enum ItemType: Decodable {
     case darkMode
     case swipe(direction: String, fingers: Int, minOffset: Float, sourceApple: SourceProtocol?, sourceBash: SourceProtocol?)
     case upnext(from: Double, to: Double, maxToShow: Int, autoResize: Bool)
-    case lyrics(style: String)
+    case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -322,6 +324,11 @@ enum ItemType: Decodable {
         case fingers
         case minOffset
         case maxToShow
+        case style
+        case displayMode
+        case karaokeStyle
+        case showArtwork
+        case clickAction
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -460,8 +467,12 @@ enum ItemType: Decodable {
             self = .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
 
         case .lyrics:
-            let style = try container.decodeIfPresent(String.self, forKey: .refreshInterval) ?? "karaoke"
-            self = .lyrics(style: style)
+            let style = try container.decodeIfPresent(String.self, forKey: .style) ?? "karaoke"
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "karaoke"
+            let karaokeStyle = try container.decodeIfPresent(String.self, forKey: .karaokeStyle) ?? "progressive"
+            let showArtwork = try container.decodeIfPresent(Bool.self, forKey: .showArtwork) ?? true
+            let clickAction = try container.decodeIfPresent(String.self, forKey: .clickAction) ?? "original"
+            self = .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction)
         }
     }
 }
