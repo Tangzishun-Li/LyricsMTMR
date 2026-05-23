@@ -55,6 +55,7 @@ class SimpleLyrics {
             .map { line in
                 let cleaned = line.content
                     .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"\[tt\]"#, with: "", options: .regularExpression)
                 return SimpleLyrics.Line(position: line.position, content: cleaned.trimmingCharacters(in: .whitespaces), timetags: line.timetags)
@@ -97,6 +98,7 @@ class SimpleLyrics {
                     let content = cleanText
                         .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     let line = Line(position: time, content: content)
                     lines.append(line)
@@ -127,6 +129,7 @@ class SimpleLyrics {
                     let content = cleanText
                         .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     let line = Line(position: time, content: content, timetags: timetags)
                     lines.append(line)

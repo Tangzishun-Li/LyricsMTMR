@@ -286,7 +286,7 @@ enum NetEaseProvider {
             var wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
             wordContent = wordContent.replacingOccurrences(of: #"^\[tt\]"#, with: "", options: .regularExpression)
             wordContent = wordContent.replacingOccurrences(of: #"^\[(\d+),(\d+)\]"#, with: "", options: .regularExpression)
-            wordContent = wordContent.replacingOccurrences(of: #"^(<(\d+),(\d+)>)+"#, with: "", options: .regularExpression)
+            wordContent = wordContent.replacingOccurrences(of: #"^(<(\d+,\d+)>)+"#, with: "", options: .regularExpression)
             var cleanText = ""
             var timetags: [(TimeInterval, Int)] = []
 
@@ -303,7 +303,9 @@ enum NetEaseProvider {
                           let wordDurMs = Double(wordDurMsStr) else { continue }
 
                     let prevCount = cleanText.count
-                    cleanText += wordText
+                    let strippedWord = wordText
+                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    cleanText += strippedWord
                     if wm.range(at: 4).location != NSNotFound {
                         cleanText += " "
                     }
@@ -316,6 +318,7 @@ enum NetEaseProvider {
                 cleanText = wordContent
                     .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                     .trimmingCharacters(in: .whitespaces)
             }
 
@@ -379,7 +382,9 @@ enum NetEaseProvider {
                           let wordDurMs = Double(wordDurMsStr) else { continue }
 
                     let prevCount = cleanText.count
-                    cleanText += wordText
+                    let strippedWord = wordText
+                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    cleanText += strippedWord
                     if wm.range(at: 4).location != NSNotFound { cleanText += " " }
                     dt += wordMs / 1000.0
                     timetags.append((dt, prevCount))
@@ -391,6 +396,8 @@ enum NetEaseProvider {
                 cleanText = wordContent
                     .replacingOccurrences(of: #"\〈\d+,\d+\〉"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"\〈\d+\〉"#, with: "", options: .regularExpression)
                     .trimmingCharacters(in: .whitespaces)
             }
 

@@ -311,7 +311,9 @@ enum QQMusicProvider {
                           let wordDurMs = Double(wordDurMsStr) else { continue }
 
                     let prevCount = cleanText.count
-                    cleanText += wordText
+                    let strippedWord = wordText
+                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    cleanText += strippedWord
                     if wm.range(at: 4).location != NSNotFound { cleanText += " " }
                     timetags.append((wordMs / 1000.0, prevCount))
                     _ = wordDurMs
@@ -322,6 +324,7 @@ enum QQMusicProvider {
                 cleanText = wordContent
                     .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                     .trimmingCharacters(in: .whitespaces)
             }
 

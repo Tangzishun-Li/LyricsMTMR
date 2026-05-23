@@ -1,3 +1,20 @@
+//
+//  LyricsTouchBarItem.swift
+//  LyricsMTMR
+//
+//  Adapted from LyricsX TouchBarLyricsItem
+//  Original: https://github.com/MxIris-LyricsX-Project/LyricsX
+//
+//  A full-featured Touch Bar item that displays:
+//  - Current song artwork (optional)
+//  - Karaoke lyrics with progressive or jump animation
+//  - Static "Title - Artist" mode
+//  - Artwork-only mode
+//  - Click to cycle: original → translation → romaji
+//
+//  This source code is licensed under GPL 2.0.
+//  See LICENSE file in the project root for full license information.
+//
 import Cocoa
 import Combine
 
@@ -44,6 +61,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         lyricsLabel.drawFurigana = false
         lyricsLabel.drawRomajin = false
         lyricsLabel.lineBreakMode = .byTruncatingTail
+        lyricsLabel.refusesFirstResponder = true
 
         placeholderLabel.font = config.font
         placeholderLabel.textColor = config.textColor.withAlphaComponent(0.5)
@@ -209,8 +227,19 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     private func showFlash(_ text: String) {
         lyricsLabel.stringValue = "[ \(text) ]"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            self?.engine.objectWillChange.send()
+        lyricsLabel.removeProgressAnimation()
+        let savedIdx = engine.currentLineIndex
+        let savedAction = engine.clickAction
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self else { return }
+            self.onLyricsUpdate(
+                lineIndex: savedIdx,
+                lyrics: self.engine.currentLyrics,
+                translationLyrics: self.engine.translationLyrics,
+                romajiLyrics: self.engine.romajiLyrics,
+                clickAction: savedAction,
+                track: self.engine.trackInfo
+            )
         }
     }
 

@@ -175,6 +175,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var unifiedSettingsController: UnifiedSettingsController?
+
+    @objc func openSettings(_: Any?) {
+        if unifiedSettingsController == nil {
+            unifiedSettingsController = UnifiedSettingsController()
+        }
+        unifiedSettingsController?.showWindow(nil)
+        unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     @objc func requestAccessibility(_: Any?) {
         let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
@@ -224,9 +235,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(withTitle: Localized.openJSONEditor, action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
         menu.addItem(accessibilityItem)
-        menu.addItem(withTitle: Localized.preferences, action: #selector(openPreferences(_:)), keyEquivalent: ",")
+        menu.addItem(withTitle: Localized.preferences, action: #selector(openPreferences(_:)), keyEquivalent: "")
         menu.addItem(withTitle: Localized.openPreset, action: #selector(openPreset(_:)), keyEquivalent: "O")
         menu.addItem(withTitle: Localized.checkForUpdates, action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "").target = SUUpdater.shared()
+
+        menu.addItem(NSMenuItem.separator())
+
+        let settingsTitle = AppSettings.appLanguage == .chinese ? "设置…" : "Settings..."
+        menu.addItem(withTitle: settingsTitle, action: #selector(openSettings(_:)), keyEquivalent: ",")
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(settingSeparator)
