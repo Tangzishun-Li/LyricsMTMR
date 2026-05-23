@@ -1,21 +1,3 @@
-//
-//  LyricsTouchBarItem.swift
-//  LyricsMTMR
-//
-//  Adapted from LyricsX TouchBarLyricsItem
-//  Original: https://github.com/MxIris-LyricsX-Project/LyricsX
-//
-//  A full-featured Touch Bar item that displays:
-//  - Current song artwork (optional)
-//  - Karaoke lyrics with progressive or jump animation
-//  - Static "Title - Artist" mode
-//  - Artwork-only mode
-//  - Click to cycle: original → translation → romaji
-//
-//  This source code is licensed under GPL 2.0.
-//  See LICENSE file in the project root for full license information.
-//
-
 import Cocoa
 import Combine
 
@@ -28,8 +10,6 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private var config: LyricsItemConfig
     private var engine: LyricsEngine { LyricsEngine.shared }
     private var cancellables = Set<AnyCancellable>()
-
-    private var clickMode: LyricsClickAction = .original
 
     override init(identifier: NSTouchBarItem.Identifier) {
         self.config = LyricsItemConfig.shared
@@ -105,10 +85,10 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             .store(in: &cancellables)
 
         engine.$currentLineIndex
-            .combineLatest(engine.$currentLyrics, engine.$trackInfo)
+            .combineLatest(engine.$currentLyrics, engine.$translationLyrics, engine.$romajiLyrics, engine.$clickAction, engine.$trackInfo)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] idx, lyrics, info in
-                self?.onLyricsUpdate(lineIndex: idx, lyrics: lyrics, track: info)
+            .sink { [weak self] idx, lyrics, tLyrics, rLyrics, action, info in
+                self?.onLyricsUpdate(lineIndex: idx, lyrics: lyrics, translationLyrics: tLyrics, romajiLyrics: rLyrics, clickAction: action, track: info)
             }
             .store(in: &cancellables)
     }
@@ -132,23 +112,30 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     // MARK: - Lyrics Update
 
-    private func onLyricsUpdate(lineIndex: Int?, lyrics: SimpleLyrics?, track: EngineTrackInfo) {
+    private func onLyricsUpdate(lineIndex: Int?, lyrics: SimpleLyrics?, translationLyrics: SimpleLyrics?, romajiLyrics: SimpleLyrics?, clickAction: LyricsClickAction, track: EngineTrackInfo) {
         guard config.isKaraoke else { return }
 
-        guard let lyrics = lyrics,
+        let activeLyrics: SimpleLyrics?
+        switch clickAction {
+        case .original: activeLyrics = lyrics
+        case .translation: activeLyrics = translationLyrics ?? lyrics
+        case .romaji: activeLyrics = romajiLyrics ?? lyrics
+        }
+
+        guard let active = activeLyrics,
               let idx = lineIndex,
-              idx < lyrics.lines.count else {
+              idx < active.lines.count else {
             showPlaceholder()
             return
         }
 
-        let line = lyrics.lines[idx]
+        let line = active.lines[idx]
         lyricsLabel.stringValue = line.content
         hidePlaceholder()
 
         if !line.timetags.isEmpty, track.playbackState == .playing {
             let position = track.playbackTime
-            let timeDelay = lyrics.adjustedTimeDelay
+            let timeDelay = active.adjustedTimeDelay
             let progress = line.timetags.map {
                 ($0.0 + line.position - timeDelay - position, $0.1)
             }
@@ -200,27 +187,31 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     @objc private func handleTap() {
         let modes: [LyricsClickAction] = [.original, .translation, .romaji]
-        guard let currentIdx = modes.firstIndex(of: clickMode) else { return }
-        let nextIdx = (currentIdx + 1) % modes.count
-        clickMode = modes[nextIdx]
-
-        // Since we don't have translation/romaji from SimpleLyrics,
-        // show the current line content
-        if let line = engine.currentLyrics?.lines[engine.currentLineIndex ?? 0] {
-            lyricsLabel.stringValue = line.content
+        let hasTranslation = engine.translationLyrics != nil
+        let hasRomaji = engine.romajiLyrics != nil
+        let availableModes = modes.filter {
+            switch $0 {
+            case .original: return true
+            case .translation: return hasTranslation
+            case .romaji: return hasRomaji
+            }
         }
+        guard !availableModes.isEmpty else { return }
 
-        let label = clickMode == .original ? "原文" : clickMode == .translation ? "翻译" : "音译"
+        let currentIdx = availableModes.firstIndex(of: engine.clickAction) ?? 0
+        let nextIdx = (currentIdx + 1) % availableModes.count
+        let nextAction = availableModes[nextIdx]
+        engine.setClickAction(nextAction)
+
+        let label = nextAction == .original ? "原文" : nextAction == .translation ? "翻译" : "音译"
         showFlash(label)
     }
 
     private func showFlash(_ text: String) {
-        // Brief flash overlay — simple placeholder approach
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(clearFlash), object: nil)
-        perform(#selector(clearFlash), with: nil, afterDelay: 1.5)
-    }
-
-    @objc private func clearFlash() {
+        lyricsLabel.stringValue = "[ \(text) ]"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.engine.objectWillChange.send()
+        }
     }
 
     private func updateArtworkVisibility() {

@@ -64,6 +64,14 @@ struct AppSettings {
         get { AppLanguage(rawValue: appLanguageRaw) ?? .system }
         set { appLanguageRaw = newValue.rawValue }
     }
+
+    // MARK: - Lyrics Filter
+
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.filterEnabled", defaultValue: true)
+    static var lyricsFilterEnabled: Bool
+
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.filterKeys", defaultValue: LyricsFilter.defaultKeys)
+    static var lyricsFilterKeys: [String]
 }
 
 @propertyWrapper

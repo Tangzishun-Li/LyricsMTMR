@@ -92,6 +92,7 @@
 		CA8F2B6D2FBF862D00D189D1 /* LyricsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */; };
 		CA8F2B6E2FBF862D00D189D1 /* LyricsItemConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */; };
 		CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */; };
+		CA8F2B912FBF862D00D189D1 /* LyricsFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B902FBF862D00D189D1 /* LyricsFilter.swift */; };
 		CC4F4355A4214A2085046953 /* NetEaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */; };
 		D26BFF668DF74CD4817A7C7C /* CoverCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDD122E1BBE54E0DAF548255 /* CoverCache.swift */; };
 		F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */; };
@@ -210,6 +211,7 @@
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* MediaRemoteMRBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaRemoteMRBridge.h; sourceTree = "<group>"; };
 		C1D2E3F4A5B6C7D8E9F0A1B2 /* MediaRemoteMRBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MediaRemoteMRBridge.m; sourceTree = "<group>"; };
 		E1F2A3B4C5D6E7F8A9B0C1D2 /* MediaRemoteAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteAdapter.swift; sourceTree = "<group>"; };
+		CA8F2B902FBF862D00D189D1 /* LyricsFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsFilter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -414,6 +416,7 @@
 				BDD122E1BBE54E0DAF548255 /* CoverCache.swift */,
 				4C9203896F094DFD85307FCF /* LyricsSearchService.swift */,
 				E1F2A3B4C5D6E7F8A9B0C1D2 /* MediaRemoteAdapter.swift */,
+				CA8F2B902FBF862D00D189D1 /* LyricsFilter.swift */,
 			);
 			path = LyricsIntegration;
 			sourceTree = "<group>";
@@ -612,6 +615,7 @@
 				C2D5D3FC826E4C95B872244B /* LyricsSearchService.swift in Sources */,
 				CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */,
 				D1E2F3A4B5C6D7E8F9A0B1C2 /* MediaRemoteAdapter.swift in Sources */,
+				CA8F2B912FBF862D00D189D1 /* LyricsFilter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

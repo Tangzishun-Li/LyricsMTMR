@@ -49,6 +49,11 @@ class SimpleLyrics {
         self.adjustedTimeDelay = adjustedTimeDelay
     }
 
+    var filtered: SimpleLyrics {
+        let filteredLines = lines.filter { !LyricsFilter.shouldExclude($0.content) }
+        return SimpleLyrics(lines: filteredLines, adjustedTimeDelay: adjustedTimeDelay)
+    }
+
     static func parse(lrcContent: String) -> SimpleLyrics? {
         var lines: [Line] = []
 
@@ -189,6 +194,9 @@ class LyricsEngine: NSObject {
     @Published var trackInfo: EngineTrackInfo = .empty
     @Published var currentLineIndex: Int?
     @Published var currentLyrics: SimpleLyrics?
+    @Published var translationLyrics: SimpleLyrics?
+    @Published var romajiLyrics: SimpleLyrics?
+    @Published var clickAction: LyricsClickAction = .original
     @Published var karaokeProgress: [(TimeInterval, Int)] = []
     @Published var coverURL: URL?
 
@@ -199,6 +207,20 @@ class LyricsEngine: NSObject {
 
     private override init() {
         super.init()
+    }
+
+    var activeLyrics: SimpleLyrics? {
+        switch clickAction {
+        case .original: return currentLyrics
+        case .translation: return translationLyrics ?? currentLyrics
+        case .romaji: return romajiLyrics ?? currentLyrics
+        }
+    }
+
+    func setClickAction(_ action: LyricsClickAction) {
+        clickAction = action
+        scheduleLineCheck()
+        updateKaraokeProgress()
     }
 
     // MARK: - Start / Stop
@@ -379,8 +401,9 @@ class LyricsEngine: NSObject {
         AppLog.lyrics("searchLyrics: begin — title=「\(title.prefix(30))」 artist=「\(artist.prefix(20))」")
 
         if let lyrics = loadLocalLyrics(title: title, artist: artist) {
-            AppLog.lyrics("searchLyrics: FOUND local lyrics (\(lyrics.lines.count) lines) for: \(title.prefix(30))")
-            currentLyrics = lyrics
+            let filtered = lyrics.filtered
+            AppLog.lyrics("searchLyrics: FOUND local lyrics (\(lyrics.lines.count) lines, filtered to \(filtered.lines.count)) for: \(title.prefix(30))")
+            currentLyrics = filtered
             scheduleLineCheck()
             return
         }
@@ -395,8 +418,9 @@ class LyricsEngine: NSObject {
         for (i, path) in searchPaths.enumerated() {
             let expanded = (path as NSString).expandingTildeInPath
             if let lyrics = loadLyricsFile(path: expanded) {
-                AppLog.lyrics("searchLyrics: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines")
-                currentLyrics = lyrics
+                let filtered = lyrics.filtered
+                AppLog.lyrics("searchLyrics: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines, filtered to \(filtered.lines.count)")
+                currentLyrics = filtered
                 scheduleLineCheck()
                 return
             } else {
@@ -411,11 +435,23 @@ class LyricsEngine: NSObject {
             await MainActor.run {
                 if let lyrics = result.lyrics {
                     AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
-                    self.currentLyrics = lyrics
+                    let filtered = lyrics.filtered
+                    AppLog.lyrics("searchLyrics: filtered to \(filtered.lines.count) lines")
+                    self.currentLyrics = filtered
+                    self.translationLyrics = result.translationLyrics
+                    self.romajiLyrics = result.romajiLyrics
+                    if let t = result.translationLyrics {
+                        AppLog.lyrics("searchLyrics: also loaded \(t.lines.count) translation lines")
+                    }
+                    if let r = result.romajiLyrics {
+                        AppLog.lyrics("searchLyrics: also loaded \(r.lines.count) romaji lines")
+                    }
                     self.scheduleLineCheck()
                 } else {
                     AppLog.lyrics("searchLyrics: ONLINE no lyrics found for: \(title.prefix(30))")
                     self.currentLyrics = nil
+                    self.translationLyrics = nil
+                    self.romajiLyrics = nil
                 }
                 if let coverURL = result.coverURL {
                     AppLog.lyrics("searchLyrics: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
@@ -484,7 +520,7 @@ class LyricsEngine: NSObject {
     private func scheduleLineCheck() {
         lineCheckTimer?.cancel()
 
-        guard let lyrics = currentLyrics else {
+        guard let lyrics = activeLyrics else {
             AppLog.lyrics("scheduleLineCheck: no lyrics → clear currentLineIndex")
             currentLineIndex = nil
             return
@@ -513,7 +549,7 @@ class LyricsEngine: NSObject {
     }
 
     private func updateKaraokeProgress() {
-        guard let lyrics = currentLyrics,
+        guard let lyrics = activeLyrics,
               let idx = currentLineIndex,
               idx < lyrics.lines.count else {
             karaokeProgress = []
@@ -537,7 +573,7 @@ class LyricsEngine: NSObject {
     // MARK: - Display Helpers
 
     var currentLineText: String {
-        guard let lyrics = currentLyrics,
+        guard let lyrics = activeLyrics,
               let idx = currentLineIndex,
               idx < lyrics.lines.count else {
             return ""
@@ -546,7 +582,7 @@ class LyricsEngine: NSObject {
     }
 
     var hasTimetag: Bool {
-        guard let lyrics = currentLyrics,
+        guard let lyrics = activeLyrics,
               let idx = currentLineIndex,
               idx < lyrics.lines.count else {
             return false

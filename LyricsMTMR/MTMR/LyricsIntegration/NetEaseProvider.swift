@@ -104,6 +104,60 @@ enum NetEaseProvider {
         throw NetEaseError.noLyrics
     }
 
+    static func fetchTranslation(songId: Int) async -> SimpleLyrics? {
+        let payload: [String: Any] = [
+            "id": "\(songId)",
+            "cp": "false",
+            "lv": "-1",
+            "kv": "-1",
+            "tv": "0",
+            "rv": "-1",
+            "yv": "-1",
+            "ytv": "-1",
+            "yrv": "-1",
+            "csrf_token": "",
+        ]
+        guard let raw = try? await eapiPost(
+            url: "https://interface3.music.163.com/eapi/song/lyric/v1",
+            payload: payload
+        ) else { return nil }
+        guard let json = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return nil }
+        if let tlyric = json["tlyric"] as? [String: Any],
+           let tLyricText = tlyric["lyric"] as? String,
+           !tLyricText.isEmpty,
+           let lyrics = SimpleLyrics.parse(lrcContent: tLyricText) {
+            return lyrics
+        }
+        return nil
+    }
+
+    static func fetchRomaji(songId: Int) async -> SimpleLyrics? {
+        let payload: [String: Any] = [
+            "id": "\(songId)",
+            "cp": "false",
+            "lv": "-1",
+            "kv": "-1",
+            "tv": "-1",
+            "rv": "0",
+            "yv": "-1",
+            "ytv": "-1",
+            "yrv": "-1",
+            "csrf_token": "",
+        ]
+        guard let raw = try? await eapiPost(
+            url: "https://interface3.music.163.com/eapi/song/lyric/v1",
+            payload: payload
+        ) else { return nil }
+        guard let json = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return nil }
+        if let romalrc = json["romalrc"] as? [String: Any],
+           let rLyricText = romalrc["lyric"] as? String,
+           !rLyricText.isEmpty,
+           let lyrics = SimpleLyrics.parse(lrcContent: rLyricText) {
+            return lyrics
+        }
+        return nil
+    }
+
     // MARK: - EAPI Encryption
 
     private static func eapiPost(url urlString: String, payload: [String: Any]) async throws -> Data {
@@ -229,7 +283,9 @@ enum NetEaseProvider {
                   let sec = Double(components[1]) else { continue }
             let lineTime = min * 60 + sec
 
-            let wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
+            var wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
+            wordContent = wordContent.replacingOccurrences(of: #"^\[tt\]"#, with: "", options: .regularExpression)
+            wordContent = wordContent.replacingOccurrences(of: #"^\[(\d+),(\d+)\]"#, with: "", options: .regularExpression)
             var cleanText = ""
             var timetags: [(TimeInterval, Int)] = []
 
