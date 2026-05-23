@@ -223,6 +223,11 @@ class LyricsEngine: NSObject {
     private var playbackTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
+    // Time tracking: records last known MR elapsedTime + wall clock.
+    // Every timer tick computes: time = timeBase.elapsed + (now - timeBase.wallClock)
+    // Calibrated whenever MR provides a fresh elapsedTime snapshot.
+    private var timeBase: (elapsed: TimeInterval, wallClock: Date)?
+
     private override init() {
         super.init()
     }
@@ -295,6 +300,7 @@ class LyricsEngine: NSObject {
         let elapsed: TimeInterval
         if parsed.elapsedTime > 0 {
             elapsed = parsed.elapsedTime
+            calibrateTimebase(with: elapsed)
             AppLog.info("MR_handle: using MR elapsedTime=\(elapsed)")
         } else if trackInfo.title == parsed.title {
             elapsed = trackInfo.playbackTime
@@ -341,16 +347,21 @@ class LyricsEngine: NSObject {
             bundleIdentifier: trackInfo.bundleIdentifier
         )
         trackInfo = newInfo
+        if state == .playing {
+            resetTimebase()
+            scheduleLineCheck()
+        }
     }
 
     // MARK: - Playback Timer
 
     private func startPlaybackTimer() {
-        AppLog.info("playbackTimer: scheduling 1s recurring timer on main runloop")
-        playbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        AppLog.info("playbackTimer: scheduling 0.25s Date-based precision timer on main runloop")
+        timeBase = (trackInfo.playbackTime, Date())
+        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self, self.trackInfo.playbackState == .playing else { return }
-            // increment playback position locally; MR elapsedTime is only snapshots
-            let newTime = self.trackInfo.playbackTime + 1.0
+            guard let base = self.timeBase else { return }
+            let computedTime = base.elapsed + Date().timeIntervalSince(base.wallClock)
             self.trackInfo = EngineTrackInfo(
                 title: self.trackInfo.title,
                 artist: self.trackInfo.artist,
@@ -358,12 +369,23 @@ class LyricsEngine: NSObject {
                 artwork: self.trackInfo.artwork,
                 duration: self.trackInfo.duration,
                 playbackState: .playing,
-                playbackTime: newTime,
+                playbackTime: computedTime,
                 bundleIdentifier: self.trackInfo.bundleIdentifier
             )
             self.scheduleLineCheck()
             self.updateKaraokeProgress()
         }
+    }
+
+    /// Called when MR provides a fresh elapsedTime snapshot to recalibrate the clock.
+    private func calibrateTimebase(with mrElapsed: TimeInterval) {
+        guard trackInfo.playbackState == .playing else { return }
+        timeBase = (mrElapsed, Date())
+    }
+
+    /// Called on playback resume to reset the clock to the current trackInfo time.
+    private func resetTimebase() {
+        timeBase = (trackInfo.playbackTime, Date())
     }
 
     // MARK: - Track Info Update
@@ -410,6 +432,7 @@ class LyricsEngine: NSObject {
             }
         } else {
             AppLog.info("updateTrackInfo: same track, no artwork change — refresh only")
+            scheduleLineCheck()
         }
     }
 
