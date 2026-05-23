@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		20CBD5AE49214688B76B0ABB /* QQMusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016118F1788F4597A0B1DF0C /* QQMusicProvider.swift */; };
 		36300E83209F040900B31C71 /* SupportHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0008E542080286C003AD4DD /* SupportHelpers.swift */; };
 		36300E8F20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */; };
 		36300E9120A2D2B200B31C71 /* BackgroundColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */; };
@@ -73,6 +74,7 @@
 		B0F8771A207AC1EA00D6E430 /* TouchBarSupport.m in Sources */ = {isa = PBXBuildFile; fileRef = B0F87719207AC1EA00D6E430 /* TouchBarSupport.m */; };
 		BAF5AB5724317B4300B04904 /* BasicView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF5AB5624317B4300B04904 /* BasicView.swift */; };
 		BAF5AB5924317CAF00B04904 /* SwipeItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF5AB5824317CAF00B04904 /* SwipeItem.swift */; };
+		C2D5D3FC826E4C95B872244B /* LyricsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9203896F094DFD85307FCF /* LyricsSearchService.swift */; };
 		CA8F2B542FBF862D00D189D1 /* CoreTextExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B4F2FBF862D00D189D1 /* CoreTextExtensions.swift */; };
 		CA8F2B552FBF862D00D189D1 /* KaraokeLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B502FBF862D00D189D1 /* KaraokeLabel.swift */; };
 		CA8F2B562FBF862D00D189D1 /* CoreGraphicsExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B4E2FBF862D00D189D1 /* CoreGraphicsExtensions.swift */; };
@@ -87,10 +89,14 @@
 		CA8F2B5F2FBF862D00D189D1 /* CFStringTokenizerExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B4D2FBF862D00D189D1 /* CFStringTokenizerExtensions.swift */; };
 		CA8F2B622FBF864200D189D1 /* JSONEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */; };
 		CA8F2B632FBF864200D189D1 /* JSONEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B602FBF864200D189D1 /* JSONEditorController.swift */; };
-		F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */; };
 		CA8F2B6D2FBF862D00D189D1 /* LyricsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */; };
 		CA8F2B6E2FBF862D00D189D1 /* LyricsItemConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */; };
 		CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */; };
+		CC4F4355A4214A2085046953 /* NetEaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */; };
+		D26BFF668DF74CD4817A7C7C /* CoverCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDD122E1BBE54E0DAF548255 /* CoverCache.swift */; };
+		F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* MediaRemoteMRBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6C7D8E9F0A1B2 /* MediaRemoteMRBridge.m */; };
+		D1E2F3A4B5C6D7E8F9A0B1C2 /* MediaRemoteAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F8A9B0C1D2 /* MediaRemoteAdapter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -107,6 +113,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		016118F1788F4597A0B1DF0C /* QQMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QQMusicProvider.swift; sourceTree = "<group>"; };
 		36300E85209FD16700B31C71 /* .travis.yml */ = {isa = PBXFileReference; lastKnownFileType = text; path = .travis.yml; sourceTree = SOURCE_ROOT; };
 		36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptDefinitionTests.swift; sourceTree = "<group>"; };
 		36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundColorTests.swift; sourceTree = "<group>"; };
@@ -120,6 +127,7 @@
 		36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseConfigTests.swift; sourceTree = "<group>"; };
 		36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = defaultPreset.json; sourceTree = "<group>"; };
 		36FEF871235A1CFC00A0ABCE /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		4C9203896F094DFD85307FCF /* LyricsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchService.swift; sourceTree = "<group>"; };
 		4CC9FEDA22FDEA65001512EB /* AMR_ANSIEscapeHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AMR_ANSIEscapeHelper.h; sourceTree = "<group>"; };
 		4CC9FEDB22FDEA65001512EB /* AMR_ANSIEscapeHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AMR_ANSIEscapeHelper.m; sourceTree = "<group>"; };
 		4CDC6E4F22FCA93F0069ADD4 /* ShellScriptTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellScriptTouchBarItem.swift; sourceTree = "<group>"; };
@@ -185,6 +193,7 @@
 		B0F8771B207AC92700D6E430 /* TouchBarSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TouchBarSupport.h; sourceTree = "<group>"; };
 		BAF5AB5624317B4300B04904 /* BasicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicView.swift; sourceTree = "<group>"; };
 		BAF5AB5824317CAF00B04904 /* SwipeItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeItem.swift; sourceTree = "<group>"; };
+		BDD122E1BBE54E0DAF548255 /* CoverCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverCache.swift; sourceTree = "<group>"; };
 		CA8F2B4D2FBF862D00D189D1 /* CFStringTokenizerExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CFStringTokenizerExtensions.swift; sourceTree = "<group>"; };
 		CA8F2B4E2FBF862D00D189D1 /* CoreGraphicsExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreGraphicsExtensions.swift; sourceTree = "<group>"; };
 		CA8F2B4F2FBF862D00D189D1 /* CoreTextExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTextExtensions.swift; sourceTree = "<group>"; };
@@ -195,7 +204,12 @@
 		CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsEngine.swift; sourceTree = "<group>"; };
 		CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsItemConfig.swift; sourceTree = "<group>"; };
 		CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
+		CAA5C42F2FC10F170012D749 /* LyricsMTMR.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LyricsMTMR.entitlements; sourceTree = "<group>"; };
 		F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextScrubberTouchBarItem.swift; sourceTree = "<group>"; };
+		FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseProvider.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A6B7C8D9E0F1A2 /* MediaRemoteMRBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaRemoteMRBridge.h; sourceTree = "<group>"; };
+		C1D2E3F4A5B6C7D8E9F0A1B2 /* MediaRemoteMRBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MediaRemoteMRBridge.m; sourceTree = "<group>"; };
+		E1F2A3B4C5D6E7F8A9B0C1D2 /* MediaRemoteAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRemoteAdapter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -236,6 +250,7 @@
 		B082B246205C7D8000BC04DC = {
 			isa = PBXGroup;
 			children = (
+				CAA5C42F2FC10F170012D749 /* LyricsMTMR.entitlements */,
 				36C2ECD2207B3B1D003CDA33 /* README.md */,
 				CA8F2B612FBF864200D189D1 /* Preferences */,
 				CA8F2B532FBF862D00D189D1 /* LyricsRendering */,
@@ -336,6 +351,8 @@
 				60173D3C20C0031B002C305F /* LaunchAtLoginController.h */,
 				60173D3D20C0031B002C305F /* LaunchAtLoginController.m */,
 				B08173282135F128005D4908 /* CBBlueLightClient.h */,
+				B1C2D3E4F5A6B7C8D9E0F1A2 /* MediaRemoteMRBridge.h */,
+				C1D2E3F4A5B6C7D8E9F0A1B2 /* MediaRemoteMRBridge.m */,
 			);
 			path = CBridge;
 			sourceTree = "<group>";
@@ -392,6 +409,11 @@
 			children = (
 				CA8F2B6B2FBF862D00D189D1 /* LyricsEngine.swift */,
 				CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */,
+				FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */,
+				016118F1788F4597A0B1DF0C /* QQMusicProvider.swift */,
+				BDD122E1BBE54E0DAF548255 /* CoverCache.swift */,
+				4C9203896F094DFD85307FCF /* LyricsSearchService.swift */,
+				E1F2A3B4C5D6E7F8A9B0C1D2 /* MediaRemoteAdapter.swift */,
 			);
 			path = LyricsIntegration;
 			sourceTree = "<group>";
@@ -405,6 +427,7 @@
 			buildPhases = (
 				B082B24B205C7D8000BC04DC /* Sources */,
 				B082B24C205C7D8000BC04DC /* Frameworks */,
+				A2B3C4D5E6F7A8B9C0D1E2F3 /* Compile MediaRemote dylib */,
 				B082B24D205C7D8000BC04DC /* Resources */,
 				B00D181E2152F507000806F4 /* CopyFiles */,
 			);
@@ -448,7 +471,6 @@
 					B082B24E205C7D8000BC04DC = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1020;
-						ProvisioningStyle = Manual;
 						SystemCapabilities = {
 							com.apple.Sandbox = {
 								enabled = 0;
@@ -514,22 +536,19 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		B0679BBF215AE085000FC6B4 /* ShellScript */ = {
+		A2B3C4D5E6F7A8B9C0D1E2F3 /* Compile MediaRemote dylib */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputFileListPaths = (
-			);
 			inputPaths = (
 			);
-			outputFileListPaths = (
-			);
+			name = "Compile MediaRemote dylib";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nbuildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"\n";
+			shellScript = "set -e\nSRCDIR=\"${SRCROOT}/MTMR/CBridge\"\nFRAMEWORKS_DIR=\"${TARGET_BUILD_DIR}/${PRODUCT_NAME}.app/Contents/Frameworks\"\nRESOURCES_DIR=\"${TARGET_BUILD_DIR}/${PRODUCT_NAME}.app/Contents/Resources\"\nmkdir -p \"${FRAMEWORKS_DIR}\"\nmkdir -p \"${RESOURCES_DIR}\"\n\necho \"Compiling MediaRemoteMRBridge.dylib...\"\nxcrun clang -dynamiclib \\\n  -o \"${FRAMEWORKS_DIR}/MediaRemoteMRBridge.dylib\" \\\n  \"${SRCDIR}/MediaRemoteMRBridge.m\" \\\n  -framework Foundation \\\n  -framework CoreFoundation \\\n  -isysroot \"$(xcrun --sdk macosx --show-sdk-path)\" \\\n  -current_version 1.0 \\\n  -compatibility_version 1.0 \\\n  -install_name \"@rpath/MediaRemoteMRBridge.dylib\"\n\necho \"Copying run.pl...\"\ncp \"${SRCROOT}/MTMR/Resources/run.pl\" \"${RESOURCES_DIR}/run.pl\"\nchmod +x \"${RESOURCES_DIR}/run.pl\"\n\necho \"Done.\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -587,7 +606,12 @@
 				B04B7BB72087398C00C835D0 /* BatteryBarItem.swift in Sources */,
 				CA8F2B6D2FBF862D00D189D1 /* LyricsEngine.swift in Sources */,
 				CA8F2B6E2FBF862D00D189D1 /* LyricsItemConfig.swift in Sources */,
+				CC4F4355A4214A2085046953 /* NetEaseProvider.swift in Sources */,
+				20CBD5AE49214688B76B0ABB /* QQMusicProvider.swift in Sources */,
+				D26BFF668DF74CD4817A7C7C /* CoverCache.swift in Sources */,
+				C2D5D3FC826E4C95B872244B /* LyricsSearchService.swift in Sources */,
 				CA8F2B8D2FBF862D00D189D1 /* AppLog.swift in Sources */,
+				D1E2F3A4B5C6D7E8F9A0B1C2 /* MediaRemoteAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -746,9 +770,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_ENTITLEMENTS = LyricsMTMR.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 77R6HZNK93;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
@@ -764,6 +793,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Toxblh.MTMR;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "MTMR/CBridge/TouchBarPrivateApi-Bridging.h";
 				SWIFT_VERSION = 5.0;
 			};
@@ -773,12 +803,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MTMR/MTMR.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D6D8BR2QNB;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
@@ -794,6 +826,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = Toxblh.MTMR;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "MTMR/CBridge/TouchBarPrivateApi-Bridging.h";
 				SWIFT_VERSION = 5.0;
 			};
@@ -802,8 +835,12 @@
 		B082B279205C7D8000BC04DC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 77R6HZNK93;
 				INFOPLIST_FILE = MTMRTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -812,6 +849,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = Toxblh.MTMRTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;

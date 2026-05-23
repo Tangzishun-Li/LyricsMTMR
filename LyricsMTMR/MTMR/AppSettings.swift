@@ -1,5 +1,29 @@
 import Foundation
 
+enum MusicPlayer: String, CaseIterable {
+    case appleMusic = "com.apple.Music"
+    case spotify = "com.spotify.client"
+    case vox = "com.coppertino.Vox"
+    case audirvana = "com.audirvana.Audirvana-Origin"
+    case swinsian = "com.swinsian.Swinsian"
+    case neteaseMusic = "com.netease.163music"
+    case neteaseMusicNew = "com.netease.163music.new"
+    case qqMusic = "com.tencent.QQMusicMac"
+
+    var displayName: String {
+        switch self {
+        case .appleMusic: return "Apple Music"
+        case .spotify: return "Spotify"
+        case .vox: return "Vox"
+        case .audirvana: return "Audirvana"
+        case .swinsian: return "Swinsian"
+        case .neteaseMusic: return "网易云音乐"
+        case .neteaseMusicNew: return "网易云音乐(新)"
+        case .qqMusic: return "QQ音乐"
+        }
+    }
+}
+
 enum AppLanguage: String, CaseIterable {
     case system = "System"
     case english = "en"
@@ -29,6 +53,9 @@ struct AppSettings {
     
     @UserDefault(key: "com.toxblh.mtmr.dock.persistent", defaultValue: [])
     static var dockPersistentAppIds: [String]
+    
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.selectedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.netease.163music", "com.tencent.QQMusicMac"])
+    static var selectedPlayerIds: [String]
     
     @UserDefault(key: "com.toxblh.mtmr.settings.appLanguage", defaultValue: "System")
     static var appLanguageRaw: String

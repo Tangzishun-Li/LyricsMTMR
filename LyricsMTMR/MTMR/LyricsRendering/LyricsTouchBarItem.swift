@@ -95,6 +95,15 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             }
             .store(in: &cancellables)
 
+        engine.$trackInfo
+            .map(\.artwork)
+            .removeDuplicates(by: { $0?.tiffRepresentation == $1?.tiffRepresentation })
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] artwork in
+                self?.artworkView.image = artwork
+            }
+            .store(in: &cancellables)
+
         engine.$currentLineIndex
             .combineLatest(engine.$currentLyrics, engine.$trackInfo)
             .receive(on: DispatchQueue.main)

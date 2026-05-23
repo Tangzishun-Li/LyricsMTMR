@@ -120,6 +120,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
     }
 
+    @objc func togglePlayer(_ sender: NSMenuItem) {
+        guard let playerId = sender.representedObject as? String else { return }
+        var selected = AppSettings.selectedPlayerIds
+        if let idx = selected.firstIndex(of: playerId) {
+            selected.remove(at: idx)
+        } else {
+            selected.append(playerId)
+        }
+        AppSettings.selectedPlayerIds = selected
+        createMenu()
+    }
+
+    @objc func selectAllPlayers(_ sender: NSMenuItem) {
+        let allIds = MusicPlayer.allCases.map { $0.rawValue }
+        if AppSettings.selectedPlayerIds.count == allIds.count {
+            AppSettings.selectedPlayerIds = []
+        } else {
+            AppSettings.selectedPlayerIds = allIds
+        }
+        createMenu()
+    }
+
     @objc func openPreset(_: Any?) {
         let dialog = NSOpenPanel()
 
@@ -225,6 +247,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         langItem.submenu = langMenu
         menu.addItem(langItem)
+
+        // Music Player submenu
+        let playerTitle = AppSettings.appLanguage == .chinese ? "音乐源" : "Music Source"
+        let playerItem = NSMenuItem(title: playerTitle, action: nil, keyEquivalent: "")
+        let playerMenu = NSMenu()
+        let allSelected = AppSettings.selectedPlayerIds.count == MusicPlayer.allCases.count
+        let allItem = NSMenuItem(title: allSelected ? "✓ 全部" : "☐ 全部", action: #selector(selectAllPlayers(_:)), keyEquivalent: "")
+        playerMenu.addItem(allItem)
+        playerMenu.addItem(NSMenuItem.separator())
+        for player in MusicPlayer.allCases {
+            let isOn = AppSettings.selectedPlayerIds.contains(player.rawValue)
+            let item = NSMenuItem(title: (isOn ? "✓ " : "☐ ") + player.displayName, action: #selector(togglePlayer(_:)), keyEquivalent: "")
+            item.representedObject = player.rawValue
+            playerMenu.addItem(item)
+        }
+        playerItem.submenu = playerMenu
+        menu.addItem(playerItem)
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: Localized.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu

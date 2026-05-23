@@ -1,5 +1,4 @@
 [
-  // 仅保留一个歌词 item 用于测试
   {
     "type": "lyrics",
     "width": 300,
@@ -10,21 +9,11 @@
     "clickAction": "original"
   },
   { "type": "escape", "width": 64, "align": "left" },
-  { "type": "dnd", "align": "left", "width": 38 },
-
   { "type": "brightnessDown", "width": 32, "bordered": false, "align": "left" },
   { "type": "brightnessUp", "width": 32, "bordered": false, "align": "left" },
   { "type": "illuminationDown", "width": 32, "bordered": false, "align": "left" },
   { "type": "illuminationUp", "width": 32, "bordered": false, "align": "left" },
-
-  { "type": "volumeDown", "bordered": false, "align": "right", "width": 28 },
-  { "type": "volumeUp", "bordered": false, "align": "right", "width": 28 },
-  { "type": "mute", "align": "right", "width": 28 },
-
-  { "type": "previous", "align": "right", "width": 38 },
   { "type": "play", "align": "right", "width": 38 },
-  { "type": "next", "align": "right", "width": 38 },
-
   { "type": "battery", "align": "right", "bordered": false },
   {
     "type": "timeButton",

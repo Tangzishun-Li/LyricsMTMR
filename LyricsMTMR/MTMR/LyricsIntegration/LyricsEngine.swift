@@ -1,16 +1,3 @@
-//
-//  LyricsEngine.swift
-//  LyricsMTMR
-//
-//  Core engine that bridges now-playing info and lyrics into MTMR.
-//  Uses MediaRemote (macOS private framework) for cross-app now-playing detection,
-//  supporting Apple Music, Spotify, NeteaseMusic, and any app with now-playing.
-//  Lyrics are loaded from local .lrc/.lrcx files.
-//
-//  This source code is licensed under GPL 2.0.
-//  See LICENSE file in the project root for full license information.
-//
-
 import Cocoa
 import Combine
 
@@ -19,14 +6,17 @@ import Combine
 struct EngineTrackInfo: Equatable {
     let title: String
     let artist: String
+    let album: String
     let artwork: NSImage?
     let duration: TimeInterval
     let playbackState: PlaybackState
     let playbackTime: TimeInterval
+    let bundleIdentifier: String?
 
     static let empty = EngineTrackInfo(
-        title: "", artist: "", artwork: nil,
-        duration: 0, playbackState: .stopped, playbackTime: 0
+        title: "", artist: "", album: "", artwork: nil,
+        duration: 0, playbackState: .stopped, playbackTime: 0,
+        bundleIdentifier: nil
     )
 }
 
@@ -61,21 +51,18 @@ class SimpleLyrics {
 
     static func parse(lrcContent: String) -> SimpleLyrics? {
         var lines: [Line] = []
-        var extendedTags: [TimeInterval: String] = [:]
 
         let lrcLines = lrcContent.components(separatedBy: .newlines)
         for lrcLine in lrcLines {
             let trimmed = lrcLine.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
 
-            // Parse timetags like [mm:ss.xx] or [mm:ss.xxx]
             let pattern = try? NSRegularExpression(pattern: #"\[(\d{2}):(\d{2})\.(\d{2,3})\]"#)
             let nsRange = NSRange(trimmed.startIndex..., in: trimmed)
             let matches = pattern?.matches(in: trimmed, options: [], range: nsRange) ?? []
 
             guard !matches.isEmpty else { continue }
 
-            // Get the text after the last tag
             let textStart = matches.last!.range.upperBound
             let text = textStart < trimmed.utf16.count ?
                 String(trimmed[Range(NSRange(location: textStart, length: trimmed.utf16.count - textStart), in: trimmed)!]) : ""
@@ -83,27 +70,21 @@ class SimpleLyrics {
             let cleanText = text.trimmingCharacters(in: .whitespaces)
             guard !cleanText.isEmpty else { continue }
 
-            // Check for extended LRC tags (timetags within the line)
             var timetags: [(TimeInterval, Int)] = []
-            let wordPattern = try? NSRegularExpression(pattern: #"<(\d{2}):(\d{2})\.(\d{2,3})>"#)
-            let wordMatches = wordPattern?.matches(in: cleanText, options: [], range: NSRange(cleanText.startIndex..., in: cleanText)) ?? []
 
             for match in matches {
-                let minStr = String(trimmed[Range(NSRange(location: match.range(at: 1).location, length: match.range(at: 1).length), in: trimmed)!])
-                let secStr = String(trimmed[Range(NSRange(location: match.range(at: 2).location, length: match.range(at: 2).length), in: trimmed)!])
-                let msStr = String(trimmed[Range(NSRange(location: match.range(at: 3).location, length: match.range(at: 3).length), in: trimmed)!])
+                let minStr = substring(in: trimmed as NSString, range: match.range(at: 1))
+                let secStr = substring(in: trimmed as NSString, range: match.range(at: 2))
+                let msStr = substring(in: trimmed as NSString, range: match.range(at: 3))
                 guard let min = Double(minStr), let sec = Double(secStr), let ms = Double(msStr) else { continue }
                 let time = min * 60 + sec + ms / (msStr.count == 3 ? 1000 : 100)
 
                 if cleanText.hasPrefix("<") || !cleanText.contains("<") {
-                    // Standard LRC: timetag applies to the whole line
                     let content = cleanText.replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
                     let line = Line(position: time, content: content)
                     lines.append(line)
                 } else {
-                    // Extended LRC: extract timetags
                     var remaining = cleanText as NSString
-                    var charIndex = 0
                     while remaining.length > 0 {
                         remaining = remaining.trimmingCharacters(in: .whitespacesAndNewlines) as NSString
                         guard remaining.length > 0 else { break }
@@ -111,16 +92,16 @@ class SimpleLyrics {
                         let wPattern = try? NSRegularExpression(pattern: #"<(\d{2}):(\d{2})\.(\d{2,3})>"#)
                         let wRange = NSRange(location: 0, length: remaining.length)
                         if let wMatch = wPattern?.firstMatch(in: remaining as String, options: [], range: wRange) {
-                            let wMin = Double(remaining.substring(with: NSRange(location: wMatch.range(at: 1).location, length: wMatch.range(at: 1).length)))!
-                            let wSec = Double(remaining.substring(with: NSRange(location: wMatch.range(at: 2).location, length: wMatch.range(at: 2).length)))!
-                            let wMs = Double(remaining.substring(with: NSRange(location: wMatch.range(at: 3).location, length: wMatch.range(at: 3).length)))!
+                            let wMin = Double(substring(in: remaining, range: wMatch.range(at: 1)))!
+                            let wSec = Double(substring(in: remaining, range: wMatch.range(at: 2)))!
+                            let wMs = Double(substring(in: remaining, range: wMatch.range(at: 3)))!
                             let wordTime = wMin * 60 + wSec + wMs / (wMs >= 100 ? 1000 : 100)
                             let wordRange = NSRange(location: 0, length: wMatch.range.location)
                             let word = remaining.substring(with: wordRange)
                             let charsBefore = (cleanText as NSString).length - remaining.length + wordRange.location
                             timetags.append((wordTime, charsBefore))
                             remaining = remaining.substring(from: wMatch.range.upperBound) as NSString
-                            charIndex += 1
+                            _ = word
                         } else {
                             break
                         }
@@ -132,9 +113,6 @@ class SimpleLyrics {
                 }
             }
         }
-
-        // Check for extended .lrcx tags (timetags after the line tag)
-        // Already handled above
 
         lines.sort { $0.position < $1.position }
         return lines.isEmpty ? nil : SimpleLyrics(lines: lines)
@@ -164,51 +142,46 @@ class SimpleLyrics {
     }
 }
 
-// MARK: - MediaRemote Bridge
-
-private let mediaRemoteLib = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
-
-private typealias MRMediaRemoteGetNowPlayingInfoFunc = @convention(c) (NSObject, @escaping @convention(block) ([String: Any]) -> Void) -> Void
-private typealias MRMediaRemoteRegisterForNowPlayingNotificationsFunc = @convention(c) (NSObject) -> Void
-
-private class MediaRemote {
-
-    private let getNowPlayingInfo: MRMediaRemoteGetNowPlayingInfoFunc
-    private let registerNotifFunc: MRMediaRemoteRegisterForNowPlayingNotificationsFunc
-
-    init?() {
-        guard let handle = dlopen(mediaRemoteLib, RTLD_NOLOAD) ?? dlopen(mediaRemoteLib, RTLD_LAZY | RTLD_FIRST) else {
-            return nil
-        }
-
-        guard let getInfoPtr = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo") else {
-            return nil
-        }
-        guard let registerPtr = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications") else {
-            return nil
-        }
-
-        self.getNowPlayingInfo = unsafeBitCast(getInfoPtr, to: MRMediaRemoteGetNowPlayingInfoFunc.self)
-        self.registerNotifFunc = unsafeBitCast(registerPtr, to: MRMediaRemoteRegisterForNowPlayingNotificationsFunc.self)
-    }
-
-    func fetchNowPlayingInfo(completion: @escaping ([String: Any]?) -> Void) {
-        let queue = DispatchQueue(label: "mediaRemoteQueue", attributes: [])
-        let block: @convention(block) ([String: Any]) -> Void = { info in
-            DispatchQueue.main.async {
-                completion(info.isEmpty ? nil : info)
-            }
-        }
-        getNowPlayingInfo(queue as NSObject, block)
-    }
-
-    func registerNotifications() {
-        let queue = DispatchQueue(label: "mediaRemoteNotifQueue", attributes: [])
-        registerNotifFunc(queue as NSObject)
-    }
+private func substring(in str: NSString, range: NSRange) -> String {
+    guard range.location != NSNotFound, range.location + range.length <= str.length else { return "" }
+    return str.substring(with: range)
 }
 
-// MARK: - Engine
+// MARK: - MediaRemote Bridge (ObjC-backed via MediaRemoteMRBridge)
+
+// Keys match the output dictionary from the dylib JSON (via subprocess)
+// The dylib outputs: title, artist, album, isPlaying, durationMicros,
+// elapsedTimeMicros, artworkDataBase64, bundleIdentifier, etc.
+private func parseMRInfo(_ info: [String: Any]) -> (title: String, artist: String, album: String, artwork: NSImage?, duration: TimeInterval, elapsedTime: TimeInterval, playbackRate: Double, bundleID: String) {
+    let title = info["title"] as? String ?? ""
+    let artist = info["artist"] as? String ?? ""
+    let album = info["album"] as? String ?? ""
+    let bundleID = info["bundleIdentifier"] as? String ?? ""
+
+    // Duration comes in microseconds; convert to seconds
+    let durationMicros = (info["durationMicros"] as? NSNumber)?.doubleValue ?? 0
+    let duration = durationMicros / 1_000_000
+
+    // Elapsed time in microseconds; convert to seconds
+    let elapsedMicros = (info["elapsedTimeMicros"] as? NSNumber)?.doubleValue ?? 0
+    let elapsedTime = elapsedMicros / 1_000_000
+
+    // Playback rate is not directly available from the dylib; use isPlaying instead
+    let isPlaying = info["isPlaying"] as? Bool ?? false
+    let playbackRate: Double = isPlaying ? 1.0 : 0.0
+
+    let artwork: NSImage?
+    if let base64String = info["artworkDataBase64"] as? String,
+       let data = Data(base64Encoded: base64String) {
+        artwork = NSImage(data: data)
+    } else {
+        artwork = nil
+    }
+
+    return (title, artist, album, artwork, duration, elapsedTime, playbackRate, bundleID)
+}
+
+// MARK: - LyricsEngine
 
 class LyricsEngine: NSObject {
     static let shared = LyricsEngine()
@@ -217,162 +190,139 @@ class LyricsEngine: NSObject {
     @Published var currentLineIndex: Int?
     @Published var currentLyrics: SimpleLyrics?
     @Published var karaokeProgress: [(TimeInterval, Int)] = []
+    @Published var coverURL: URL?
 
-    private var mediaRemote: MediaRemote?
-    private var mediaRemoteFailed = false
+    private let mrAdapter = MediaRemoteAdapter()
     private var lineCheckTimer: DispatchWorkItem?
-    private var pollingTimer: Timer?
+    private var playbackTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
-    // Keys for MRNowPlayingInfo
-    private let kMRMediaRemoteNowPlayingInfoTitle = "kMRMediaRemoteNowPlayingInfoTitle"
-    private let kMRMediaRemoteNowPlayingInfoArtist = "kMRMediaRemoteNowPlayingInfoArtist"
-    private let kMRMediaRemoteNowPlayingInfoDuration = "kMRMediaRemoteNowPlayingInfoDuration"
-    private let kMRMediaRemoteNowPlayingInfoElapsedTime = "kMRMediaRemoteNowPlayingInfoElapsedTime"
-    private let kMRMediaRemoteNowPlayingInfoPlaybackRate = "kMRMediaRemoteNowPlayingInfoPlaybackRate"
-
     private override init() {
-        self.mediaRemote = nil
         super.init()
     }
 
+    // MARK: - Start / Stop
+
     func start() {
-        AppLog.info("LyricsEngine starting...")
-        guard mediaRemote == nil else { return }
-        mediaRemote = MediaRemote()
-        if mediaRemote != nil {
-            AppLog.info("MediaRemote loaded successfully")
-            mediaRemote?.registerNotifications()
-            setupNotifications()
-        } else {
-            AppLog.warn("MediaRemote unavailable, falling back to AppleScript")
-        }
-        startPolling()
-        fetchNowPlaying()
-    }
+        AppLog.info("LyricsEngine starting (MediaRemoteAdapter subprocess mode)...")
 
-    private func setupNotifications() {
-        let nc = NotificationCenter.default
-        nc.addObserver(self, selector: #selector(nowPlayingDidChange), name: NSNotification.Name("kMRMediaRemoteNowPlayingInfoDidChange"), object: nil)
-        nc.addObserver(self, selector: #selector(nowPlayingDidChange), name: NSNotification.Name("kMRMediaRemoteNowPlayingApplicationDidChange"), object: nil)
-        nc.addObserver(self, selector: #selector(nowPlayingDidChange), name: NSWorkspace.didActivateApplicationNotification, object: nil)
-    }
-
-    private func startPolling() {
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.tick()
+        // Delay startup slightly to let the Touch Bar system initialize,
+        // avoiding the NSFunctionRowDevice mutation-while-enumerated crash.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.setupMediaRemoteObservers()
+            self?.startPlaybackTimer()
         }
     }
 
-    @objc private func nowPlayingDidChange() {
-        fetchNowPlaying()
+    private func setupMediaRemoteObservers() {
+        mrAdapter.onTrackInfoReceived = { [weak self] rawInfo in
+            guard !rawInfo.isEmpty else {
+                AppLog.info("MR: received empty info — clearing trackInfo")
+                self?.trackInfo = .empty
+                self?.currentLyrics = nil
+                self?.currentLineIndex = nil
+                return
+            }
+            self?.handleMRInfo(rawInfo)
+        }
+        mrAdapter.onPlaybackStateReceived = { [weak self] rawState in
+            let state: PlaybackState
+            switch rawState {
+            case 0: state = .playing
+            case 1: state = .paused
+            default: state = .stopped
+            }
+            self?.handlePlaybackState(state)
+        }
+        mrAdapter.startListening()
     }
 
-    // MARK: - Tick: try all sources
+    // MARK: - MR Info Handling
 
-    private func tick() {
-        if trackInfo.playbackState == .playing && !trackInfo.title.isEmpty {
-            if !mediaRemoteFailed {
-                updatePlaybackTime()
-            } else {
-                trackInfo = EngineTrackInfo(title: trackInfo.title, artist: trackInfo.artist, artwork: nil, duration: trackInfo.duration, playbackState: trackInfo.playbackState, playbackTime: trackInfo.playbackTime + 2)
-                scheduleLineCheck()
-                updateKaraokeProgress()
+    private func handleMRInfo(_ rawInfo: [String: Any]) {
+        let parsed = parseMRInfo(rawInfo)
+        guard !parsed.title.isEmpty else {
+            AppLog.info("MR_handle: no title in info (keys=\(rawInfo.keys.count)), clearing trackInfo")
+            if trackInfo != .empty {
+                AppLog.info("MR_handle: trackInfo was non-empty → clearing to .empty")
+                trackInfo = .empty
+                currentLyrics = nil
+                currentLineIndex = nil
             }
             return
         }
-        fetchNowPlaying()
-    }
 
-    // MARK: - Fetch Now Playing from multiple sources
-
-    private func fetchNowPlaying() {
-        if let mr = mediaRemote, !mediaRemoteFailed {
-            mr.fetchNowPlayingInfo { [weak self] info in
-                guard let self = self else { return }
-                guard let info = info else {
-                    self.mediaRemoteFailed = true
-                    self.fetchFromAppleScript()
-                    return
-                }
-                if !self.parseMediaRemoteInfo(info) {
-                    self.fetchFromAppleScript()
-                }
-            }
+        let elapsed: TimeInterval
+        if parsed.elapsedTime > 0 {
+            elapsed = parsed.elapsedTime
+            AppLog.info("MR_handle: using MR elapsedTime=\(elapsed)")
+        } else if trackInfo.title == parsed.title {
+            elapsed = trackInfo.playbackTime
+            AppLog.info("MR_handle: no elapsedTime, same track → keeping prev playbackTime=\(elapsed)")
         } else {
-            fetchFromAppleScript()
+            elapsed = 0
+            AppLog.info("MR_handle: no elapsedTime, different track → reset to 0")
         }
-    }
 
-    private func parseMediaRemoteInfo(_ info: [String: Any]) -> Bool {
-        let title = info[kMRMediaRemoteNowPlayingInfoTitle] as? String ?? ""
-        let artist = info[kMRMediaRemoteNowPlayingInfoArtist] as? String ?? ""
-        let duration = info[kMRMediaRemoteNowPlayingInfoDuration] as? TimeInterval ?? 0
-        let elapsed = info[kMRMediaRemoteNowPlayingInfoElapsedTime] as? TimeInterval ?? 0
-        let rate = info[kMRMediaRemoteNowPlayingInfoPlaybackRate] as? Double ?? 0
+        let isPlaying = rawInfo["isPlaying"] as? Bool ?? (parsed.playbackRate > 0)
+        let state: PlaybackState = isPlaying ? .playing : .paused
 
-        guard !title.isEmpty else { return false }
+        let newInfo = EngineTrackInfo(
+            title: parsed.title,
+            artist: parsed.artist,
+            album: parsed.album,
+            artwork: parsed.artwork,
+            duration: parsed.duration,
+            playbackState: state,
+            playbackTime: elapsed,
+            bundleIdentifier: parsed.bundleID
+        )
 
-        let state: PlaybackState = rate > 0 ? .playing : (duration > 0 ? .paused : .stopped)
-        let newInfo = EngineTrackInfo(title: title, artist: artist, artwork: nil, duration: duration, playbackState: state, playbackTime: elapsed)
+        let idString = parsed.bundleID.isEmpty ? "" : " (\(parsed.bundleID))"
+        AppLog.info("MR_handle: → EngineTrackInfo「\(parsed.title.prefix(30))」— \(parsed.artist.prefix(20))\(idString) dur=\(parsed.duration) elap=\(elapsed) state=\(state)")
 
         updateTrackInfo(newInfo)
-        return true
     }
 
-    // MARK: - AppleScript Fallback
+    private func handlePlaybackState(_ state: PlaybackState) {
+        guard !trackInfo.title.isEmpty else {
+            AppLog.info("MR_handlePlayback: ignores state=\(state) — trackInfo.title empty")
+            return
+        }
+        AppLog.info("MR_handlePlayback: state=\(state), current title=「\(trackInfo.title.prefix(30))」")
+        let newInfo = EngineTrackInfo(
+            title: trackInfo.title,
+            artist: trackInfo.artist,
+            album: trackInfo.album,
+            artwork: trackInfo.artwork,
+            duration: trackInfo.duration,
+            playbackState: state,
+            playbackTime: trackInfo.playbackTime,
+            bundleIdentifier: trackInfo.bundleIdentifier
+        )
+        trackInfo = newInfo
+    }
 
-    private func fetchFromAppleScript() {
-        let script = """
-        set output to ""
-        tell application "System Events"
-            set activeApps to name of every process whose background only is false
-        end tell
-        if "Music" is in activeApps then
-            try
-                tell application "Music"
-                    if player state is playing then
-                        set output to (get artist of current track) & " - " & (get name of current track) & " - " & (get duration of current track)
-                    end if
-                end tell
-            end try
-        end if
-        if output is "" and "Spotify" is in activeApps then
-            try
-                tell application "Spotify"
-                    if player state is playing then
-                        set output to (get artist of current track) & " - " & (get name of current track) & " - " & (get duration of current track)
-                    end if
-                end tell
-            end try
-        end if
-        return output
-        """
+    // MARK: - Playback Timer
 
-        var error: NSDictionary?
-        if let result = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue, !result.isEmpty {
-            let parts = result.components(separatedBy: " - ")
-            if parts.count >= 2 {
-                let artist = parts[0]
-                let titleAndDuration = parts.dropFirst().joined(separator: " - ")
-                let title: String
-                let duration: TimeInterval
-                if let lastDash = titleAndDuration.lastIndex(of: "-") {
-                    let durStr = String(titleAndDuration[titleAndDuration.index(after: lastDash)...]).trimmingCharacters(in: .whitespaces)
-                    if let d = TimeInterval(durStr) {
-                        duration = d
-                        title = String(titleAndDuration[..<titleAndDuration.index(before: lastDash)]).trimmingCharacters(in: .whitespaces)
-                    } else {
-                        title = titleAndDuration
-                        duration = 0
-                    }
-                } else {
-                    title = titleAndDuration
-                    duration = 0
-                }
-                let newInfo = EngineTrackInfo(title: title, artist: artist, artwork: nil, duration: duration, playbackState: .playing, playbackTime: 0)
-                updateTrackInfo(newInfo)
-            }
+    private func startPlaybackTimer() {
+        AppLog.info("playbackTimer: scheduling 1s recurring timer on main runloop")
+        playbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self, self.trackInfo.playbackState == .playing else { return }
+            // increment playback position locally; MR elapsedTime is only snapshots
+            let newTime = self.trackInfo.playbackTime + 1.0
+            self.trackInfo = EngineTrackInfo(
+                title: self.trackInfo.title,
+                artist: self.trackInfo.artist,
+                album: self.trackInfo.album,
+                artwork: self.trackInfo.artwork,
+                duration: self.trackInfo.duration,
+                playbackState: .playing,
+                playbackTime: newTime,
+                bundleIdentifier: self.trackInfo.bundleIdentifier
+            )
+            self.scheduleLineCheck()
+            self.updateKaraokeProgress()
         }
     }
 
@@ -380,69 +330,120 @@ class LyricsEngine: NSObject {
 
     private var lastTrackTitle = ""
 
-    private func updateTrackInfo(_ newInfo: EngineTrackInfo) {
+    func updateTrackInfo(_ newInfo: EngineTrackInfo) {
         if trackInfo == newInfo { return }
 
         let prevTitle = trackInfo.title
+        let prevArtworkData = trackInfo.artwork?.tiffRepresentation
+        let newArtworkData = newInfo.artwork?.tiffRepresentation
+        let artworkChanged = prevArtworkData != newArtworkData
+
         trackInfo = newInfo
 
-        if !newInfo.title.isEmpty, newInfo.title != prevTitle, newInfo.title != lastTrackTitle {
+        let titleChanged = !newInfo.title.isEmpty && newInfo.title != prevTitle && newInfo.title != lastTrackTitle
+
+        if titleChanged {
+            AppLog.info("updateTrackInfo: TITLE CHANGED「\(prevTitle.prefix(20))」→「\(newInfo.title.prefix(30))」lastTrackTitle=「\(lastTrackTitle.prefix(20))」")
             lastTrackTitle = newInfo.title
             currentLyrics = nil
+            currentLineIndex = nil
             scheduleLineCheck()
             searchLyrics(title: newInfo.title, artist: newInfo.artist)
-        }
-    }
-
-    private func updatePlaybackTime() {
-        guard trackInfo.playbackState == .playing else { return }
-
-        guard !mediaRemoteFailed else { return }
-
-        mediaRemote?.fetchNowPlayingInfo { [weak self] info in
-            guard let self = self else { return }
-            guard let info = info else {
-                trackInfo = EngineTrackInfo(title: trackInfo.title, artist: trackInfo.artist, artwork: nil, duration: trackInfo.duration, playbackState: trackInfo.playbackState, playbackTime: trackInfo.playbackTime + 2)
-                return
+        } else if artworkChanged, let url = coverURL {
+            AppLog.info("updateTrackInfo: ARTWORK CHANGED (no title change), fetching coverURL=\(url.absoluteString.prefix(50))...")
+            Task { @MainActor in
+                if let image = await CoverCache.shared.image(for: url) {
+                    AppLog.info("updateTrackInfo: cover image fetched OK (\(image.size.width)x\(image.size.height))")
+                    trackInfo = EngineTrackInfo(
+                        title: trackInfo.title,
+                        artist: trackInfo.artist,
+                        album: trackInfo.album,
+                        artwork: image,
+                        duration: trackInfo.duration,
+                        playbackState: trackInfo.playbackState,
+                        playbackTime: trackInfo.playbackTime,
+                        bundleIdentifier: trackInfo.bundleIdentifier
+                    )
+                } else {
+                    AppLog.warn("updateTrackInfo: cover image fetch FAILED for \(url.absoluteString.prefix(50))")
+                }
             }
-            let elapsed = info[self.kMRMediaRemoteNowPlayingInfoElapsedTime] as? TimeInterval ?? 0
-            let rate = info[self.kMRMediaRemoteNowPlayingInfoPlaybackRate] as? Double ?? 0
-
-            let state: PlaybackState = rate > 0 ? .playing : .paused
-            trackInfo = EngineTrackInfo(title: trackInfo.title, artist: trackInfo.artist, artwork: nil, duration: trackInfo.duration, playbackState: state, playbackTime: elapsed)
-
-            scheduleLineCheck()
-            updateKaraokeProgress()
+        } else {
+            AppLog.info("updateTrackInfo: same track, no artwork change — refresh only")
         }
     }
 
     // MARK: - Lyrics Search
 
     private func searchLyrics(title: String, artist: String) {
-        // Try local files first
+        AppLog.lyrics("searchLyrics: begin — title=「\(title.prefix(30))」 artist=「\(artist.prefix(20))」")
+
         if let lyrics = loadLocalLyrics(title: title, artist: artist) {
+            AppLog.lyrics("searchLyrics: FOUND local lyrics (\(lyrics.lines.count) lines) for: \(title.prefix(30))")
             currentLyrics = lyrics
             scheduleLineCheck()
             return
         }
 
-        // Try local files with "title.lrc" pattern
+        AppLog.lyrics("searchLyrics: no match in ~/Music/LyricsX/<title> - <artist>.lrc[x], trying broader search...")
         let searchPaths = [
             "~/Music/LyricsX/\(title) - \(artist).lrcx",
             "~/Music/LyricsX/\(title) - \(artist).lrc",
             "~/Music/LyricsX/\(title).lrcx",
             "~/Music/LyricsX/\(title).lrc",
         ]
-        for path in searchPaths {
+        for (i, path) in searchPaths.enumerated() {
             let expanded = (path as NSString).expandingTildeInPath
             if let lyrics = loadLyricsFile(path: expanded) {
+                AppLog.lyrics("searchLyrics: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines")
                 currentLyrics = lyrics
                 scheduleLineCheck()
                 return
+            } else {
+                AppLog.lyrics("searchLyrics: path[\(i)] \(expanded) — not found")
             }
         }
 
-        currentLyrics = nil
+        AppLog.lyrics("searchLyrics: no local file found, starting online search...")
+        Task { [weak self] in
+            guard let self else { return }
+            let result = await LyricsSearchService.shared.searchLyrics(title: title, artist: artist)
+            await MainActor.run {
+                if let lyrics = result.lyrics {
+                    AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
+                    self.currentLyrics = lyrics
+                    self.scheduleLineCheck()
+                } else {
+                    AppLog.lyrics("searchLyrics: ONLINE no lyrics found for: \(title.prefix(30))")
+                    self.currentLyrics = nil
+                }
+                if let coverURL = result.coverURL {
+                    AppLog.lyrics("searchLyrics: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
+                    self.coverURL = coverURL
+                    Task {
+                        if let image = await CoverCache.shared.image(for: coverURL) {
+                            AppLog.lyrics("searchLyrics: cover image fetched OK (\(image.size.width)x\(image.size.height))")
+                            await MainActor.run {
+                                self.trackInfo = EngineTrackInfo(
+                                    title: self.trackInfo.title,
+                                    artist: self.trackInfo.artist,
+                                    album: self.trackInfo.album,
+                                    artwork: image,
+                                    duration: self.trackInfo.duration,
+                                    playbackState: self.trackInfo.playbackState,
+                                    playbackTime: self.trackInfo.playbackTime,
+                                    bundleIdentifier: self.trackInfo.bundleIdentifier
+                                )
+                            }
+                        } else {
+                            AppLog.lyrics("searchLyrics: cover image fetch FAILED")
+                        }
+                    }
+                } else {
+                    AppLog.lyrics("searchLyrics: no coverURL in result")
+                }
+            }
+        }
     }
 
     private func loadLocalLyrics(title: String, artist: String) -> SimpleLyrics? {
@@ -451,19 +452,31 @@ class LyricsEngine: NSObject {
             "~/Music/LyricsX/\(title) - \(artist).lrc",
         ]
         for path in paths {
-            if let lyrics = loadLyricsFile(path: (path as NSString).expandingTildeInPath) {
+            let expanded = (path as NSString).expandingTildeInPath
+            if let lyrics = loadLyricsFile(path: expanded) {
+                AppLog.lyrics("loadLocalLyrics: found at \(expanded)")
                 return lyrics
             }
         }
+        AppLog.lyrics("loadLocalLyrics: none found for「\(title.prefix(30))」— \(artist.prefix(20))")
         return nil
     }
 
     private func loadLyricsFile(path: String) -> SimpleLyrics? {
-        guard FileManager.default.fileExists(atPath: path),
-              let content = try? String(contentsOfFile: path, encoding: .utf8) else {
+        guard FileManager.default.fileExists(atPath: path) else {
+            AppLog.lyrics("loadLyricsFile: file not exist — \(path)")
             return nil
         }
-        return SimpleLyrics.parse(lrcContent: content)
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
+            AppLog.warn("loadLyricsFile: failed to read UTF-8 — \(path)")
+            return nil
+        }
+        guard let parsed = SimpleLyrics.parse(lrcContent: content) else {
+            AppLog.warn("loadLyricsFile: parse returned nil (\(content.count) chars) — \(path)")
+            return nil
+        }
+        AppLog.lyrics("loadLyricsFile: parsed \(parsed.lines.count) lines from \(path)")
+        return parsed
     }
 
     // MARK: - Line Timing
@@ -472,17 +485,20 @@ class LyricsEngine: NSObject {
         lineCheckTimer?.cancel()
 
         guard let lyrics = currentLyrics else {
+            AppLog.lyrics("scheduleLineCheck: no lyrics → clear currentLineIndex")
             currentLineIndex = nil
             return
         }
 
-        let time = trackInfo.playbackTime + (lyrics.adjustedTimeDelay)
+        let time = trackInfo.playbackTime + lyrics.adjustedTimeDelay
         guard let (index, nextPosition) = lyrics.line(at: time) else {
+            AppLog.lyrics("scheduleLineCheck: lyrics.line(at: \(time)) returned nil")
             currentLineIndex = nil
             return
         }
 
         if currentLineIndex != index {
+            AppLog.lyrics("scheduleLineCheck: line index \(currentLineIndex.map(String.init) ?? "nil") → \(index)")
             currentLineIndex = index
         }
 
