@@ -133,9 +133,7 @@ class CurrencyBarItem: CustomButtonTouchBarItem {
                             self.setCurrency(value: value!)
                         }
                     }
-                } catch let jsonError {
-                    print(jsonError.localizedDescription)
-                }
+                } catch {}
             }
         }
 

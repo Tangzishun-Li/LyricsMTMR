@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useApp } from '../../context/AppContext';
 import { validateJSON } from '../../utils/jsonGenerator';
 import './JsonOutput.css';
@@ -13,14 +13,12 @@ export default function JsonOutput() {
   const textareaRef = useRef(null);
   const highlighterRef = useRef(null);
 
-  // Update JSON text when items change
   useEffect(() => {
     if (!isEditing) {
       setJsonText(exportJSON());
     }
   }, [items, isEditing, exportJSON]);
 
-  // Sync scroll between textarea and highlighter
   const handleScroll = useCallback((e) => {
     if (highlighterRef.current) {
       highlighterRef.current.scrollTop = e.target.scrollTop;
@@ -28,9 +26,7 @@ export default function JsonOutput() {
     }
   }, []);
 
-  // Find which element the cursor is inside
   const findElementAtCursor = useCallback((text, cursorPos) => {
-    // Parse the JSON to find element boundaries
     let depth = 0;
     let inString = false;
     let escapeNext = false;
@@ -60,7 +56,6 @@ export default function JsonOutput() {
 
       if (char === '{') {
         if (depth === 1 && currentElementStart === -1) {
-          // Start of a top-level object in the array
           currentElementStart = i;
           elementDepth = depth;
         }
@@ -68,7 +63,6 @@ export default function JsonOutput() {
       } else if (char === '}') {
         depth--;
         if (depth === 1 && currentElementStart !== -1) {
-          // End of a top-level object
           elementStarts.push({
             start: currentElementStart,
             end: i + 1,
@@ -82,7 +76,6 @@ export default function JsonOutput() {
       }
     }
 
-    // Find which element contains the cursor
     for (let i = 0; i < elementStarts.length; i++) {
       const element = elementStarts[i];
       if (cursorPos >= element.start && cursorPos <= element.end) {
@@ -93,7 +86,6 @@ export default function JsonOutput() {
     return -1;
   }, []);
 
-  // Handle cursor position changes
   const handleCursorChange = useCallback(() => {
     if (!textareaRef.current || isEditing) return;
 
@@ -166,11 +158,11 @@ export default function JsonOutput() {
           >
             <SyntaxHighlighter
               language="json"
-              style={oneDark}
+              style={oneLight}
               customStyle={{
                 margin: 0,
                 padding: '12px',
-                background: '#252525',
+                background: '#fafafa',
                 fontSize: '12px',
                 lineHeight: '1.5',
                 fontFamily: "'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace",
@@ -199,11 +191,11 @@ export default function JsonOutput() {
       </div>
 
       <div className="json-footer">
-        <span className="item-count">{items.length} items</span>
+        <span className="item-count">{items.length} 个元素</span>
         <span className="json-hint">
           {isEditing
-            ? 'Edit the JSON and click Apply to update'
-            : 'Click to select an element'}
+            ? '编辑 JSON 后点击 Apply 更新'
+            : '点击可选中对应元素'}
         </span>
       </div>
     </div>

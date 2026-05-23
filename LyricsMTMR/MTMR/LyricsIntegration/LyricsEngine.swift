@@ -144,6 +144,7 @@ class SimpleLyrics {
     func line(at time: TimeInterval) -> (Int, TimeInterval?)? {
         let adjustedTime = time + adjustedTimeDelay
         guard !lines.isEmpty else { return nil }
+        guard adjustedTime >= lines[0].position else { return nil }
 
         var index = 0
         for i in 0..<lines.count {
@@ -357,7 +358,7 @@ class LyricsEngine: NSObject {
 
     private func startPlaybackTimer() {
         AppLog.info("playbackTimer: scheduling 0.25s Date-based precision timer on main runloop")
-        timeBase = (trackInfo.playbackTime, Date())
+        // timeBase starts nil; first calibration comes from handleMRInfo
         playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             guard let self, self.trackInfo.playbackState == .playing else { return }
             guard let base = self.timeBase else { return }
@@ -379,7 +380,6 @@ class LyricsEngine: NSObject {
 
     /// Called when MR provides a fresh elapsedTime snapshot to recalibrate the clock.
     private func calibrateTimebase(with mrElapsed: TimeInterval) {
-        guard trackInfo.playbackState == .playing else { return }
         timeBase = (mrElapsed, Date())
     }
 

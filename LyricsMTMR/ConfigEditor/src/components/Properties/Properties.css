@@ -1,7 +1,5 @@
-/* Properties Panel */
 .properties-panel {
-  background: #1e1e1e;
-  border-left: 1px solid #333;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9,34 +7,38 @@
 }
 
 .properties-header {
-  padding: 16px;
-  border-bottom: 1px solid #333;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e8e8ed;
 }
 
-.properties-header h2 {
+.properties-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.properties-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: #1d1d1f;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .properties-type {
-  font-size: 11px;
+  font-size: 10px;
   color: #007aff;
-  background: rgba(0, 122, 255, 0.1);
-  padding: 2px 8px;
-  border-radius: 10px;
+  background: rgba(0,122,255,0.08);
+  padding: 2px 7px;
+  border-radius: 8px;
+  font-weight: 500;
 }
 
 .properties-content {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 .properties-empty {
@@ -46,52 +48,53 @@
   height: 100%;
   padding: 20px;
   text-align: center;
-  color: #666;
+  color: #aeaeb2;
+  font-size: 12px;
 }
 
-/* Property Section */
 .property-section {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .property-section-title {
   margin: 0;
-  padding: 8px 16px;
-  font-size: 11px;
+  padding: 6px 14px;
+  font-size: 10px;
   font-weight: 600;
-  color: #888;
+  color: #86868b;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: #252525;
-  border-top: 1px solid #333;
-  border-bottom: 1px solid #333;
+  letter-spacing: 0.3px;
+  background: #f5f5f7;
+  border-top: 1px solid #e8e8ed;
+  border-bottom: 1px solid #e8e8ed;
 }
 
 .property-section-content {
-  padding: 8px 16px;
+  padding: 8px 14px;
 }
 
-/* Property Field */
 .property-field {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .property-label {
   display: block;
-  font-size: 11px;
-  color: #888;
-  margin-bottom: 4px;
+  font-size: 10px;
+  color: #86868b;
+  margin-bottom: 3px;
+  font-weight: 500;
 }
 
 .property-input {
   width: 100%;
-  padding: 8px 10px;
-  background: #2a2a2a;
-  border: 1px solid #333;
+  padding: 6px 8px;
+  background: #f5f5f7;
+  border: 1px solid #d2d2d7;
   border-radius: 4px;
-  color: #fff;
-  font-size: 13px;
-  transition: border-color 0.15s ease;
+  color: #1d1d1f;
+  font-size: 12px;
+  transition: border-color 0.12s ease;
+  box-sizing: border-box;
 }
 
 .property-input:focus {
@@ -100,18 +103,19 @@
 }
 
 .property-input::placeholder {
-  color: #555;
+  color: #aeaeb2;
 }
 
 .property-select {
   width: 100%;
-  padding: 8px 10px;
-  background: #2a2a2a;
-  border: 1px solid #333;
+  padding: 6px 8px;
+  background: #f5f5f7;
+  border: 1px solid #d2d2d7;
   border-radius: 4px;
-  color: #fff;
-  font-size: 13px;
+  color: #1d1d1f;
+  font-size: 12px;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .property-select:focus {
@@ -120,22 +124,23 @@
 }
 
 .property-select.small {
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 4px 6px;
+  font-size: 10px;
   width: auto;
 }
 
 .property-textarea {
   width: 100%;
-  padding: 8px 10px;
-  background: #2a2a2a;
-  border: 1px solid #333;
+  padding: 6px 8px;
+  background: #f5f5f7;
+  border: 1px solid #d2d2d7;
   border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
+  color: #1d1d1f;
+  font-size: 11px;
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   resize: vertical;
-  min-height: 80px;
+  min-height: 60px;
+  box-sizing: border-box;
 }
 
 .property-textarea:focus {
@@ -143,7 +148,6 @@
   border-color: #007aff;
 }
 
-/* Toggle Button */
 .property-toggle {
   display: flex;
   align-items: center;
@@ -151,14 +155,15 @@
 }
 
 .toggle-button {
-  padding: 6px 12px;
-  background: #333;
-  border: 1px solid #444;
+  padding: 4px 10px;
+  background: #e8e8ed;
+  border: 1px solid #d2d2d7;
   border-radius: 4px;
-  color: #888;
-  font-size: 12px;
+  color: #86868b;
+  font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
+  font-weight: 500;
 }
 
 .toggle-button.active {
@@ -167,116 +172,106 @@
   color: #fff;
 }
 
-/* Image Input */
 .image-inputs {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .image-upload {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .property-file-input {
-  padding: 8px;
-  background: #2a2a2a;
-  border: 1px dashed #444;
+  padding: 6px;
+  background: #f5f5f7;
+  border: 1px dashed #d2d2d7;
   border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
+  color: #1d1d1f;
+  font-size: 11px;
 }
 
 .image-preview {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   border-radius: 4px;
-  background: #333;
+  background: #f5f5f7;
 }
 
-/* Source Editor */
 .source-editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.source-editor .property-select {
-  width: 100%;
-}
-
-/* Alternative Images */
 .alternative-images .alt-images-list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .alt-image-item {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  background: #333;
+  padding: 3px 7px;
+  background: #e8e8ed;
   border-radius: 4px;
 }
 
 .alt-image-key {
-  font-size: 11px;
-  color: #fff;
+  font-size: 10px;
+  color: #1d1d1f;
 }
 
 .remove-alt-image {
   background: none;
   border: none;
-  color: #888;
+  color: #aeaeb2;
   cursor: pointer;
   padding: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
 }
 
 .remove-alt-image:hover {
-  color: #ff4444;
+  color: #ff3b30;
 }
 
 .add-alt-image {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
-.add-alt-image .property-input {
-  flex: 1;
-}
+.add-alt-image .property-input { flex: 1; }
 
 .add-button {
-  padding: 8px 12px;
-  background: #333;
-  border: 1px solid #444;
+  padding: 6px 10px;
+  background: #e8e8ed;
+  border: 1px solid #d2d2d7;
   border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
+  color: #1d1d1f;
+  font-size: 11px;
   cursor: pointer;
 }
 
 .add-button:hover {
-  background: #444;
+  background: #d2d2d7;
 }
 
-/* Actions Editor */
 .actions-editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .action-item {
-  background: #252525;
-  border: 1px solid #333;
+  background: #f5f5f7;
+  border: 1px solid #e8e8ed;
   border-radius: 6px;
   padding: 8px;
 }
@@ -284,41 +279,39 @@
 .action-header {
   display: flex;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
-.action-header .property-select {
-  flex: 1;
-}
+.action-header .property-select { flex: 1; }
 
 .remove-action-button {
   background: none;
   border: none;
-  color: #888;
+  color: #aeaeb2;
   cursor: pointer;
-  padding: 4px 8px;
-  font-size: 16px;
+  padding: 2px 6px;
+  font-size: 14px;
 }
 
 .remove-action-button:hover {
-  color: #ff4444;
+  color: #ff3b30;
 }
 
 .action-params {
-  padding-top: 8px;
-  border-top: 1px solid #333;
+  padding-top: 6px;
+  border-top: 1px solid #e8e8ed;
 }
 
 .add-action-button {
   width: 100%;
-  padding: 8px;
+  padding: 6px;
   background: transparent;
-  border: 1px dashed #444;
+  border: 1px dashed #d2d2d7;
   border-radius: 4px;
-  color: #888;
-  font-size: 12px;
+  color: #86868b;
+  font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
 }
 
 .add-action-button:hover {
@@ -326,40 +319,38 @@
   color: #007aff;
 }
 
-/* Delete Button */
 .properties-actions {
-  padding: 16px;
-  border-top: 1px solid #333;
+  padding: 12px 14px;
+  border-top: 1px solid #e8e8ed;
   margin-top: auto;
 }
 
 .delete-button {
   width: 100%;
-  padding: 10px;
-  background: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.3);
+  padding: 8px;
+  background: rgba(255,59,48,0.06);
+  border: 1px solid rgba(255,59,48,0.2);
   border-radius: 4px;
-  color: #ff4444;
-  font-size: 13px;
+  color: #ff3b30;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
 }
 
 .delete-button:hover {
-  background: rgba(255, 68, 68, 0.2);
-  border-color: #ff4444;
+  background: rgba(255,59,48,0.12);
+  border-color: #ff3b30;
 }
 
-/* No Properties */
 .no-properties {
-  color: #666;
-  font-size: 12px;
+  color: #aeaeb2;
+  font-size: 11px;
   font-style: italic;
 }
 
-/* Scrollbar */
 .properties-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .properties-content::-webkit-scrollbar-track {
@@ -367,10 +358,10 @@
 }
 
 .properties-content::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+  background: #d2d2d7;
+  border-radius: 2px;
 }
 
 .properties-content::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: #aeaeb2;
 }

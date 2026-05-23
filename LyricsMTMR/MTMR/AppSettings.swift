@@ -70,6 +70,17 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.lyrics.filterEnabled", defaultValue: true)
     static var lyricsFilterEnabled: Bool
 
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.filterMode", defaultValue: 0)
+    static var lyricsFilterModeRaw: Int
+
+    static var lyricsFilterMode: FilterMode {
+        get { FilterMode(rawValue: lyricsFilterModeRaw) ?? .block }
+        set { lyricsFilterModeRaw = newValue.rawValue }
+    }
+
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.filterEnabledCategories", defaultValue: LyricsFilter.categories.map(\.id))
+    static var lyricsFilterEnabledCategories: [String]
+
     @UserDefault(key: "com.toxblh.mtmr.lyrics.filterKeys", defaultValue: LyricsFilter.defaultKeys)
     static var lyricsFilterKeys: [String]
 }

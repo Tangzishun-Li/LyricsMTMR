@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useApp } from '../../context/AppContext';
 import { elementCategories, getElementsByCategory } from '../../data/elementDefinitions';
@@ -13,6 +13,7 @@ export default function Palette() {
       return acc;
     }, {})
   );
+  const clickTimer = useRef(null);
 
   const toggleCategory = (category) => {
     setExpandedCategories((prev) => ({
@@ -21,14 +22,13 @@ export default function Palette() {
     }));
   };
 
-  const handleItemClick = (type) => {
-    const newItem = addItem(type);
+  const handleItemDoubleClick = useCallback((elementKey) => {
+    const newItem = addItem(elementKey);
     if (newItem) {
       selectItem(newItem.id);
     }
-  };
+  }, [addItem, selectItem]);
 
-  // Filter elements based on search query
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) {
       return Object.entries(elementCategories).map(([categoryKey, category]) => ({
@@ -37,7 +37,6 @@ export default function Palette() {
         elements: getElementsByCategory(categoryKey),
       }));
     }
-
     const query = searchQuery.toLowerCase().trim();
     return Object.entries(elementCategories)
       .map(([categoryKey, category]) => {
@@ -53,18 +52,16 @@ export default function Palette() {
       .filter((cat) => cat.elements.length > 0);
   }, [searchQuery]);
 
-  // Expand all categories when searching
   const isSearching = searchQuery.trim().length > 0;
 
   return (
     <div className="palette">
       <div className="palette-header">
         <div className="palette-search">
-          <span className="palette-search-icon">🔍</span>
           <input
             type="text"
             className="palette-search-input"
-            placeholder="Search elements..."
+            placeholder="搜索元素..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -88,12 +85,12 @@ export default function Palette() {
             elements={elements}
             isExpanded={isSearching ? true : expandedCategories[categoryKey]}
             onToggle={() => toggleCategory(categoryKey)}
-            onItemClick={handleItemClick}
+            onItemDoubleClick={handleItemDoubleClick}
           />
         ))}
         {filteredCategories.length === 0 && (
           <div className="palette-no-results">
-            No elements found for "{searchQuery}"
+            未找到 "{searchQuery}"
           </div>
         )}
       </div>
@@ -101,12 +98,11 @@ export default function Palette() {
   );
 }
 
-function PaletteCategory({ categoryKey, category, elements, isExpanded, onToggle, onItemClick }) {
-
+function PaletteCategory({ categoryKey, category, elements, isExpanded, onToggle, onItemDoubleClick }) {
   return (
     <div className={`palette-category ${isExpanded ? 'expanded' : ''}`}>
       <button className="palette-category-header" onClick={onToggle}>
-        <span className="category-icon">{isExpanded ? '▼' : '▶'}</span>
+        <span className="category-icon">{isExpanded ? '▾' : '▸'}</span>
         <span className="category-label">{category.label}</span>
         <span className="category-count">{elements.length}</span>
       </button>
@@ -118,7 +114,7 @@ function PaletteCategory({ categoryKey, category, elements, isExpanded, onToggle
               <PaletteItem
                 key={elementKey}
                 element={element}
-                onClick={() => onItemClick(elementKey)}
+                onDoubleClick={() => onItemDoubleClick(elementKey)}
               />
             );
           })}
@@ -128,7 +124,7 @@ function PaletteCategory({ categoryKey, category, elements, isExpanded, onToggle
   );
 }
 
-function PaletteItem({ element, onClick }) {
+function PaletteItem({ element, onDoubleClick }) {
   const elementKey = element.key || element.type;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `palette-${elementKey}`,
@@ -140,16 +136,11 @@ function PaletteItem({ element, onClick }) {
     },
   });
 
-  const style = {
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="palette-item"
-      onClick={onClick}
+      className={`palette-item ${isDragging ? 'dragging' : ''}`}
+      onDoubleClick={onDoubleClick}
       {...attributes}
       {...listeners}
     >

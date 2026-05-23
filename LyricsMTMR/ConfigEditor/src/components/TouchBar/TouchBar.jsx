@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   SortableContext,
   horizontalListSortingStrategy,
@@ -8,21 +8,33 @@ import { useApp } from '../../context/AppContext';
 import TouchBarItem from './TouchBarItem';
 import './TouchBar.css';
 
+const DOCK_SUB_APPS = [
+  { icon: '🔍', name: 'Finder', active: true },
+  { icon: '📧', name: 'Mail', active: false },
+  { icon: '🌐', name: 'Safari', active: true },
+  { icon: '💬', name: 'Messages', active: false },
+  { icon: '📝', name: 'Notes', active: true },
+  { icon: '📅', name: 'Calendar', active: false },
+  { icon: '🎵', name: 'Music', active: false },
+  { icon: '📁', name: 'Downloads', active: false },
+  null,
+  { icon: '🗑', name: 'Trash', active: false },
+];
+
 export default function TouchBar() {
   const { items, selectItem, selectedItemId, removeItem, addItem } = useApp();
   const [contextMenu, setContextMenu] = useState(null);
+  const [expandedDockId, setExpandedDockId] = useState(null);
   const containerRef = useRef(null);
 
-  // Make the touchbar a droppable area
   const { setNodeRef, isOver } = useDroppable({
     id: 'touchbar-drop-zone',
   });
 
-  // Handle context menu
   const handleContextMenu = (e, itemId) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -30,35 +42,54 @@ export default function TouchBar() {
     });
   };
 
-  // Close context menu on click outside
+  const handleItemSelect = (itemId) => {
+    const item = items.find((i) => i.id === itemId);
+    if (item && item.type === 'dock') {
+      if (expandedDockId === itemId) {
+        setExpandedDockId(null);
+      } else {
+        setExpandedDockId(itemId);
+      }
+    } else {
+      setExpandedDockId(null);
+    }
+    selectItem(itemId);
+  };
+
   useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
+    const handleClickOutside = () => {
+      setContextMenu(null);
+    };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedItemId && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
           removeItem(selectedItemId);
+          if (expandedDockId === selectedItemId) {
+            setExpandedDockId(null);
+          }
         }
       }
       if (e.key === 'Escape') {
         selectItem(null);
         setContextMenu(null);
+        setExpandedDockId(null);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItemId, removeItem, selectItem]);
+  }, [selectedItemId, removeItem, selectItem, expandedDockId]);
 
-  // Group items by alignment to match MTMR's actual layout
   const leftItems = items.filter(item => item.align === 'left');
   const centerItems = items.filter(item => !item.align || item.align === 'center');
   const rightItems = items.filter(item => item.align === 'right');
+
+  const expandedDockItem = expandedDockId ? items.find((i) => i.id === expandedDockId) : null;
 
   return (
     <div className="touchbar-container" ref={containerRef}>
@@ -68,44 +99,41 @@ export default function TouchBar() {
             <div className="touchbar-items">
               {items.length === 0 ? (
                 <div className="touchbar-empty">
-                  <span>Drag elements here or click from the palette</span>
+                  <span>从备选栏拖拽元素过来</span>
                 </div>
               ) : (
                 <>
-                  {/* Left-aligned items */}
                   <div className="touchbar-section touchbar-section-left">
                     {leftItems.map((item) => (
                       <TouchBarItem
                         key={item.id}
                         item={item}
                         isSelected={selectedItemId === item.id}
-                        onSelect={() => selectItem(item.id)}
+                        onSelect={() => handleItemSelect(item.id)}
                         onContextMenu={(e) => handleContextMenu(e, item.id)}
                       />
                     ))}
                   </div>
 
-                  {/* Center-aligned items */}
                   <div className="touchbar-section touchbar-section-center">
                     {centerItems.map((item) => (
                       <TouchBarItem
                         key={item.id}
                         item={item}
                         isSelected={selectedItemId === item.id}
-                        onSelect={() => selectItem(item.id)}
+                        onSelect={() => handleItemSelect(item.id)}
                         onContextMenu={(e) => handleContextMenu(e, item.id)}
                       />
                     ))}
                   </div>
 
-                  {/* Right-aligned items */}
                   <div className="touchbar-section touchbar-section-right">
                     {rightItems.map((item) => (
                       <TouchBarItem
                         key={item.id}
                         item={item}
                         isSelected={selectedItemId === item.id}
-                        onSelect={() => selectItem(item.id)}
+                        onSelect={() => handleItemSelect(item.id)}
                         onContextMenu={(e) => handleContextMenu(e, item.id)}
                       />
                     ))}
@@ -117,7 +145,29 @@ export default function TouchBar() {
         </div>
       </div>
 
-      {/* Context Menu */}
+      {expandedDockItem && (
+        <div className="touchbar-sub-bar">
+          <div className="touchbar-sub-bar-screen">
+            {DOCK_SUB_APPS.map((app, i) =>
+              app === null ? (
+                <div key={`sep-${i}`} className="touchbar-sub-sep" />
+              ) : (
+                <div
+                  key={app.name}
+                  className={`touchbar-sub-item ${app.active ? 'active' : ''}`}
+                  title={app.name}
+                >
+                  <span style={{ position: 'relative' }}>
+                    {app.icon}
+                    {app.active && <span className="touchbar-sub-item-dot" />}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
       {contextMenu && (
         <div
           className="context-menu"
@@ -136,7 +186,7 @@ export default function TouchBar() {
               setContextMenu(null);
             }}
           >
-            Edit
+            编辑
           </button>
           <button
             className="context-menu-item"
@@ -145,7 +195,7 @@ export default function TouchBar() {
               setContextMenu(null);
             }}
           >
-            Duplicate
+            复制
           </button>
           <div className="context-menu-divider" />
           <button
@@ -155,7 +205,7 @@ export default function TouchBar() {
               setContextMenu(null);
             }}
           >
-            Delete
+            删除
           </button>
         </div>
       )}

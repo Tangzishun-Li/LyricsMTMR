@@ -1,58 +1,54 @@
-/* TouchBar Container */
 .touchbar-container {
-  padding: 20px;
+  padding: 16px 20px 8px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 8px;
 }
 
-/* TouchBar Frame (MacBook-like appearance) */
 .touchbar-frame {
-  background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+  background: linear-gradient(180deg, #d8d8dc 0%, #c7c7cc 100%);
   border-radius: 6px;
-  padding: 6px 8px;
-  box-shadow: 
-    0 2px 10px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  padding: 5px 7px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  border: 1px solid #333;
+  border: 1px solid #b8b8be;
 }
 
 .touchbar-frame.drag-over {
   border-color: #007aff;
-  box-shadow: 
-    0 2px 10px rgba(0, 0, 0, 0.5),
-    0 0 15px rgba(0, 122, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 12px rgba(0, 122, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-/* TouchBar Screen */
 .touchbar-screen {
-  background: #1c1c1c;
+  background: #e8e8ed;
   border-radius: 4px;
-  min-height: 36px;
+  min-height: 32px;
   min-width: 800px;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
 }
 
-/* TouchBar Items Container */
 .touchbar-items {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 4px 6px;
-  min-height: 36px;
+  padding: 3px 5px;
+  min-height: 32px;
   flex: 1;
 }
 
-/* Alignment sections */
 .touchbar-section {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .touchbar-section-left {
@@ -72,168 +68,151 @@
   margin-left: auto;
 }
 
-/* Empty State */
 .touchbar-empty {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 600px;
-  min-height: 36px;
-  color: #555;
-  font-size: 13px;
+  min-height: 32px;
+  color: #aeaeb2;
+  font-size: 12px;
   font-style: italic;
 }
 
-/* Individual TouchBar Item - macOS Style */
 .touchbar-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 4px 10px;
-  min-height: 28px;
-  background: linear-gradient(180deg, #323232 0%, #282828 50%, #1e1e1e 100%);
-  border-radius: 5px;
-  border: none;
+  gap: 3px;
+  padding: 3px 9px;
+  min-height: 24px;
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f2 50%, #e5e5ea 100%);
+  border-radius: 4px;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
   cursor: grab;
   user-select: none;
   transition: all 0.1s ease;
   position: relative;
   white-space: nowrap;
-  box-shadow: 
-    0 0.5px 1px rgba(0, 0, 0, 0.3),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0.5px 1px rgba(0, 0, 0, 0.06),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.6);
 }
 
 .touchbar-item:hover {
-  background: linear-gradient(180deg, #3a3a3a 0%, #303030 50%, #262626 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 50%, #ebebef 100%);
 }
 
 .touchbar-item:active {
   cursor: grabbing;
-  background: linear-gradient(180deg, #282828 0%, #1e1e1e 50%, #1a1a1a 100%);
-  box-shadow: 
-    inset 0 0.5px 1px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, #e5e5ea 0%, #dcdce0 50%, #d2d2d7 100%);
+  box-shadow:
+    inset 0 0.5px 1px rgba(0, 0, 0, 0.08);
 }
 
 .touchbar-item.selected {
-  box-shadow: 
-    0 0 0 2px rgba(0, 122, 255, 0.8),
-    0 0.5px 1px rgba(0, 0, 0, 0.3),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 2px rgba(0, 122, 255, 0.6),
+    0 0.5px 1px rgba(0, 0, 0, 0.06),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.6);
 }
 
 .touchbar-item.dragging {
   opacity: 0.5;
 }
 
-/* Borderless items */
 .touchbar-item.no-border {
   background: transparent;
   box-shadow: none;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 .touchbar-item.no-border:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .touchbar-item.no-border:active {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.02);
 }
 
-/* Alignment - handled by sections now */
-
-/* Item Title */
 .touchbar-item-title {
-  color: #e0e0e0;
-  font-size: 12px;
+  color: #1d1d1f;
+  font-size: 11px;
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.1px;
 }
 
-/* Item Image */
 .touchbar-item-image {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .touchbar-item-image img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  filter: brightness(1.1);
 }
 
 .image-placeholder {
-  font-size: 14px;
+  font-size: 13px;
 }
 
-/* ============================================
-   TYPE-SPECIFIC STYLES
-   ============================================ */
-
-/* Escape Button */
 .touchbar-item.type-escape {
-  min-width: 54px;
-  padding: 4px 12px;
+  min-width: 48px;
+  padding: 3px 10px;
 }
 
 .touchbar-item.type-escape .touchbar-item-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   text-transform: lowercase;
 }
 
-/* Exit TouchBar Button */
 .touchbar-item.type-exitTouchbar {
-  min-width: 32px;
-  padding: 4px 8px;
+  min-width: 28px;
+  padding: 3px 6px;
 }
 
-/* Brightness & Volume Buttons */
 .touchbar-item.type-brightnessUp,
 .touchbar-item.type-brightnessDown,
 .touchbar-item.type-illuminationUp,
 .touchbar-item.type-illuminationDown {
-  min-width: 36px;
-  padding: 4px 8px;
+  min-width: 32px;
+  padding: 3px 6px;
 }
 
 .touchbar-item.type-volumeUp,
 .touchbar-item.type-volumeDown,
 .touchbar-item.type-mute {
-  min-width: 36px;
-  padding: 4px 8px;
+  min-width: 32px;
+  padding: 3px 6px;
 }
 
-/* Brightness/Volume Icons */
 .touchbar-icon {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
-  filter: grayscale(100%) brightness(1.2);
+  filter: grayscale(100%) brightness(0.5);
 }
 
-/* Slider Styles */
 .touchbar-item.slider {
-  min-width: 90px;
-  padding: 4px 8px;
-  gap: 6px;
+  min-width: 80px;
+  padding: 3px 7px;
+  gap: 5px;
 }
 
 .touchbar-item.type-brightness.slider,
 .touchbar-item.type-volume.slider {
-  background: linear-gradient(180deg, #323232 0%, #282828 50%, #1e1e1e 100%);
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f2 50%, #e5e5ea 100%);
 }
 
 .slider-icon {
-  font-size: 12px;
-  opacity: 0.9;
+  font-size: 11px;
+  opacity: 0.8;
 }
 
 .slider-indicator {
@@ -246,7 +225,7 @@
 .slider-track {
   width: 100%;
   height: 3px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 1.5px;
   position: relative;
   overflow: hidden;
@@ -259,142 +238,130 @@
   top: 0;
   width: 50%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   border-radius: 1.5px;
 }
 
-/* Media Control Buttons */
 .touchbar-item.type-previous,
 .touchbar-item.type-play,
 .touchbar-item.type-next {
-  min-width: 36px;
-  padding: 4px 10px;
+  min-width: 32px;
+  padding: 3px 9px;
 }
 
 .touchbar-item.type-play {
-  min-width: 40px;
+  min-width: 36px;
 }
 
-/* Battery */
 .touchbar-item.type-battery {
-  min-width: 50px;
-  padding: 4px 8px;
-  gap: 3px;
+  min-width: 44px;
+  padding: 3px 7px;
+  gap: 2px;
 }
 
 .battery-icon {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .battery-percentage {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: #1d1d1f;
 }
 
-/* Time Button */
 .touchbar-item.type-timeButton {
-  min-width: 50px;
-  padding: 4px 10px;
+  min-width: 44px;
+  padding: 3px 9px;
 }
 
 .time-display {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-/* Weather */
 .touchbar-item.type-weather,
 .touchbar-item.type-yandexWeather {
-  min-width: 50px;
-  padding: 4px 8px;
-  gap: 4px;
+  min-width: 44px;
+  padding: 3px 7px;
+  gap: 3px;
 }
 
 .weather-icon {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .weather-temp {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
 }
 
-/* CPU */
 .touchbar-item.type-cpu {
-  min-width: 45px;
-  padding: 4px 8px;
+  min-width: 40px;
+  padding: 3px 7px;
 }
 
-/* Currency */
 .touchbar-item.type-currency {
-  min-width: 70px;
-  padding: 4px 8px;
+  min-width: 60px;
+  padding: 3px 7px;
 }
 
-/* Music */
 .touchbar-item.type-music {
-  min-width: 80px;
-  max-width: 150px;
-  padding: 4px 8px;
+  min-width: 70px;
+  max-width: 140px;
+  padding: 3px 7px;
 }
 
 .music-display {
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 130px;
 }
 
-/* Input Source */
 .touchbar-item.type-inputsource {
-  min-width: 32px;
-  padding: 4px 8px;
+  min-width: 28px;
+  padding: 3px 7px;
 }
 
 .input-source-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
-/* Night Shift, DND, Dark Mode */
 .touchbar-item.type-nightShift,
 .touchbar-item.type-dnd,
 .touchbar-item.type-darkMode {
-  min-width: 32px;
-  padding: 4px 8px;
+  min-width: 28px;
+  padding: 3px 7px;
 }
 
-/* Pomodoro */
 .touchbar-item.type-pomodoro {
-  min-width: 50px;
-  padding: 4px 8px;
+  min-width: 44px;
+  padding: 3px 7px;
 }
 
-/* Network */
 .touchbar-item.type-network {
-  min-width: 55px;
-  padding: 4px 8px;
+  min-width: 48px;
+  padding: 3px 7px;
 }
 
-/* Dock */
 .touchbar-item.type-dock {
-  min-width: 100px;
-  padding: 4px 6px;
+  min-width: 90px;
+  padding: 3px 5px;
 }
 
 .dock-preview {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .dock-app {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
-  opacity: 0.7;
+  opacity: 0.6;
   position: relative;
 }
 
@@ -405,119 +372,112 @@
 .dock-app.active::after {
   content: '';
   position: absolute;
-  bottom: -3px;
+  bottom: -2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  background: #fff;
+  width: 3px;
+  height: 3px;
+  background: #1d1d1f;
   border-radius: 50%;
 }
 
-/* Up Next (Calendar) */
 .touchbar-item.type-upnext {
-  min-width: 80px;
-  padding: 4px 8px;
+  min-width: 70px;
+  padding: 3px 7px;
 }
 
-/* Group Styles */
 .touchbar-item.group {
-  background: linear-gradient(180deg, #383838 0%, #2e2e2e 50%, #242424 100%);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  border-radius: 5px;
+  background: linear-gradient(180deg, #f0f0f2 0%, #e8e8ed 50%, #dcdce0 100%);
+  border: 1px dashed rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
 }
 
 .group-count {
-  font-size: 9px;
-  color: #888;
-  margin-left: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1px 5px;
-  border-radius: 8px;
+  font-size: 8px;
+  color: #86868b;
+  margin-left: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 6px;
 }
 
-/* Close Button */
 .touchbar-item.type-close {
-  min-width: 28px;
-  padding: 4px 6px;
+  min-width: 24px;
+  padding: 3px 5px;
 }
 
 .touchbar-item.type-close .touchbar-item-title {
-  color: #ff5f57;
-  font-size: 14px;
+  color: #ff3b30;
+  font-size: 13px;
   font-weight: 600;
 }
 
-/* Static Button */
 .touchbar-item.type-staticButton {
-  min-width: 40px;
+  min-width: 36px;
 }
 
-/* AppleScript/ShellScript Buttons */
 .touchbar-item.type-appleScriptTitledButton,
 .touchbar-item.type-shellScriptTitledButton {
-  min-width: 50px;
-  max-width: 150px;
+  min-width: 44px;
+  max-width: 140px;
 }
 
 .script-output {
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Selection Indicator */
 .selection-indicator {
   position: absolute;
   inset: -2px;
   border: 2px solid #007aff;
-  border-radius: 7px;
+  border-radius: 6px;
   pointer-events: none;
 }
 
-/* Drag Overlay */
 .touchbar-item-overlay {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
-  min-height: 28px;
-  background: linear-gradient(180deg, #3a3a3a 0%, #303030 50%, #262626 100%);
-  border-radius: 5px;
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    0 0 0 2px rgba(0, 122, 255, 0.8);
+  padding: 3px 9px;
+  min-height: 24px;
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f2 50%, #e5e5ea 100%);
+  border-radius: 4px;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 0 0 2px rgba(0, 122, 255, 0.6);
   cursor: grabbing;
 }
 
 .touchbar-item-overlay .touchbar-item-title {
-  color: #e0e0e0;
-  font-size: 12px;
+  color: #1d1d1f;
+  font-size: 11px;
   font-weight: 500;
 }
 
-/* Context Menu */
 .context-menu {
-  background: rgba(40, 40, 40, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 0.5px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   padding: 4px 0;
   min-width: 130px;
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    0 0 0 0.5px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
 .context-menu-item {
   display: block;
   width: 100%;
-  padding: 6px 12px;
+  padding: 5px 12px;
   background: none;
   border: none;
-  color: #e0e0e0;
+  color: #1d1d1f;
   font-size: 12px;
   text-align: left;
   cursor: pointer;
@@ -526,43 +486,40 @@
 }
 
 .context-menu-item:hover {
-  background: rgba(0, 122, 255, 0.3);
+  background: rgba(0, 122, 255, 0.1);
 }
 
 .context-menu-item.danger {
-  color: #ff6b6b;
+  color: #ff3b30;
 }
 
 .context-menu-item.danger:hover {
-  background: rgba(255, 107, 107, 0.15);
+  background: rgba(255, 59, 48, 0.08);
 }
 
 .context-menu-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.08);
   margin: 4px 0;
 }
 
-/* Unknown type */
 .touchbar-item.unknown {
-  border: 1px dashed #ff6b6b;
-  background: linear-gradient(180deg, #3a2a2a 0%, #2a1a1a 100%);
+  border: 1px dashed #ff3b30;
+  background: linear-gradient(180deg, #fce8e8 0%, #f5d8d8 100%);
 }
 
-/* Responsive */
 @media (max-width: 900px) {
   .touchbar-screen {
     min-width: 100%;
   }
-  
+
   .touchbar-empty {
     min-width: 300px;
   }
 }
 
-/* Scrollbar styling */
 .touchbar-screen::-webkit-scrollbar {
-  height: 4px;
+  height: 3px;
 }
 
 .touchbar-screen::-webkit-scrollbar-track {
@@ -570,10 +527,98 @@
 }
 
 .touchbar-screen::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 1.5px;
 }
 
 .touchbar-screen::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Dock Sub-Bar (secondary bar) */
+.touchbar-sub-bar {
+  background: linear-gradient(180deg, #d8d8dc 0%, #c7c7cc 100%);
+  border-radius: 6px;
+  padding: 4px 6px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #b8b8be;
+  min-width: 300px;
+  max-width: 600px;
+  transition: all 0.2s ease;
+}
+
+.touchbar-sub-bar-screen {
+  background: #e8e8ed;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  min-height: 28px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.touchbar-sub-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(180deg, #fafafa 0%, #f0f0f2 50%, #e5e5ea 100%);
+  border-radius: 4px;
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: all 0.1s ease;
+  box-shadow:
+    0 0.5px 1px rgba(0, 0, 0, 0.04),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.touchbar-sub-item:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 50%, #ebebef 100%);
+  box-shadow:
+    0 0.5px 1px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 122, 255, 0.3);
+}
+
+.touchbar-sub-item.active {
+  opacity: 1;
+  box-shadow:
+    0 0 0 1.5px rgba(0, 122, 255, 0.5);
+}
+
+.touchbar-sub-item-dot {
+  width: 3px;
+  height: 3px;
+  background: #1d1d1f;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.touchbar-sub-label {
+  font-size: 9px;
+  color: #86868b;
+  text-align: center;
+  padding-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.touchbar-sub-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 2px;
+  flex-shrink: 0;
 }
