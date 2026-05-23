@@ -174,18 +174,30 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     // MARK: - Placeholder
 
     private func updatePlaceholder() {
-        if !engine.trackInfo.title.isEmpty {
-            placeholderLabel.stringValue = "♫ Loading lyrics..."
-        } else {
-            placeholderLabel.stringValue = "♫ No music playing..."
-        }
         showPlaceholder()
     }
 
     private func showPlaceholder() {
         guard config.displayMode != .artwork else { return }
         lyricsLabel.isHidden = true
-        placeholderLabel.stringValue = "♫ No music..."
+
+        let info = engine.trackInfo
+        let hasLyrics = engine.currentLyrics != nil
+
+        if hasLyrics {
+            if !info.title.isEmpty {
+                placeholderLabel.stringValue = info.artist.isEmpty
+                    ? info.title
+                    : "\(info.title) — \(info.artist)"
+            } else {
+                placeholderLabel.stringValue = "♫ Loading lyrics..."
+            }
+        } else if !info.title.isEmpty {
+            placeholderLabel.stringValue = "♫ Loading lyrics..."
+        } else {
+            placeholderLabel.stringValue = "♫ No music playing..."
+        }
+
         if placeholderLabel.superview == nil {
             stackView.addArrangedSubview(placeholderLabel)
         }

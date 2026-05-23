@@ -308,6 +308,7 @@ class LyricsEngine: NSObject {
             AppLog.info("MR_handle: no elapsedTime, same track → keeping prev playbackTime=\(elapsed)")
         } else {
             elapsed = 0
+            calibrateTimebase(with: 0)
             AppLog.info("MR_handle: no elapsedTime, different track → reset to 0")
         }
 
@@ -349,8 +350,11 @@ class LyricsEngine: NSObject {
         )
         trackInfo = newInfo
         if state == .playing {
-            resetTimebase()
-            scheduleLineCheck()
+            // Don't reset timeBase here — let MR info calibrate via calibrateTimebase.
+            // scheduleLineCheck is triggered by handleMRInfo/updateTrackInfo when MR data arrives.
+        } else {
+            // Clear timeBase on pause/stop so the timer doesn't compute from a stale base when resumed.
+            timeBase = nil
         }
     }
 
@@ -407,6 +411,7 @@ class LyricsEngine: NSObject {
         if titleChanged {
             AppLog.info("updateTrackInfo: TITLE CHANGED「\(prevTitle.prefix(20))」→「\(newInfo.title.prefix(30))」lastTrackTitle=「\(lastTrackTitle.prefix(20))」")
             lastTrackTitle = newInfo.title
+            resetTimebase()
             currentLyrics = nil
             currentLineIndex = nil
             scheduleLineCheck()
@@ -470,30 +475,49 @@ class LyricsEngine: NSObject {
         }
 
         AppLog.lyrics("searchLyrics: no local file found, starting online search...")
+        let maxAttempts = 3
         Task { [weak self] in
             guard let self else { return }
-            let result = await LyricsSearchService.shared.searchLyrics(title: title, artist: artist)
+
+            var lastResult: LyricsSearchResult?
+            for attempt in 0..<maxAttempts {
+                lastResult = await LyricsSearchService.shared.searchLyrics(title: title, artist: artist)
+                if lastResult?.lyrics != nil || attempt == maxAttempts - 1 {
+                    break
+                }
+                let delay = UInt64((1 << attempt) * 1_000_000_000)
+                AppLog.lyrics("searchLyrics: online no lyrics for「\(title.prefix(30))」(attempt \(attempt+1)/\(maxAttempts)), retrying in \(1 << attempt)s...")
+                try? await Task.sleep(nanoseconds: delay)
+            }
+
             await MainActor.run {
-                if let lyrics = result.lyrics {
-                    AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
-                    let filtered = lyrics.filtered
-                    AppLog.lyrics("searchLyrics: filtered to \(filtered.lines.count) lines")
-                    self.currentLyrics = filtered
-                    self.translationLyrics = result.translationLyrics
-                    self.romajiLyrics = result.romajiLyrics
-                    if let t = result.translationLyrics {
-                        AppLog.lyrics("searchLyrics: also loaded \(t.lines.count) translation lines")
-                    }
-                    if let r = result.romajiLyrics {
-                        AppLog.lyrics("searchLyrics: also loaded \(r.lines.count) romaji lines")
-                    }
-                    self.scheduleLineCheck()
-                } else {
-                    AppLog.lyrics("searchLyrics: ONLINE no lyrics found for: \(title.prefix(30))")
+                guard self.lastTrackTitle == title else {
+                    AppLog.lyrics("searchLyrics: stale online result — user switched tracks")
+                    return
+                }
+
+                guard let result = lastResult, let lyrics = result.lyrics else {
+                    AppLog.lyrics("searchLyrics: online no lyrics found for: \(title.prefix(30)) — giving up after \(maxAttempts) attempts")
                     self.currentLyrics = nil
                     self.translationLyrics = nil
                     self.romajiLyrics = nil
+                    return
                 }
+
+                AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
+                let filtered = lyrics.filtered
+                AppLog.lyrics("searchLyrics: filtered to \(filtered.lines.count) lines")
+                self.currentLyrics = filtered
+                self.translationLyrics = result.translationLyrics
+                self.romajiLyrics = result.romajiLyrics
+                if let t = result.translationLyrics {
+                    AppLog.lyrics("searchLyrics: also loaded \(t.lines.count) translation lines")
+                }
+                if let r = result.romajiLyrics {
+                    AppLog.lyrics("searchLyrics: also loaded \(r.lines.count) romaji lines")
+                }
+                self.scheduleLineCheck()
+
                 if let coverURL = result.coverURL {
                     AppLog.lyrics("searchLyrics: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
                     self.coverURL = coverURL
