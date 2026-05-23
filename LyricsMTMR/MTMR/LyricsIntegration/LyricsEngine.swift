@@ -50,7 +50,16 @@ class SimpleLyrics {
     }
 
     var filtered: SimpleLyrics {
-        let filteredLines = lines.filter { !LyricsFilter.shouldExclude($0.content) }
+        let filteredLines = lines
+            .filter { !LyricsFilter.shouldExclude($0.content) }
+            .map { line in
+                let cleaned = line.content
+                    .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"\[tt\]"#, with: "", options: .regularExpression)
+                return SimpleLyrics.Line(position: line.position, content: cleaned.trimmingCharacters(in: .whitespaces), timetags: line.timetags)
+            }
+            .filter { !$0.content.isEmpty }
         return SimpleLyrics(lines: filteredLines, adjustedTimeDelay: adjustedTimeDelay)
     }
 
@@ -85,7 +94,10 @@ class SimpleLyrics {
                 let time = min * 60 + sec + ms / (msStr.count == 3 ? 1000 : 100)
 
                 if cleanText.hasPrefix("<") || !cleanText.contains("<") {
-                    let content = cleanText.replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
+                    let content = cleanText
+                        .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     let line = Line(position: time, content: content)
                     lines.append(line)
                 } else {
@@ -112,7 +124,10 @@ class SimpleLyrics {
                         }
                     }
 
-                    let content = cleanText.replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
+                    let content = cleanText
+                        .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                        .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     let line = Line(position: time, content: content, timetags: timetags)
                     lines.append(line)
                 }

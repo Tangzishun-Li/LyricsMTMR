@@ -286,24 +286,37 @@ enum NetEaseProvider {
             var wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
             wordContent = wordContent.replacingOccurrences(of: #"^\[tt\]"#, with: "", options: .regularExpression)
             wordContent = wordContent.replacingOccurrences(of: #"^\[(\d+),(\d+)\]"#, with: "", options: .regularExpression)
+            wordContent = wordContent.replacingOccurrences(of: #"^(<(\d+),(\d+)>)+"#, with: "", options: .regularExpression)
             var cleanText = ""
             var timetags: [(TimeInterval, Int)] = []
 
-            let wordMatches = yrcWordPattern.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
-            for wm in wordMatches {
-                let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
-                let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
-                let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
-                guard let wordMs = Double(wordMsStr),
-                      let wordDurMs = Double(wordDurMsStr) else { continue }
+            let hasParen = wordContent.contains("(")
+            let hasAngle = wordContent.contains("<")
+            let wordPattern = hasParen ? yrcWordPattern : (hasAngle ? yrcWordPatternAngle : nil)
+            if let wp = wordPattern {
+                let wordMatches = wp.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
+                for wm in wordMatches {
+                    let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
+                    let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
+                    let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
+                    guard let wordMs = Double(wordMsStr),
+                          let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                let prevCount = cleanText.count
-                cleanText += wordText
-                if wm.range(at: 4).location != NSNotFound {
-                    cleanText += " "
+                    let prevCount = cleanText.count
+                    cleanText += wordText
+                    if wm.range(at: 4).location != NSNotFound {
+                        cleanText += " "
+                    }
+                    timetags.append((wordMs / 1000.0, prevCount))
+                    _ = wordDurMs
                 }
-                timetags.append((wordMs / 1000.0, prevCount))
-                _ = wordDurMs
+            }
+
+            if cleanText.isEmpty {
+                cleanText = wordContent
+                    .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
             }
 
             guard !cleanText.isEmpty else { continue }
@@ -317,6 +330,7 @@ enum NetEaseProvider {
 
     private static let yrcLinePattern = try! NSRegularExpression(pattern: #"\[(\d+:\d+\.\d+)\](.*)"#)
     private static let yrcWordPattern = try! NSRegularExpression(pattern: #"\((\d+),(\d+)\)([^\(]*?)(?=\(\d+,\d+\)|$)"#)
+    private static let yrcWordPatternAngle = try! NSRegularExpression(pattern: #"<(\d+),(\d+)>([^<]*?)(?=<\d+,\d+>|$)"#)
 
     // MARK: - KRC Parser
 
@@ -352,20 +366,32 @@ enum NetEaseProvider {
             var timetags: [(TimeInterval, Int)] = []
             var dt: TimeInterval = 0
 
-            let wordMatches = krcWordPattern.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
-            for wm in wordMatches {
-                let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
-                let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
-                let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
-                guard let wordMs = Double(wordMsStr),
-                      let wordDurMs = Double(wordDurMsStr) else { continue }
+            let hasUnicodeAngle = wordContent.contains("\u{3008}") || wordContent.contains("\u{3009}")
+            let hasAsciiAngle = wordContent.contains("<") || wordContent.contains(">")
+            let krcPattern = hasUnicodeAngle ? krcWordPattern : (hasAsciiAngle ? krcWordPatternAscii : nil)
+            if let kp = krcPattern {
+                let wordMatches = kp.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
+                for wm in wordMatches {
+                    let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
+                    let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
+                    let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
+                    guard let wordMs = Double(wordMsStr),
+                          let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                let prevCount = cleanText.count
-                cleanText += wordText
-                if wm.range(at: 4).location != NSNotFound { cleanText += " " }
-                dt += wordMs / 1000.0
-                timetags.append((dt, prevCount))
-                _ = wordDurMs
+                    let prevCount = cleanText.count
+                    cleanText += wordText
+                    if wm.range(at: 4).location != NSNotFound { cleanText += " " }
+                    dt += wordMs / 1000.0
+                    timetags.append((dt, prevCount))
+                    _ = wordDurMs
+                }
+            }
+
+            if cleanText.isEmpty {
+                cleanText = wordContent
+                    .replacingOccurrences(of: #"\〈\d+,\d+\〉"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
             }
 
             guard !cleanText.isEmpty else { continue }
@@ -379,6 +405,7 @@ enum NetEaseProvider {
 
     private static let krcLinePattern = try! NSRegularExpression(pattern: #"\[(\d+:\d+\.\d+)\](.*)"#)
     private static let krcWordPattern = try! NSRegularExpression(pattern: #"\〈(\d+),(\d+)\〉([^\〈]*?)(?=\〈\d+,\d+\〉|$)"#)
+    private static let krcWordPatternAscii = try! NSRegularExpression(pattern: #"<(\d+),(\d+)>([^<]*?)(?=<\d+,\d+>|$)"#)
 
     // MARK: - Models
 

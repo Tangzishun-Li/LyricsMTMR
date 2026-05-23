@@ -298,19 +298,31 @@ enum QQMusicProvider {
             var cleanText = ""
             var timetags: [(TimeInterval, Int)] = []
 
-            let wordMatches = qrcWordPattern.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
-            for wm in wordMatches {
-                let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
-                let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
-                let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
-                guard let wordMs = Double(wordMsStr),
-                      let wordDurMs = Double(wordDurMsStr) else { continue }
+            let hasParen = wordContent.contains("(")
+            let hasAngle = wordContent.contains("<")
+            let qrcPattern = hasParen ? qrcWordPattern : (hasAngle ? qrcWordPatternAngle : nil)
+            if let qp = qrcPattern {
+                let wordMatches = qp.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
+                for wm in wordMatches {
+                    let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
+                    let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
+                    let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
+                    guard let wordMs = Double(wordMsStr),
+                          let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                let prevCount = cleanText.count
-                cleanText += wordText
-                if wm.range(at: 4).location != NSNotFound { cleanText += " " }
-                timetags.append((wordMs / 1000.0, prevCount))
-                _ = wordDurMs
+                    let prevCount = cleanText.count
+                    cleanText += wordText
+                    if wm.range(at: 4).location != NSNotFound { cleanText += " " }
+                    timetags.append((wordMs / 1000.0, prevCount))
+                    _ = wordDurMs
+                }
+            }
+
+            if cleanText.isEmpty {
+                cleanText = wordContent
+                    .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
+                    .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces)
             }
 
             guard !cleanText.isEmpty else { continue }
@@ -324,6 +336,7 @@ enum QQMusicProvider {
 
     private static let qrcLinePattern = try! NSRegularExpression(pattern: #"\[(\d+),\d+\](.*)"#)
     private static let qrcWordPattern = try! NSRegularExpression(pattern: #"\((\d+),(\d+)\)([^\(]*?)(?=\(\d+,\d+\)|$)"#)
+    private static let qrcWordPatternAngle = try! NSRegularExpression(pattern: #"<(\d+),(\d+)>([^<]*?)(?=<\d+,\d+>|$)"#)
 
     // MARK: - Models
 
