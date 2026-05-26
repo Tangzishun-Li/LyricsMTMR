@@ -83,6 +83,9 @@ struct AppSettings {
 
     @UserDefault(key: "com.toxblh.mtmr.lyrics.filterKeys", defaultValue: LyricsFilter.defaultKeys)
     static var lyricsFilterKeys: [String]
+
+    @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
+    static var showMirrorWindow: Bool
 }
 
 @propertyWrapper

@@ -1,20 +1,3 @@
-//
-//  LyricsTouchBarItem.swift
-//  LyricsMTMR
-//
-//  Adapted from LyricsX TouchBarLyricsItem
-//  Original: https://github.com/MxIris-LyricsX-Project/LyricsX
-//
-//  A full-featured Touch Bar item that displays:
-//  - Current song artwork (optional)
-//  - Karaoke lyrics with progressive or jump animation
-//  - Static "Title - Artist" mode
-//  - Artwork-only mode
-//  - Click to cycle: original → translation → romaji
-//
-//  This source code is licensed under GPL 2.0.
-//  See LICENSE file in the project root for full license information.
-//
 import Cocoa
 import Combine
 
@@ -22,11 +5,16 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private let stackView = NSStackView()
     private let artworkView = NSImageView()
     private let lyricsLabel = KaraokeLabel(labelWithString: "")
+    private let lyricsClipView = NSView()
     private let placeholderLabel = NSTextField(labelWithString: "")
 
     private var config: LyricsItemConfig
     private var engine: LyricsEngine { LyricsEngine.shared }
     private var cancellables = Set<AnyCancellable>()
+
+    private var marqueeTimer: Timer?
+    private var marqueeOffset: CGFloat = 0
+    private var marqueeDirection: CGFloat = -1
 
     override init(identifier: NSTouchBarItem.Identifier) {
         self.config = LyricsItemConfig.shared
@@ -35,6 +23,10 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         setupSubscriptions()
         setupGesture()
         updatePlaceholder()
+    }
+
+    deinit {
+        stopMarqueeTimer()
     }
 
     func applyConfig(_ config: LyricsItemConfig) {
@@ -60,8 +52,20 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         lyricsLabel.isVertical = false
         lyricsLabel.drawFurigana = false
         lyricsLabel.drawRomajin = false
-        lyricsLabel.lineBreakMode = .byTruncatingTail
+        lyricsLabel.lineBreakMode = .byClipping
         lyricsLabel.refusesFirstResponder = true
+
+        lyricsClipView.wantsLayer = true
+        lyricsClipView.layer?.masksToBounds = true
+        lyricsClipView.translatesAutoresizingMaskIntoConstraints = false
+
+        lyricsLabel.translatesAutoresizingMaskIntoConstraints = false
+        lyricsClipView.addSubview(lyricsLabel)
+        NSLayoutConstraint.activate([
+            lyricsLabel.leadingAnchor.constraint(equalTo: lyricsClipView.leadingAnchor),
+            lyricsLabel.centerYAnchor.constraint(equalTo: lyricsClipView.centerYAnchor),
+            lyricsClipView.heightAnchor.constraint(equalTo: lyricsLabel.heightAnchor),
+        ])
 
         placeholderLabel.font = config.font
         placeholderLabel.textColor = config.textColor.withAlphaComponent(0.5)
@@ -80,7 +84,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             stackView.addArrangedSubview(artworkView)
         }
 
-        stackView.addArrangedSubview(lyricsLabel)
+        stackView.addArrangedSubview(lyricsClipView)
 
         view = stackView
     }
@@ -144,12 +148,15 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
               let idx = lineIndex,
               idx < active.lines.count else {
             showPlaceholder()
+            stopMarqueeTimer()
             return
         }
 
         let line = active.lines[idx]
         lyricsLabel.stringValue = line.content
         hidePlaceholder()
+
+        handleTextScroll(line: line, position: track.playbackTime, active: active, track: track)
 
         if !line.timetags.isEmpty, track.playbackState == .playing {
             let position = track.playbackTime
@@ -171,6 +178,100 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         }
     }
 
+    // MARK: - Text Scrolling (Marquee / Karaoke Auto-Follow)
+
+    private func handleTextScroll(line: SimpleLyrics.Line, position: TimeInterval, active: SimpleLyrics, track: EngineTrackInfo) {
+        guard config.marqueeEnabled else {
+            resetScrollPosition()
+            return
+        }
+
+        let clipWidth = lyricsClipView.bounds.width
+        guard clipWidth > 0 else {
+            resetScrollPosition()
+            return
+        }
+
+        let textWidth = lyricsLabel.fullTextWidth
+        guard textWidth > clipWidth else {
+            resetScrollPosition()
+            return
+        }
+
+        if !line.timetags.isEmpty, config.marqueeStyle == "marquee" {
+            stopMarqueeTimer()
+            updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track)
+        } else if !line.timetags.isEmpty, config.marqueeStyle == "follow" {
+            stopMarqueeTimer()
+            updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track)
+        } else {
+            lyricsLabel.removeProgressAnimation()
+            startMarquee(clipWidth: clipWidth, textWidth: textWidth)
+        }
+    }
+
+    private func updateAutoScroll(timetags: [(TimeInterval, Int)], line: SimpleLyrics.Line, active: SimpleLyrics, track: EngineTrackInfo) {
+        let position = track.playbackTime
+        let timeDelay = active.adjustedTimeDelay
+        let clipWidth = lyricsClipView.bounds.width
+        let textWidth = lyricsLabel.fullTextWidth
+
+        guard clipWidth > 0, textWidth > clipWidth else { return }
+
+        let currentProgress = timetags.map { ($0.0 + line.position - timeDelay - position, $0.1) }
+
+        guard let nextIdx = currentProgress.firstIndex(where: { $0.0 > 0 }),
+              nextIdx < timetags.count else {
+            return
+        }
+
+        let activeCharIndex = timetags[nextIdx].1
+        let charX = lyricsLabel.charPosition(at: activeCharIndex)
+
+        let targetVisibleX = clipWidth * 0.65
+        let maxOffset: CGFloat = 0
+        let minOffset = -(textWidth - clipWidth)
+        let desiredOffset = max(minOffset, min(maxOffset, targetVisibleX - charX))
+
+        if abs(lyricsLabel.frame.origin.x - desiredOffset) > 2 {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                lyricsLabel.animator().frame.origin.x = desiredOffset
+            }
+        }
+    }
+
+    private func startMarquee(clipWidth: CGFloat, textWidth: CGFloat) {
+        stopMarqueeTimer()
+        marqueeOffset = 0
+        marqueeDirection = -1
+
+        let maxOffset = textWidth - clipWidth + 15
+        let speed = config.marqueeSpeed
+
+        marqueeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.marqueeOffset += self.marqueeDirection * speed / 60.0
+
+            if self.marqueeOffset <= -maxOffset {
+                self.marqueeOffset = 0
+            }
+
+            self.lyricsLabel.frame.origin.x = self.marqueeOffset
+        }
+    }
+
+    private func stopMarqueeTimer() {
+        marqueeTimer?.invalidate()
+        marqueeTimer = nil
+    }
+
+    private func resetScrollPosition() {
+        stopMarqueeTimer()
+        lyricsLabel.frame.origin.x = 0
+    }
+
     // MARK: - Placeholder
 
     private func updatePlaceholder() {
@@ -180,18 +281,17 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private func showPlaceholder() {
         guard config.displayMode != .artwork else { return }
         lyricsLabel.isHidden = true
+        stopMarqueeTimer()
+        lyricsLabel.removeProgressAnimation()
 
         let info = engine.trackInfo
         let hasLyrics = engine.currentLyrics != nil
 
         if hasLyrics {
-            if !info.title.isEmpty {
-                placeholderLabel.stringValue = info.artist.isEmpty
-                    ? info.title
-                    : "\(info.title) — \(info.artist)"
-            } else {
-                placeholderLabel.stringValue = "♫ Loading lyrics..."
-            }
+            let displayText = info.artist.isEmpty ? info.title : "\(info.title) — \(info.artist)"
+            placeholderLabel.stringValue = info.title.isEmpty ? "♫ Loading lyrics..." : displayText
+        } else if engine.searchFailed {
+            placeholderLabel.stringValue = "♫ Lyrics not found"
         } else if !info.title.isEmpty {
             placeholderLabel.stringValue = "♫ Loading lyrics..."
         } else {
@@ -211,6 +311,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private func hideLyrics() {
         lyricsLabel.isHidden = true
         lyricsLabel.removeProgressAnimation()
+        stopMarqueeTimer()
     }
 
     // MARK: - Tap Handling
@@ -238,6 +339,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     }
 
     private func showFlash(_ text: String) {
+        resetScrollPosition()
         lyricsLabel.stringValue = "[ \(text) ]"
         lyricsLabel.removeProgressAnimation()
         let savedIdx = engine.currentLineIndex

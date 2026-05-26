@@ -4,6 +4,7 @@
 //
 //  Lightweight JSON editor for MTMR configuration.
 //  This source code is licensed under MIT.
+//  This source code is licensed under MIT.
 //  See LICENSE file in the project root for full license information.
 //
 

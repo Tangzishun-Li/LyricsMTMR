@@ -223,6 +223,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
 
         basicView = BasicView(identifier: basicViewIdentifier, items:leftItems + [scrollArea] + rightItems, swipeItems: swipeItems)
         basicView?.legacyGesturesEnabled = AppSettings.multitouchGestures
+
+        DispatchQueue.main.async { [weak self] in
+            guard self != nil else { return }
+            TouchBarMirrorWindowController.shared.syncFromTouchBar()
+        }
     }
 
     @objc func activeApplicationChanged(_: Notification) {
@@ -417,13 +422,16 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = SwipeItem(identifier: identifier, direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
-        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction):
+        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle, marqueeSpeed: marqueeSpeed):
             let lyricsItem = LyricsTouchBarItem(identifier: identifier)
             let config = LyricsItemConfig.shared
             config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
             config.karaokeStyle = karaokeStyle
             config.showArtwork = showArtwork
             config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
+            config.marqueeEnabled = marqueeEnabled
+            config.marqueeStyle = marqueeStyle
+            config.marqueeSpeed = marqueeSpeed
             lyricsItem.applyConfig(config)
             barItem = lyricsItem
         }

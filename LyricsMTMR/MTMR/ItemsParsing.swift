@@ -291,7 +291,7 @@ enum ItemType: Decodable {
     case darkMode
     case swipe(direction: String, fingers: Int, minOffset: Float, sourceApple: SourceProtocol?, sourceBash: SourceProtocol?)
     case upnext(from: Double, to: Double, maxToShow: Int, autoResize: Bool)
-    case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String)
+    case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String, marqueeEnabled: Bool, marqueeStyle: String, marqueeSpeed: CGFloat)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -329,6 +329,9 @@ enum ItemType: Decodable {
         case karaokeStyle
         case showArtwork
         case clickAction
+        case marqueeEnabled
+        case marqueeStyle
+        case marqueeSpeed
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -472,7 +475,10 @@ enum ItemType: Decodable {
             let karaokeStyle = try container.decodeIfPresent(String.self, forKey: .karaokeStyle) ?? "progressive"
             let showArtwork = try container.decodeIfPresent(Bool.self, forKey: .showArtwork) ?? true
             let clickAction = try container.decodeIfPresent(String.self, forKey: .clickAction) ?? "original"
-            self = .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction)
+            let marqueeEnabled = try container.decodeIfPresent(Bool.self, forKey: .marqueeEnabled) ?? true
+            let marqueeStyle = try container.decodeIfPresent(String.self, forKey: .marqueeStyle) ?? "marquee"
+            let marqueeSpeed = try container.decodeIfPresent(CGFloat.self, forKey: .marqueeSpeed) ?? 40
+            self = .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle, marqueeSpeed: marqueeSpeed)
         }
     }
 }

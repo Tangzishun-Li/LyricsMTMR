@@ -26,6 +26,15 @@
 
   { "type": "dock", "width": 175, "align": "left" },
   {
+    "type": "lyrics",
+    "width": 300,
+    "align": "center",
+    "displayMode": "karaoke",
+    "karaokeStyle": "progressive",
+    "showArtwork": true,
+    "clickAction": "original"
+  },
+  {
     "type": "group",
     "align": "left",
     "width": 35,

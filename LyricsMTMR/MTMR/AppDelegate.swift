@@ -47,7 +47,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         LyricsEngine.shared.start()
     }
 
-    func applicationWillTerminate(_: Notification) {}
+    func applicationWillTerminate(_: Notification) {
+        killWebServer()
+    }
 
     @objc func updateIsBlockedApp() {
         if let frontmostAppId = TouchBarController.shared.frontmostApplicationIdentifier {
@@ -96,6 +98,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         item.state = item.state == .on ? .off : .on
         AppSettings.multitouchGestures = item.state == .on
         TouchBarController.shared.basicView?.legacyGesturesEnabled = item.state == .on
+    }
+
+    @objc func toggleMirrorWindow(_ item: NSMenuItem) {
+        item.state = item.state == .on ? .off : .on
+        TouchBarMirrorWindowController.shared.toggle()
     }
 
     @objc func selectLanguage(_ sender: NSMenuItem) {
@@ -175,15 +182,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private var unifiedSettingsController: UnifiedSettingsController?
+    private var webSettingsController: WebSettingsController?
 
     @objc func openSettings(_: Any?) {
-        if unifiedSettingsController == nil {
-            unifiedSettingsController = UnifiedSettingsController()
+        if webSettingsController == nil {
+            webSettingsController = WebSettingsController()
         }
-        unifiedSettingsController?.showWindow(nil)
-        unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)
+        webSettingsController?.showWindow(nil)
+        webSettingsController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func killWebServer() {
+        webSettingsController = nil
     }
 
     @objc func requestAccessibility(_: Any?) {
@@ -223,6 +234,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let multitouchGestures = NSMenuItem(title: Localized.multitouchGestures, action: #selector(toggleMultitouch(_:)), keyEquivalent: "")
         multitouchGestures.state = AppSettings.multitouchGestures ? .on : .off
 
+        let mirrorWindow = NSMenuItem(title: "Show Touch Bar Mirror Window", action: #selector(toggleMirrorWindow(_:)), keyEquivalent: "M")
+        mirrorWindow.state = AppSettings.showMirrorWindow ? .on : .off
+
         let settingSeparator = NSMenuItem(title: Localized.settings, action: nil, keyEquivalent: "")
         settingSeparator.isEnabled = false
 
@@ -251,6 +265,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(toggleBlackList)
         menu.addItem(startAtLogin)
         menu.addItem(multitouchGestures)
+        menu.addItem(mirrorWindow)
 
         // Language submenu
         let langItem = NSMenuItem(title: Localized.language, action: nil, keyEquivalent: "")

@@ -49,6 +49,7 @@ class KaraokeLabel: NSTextField {
     override var stringValue: String {
         didSet {
             clearCache()
+            needsMarqueeRestart = true
         }
     }
 
@@ -64,9 +65,28 @@ class KaraokeLabel: NSTextField {
         }
     }
 
+    /// The visible width of the label. When set > 0, intrinsicContentSize reports this width.
+    /// The label draws full text but is intended to be placed in a clip container.
+    var visibleWidth: CGFloat = 0 {
+        didSet {
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    /// The full measured text width from CoreText layout.
+    var fullTextWidth: CGFloat {
+        guard _measuredContentWidth == 0 else { return _measuredContentWidth }
+        return measureContentWidth()
+    }
+
+    private var _measuredContentWidth: CGFloat = 0
+
+    var needsMarqueeRestart = false
+
     private func clearCache() {
         _attrString = nil
         _ctFrame = nil
+        _measuredContentWidth = 0
         needsLayout = true
         needsDisplay = true
         removeProgressAnimation()
@@ -125,12 +145,33 @@ class KaraokeLabel: NSTextField {
         return ctFrame
     }
 
+    private func measureContentWidth() -> CGFloat {
+        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
+        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
+        let framesetter = CTFramesetter.create(attributedString: attrString)
+        let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
+        let size = framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
+        _measuredContentWidth = size.width
+        return size.width
+    }
+
     override var intrinsicContentSize: NSSize {
         let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
         let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
         let framesetter = CTFramesetter.create(attributedString: attrString)
         let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
-        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
+        let size = framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
+        _measuredContentWidth = size.width
+        if visibleWidth > 0 {
+            return CGSize(width: visibleWidth, height: size.height)
+        }
+        return size
+    }
+
+    /// Returns the pixel x-position of a given character index in the first line.
+    func charPosition(at index: Int) -> CGFloat {
+        guard let line = ctFrame().lines.first else { return 0 }
+        return line.offset(charIndex: index).primary
     }
 
     override func draw(_ dirtyRect: NSRect) {

@@ -32,6 +32,11 @@
 	<dict>
 		<key>NSExceptionDomains</key>
 		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
 			<key>163.com</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>

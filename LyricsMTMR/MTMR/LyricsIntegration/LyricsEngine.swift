@@ -218,6 +218,7 @@ class LyricsEngine: NSObject {
     @Published var clickAction: LyricsClickAction = .original
     @Published var karaokeProgress: [(TimeInterval, Int)] = []
     @Published var coverURL: URL?
+    @Published var searchFailed: Bool = false
 
     private let mrAdapter = MediaRemoteAdapter()
     private var lineCheckTimer: DispatchWorkItem?
@@ -444,12 +445,13 @@ class LyricsEngine: NSObject {
     // MARK: - Lyrics Search
 
     private func searchLyrics(title: String, artist: String) {
+        searchFailed = false
         AppLog.lyrics("searchLyrics: begin — title=「\(title.prefix(30))」 artist=「\(artist.prefix(20))」")
 
         if let lyrics = loadLocalLyrics(title: title, artist: artist) {
             let filtered = lyrics.filtered
             AppLog.lyrics("searchLyrics: FOUND local lyrics (\(lyrics.lines.count) lines, filtered to \(filtered.lines.count)) for: \(title.prefix(30))")
-            currentLyrics = filtered
+            currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
             scheduleLineCheck()
             return
         }
@@ -466,7 +468,7 @@ class LyricsEngine: NSObject {
             if let lyrics = loadLyricsFile(path: expanded) {
                 let filtered = lyrics.filtered
                 AppLog.lyrics("searchLyrics: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines, filtered to \(filtered.lines.count)")
-                currentLyrics = filtered
+                currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
                 scheduleLineCheck()
                 return
             } else {
@@ -501,13 +503,14 @@ class LyricsEngine: NSObject {
                     self.currentLyrics = nil
                     self.translationLyrics = nil
                     self.romajiLyrics = nil
+                    self.searchFailed = true
                     return
                 }
 
                 AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
                 let filtered = lyrics.filtered
                 AppLog.lyrics("searchLyrics: filtered to \(filtered.lines.count) lines")
-                self.currentLyrics = filtered
+                self.currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
                 self.translationLyrics = result.translationLyrics
                 self.romajiLyrics = result.romajiLyrics
                 if let t = result.translationLyrics {
@@ -545,6 +548,17 @@ class LyricsEngine: NSObject {
                 }
             }
         }
+    }
+
+    private func injectTitleLineIfNeeded(_ lyrics: SimpleLyrics, title: String, artist: String) -> SimpleLyrics {
+        guard let firstLine = lyrics.lines.first, firstLine.position > 0.5, !title.isEmpty else {
+            return lyrics
+        }
+        let displayText = artist.isEmpty ? title : "\(title) — \(artist)"
+        let syntheticLine = SimpleLyrics.Line(position: 0, content: displayText, timetags: [])
+        var newLines = lyrics.lines
+        newLines.insert(syntheticLine, at: 0)
+        return SimpleLyrics(lines: newLines, adjustedTimeDelay: lyrics.adjustedTimeDelay)
     }
 
     private func loadLocalLyrics(title: String, artist: String) -> SimpleLyrics? {
