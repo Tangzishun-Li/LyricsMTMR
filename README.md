@@ -1,6 +1,6 @@
 # LyricsMTMR
 
-> 在 MacBook Pro Touch Bar 上显示歌词的实验项目
+> 短期目标： 在 MacBook Pro Touch Bar 上显示歌词的实验项目
 
 ## 这是什么
 
@@ -13,7 +13,14 @@
 | `LyricsMTMR/` | 基于 MTMR 修改的版本，新增了歌词渲染模块（LyricsRendering）和 `lyrics` widget 类型 |
 | `LyricsX/` | LyricsX 歌词应用，提供歌词搜索与数据源 |
 | `MTMR/` | MTMR 原始代码（My TouchBar My Rules） |
-| `mtmr-designer/` | **MTMR Designer — 可视化拖放式 GUI 编辑器，不用手写 JSON 即可设计 Touch Bar 配置（React + Vite 实现） |
+| `mtmr-designer/` | **MTMR Designer** — 可视化拖放式 GUI 编辑器，不用手写 JSON 即可设计 Touch Bar 配置（React + Vite 实现） |
+
+## TODO
+- [x] 完成歌词和封面的显示
+- [ ] 每个软件自定义类别
+- [ ] 加入股市的 api ，包括 a 股并加入分时图
+- [ ] 剪切板快捷查看
+- [ ] ……
 
 ## 数据来源
 
