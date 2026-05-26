@@ -122,17 +122,19 @@ class TouchBarMirrorWindowController: NSObject {
             let identifier = item.identifier
             visibleIds.insert(identifier)
 
-            if let existingView = mirrorViews[identifier] {
-                if let button = existingView as? NSButton {
-                    updateMirrorButton(button, from: item)
+            let mirrorView: NSView = {
+                if let existing = mirrorViews[identifier] {
+                    updateMirrorView(existing, from: item)
+                    return existing
                 }
-            } else {
-                let mirrorView = createMirrorView(for: item)
-                if let button = mirrorView as? NSButton {
-                    updateMirrorButton(button, from: item)
-                }
-                mirrorViews[identifier] = mirrorView
-                if index <= sv.views.count {
+                let newView = createMirrorView(for: item)
+                updateMirrorView(newView, from: item)
+                mirrorViews[identifier] = newView
+                return newView
+            }()
+
+            if mirrorView.superview == nil {
+                if index < sv.views.count {
                     sv.insertArrangedSubview(mirrorView, at: index)
                 } else {
                     sv.addArrangedSubview(mirrorView)
@@ -158,44 +160,72 @@ class TouchBarMirrorWindowController: NSObject {
     }
 
     private func createMirrorView(for item: NSTouchBarItem) -> NSView {
+        if item is GroupBarItem || item is LyricsTouchBarItem || item is AppScrubberTouchBarItem || item is UpNextScrubberTouchBarItem || item is VolumeViewController || item is BrightnessViewController {
+            let label = NSTextField(labelWithString: "")
+            label.textColor = .white
+            label.font = .systemFont(ofSize: 13)
+            label.alignment = .center
+            label.lineBreakMode = .byTruncatingTail
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            return label
+        }
+
+        let button = NSButton()
+        button.bezelStyle = .rounded
+        button.isBordered = true
+        button.imageScaling = .scaleProportionallyDown
+        button.imageHugsTitle = true
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return button
+    }
+
+    private func updateMirrorView(_ mirror: NSView, from item: NSTouchBarItem) {
+        if let button = mirror as? NSButton {
+            updateButton(button, from: item)
+        } else if let label = mirror as? NSTextField {
+            label.stringValue = displayText(for: item)
+        }
+    }
+
+    private func updateButton(_ button: NSButton, from item: NSTouchBarItem) {
         if let buttonItem = item as? CustomButtonTouchBarItem {
-            let button = NSButton()
-            button.bezelStyle = .rounded
             button.isBordered = buttonItem.isBordered
             if let color = buttonItem.backgroundColor {
                 button.bezelColor = color
             }
-            button.imageScaling = .scaleProportionallyDown
-            button.imageHugsTitle = true
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-            button.setContentCompressionResistancePriority(.required, for: .horizontal)
-            return button
-        }
-
-        let label = NSTextField(labelWithString: itemDescription(for: item))
-        label.textColor = .white
-        label.font = .systemFont(ofSize: 13)
-        label.alignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        return label
-    }
-
-    private func updateMirrorButton(_ button: NSButton, from item: NSTouchBarItem) {
-        guard let buttonItem = item as? CustomButtonTouchBarItem else {
-            button.title = ""
+            if buttonItem.image != nil {
+                button.imagePosition = buttonItem.attributedTitle.length > 0 ? .imageLeading : .imageOnly
+            } else {
+                button.imagePosition = .noImage
+            }
+            button.attributedTitle = buttonItem.attributedTitle
+            button.image = buttonItem.image
+        } else {
+            let text = displayText(for: item)
+            button.title = text
             button.image = nil
-            return
         }
-        if buttonItem.image != nil {
-            button.imagePosition = buttonItem.attributedTitle.length > 0 ? .imageLeading : .imageOnly
-        }
-        button.attributedTitle = buttonItem.attributedTitle
-        button.image = buttonItem.image
     }
 
-    private func itemDescription(for item: NSTouchBarItem) -> String {
+    private func displayText(for item: NSTouchBarItem) -> String {
+        if let groupItem = item as? GroupBarItem {
+            let label = groupItem.collapsedRepresentationLabel
+            return label.isEmpty ? "▸ Group" : "▸ " + label
+        }
+
+        if let lyricsItem = item as? LyricsTouchBarItem {
+            return lyricsText(from: lyricsItem)
+        }
+
+        if let nsItem = item as? NSCustomTouchBarItem {
+            if let text = extractText(from: nsItem.view) {
+                return text
+            }
+        }
+
         if item is VolumeViewController { return "Vol" }
         if item is BrightnessViewController { return "Bri" }
         if item is BatteryBarItem { return "Batt" }
@@ -211,9 +241,38 @@ class TouchBarMirrorWindowController: NSObject {
         if item is DarkModeBarItem { return "DM" }
         if item is NightShiftBarItem { return "NS" }
         if item is DnDBarItem { return "DnD" }
-        if item is GroupBarItem { return "Group" }
         if item is AppleScriptTouchBarItem || item is ShellScriptTouchBarItem { return "Script" }
         return "?"
+    }
+
+    private func lyricsText(from item: LyricsTouchBarItem) -> String {
+        let view = item.view
+        return recursiveText(from: view) ?? "♫ No music..."
+    }
+
+    private func recursiveText(from view: NSView?) -> String? {
+        guard let view = view else { return nil }
+
+        if let textField = view as? NSTextField {
+            let text = textField.stringValue
+            if !text.isEmpty { return text }
+        }
+
+        if let button = view as? NSButton {
+            let text = button.title
+            if !text.isEmpty { return text }
+        }
+
+        for subview in view.subviews {
+            if let result = recursiveText(from: subview) {
+                return result
+            }
+        }
+        return nil
+    }
+
+    private func extractText(from view: NSView?) -> String? {
+        return recursiveText(from: view)
     }
 }
 
