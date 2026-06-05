@@ -27,7 +27,7 @@
   { "type": "dock", "width": 175, "align": "left" },
   {
     "type": "lyrics",
-    "width": 300,
+    "width": 350,
     "align": "center",
     "displayMode": "karaoke",
     "karaokeStyle": "progressive",
@@ -283,12 +283,12 @@
 
 
   //输入语言
-  {
-    "type": "inputsource",
-    "width": 50,
-    "align": "right",
-    "background": "#666666"
-  },
+  // {
+  //   "type": "inputsource",
+  //   "width": 50,
+  //   "align": "right",
+  //   "background": "#666666"
+  // },
 
 
   {"type": "exitTouchbar", "title": "☠️","align": "right", "width": 50}

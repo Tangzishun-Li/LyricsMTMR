@@ -106,7 +106,7 @@ class StockBarItem: CustomButtonTouchBarItem {
     // MARK: - 股票数据获取
 
     private func fetchStock(symbol: String, completion: @escaping (StockData?) -> Void) {
-        let urlString = "https://hq.sinajs.cn/list=\(symbol)"
+        let urlString = "http://hq.sinajs.cn/list=\(symbol)"
         guard let url = URL(string: urlString) else {
             completion(nil)
             return
@@ -117,8 +117,14 @@ class StockBarItem: CustomButtonTouchBarItem {
         request.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
 
         URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data, error == nil,
-                  let rawString = String(data: data, encoding: .utf8) else {
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+
+            // 新浪 API 使用 GBK 编码，需要用正确的编码解析中文
+            let gbkEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue))
+            guard let rawString = String(data: data, encoding: String.Encoding(rawValue: gbkEncoding)) else {
                 completion(nil)
                 return
             }
