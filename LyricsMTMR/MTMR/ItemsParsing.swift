@@ -291,7 +291,8 @@ enum ItemType: Decodable {
     case darkMode
     case swipe(direction: String, fingers: Int, minOffset: Float, sourceApple: SourceProtocol?, sourceBash: SourceProtocol?)
     case upnext(from: Double, to: Double, maxToShow: Int, autoResize: Bool)
-    case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String, marqueeEnabled: Bool, marqueeStyle: String, marqueeSpeed: CGFloat)
+    case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String, marqueeEnabled: Bool, marqueeStyle: String)
+    case stock(stocks: [String], displayMode: String, refreshInterval: Double)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -331,7 +332,7 @@ enum ItemType: Decodable {
         case clickAction
         case marqueeEnabled
         case marqueeStyle
-        case marqueeSpeed
+        case stocks
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -358,6 +359,7 @@ enum ItemType: Decodable {
         case swipe
         case upnext
         case lyrics
+        case stock
     }
 
     init(from decoder: Decoder) throws {
@@ -477,8 +479,13 @@ enum ItemType: Decodable {
             let clickAction = try container.decodeIfPresent(String.self, forKey: .clickAction) ?? "original"
             let marqueeEnabled = try container.decodeIfPresent(Bool.self, forKey: .marqueeEnabled) ?? true
             let marqueeStyle = try container.decodeIfPresent(String.self, forKey: .marqueeStyle) ?? "marquee"
-            let marqueeSpeed = try container.decodeIfPresent(CGFloat.self, forKey: .marqueeSpeed) ?? 40
-            self = .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle, marqueeSpeed: marqueeSpeed)
+            self = .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle)
+
+        case .stock:
+            let stocks = try container.decodeIfPresent([String].self, forKey: .stocks) ?? ["sh600519"]
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
+            self = .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval)
         }
     }
 }

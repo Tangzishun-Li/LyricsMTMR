@@ -81,6 +81,21 @@ class WebSettingsController: NSWindowController {
 }
 
 // MARK: - Native Bridge (correct key mapping)
+private func stripJSONComments(_ json: String) -> String {
+    // Remove single-line comments (// ...)
+    let lines = json.components(separatedBy: "\n")
+    let stripped = lines.filter { line in
+        let t = line.trimmingCharacters(in: .whitespaces)
+        return !t.hasPrefix("//") && !t.hasPrefix("/*")
+    }.joined(separator: "\n")
+    // Remove block comments (/* ... */) - multiline
+    if let regex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/") {
+        let range = NSRange(location: 0, length: stripped.utf16.count)
+        return regex.stringByReplacingMatches(in: stripped, range: range, withTemplate: "")
+    }
+    return stripped
+}
+
 private let shortToFullKey: [String: String] = [
     "hapticFeedback": "com.toxblh.mtmr.settings.hapticFeedback",
     "showControlStrip": "com.toxblh.mtmr.settings.showControlStrip",
@@ -139,7 +154,6 @@ private class NativeBridge: NSObject, WKScriptMessageHandler {
         result["lyricsArtworkSize"] = Double(cfg.artworkSize)
         result["lyricsMarqueeEnabled"] = cfg.marqueeEnabled
         result["lyricsMarqueeStyle"] = cfg.marqueeStyle
-        result["lyricsMarqueeSpeed"] = Double(cfg.marqueeSpeed)
 
         // startAtLogin - read from LaunchAtLoginController
         result["startAtLogin"] = LaunchAtLoginController().launchAtLogin
@@ -167,7 +181,11 @@ private class NativeBridge: NSObject, WKScriptMessageHandler {
             if let b = value as? Bool { cfg.showArtwork = b }
             return
         case "lyricsClickAction":
-            if let s = value as? String, let action = LyricsClickAction(rawValue: s) { cfg.clickAction = action }
+            if let s = value as? String, let action = LyricsClickAction(rawValue: s) {
+                cfg.clickAction = action
+                // Also update the running engine so click action changes immediately
+                LyricsEngine.shared.setClickAction(action)
+            }
             return
         case "lyricsProgressColor":
             if let s = value as? String, let color = NSColor(hexString: s) { cfg.progressColor = color }
@@ -193,11 +211,6 @@ private class NativeBridge: NSObject, WKScriptMessageHandler {
             return
         case "lyricsMarqueeStyle":
             if let s = value as? String { cfg.marqueeStyle = s }
-            return
-        case "lyricsMarqueeSpeed":
-            if let n = value as? CGFloat { cfg.marqueeSpeed = n }
-            else if let n = value as? Double { cfg.marqueeSpeed = CGFloat(n) }
-            else if let n = value as? Int { cfg.marqueeSpeed = CGFloat(n) }
             return
         case "startAtLogin":
             if let b = value as? Bool {
@@ -238,7 +251,9 @@ private class NativeBridge: NSObject, WKScriptMessageHandler {
             return #"{"success":true}"#
 
         case ("GET", "/api/load-mtmr"):
-            if fm.fileExists(atPath: ip), let d = try? Data(contentsOf: URL(fileURLWithPath: ip)), let s = String(data: d, encoding: .utf8) {
+            if fm.fileExists(atPath: ip), let d = try? Data(contentsOf: URL(fileURLWithPath: ip)), var s = String(data: d, encoding: .utf8) {
+                // Strip JS-style comments before JSON parse
+                s = stripJSONComments(s)
                 return #"{"success":true,"data":\#(s)}"#
             }
             return #"{"success":true,"data":[]}"#
@@ -264,6 +279,10 @@ private class NativeBridge: NSObject, WKScriptMessageHandler {
                 // Write each setting individually with proper mapping
                 for (key, value) in settings {
                     writeSetting(key: key, value: value)
+                }
+                // Refresh TouchBar to apply changes immediately
+                DispatchQueue.main.async {
+                    TouchBarController.shared.updateActiveApp()
                 }
                 // Also save to settings.json for persistence
                 var persistentSettings = settings

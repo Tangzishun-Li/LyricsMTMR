@@ -69,6 +69,8 @@ extension ItemType {
             return "com.connorgmeehan.mtmrup.next."
         case .lyrics(style: _):
             return "com.lyricsmtmr.lyrics."
+        case .stock(stocks: _, displayMode: _, refreshInterval: _):
+            return "com.lyricsmtmr.stock."
         }
     }
 }
@@ -422,7 +424,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = SwipeItem(identifier: identifier, direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
-        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle, marqueeSpeed: marqueeSpeed):
+        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle):
             let lyricsItem = LyricsTouchBarItem(identifier: identifier)
             let config = LyricsItemConfig.shared
             config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
@@ -431,9 +433,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
             config.marqueeEnabled = marqueeEnabled
             config.marqueeStyle = marqueeStyle
-            config.marqueeSpeed = marqueeSpeed
             lyricsItem.applyConfig(config)
             barItem = lyricsItem
+        case let .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval):
+            barItem = StockBarItem(identifier: identifier, symbols: stocks, interval: refreshInterval, displayMode: displayMode)
         }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {

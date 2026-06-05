@@ -40,7 +40,6 @@ class LyricsItemConfig: NSObject, ObservableObject {
     @Published var artworkSize: CGFloat = 24
     @Published var marqueeEnabled: Bool = true
     @Published var marqueeStyle: String = "marquee"
-    @Published var marqueeSpeed: CGFloat = 40
 
     var font: NSFont {
         if fontName == "System" {

@@ -278,22 +278,54 @@ function Toggle({ label, value, onChange }) {
 }
 
 function Select({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  // Normalize: support both {v,l} and {value,label} formats
+  const items = options.map(o => ({ value: o.value ?? o.v, label: o.label ?? o.l }));
+  const current = items.find(o => o.value === value) || items[0];
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
-    <label className="ls-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '13px', color: '#1d1d1f', cursor: 'pointer' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '13px', color: '#1d1d1f' }}>
       <span>{label}</span>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        style={{
-          padding: '6px 10px', border: '1px solid #d2d2d7', borderRadius: '6px',
-          background: '#ffffff', fontSize: '12px', color: '#1d1d1f', minWidth: '140px',
-          WebkitAppearance: 'menulist', appearance: 'auto'
+      <div ref={ref} style={{ position: 'relative', minWidth: '140px' }}>
+        <div onClick={() => setOpen(!open)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px',
+            padding: '6px 10px', background: '#ffffff', border: '1px solid #d2d2d7',
+            borderRadius: '6px', fontSize: '12px', color: '#1d1d1f', cursor: 'pointer', userSelect: 'none'
+          }}>
+          <span>{current ? current.label : '—'}</span>
+          <span style={{ fontSize: '8px', color: '#86868b' }}>{open ? '▲' : '▼'}</span>
+        </div>
+        {open && <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '2px',
+          background: '#ffffff', border: '1px solid #d2d2d7', borderRadius: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 9999, overflow: 'hidden'
         }}>
-        {options.map(o => (
-          <option key={o.value} value={o.value} style={{ color: '#1d1d1f', background: '#ffffff' }}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+          {items.map(o => (
+            <div key={o.value} onClick={() => { onChange(o.value); setOpen(false); }}
+              style={{
+                padding: '8px 12px', fontSize: '12px',
+                color: o.value === value ? '#ffffff' : '#000000',
+                background: o.value === value ? '#007aff' : '#ffffff',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={e => { if (o.value !== value) e.target.style.background = '#e8e8ed'; }}
+              onMouseLeave={e => { if (o.value !== value) e.target.style.background = '#ffffff'; }}>
+              {o.label}
+            </div>
+          ))}
+        </div>}
+      </div>
+    </div>
   );
 }
 
@@ -374,6 +406,11 @@ function LyricsTab({ s, set }) {
       <SliderField label="封面尺寸" value={s.lyricsArtworkSize || 24} min={16} max={48} onChange={v => set('lyricsArtworkSize', v)} />
       <h3>延迟</h3>
       <SliderField label="歌词延迟(秒)" value={s.lyricsDelay || 0} min={-5} max={5} step={0.1} onChange={v => set('lyricsDelay', v)} />
+      <h3>超出宽度</h3>
+      <Select label="溢出处理" value={s.lyricsMarqueeStyle || 'marquee'} onChange={v => set('lyricsMarqueeStyle', v)}
+        options={[{v:'marquee',l:'滚动显示'},{v:'follow',l:'跟随进度'},{v:'truncate',l:'截断舍弃'}]} />
+      <SliderField label="滚动速度" value={s.lyricsMarqueeSpeed || 40} min={10} max={120} step={5} onChange={v => set('lyricsMarqueeSpeed', v)} />
+      <Toggle label="启用溢出处理" value={s.lyricsMarqueeEnabled ?? true} onChange={v => set('lyricsMarqueeEnabled', v)} />
       <h3>交互</h3>
       <Select label="单击操作" value={s.lyricsClickAction || 'original'} onChange={v => set('lyricsClickAction', v)}
         options={[{v:'original',l:'原始歌词'},{v:'translation',l:'翻译'},{v:'romaji',l:'罗马音'}]} />
