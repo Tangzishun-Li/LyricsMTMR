@@ -6,6 +6,15 @@
     "align": "center"
   },
   {
+    "type": "stock",
+    "stocks": ["sh600519"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+  {
     "type": "escape",
     "width": 64,
     "align": "left"

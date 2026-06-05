@@ -185,13 +185,23 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
         let overflowWidth = textWidth - clipWidth + 15
 
+        if config.marqueeStyle == "follow" {
+            if !line.timetags.isEmpty {
+                stopMarqueeTimer()
+                updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflowWidth)
+            } else {
+                resetScrollPosition()
+            }
+            return
+        }
+
+        // marqueeStyle == "marquee"
         if !line.timetags.isEmpty {
             stopMarqueeTimer()
             updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflowWidth)
-        } else if config.marqueeStyle == "marquee" {
-            startMarquee(overflowWidth: overflowWidth, lineIndex: lineIndex, active: active, track: track)
         } else {
-            resetScrollPosition()
+            lyricsLabel.removeProgressAnimation()
+            startMarquee(overflowWidth: overflowWidth, lineIndex: lineIndex, active: active, track: track)
         }
     }
 
@@ -246,110 +256,4 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             let t = elapsed.truncatingRemainder(dividingBy: self.marqueeTimeBudget) / self.marqueeTimeBudget
             let offset = -t * self.marqueeOverflowWidth
             if self.lyricsLabel.bounds.origin.x != offset {
-                self.lyricsLabel.bounds.origin.x = offset
-            }
-        }
-    }
-
-    private func stopMarqueeTimer() {
-        marqueeTimer?.invalidate()
-        marqueeTimer = nil
-        marqueeStartTime = nil
-    }
-
-    private func resetScrollPosition() {
-        stopMarqueeTimer()
-        if lyricsLabel.bounds.origin.x != 0 {
-            lyricsLabel.bounds.origin.x = 0
-        }
-    }
-
-    // MARK: - Placeholder
-
-    private func updatePlaceholder() {
-        showPlaceholder()
-    }
-
-    private func showPlaceholder() {
-        guard config.displayMode != .artwork else { return }
-        lyricsLabel.isHidden = true
-        stopMarqueeTimer()
-        lyricsLabel.removeProgressAnimation()
-
-        let info = engine.trackInfo
-        let hasLyrics = engine.currentLyrics != nil
-
-        if hasLyrics {
-            let displayText = info.artist.isEmpty ? info.title : "\(info.title) — \(info.artist)"
-            placeholderLabel.stringValue = info.title.isEmpty ? "♫ Loading lyrics..." : displayText
-        } else if engine.searchFailed {
-            placeholderLabel.stringValue = "♫ Lyrics not found"
-        } else if !info.title.isEmpty {
-            placeholderLabel.stringValue = "♫ Loading lyrics..."
-        } else {
-            placeholderLabel.stringValue = "♫ No music playing..."
-        }
-
-        if placeholderLabel.superview == nil {
-            stackView.addArrangedSubview(placeholderLabel)
-        }
-    }
-
-    private func hidePlaceholder() {
-        placeholderLabel.removeFromSuperview()
-        lyricsLabel.isHidden = false
-    }
-
-    private func hideLyrics() {
-        lyricsLabel.isHidden = true
-        lyricsLabel.removeProgressAnimation()
-        stopMarqueeTimer()
-    }
-
-    // MARK: - Tap Handling
-
-    @objc private func handleTap() {
-        let modes: [LyricsClickAction] = [.original, .translation, .romaji]
-        let hasTranslation = engine.translationLyrics != nil
-        let hasRomaji = engine.romajiLyrics != nil
-        let availableModes = modes.filter {
-            switch $0 {
-            case .original: return true
-            case .translation: return hasTranslation
-            case .romaji: return hasRomaji
-            }
-        }
-        guard !availableModes.isEmpty else { return }
-
-        let currentIdx = availableModes.firstIndex(of: engine.clickAction) ?? 0
-        let nextIdx = (currentIdx + 1) % availableModes.count
-        let nextAction = availableModes[nextIdx]
-        engine.setClickAction(nextAction)
-
-        let label = nextAction == .original ? "原文" : nextAction == .translation ? "翻译" : "音译"
-        showFlash(label)
-    }
-
-    private func showFlash(_ text: String) {
-        resetScrollPosition()
-        lyricsLabel.stringValue = "[ \(text) ]"
-        lyricsLabel.removeProgressAnimation()
-        let savedIdx = engine.currentLineIndex
-        let savedAction = engine.clickAction
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            guard let self else { return }
-            self.onLyricsUpdate(
-                lineIndex: savedIdx,
-                lyrics: self.engine.currentLyrics,
-                translationLyrics: self.engine.translationLyrics,
-                romajiLyrics: self.engine.romajiLyrics,
-                clickAction: savedAction,
-                track: self.engine.trackInfo
-            )
-        }
-    }
-
-    private func updateArtworkVisibility() {
-        artworkView.isHidden = !config.showArtwork
-    }
-}
+                self.lyricsLabel.bounds.origin.x

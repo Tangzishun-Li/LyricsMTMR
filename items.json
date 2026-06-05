@@ -35,6 +35,15 @@
     "clickAction": "original"
   },
   {
+    "type": "stock",
+    "stocks": ["sh600519"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+  {
     "type": "group",
     "align": "left",
     "width": 35,
@@ -200,7 +209,15 @@
     ]
   },
 
-
+  {
+    "type": "stock",
+    "stocks": ["sh600519"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
 
 
 
@@ -219,7 +236,7 @@
 
   {
     "type": "timeButton",
-    "formatTemplate": "MM月dd日 HH:mm",
+    "formatTemplate": "HH:mm",
     "align": "right",
     "bordered": false,
     "longAction": "shellScript",

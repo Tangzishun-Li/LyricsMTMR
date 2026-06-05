@@ -166,6 +166,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func refreshPreset() {
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
     @objc func toggleStartAtLogin(_: Any?) {
         LaunchAtLoginController().setLaunchAtLogin(!LaunchAtLoginController().launchAtLogin, for: NSURL.fileURL(withPath: Bundle.main.bundlePath))
         createMenu()
@@ -247,7 +251,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
 
-        menu.addItem(withTitle: Localized.openJSONEditor, action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
+        menu.addItem(withTitle: "🔄 " + Localized.openJSONEditor, action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
+        menu.addItem(withTitle: "⟳ 刷新预设", action: #selector(refreshPreset), keyEquivalent: "r")
         menu.addItem(accessibilityItem)
         menu.addItem(withTitle: Localized.preferences, action: #selector(openPreferences(_:)), keyEquivalent: "")
         menu.addItem(withTitle: Localized.openPreset, action: #selector(openPreset(_:)), keyEquivalent: "O")
