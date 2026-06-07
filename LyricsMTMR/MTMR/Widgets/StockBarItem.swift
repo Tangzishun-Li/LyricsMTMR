@@ -1,40 +1,46 @@
 import Cocoa
 import Foundation
 
-struct StockData: Decodable {
+// MARK: - 股票分钟数据模型
+
+struct StockMinuteData {
     let name: String
     let code: String
     let price: Double
     let pct: Double
     let change: Double
     let prevClose: Double
+    let minutePrices: [(time: String, price: Double)]  // (HHmm, 价格)
 
     var isUp: Bool { pct >= 0 }
 }
+
+// MARK: - StockBarItem
 
 class StockBarItem: CustomButtonTouchBarItem {
     private let stockSymbols: [String]
     private let refreshInterval: TimeInterval
     private let displayMode: String
+    private let textWidth: CGFloat
+    private let chartWidth: CGFloat
+    private let showChart: Bool
+    private let chartMode: String
 
-    private var stocks: [StockData] = []
+    private var stocks: [StockMinuteData] = []
     private var marqueeIndex = 0
     private var timer: Timer?
     private var marqueeTimer: Timer?
-    private var chartImages: [String: NSImage] = [:]
 
-    init(identifier: NSTouchBarItem.Identifier, symbols: [String], interval: TimeInterval, displayMode: String) {
+    init(identifier: NSTouchBarItem.Identifier, symbols: [String], interval: TimeInterval, displayMode: String, textWidth: CGFloat, chartWidth: CGFloat, showChart: Bool, chartMode: String) {
         self.stockSymbols = symbols
         self.refreshInterval = max(interval, 5)
         self.displayMode = displayMode
+        self.textWidth = textWidth
+        self.chartWidth = chartWidth
+        self.showChart = showChart
+        self.chartMode = chartMode
 
         super.init(identifier: identifier, title: " ")
-
-        // 必须在 isBordered 之前设置，这样 reinstallButton 时就能生效
-        finishViewConfiguration = { [weak self] in
-            guard let button = self?.view as? NSButton else { return }
-            button.imagePosition = .imageTrailing
-        }
 
         isBordered = false
 
@@ -61,6 +67,8 @@ class StockBarItem: CustomButtonTouchBarItem {
         marqueeTimer?.invalidate()
     }
 
+    // MARK: - 定时刷新
+
     private func scheduleRefresh() {
         DispatchQueue.main.async {
             self.timer?.invalidate()
@@ -70,20 +78,23 @@ class StockBarItem: CustomButtonTouchBarItem {
         }
     }
 
+    // MARK: - 数据获取
+
     private func refreshData() {
         guard !stockSymbols.isEmpty else {
             title = "未配置股票"
+            image = nil
             return
         }
 
         let group = DispatchGroup()
-        var fetchedStocks: [StockData] = []
+        var fetched: [StockMinuteData] = []
 
         for symbol in stockSymbols {
             group.enter()
-            self.fetchStock(symbol: symbol) { stock in
-                if let stock = stock {
-                    fetchedStocks.append(stock)
+            fetchMinuteData(symbol: symbol) { data in
+                if let data = data {
+                    fetched.append(data)
                 }
                 group.leave()
             }
@@ -91,11 +102,7 @@ class StockBarItem: CustomButtonTouchBarItem {
 
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
-            self.stocks = fetchedStocks
-            // 同时加载分时图
-            for symbol in self.stockSymbols {
-                self.fetchChartImage(symbol: symbol)
-            }
+            self.stocks = fetched
             if self.displayMode == "marquee" {
                 self.startMarquee()
             }
@@ -103,18 +110,16 @@ class StockBarItem: CustomButtonTouchBarItem {
         }
     }
 
-    // MARK: - 股票数据获取
-
-    private func fetchStock(symbol: String, completion: @escaping (StockData?) -> Void) {
-        let urlString = "http://hq.sinajs.cn/list=\(symbol)"
-        guard let url = URL(string: urlString) else {
+    /// 从腾讯 API 获取分钟数据和行情
+    private func fetchMinuteData(symbol: String, completion: @escaping (StockMinuteData?) -> Void) {
+        let urlStr = "https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=\(symbol)"
+        guard let url = URL(string: urlStr) else {
             completion(nil)
             return
         }
 
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", forHTTPHeaderField: "User-Agent")
-        request.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
 
         URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
@@ -122,112 +127,72 @@ class StockBarItem: CustomButtonTouchBarItem {
                 return
             }
 
-            // 新浪 API 使用 GBK 编码，需要用正确的编码解析中文
-            let gbkEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue))
-            guard let rawString = String(data: data, encoding: String.Encoding(rawValue: gbkEncoding)) else {
+            do {
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let dataContainer = json["data"] as? [String: Any],
+                      let stockData = dataContainer[symbol] as? [String: Any],
+                      let qt = stockData["qt"] as? [String: Any],
+                      let qtArray = qt[symbol] as? [Any],
+                      qtArray.count >= 33,
+                      let minuteContainer = stockData["data"] as? [String: Any],
+                      let minuteArray = minuteContainer["data"] as? [String]
+                else {
+                    completion(nil)
+                    return
+                }
+
+                let name = (qtArray[1] as? String) ?? symbol
+                let price = Double("\(qtArray[3] ?? "0")") ?? 0
+                let prevClose = Double("\(qtArray[4] ?? "0")") ?? 0
+                let changePct = Double("\(qtArray[32] ?? "0")") ?? 0
+
+                // 解析分钟数据（过滤掉 9:30 之前的数据，避免集合竞价干扰折线）
+                var prices: [(time: String, price: Double)] = []
+                for entry in minuteArray {
+                    let parts = entry.components(separatedBy: " ")
+                    guard parts.count >= 2, let p = Double(parts[1]) else { continue }
+                    let timeStr = parts[0]
+                    // 跳过 9:30 之前（集合竞价）
+                    if timeStr.count == 4, let timeInt = Int(timeStr), timeInt < 930 {
+                        continue
+                    }
+                    prices.append((time: timeStr, price: p))
+                }
+
+                // 非交易时间截取部分数据演示"未收盘只画一半"效果
+                // 暂时注释掉以显示全天数据
+                // if prices.count >= 240 {
+                //     prices = Array(prices.prefix(145))
+                // }
+
+                let change = price - prevClose
+                let data = StockMinuteData(
+                    name: String(name.prefix(4)),
+                    code: symbol,
+                    price: price,
+                    pct: changePct,
+                    change: change,
+                    prevClose: prevClose,
+                    minutePrices: prices
+                )
+                completion(data)
+            } catch {
                 completion(nil)
-                return
             }
-
-            let stock = self.parseSinaCSV(symbol: symbol, rawString: rawString)
-            completion(stock)
         }.resume()
-    }
-
-    private func parseSinaCSV(symbol: String, rawString: String) -> StockData? {
-        guard let csvPart = rawString.components(separatedBy: "\"").dropFirst().first else { return nil }
-        let fields = csvPart.components(separatedBy: ",")
-        guard fields.count >= 32 else { return nil }
-
-        let name = fields[0]
-        let prevClose = Double(fields[2]) ?? 0
-        let price = Double(fields[3]) ?? 0
-
-        let code: String
-        if symbol.hasPrefix("sh") || symbol.hasPrefix("sz") {
-            code = String(symbol.suffix(6))
-        } else {
-            code = symbol
-        }
-
-        let change = price - prevClose
-        let pct = prevClose > 0 ? (change / prevClose) * 100 : 0
-
-        return StockData(
-            name: name,
-            code: code,
-            price: price,
-            pct: pct,
-            change: change,
-            prevClose: prevClose
-        )
     }
 
     // MARK: - A股交易时间判断
 
-    /// A股交易时间：周一到周五 9:00-15:00（北京时间 UTC+8）
     private func isMarketOpen() -> Bool {
         let cal = Calendar.current
         let now = Date()
-
-        // 检查是否工作日（周一到周五）
         let weekday = cal.component(.weekday, from: now)
-        guard weekday >= 2 && weekday <= 6 else { return false } // 1=周日
-
-        // 转换到北京时间 (UTC+8)
+        guard weekday >= 2, weekday <= 6 else { return false }
         let comp = cal.dateComponents(in: TimeZone(abbreviation: "CST")!, from: now)
         guard let hour = comp.hour, let minute = comp.minute else { return false }
-
         let timeInMinutes = hour * 60 + minute
-        let openStart = 9 * 60       // 9:00
-        let openEnd = 15 * 60         // 15:00
-
-        return timeInMinutes >= openStart && timeInMinutes < openEnd
-    }
-
-    // MARK: - 分时图
-
-    /// 新浪分时图 URL：闭市后显示全天走势，交易时段显示实时走势
-    private func chartURL(for symbol: String) -> String {
-        return "http://image.sinajs.cn/newchart/min/n/\(symbol).gif"
-    }
-
-    private func fetchChartImage(symbol: String) {
-        guard displayMode != "marquee" else { return } // 跑马灯模式不需要分时图
-
-        let urlString = chartURL(for: symbol)
-        guard let url = URL(string: urlString) else { return }
-
-        var request = URLRequest(url: url)
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", forHTTPHeaderField: "User-Agent")
-        request.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            guard let self = self, let data = data, error == nil,
-                  let originalImage = NSImage(data: data) else { return }
-
-            // 缩放到合适尺寸（~80px 宽，保持比例）
-            let chartHeight: CGFloat = 28
-            let chartWidth: CGFloat = 80
-            let resizedImage = self.resizeImage(originalImage, targetSize: NSSize(width: chartWidth, height: chartHeight))
-
-            DispatchQueue.main.async {
-                self.chartImages[symbol] = resizedImage
-                self.updateDisplay()
-            }
-        }.resume()
-    }
-
-    private func resizeImage(_ image: NSImage, targetSize: NSSize) -> NSImage {
-        let newImage = NSImage(size: targetSize)
-        newImage.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        image.draw(in: NSRect(origin: .zero, size: targetSize),
-                   from: NSRect(origin: .zero, size: image.size),
-                   operation: .copy,
-                   fraction: 1.0)
-        newImage.unlockFocus()
-        return newImage
+        return timeInMinutes >= 9 * 60 && timeInMinutes < 15 * 60
     }
 
     // MARK: - 跑马灯
@@ -243,47 +208,200 @@ class StockBarItem: CustomButtonTouchBarItem {
         }
     }
 
-    // MARK: - 显示
+    // MARK: - 更新显示
 
     private func updateDisplay() {
         if stocks.isEmpty {
-            title = "暂无数据"
+            attributedTitle = coloredTitle(text: "暂无数据", isUp: true)
             image = nil
             return
         }
 
         if displayMode == "marquee" {
-            showMarqueeMode()
+            showMarquee()
         } else {
-            showCompactMode()
+            showFirst()
         }
     }
 
-    private func showCompactMode() {
+    private func showFirst() {
         guard let stock = stocks.first else { return }
-
-        let pctStr = String(format: "%.2f%%", abs(stock.pct))
-        let sign = stock.pct >= 0 ? "+" : "-"
-        let displayText = "\(stock.name) \(String(format: "%.2f", stock.price)) \(sign)\(pctStr)"
-        attributedTitle = coloredTitle(text: displayText, isUp: stock.isUp)
-
-        // 设置分时图
-        if let chartImage = chartImages.first?.value {
-            image = chartImage
-        } else {
-            image = nil
-        }
+        renderStock(stock)
     }
 
-    private func showMarqueeMode() {
+    private func showMarquee() {
         guard !stocks.isEmpty else { return }
-        let stock = stocks[marqueeIndex]
+        let stock = stocks[marqueeIndex % stocks.count]
+        renderStock(stock)
+    }
 
+    // MARK: - 渲染：把文本+曲线画成一张 NSImage
+
+    private func renderStock(_ stock: StockMinuteData) {
+        let totalWidth = textWidth + (showChart ? chartWidth : 0)
+        let height: CGFloat = 30
+        let isUp = stock.isUp
+        let color = isUp ? NSColor.systemRed : NSColor.systemGreen
+
+        let img = NSImage(size: NSSize(width: totalWidth, height: height))
+        img.lockFocusFlipped(false)
+
+        guard let ctx = NSGraphicsContext.current?.cgContext else {
+            img.unlockFocus()
+            return
+        }
+
+        // 黑色背景
+        ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: totalWidth, height: height))
+
+        // ---- 左侧文本 ----
+        // 第一行：名称
+        let nameAttrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: NSColor.white,
+            .font: NSFont.systemFont(ofSize: 9, weight: .bold)
+        ]
+        (stock.name as NSString).draw(at: NSPoint(x: 5, y: height - 13), withAttributes: nameAttrs)
+
+        // 第二行：价格
+        let priceStr: String
+        if stock.price >= 1000 {
+            priceStr = String(format: "%.1f", stock.price)
+        } else {
+            priceStr = String(format: "%.2f", stock.price)
+        }
+        let priceAttrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: color,
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .bold)
+        ]
+        (priceStr as NSString).draw(at: NSPoint(x: 5, y: 2), withAttributes: priceAttrs)
+
+        // 第二行右侧：涨跌幅
         let pctStr = String(format: "%.2f%%", abs(stock.pct))
         let sign = stock.pct >= 0 ? "+" : "-"
-        let displayText = "\(stock.name) \(String(format: "%.2f", stock.price)) \(sign)\(pctStr)  |  "
-        attributedTitle = coloredTitle(text: displayText, isUp: stock.isUp)
-        image = nil // 跑马灯不需要分时图
+        let displayPct = "\(sign)\(pctStr)" as NSString
+        let pctAttrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: color,
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 7, weight: .medium)
+        ]
+        let pctSize = displayPct.size(withAttributes: pctAttrs)
+        displayPct.draw(at: NSPoint(x: textWidth - pctSize.width - 5, y: 3), withAttributes: pctAttrs)
+
+        // ---- 右侧曲线 ----
+        if showChart {
+            drawChart(ctx: ctx, in: CGRect(x: textWidth, y: 0, width: chartWidth, height: height),
+                     minuteData: stock.minutePrices, prevClose: stock.prevClose, isUp: isUp)
+        }
+
+        img.unlockFocus()
+
+        // 设置到按钮上
+        attributedTitle = NSAttributedString(string: "")
+        image = img
+    }
+
+    private func drawChart(ctx: CGContext, in chartRect: CGRect, minuteData: [(time: String, price: Double)], prevClose: Double, isUp: Bool) {
+        let baseClose = prevClose > 0 ? prevClose : 1500.0
+
+        let prices = minuteData.map { $0.price }
+        let maxPrice = prices.max() ?? baseClose
+        let minPrice = prices.min() ?? baseClose
+        let maxDev = max(abs(maxPrice - baseClose), abs(baseClose - minPrice))
+        let halfRange = max(maxDev * 1.05, 0.01)
+        let halfH = chartRect.height / 2.0
+
+        // 昨收虚线（零轴，始终在正中间）
+        let yZero = chartRect.midY
+        ctx.setLineDash(phase: 0, lengths: [2, 2])
+        ctx.setStrokeColor(NSColor.darkGray.cgColor)
+        ctx.move(to: CGPoint(x: chartRect.minX, y: yZero))
+        ctx.addLine(to: CGPoint(x: chartRect.maxX, y: yZero))
+        ctx.strokePath()
+        ctx.setLineDash(phase: 0, lengths: [])
+
+        guard !minuteData.isEmpty else { return }
+
+        // 把 "0930" 转为分钟数（9*60+30=570）
+        func toMinutes(_ t: String) -> Int? {
+            guard t.count == 4, let v = Int(t) else { return nil }
+            return (v / 100) * 60 + (v % 100)
+        }
+
+        // 上午边界
+        let morningEnd = 11 * 60 + 30  // 11:30 = 690
+        let afternoonStart = 13 * 60 + 0 // 13:00 = 780
+
+        // 计算所有点坐标
+        var points: [CGPoint] = []
+        var prevSessionWasAfternoon = false
+
+        for (pt, val) in zip(minuteData, prices) {
+            guard let mins = toMinutes(pt.time) else { continue }
+
+            let x: CGFloat
+            if chartMode == "fenshi" {
+                if mins <= morningEnd {
+                    // 上午盘：映射到左半边
+                    let morningProgress = CGFloat(mins - 570) / 120.0  // 9:30→0, 11:30→1
+                    x = chartRect.minX + morningProgress * (chartRect.width * 0.5)
+                } else {
+                    // 下午盘：映射到右半边
+                    let afternoonProgress = CGFloat(mins - afternoonStart) / 120.0  // 13:00→0, 15:00→1
+                    x = chartRect.minX + chartRect.width * 0.5 + afternoonProgress * (chartRect.width * 0.5)
+                }
+            } else {
+                // 分钟模式：均匀铺满，但在午间断点处断开连线
+                x = chartRect.minX + (CGFloat(points.count) / CGFloat(max(1, minuteData.count - 1))) * chartRect.width
+            }
+
+            let y = yZero + CGFloat((val - baseClose) / halfRange) * halfH
+            points.append(CGPoint(x: x, y: y))
+
+            // 午间断点标记：从上午跳到下午
+            if mins >= afternoonStart && !prevSessionWasAfternoon && points.count > 1 {
+                prevSessionWasAfternoon = true
+            }
+        }
+
+        // 1) 画填充多边形
+        ctx.beginPath()
+        ctx.move(to: points[0])
+        for p in points.dropFirst() {
+            ctx.addLine(to: p)
+        }
+        ctx.addLine(to: CGPoint(x: points.last!.x, y: yZero))
+        ctx.addLine(to: CGPoint(x: points[0].x, y: yZero))
+        ctx.closePath()
+        ctx.setFillColor((isUp ? NSColor.systemRed : NSColor.systemGreen).withAlphaComponent(0.12).cgColor)
+        ctx.fillPath()
+
+        // 2) 画折线（检测午间断点，断开连线）
+        ctx.setLineWidth(1)
+        ctx.setStrokeColor((isUp ? NSColor.systemRed : NSColor.systemGreen).cgColor)
+        ctx.beginPath()
+        var sessionStarted = false
+        var prevMins: Int?
+
+        for (i, p) in points.enumerated() {
+            let pt = minuteData[i]
+            guard let mins = toMinutes(pt.time) else { continue }
+
+            // 如果从上午跳到下午，断开线段
+            if let prev = prevMins, prev <= morningEnd, mins >= afternoonStart {
+                ctx.strokePath()  // 结束上一段
+                ctx.beginPath()
+                sessionStarted = false
+            }
+
+            if !sessionStarted {
+                ctx.move(to: p)
+                sessionStarted = true
+            } else {
+                ctx.addLine(to: p)
+            }
+            prevMins = mins
+        }
+        ctx.strokePath()
     }
 
     private func coloredTitle(text: String, isUp: Bool) -> NSAttributedString {

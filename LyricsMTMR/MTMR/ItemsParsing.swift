@@ -292,7 +292,8 @@ enum ItemType: Decodable {
     case swipe(direction: String, fingers: Int, minOffset: Float, sourceApple: SourceProtocol?, sourceBash: SourceProtocol?)
     case upnext(from: Double, to: Double, maxToShow: Int, autoResize: Bool)
     case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String, marqueeEnabled: Bool, marqueeStyle: String)
-    case stock(stocks: [String], displayMode: String, refreshInterval: Double)
+    case stock(stocks: [String], displayMode: String, refreshInterval: Double, textWidth: CGFloat, chartWidth: CGFloat, showChart: Bool, chartMode: String)
+    case themeSwitch(themes: [ThemeDefinition])
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -333,6 +334,11 @@ enum ItemType: Decodable {
         case marqueeEnabled
         case marqueeStyle
         case stocks
+        case textWidth
+        case chartWidth
+        case showChart
+        case chartMode
+        case themes
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -360,6 +366,7 @@ enum ItemType: Decodable {
         case upnext
         case lyrics
         case stock
+        case themeSwitch
     }
 
     init(from decoder: Decoder) throws {
@@ -485,8 +492,28 @@ enum ItemType: Decodable {
             let stocks = try container.decodeIfPresent([String].self, forKey: .stocks) ?? ["sh600519"]
             let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
-            self = .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval)
+            let textWidth = try container.decodeIfPresent(CGFloat.self, forKey: .textWidth) ?? 70
+            let chartWidth = try container.decodeIfPresent(CGFloat.self, forKey: .chartWidth) ?? 130
+            let showChart = try container.decodeIfPresent(Bool.self, forKey: .showChart) ?? true
+            let chartMode = try container.decodeIfPresent(String.self, forKey: .chartMode) ?? "fenzhong"
+            self = .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
+
+        case .themeSwitch:
+            let themes = try container.decode([ThemeDefinition].self, forKey: .themes)
+            self = .themeSwitch(themes: themes)
         }
+    }
+}
+
+struct ThemeDefinition: Decodable {
+    let label: String
+    let preset: String
+    let matchAppIds: [String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case label
+        case preset
+        case matchAppIds
     }
 }
 

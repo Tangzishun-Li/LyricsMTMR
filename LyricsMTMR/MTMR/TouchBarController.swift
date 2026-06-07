@@ -69,8 +69,10 @@ extension ItemType {
             return "com.connorgmeehan.mtmrup.next."
         case .lyrics(style: _):
             return "com.lyricsmtmr.lyrics."
-        case .stock(stocks: _, displayMode: _, refreshInterval: _):
+        case .stock(stocks: _, displayMode: _, refreshInterval: _, textWidth: _, chartWidth: _, showChart: _, chartMode: _):
             return "com.lyricsmtmr.stock."
+        case .themeSwitch(themes: _):
+            return "com.lyricsmtmr.themeSwitch."
         }
     }
 }
@@ -435,8 +437,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             config.marqueeStyle = marqueeStyle
             lyricsItem.applyConfig(config)
             barItem = lyricsItem
-        case let .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval):
-            barItem = StockBarItem(identifier: identifier, symbols: stocks, interval: refreshInterval, displayMode: displayMode)
+        case let .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode):
+            barItem = StockBarItem(identifier: identifier, symbols: stocks, interval: refreshInterval, displayMode: displayMode, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
+        case let .themeSwitch(themes: themes):
+            barItem = ThemeSwitchBarItem(identifier: identifier, themes: themes)
         }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {

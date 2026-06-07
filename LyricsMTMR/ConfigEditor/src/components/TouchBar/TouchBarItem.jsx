@@ -46,6 +46,7 @@ const typeIcons = {
   memoryButton: '🧠',
   activeAppButton: '📱',
   swipe: '👆',
+  stock: '📈',
 };
 
 // Get display content for an item based on its type
@@ -137,6 +138,8 @@ function getItemDisplay(item, definition) {
     case 'appleScriptTitledButton':
     case 'shellScriptTitledButton':
       return { type: 'text', content: item.title || definition?.defaultTitle || 'Button' };
+    case 'stock':
+      return { type: 'stock', content: item.stocks?.join(', ') || 'sh600519' };
     default:
       return { type: 'text', content: definition?.defaultTitle || type };
   }
@@ -397,6 +400,18 @@ export default function TouchBarItem({ item, isSelected, onSelect, onContextMenu
     // Icon display
     if (display.type === 'icon') {
       return <span className="touchbar-icon">{display.content}</span>;
+    }
+
+    // Stock display
+    if (display.type === 'stock') {
+      return (
+        <div className="stock-preview" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+          <span style={{ fontWeight: 'bold', color: '#f87171' }}>{item.textWidth || 70}px</span>
+          <span style={{ color: '#666' }}>|</span>
+          <span style={{ color: '#4ade80' }}>{item.chartWidth || 130}px</span>
+          <span style={{ color: '#666', marginLeft: '2px' }}>📊</span>
+        </div>
+      );
     }
 
     // Default text display

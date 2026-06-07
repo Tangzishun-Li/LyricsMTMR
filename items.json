@@ -35,15 +35,6 @@
     "clickAction": "original"
   },
   {
-    "type": "stock",
-    "stocks": ["sh600519"],
-    "displayMode": "compact",
-    "refreshInterval": 10,
-    "align": "center",
-    "width": 200,
-    "bordered": false
-  },
-  {
     "type": "group",
     "align": "left",
     "width": 35,
@@ -210,19 +201,6 @@
   },
 
   {
-    "type": "stock",
-    "stocks": ["sh600519"],
-    "displayMode": "compact",
-    "refreshInterval": 10,
-    "align": "center",
-    "width": 200,
-    "bordered": false
-  },
-
-
-
-  //电池🔋
-  {
     "type": "battery",
     "align": "right",
     "bordered": false,
@@ -277,19 +255,20 @@
     ]
   },
 
-
-
-
-
-
-  //输入语言
-  // {
-  //   "type": "inputsource",
-  //   "width": 50,
-  //   "align": "right",
-  //   "background": "#666666"
-  // },
-
+  // 测试新股票组件
+  {
+    "type": "stock",
+    "stocks": ["sh600519"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
 
   {"type": "exitTouchbar", "title": "☠️","align": "right", "width": 50}
   

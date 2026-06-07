@@ -290,6 +290,19 @@ function TypeSpecificProperties({ item, definition, updateItem }) {
     case 'group':
       return <PropertyInput label="标题" type="text" value={item.title || ''} onChange={(value) => updateItem(item.id, { title: value })} placeholder="组名" />;
 
+    case 'stock':
+      return (
+        <>
+          <PropertyInput label="股票代码(逗号分隔)" type="text" value={item.stocks?.join(', ') || ''} onChange={(value) => updateItem(item.id, { stocks: value.split(/[,，\s]+/).filter(Boolean) })} placeholder="sh600519, sz300750" />
+          <PropertySelect label="显示模式" value={item.displayMode || 'compact'} options={[{ value: 'compact', label: '单一显示' }, { value: 'marquee', label: '跑马灯' }]} onChange={(value) => updateItem(item.id, { displayMode: value })} />
+          <PropertySelect label="曲线模式" value={item.chartMode || 'fenzhong'} options={[{ value: 'fenzhong', label: '分钟(铺满)' }, { value: 'fenshi', label: '分时(留白)' }]} onChange={(value) => updateItem(item.id, { chartMode: value })} />
+          <PropertyInput label="刷新间隔(秒)" type="number" value={item.refreshInterval ?? ''} onChange={(value) => updateItem(item.id, { refreshInterval: value ? Number(value) : undefined })} />
+          <PropertyInput label="文本区宽度" type="number" value={item.textWidth ?? 70} onChange={(value) => updateItem(item.id, { textWidth: Number(value) })} />
+          <PropertyInput label="曲线区宽度" type="number" value={item.chartWidth ?? 130} onChange={(value) => updateItem(item.id, { chartWidth: Number(value) })} />
+          <PropertyToggle label="显示曲线图" value={item.showChart !== false} onChange={(value) => updateItem(item.id, { showChart: value })} />
+        </>
+      );
+
     default:
       return <p className="no-properties">无额外属性</p>;
   }

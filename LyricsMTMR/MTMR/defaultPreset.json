@@ -10,6 +10,10 @@
     "stocks": ["sh600519"],
     "displayMode": "compact",
     "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
     "align": "center",
     "width": 200,
     "bordered": false

@@ -101,6 +101,7 @@
 		DD6BEA65B12572A21C3F5295 /* UnifiedSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF40811F7464BD78F0EF21A /* UnifiedSettingsController.swift */; };
 		F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */; };
 		F2A1B1C124BC7148004FF8E5 /* StockBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A1B1C224BC7148004FF8E6 /* StockBarItem.swift */; };
+		E7F8A9B0C1D2E3F4A5B6C7D8 /* ThemeSwitchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8A9B1C1D2E3F4A5B6C7D9 /* ThemeSwitchBarItem.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -219,6 +220,7 @@
 		F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextScrubberTouchBarItem.swift; sourceTree = "<group>"; };
 		FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseProvider.swift; sourceTree = "<group>"; };
 		F2A1B1C224BC7148004FF8E6 /* StockBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockBarItem.swift; sourceTree = "<group>"; };
+		E7F8A9B1C1D2E3F4A5B6C7D9 /* ThemeSwitchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSwitchBarItem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -390,6 +392,7 @@
 				B08126F0217BE19000A98970 /* WidgetProtocol.swift */,
 				B0F54A792295AC7D00B4C509 /* DarkModeBarItem.swift */,
 				F29F6A2424BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift */,
+				E7F8A9B1C1D2E3F4A5B6C7D9 /* ThemeSwitchBarItem.swift */,
 			);
 			path = Widgets;
 			sourceTree = "<group>";
@@ -595,6 +598,7 @@
 				607EEA4B2087835F009DA5F0 /* WeatherBarItem.swift in Sources */,
 				F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */,
 				F2A1B1C124BC7148004FF8E5 /* StockBarItem.swift in Sources */,
+				E7F8A9B0C1D2E3F4A5B6C7D8 /* ThemeSwitchBarItem.swift in Sources */,
 				B0F3112520C9E35F0076BB88 /* SupportNSTouchBar.swift in Sources */,
 				4CFF5E5C22E623DD00BFB1EE /* YandexWeatherBarItem.swift in Sources */,
 				6042B6AA2083E27000C525C8 /* DeprecatedCarbonAPI.c in Sources */,

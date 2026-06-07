@@ -215,6 +215,11 @@ export const elementTypes = {
     properties: ['displayMode', 'karaokeStyle', 'showArtwork', 'clickAction'],
     key: 'lyricsArtwork',
   },
+  stock: {
+    type: 'stock', category: 'lyricsmtmr', label: '股票', icon: '📈',
+    defaultTitle: '', defaultProps: { stocks: ['sh600519'], displayMode: 'compact', refreshInterval: 10, textWidth: 70, chartWidth: 130, showChart: true, chartMode: 'fenzhong' },
+    properties: ['stocks', 'displayMode', 'refreshInterval', 'textWidth', 'chartWidth', 'showChart', 'chartMode'],
+  },
 };
 
 export const commonProperties = {

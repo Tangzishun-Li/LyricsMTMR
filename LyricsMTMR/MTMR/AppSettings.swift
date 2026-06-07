@@ -86,6 +86,9 @@ struct AppSettings {
 
     @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
     static var showMirrorWindow: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.theme.selectedIndex", defaultValue: 0)
+    static var selectedThemeIndex: Int
 }
 
 @propertyWrapper
