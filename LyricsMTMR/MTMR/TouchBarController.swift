@@ -69,10 +69,16 @@ extension ItemType {
             return "com.connorgmeehan.mtmrup.next."
         case .lyrics(style: _):
             return "com.lyricsmtmr.lyrics."
-        case .stock(stocks: _, displayMode: _, refreshInterval: _, textWidth: _, chartWidth: _, showChart: _, chartMode: _):
+        case .stock(stocks: _, apiSource: _, displayMode: _, refreshInterval: _, textWidth: _, chartWidth: _, showChart: _, chartMode: _):
             return "com.lyricsmtmr.stock."
         case .themeSwitch(themes: _):
             return "com.lyricsmtmr.themeSwitch."
+        case .usage(providers: _, refreshInterval: _, displayMode: _, widgetWidth: _):
+            return "com.lyricsmtmr.usage."
+        case .deepseekBalance(apiKey: _, displayMode: _, showRemaining: _, refreshInterval: _):
+            return "com.lyricsmtmr.deepseekBalance."
+        case .expandable(items: _, closePosition: _, cardWidthRatio: _):
+            return "com.lyricsmtmr.expandable."
         }
     }
 }
@@ -86,7 +92,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
 
     var touchBar: NSTouchBar!
 
-    fileprivate var lastPresetPath = ""
+    private(set) var lastPresetPath = ""
     var jsonItems: [BarItemDefinition] = []
     var itemDefinitions: [NSTouchBarItem.Identifier: BarItemDefinition] = [:]
     var items: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
@@ -430,17 +436,25 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             let lyricsItem = LyricsTouchBarItem(identifier: identifier)
             let config = LyricsItemConfig.shared
             config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
-            config.karaokeStyle = karaokeStyle
+            config.karaokeStyle = LyricsKaraokeStyle(rawValue: karaokeStyle) ?? .progressive
             config.showArtwork = showArtwork
             config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
             config.marqueeEnabled = marqueeEnabled
-            config.marqueeStyle = marqueeStyle
+            config.marqueeStyle = LyricsMarqueeStyle(rawValue: marqueeStyle) ?? .marquee
             lyricsItem.applyConfig(config)
             barItem = lyricsItem
-        case let .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode):
-            barItem = StockBarItem(identifier: identifier, symbols: stocks, interval: refreshInterval, displayMode: displayMode, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
+        case let .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode):
+            barItem = StockBarItem(identifier: identifier, symbols: stocks, apiSource: apiSource, interval: refreshInterval, displayMode: displayMode, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
         case let .themeSwitch(themes: themes):
             barItem = ThemeSwitchBarItem(identifier: identifier, themes: themes)
+        case let .usage(providers: providers, refreshInterval: interval, displayMode: displayMode, widgetWidth: width):
+            barItem = UsageBarItem(identifier: identifier, providers: providers, interval: interval, displayMode: displayMode, widgetWidth: width)
+        case let .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval):
+            barItem = DeepseekBalanceBarItem(identifier: identifier, apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval)
+        case let .expandable(items: items, closePosition: _, cardWidthRatio: _):
+            // Fallback: render as a group until ExpandableCardItem is properly integrated
+            let groupItem = GroupBarItem(identifier: identifier, items: items)
+            barItem = groupItem
         }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {

@@ -12,13 +12,6 @@ enum FilterMode: Int, CaseIterable {
         case .allow: return "仅显示匹配行"
         }
     }
-
-    var englishLabel: String {
-        switch self {
-        case .block: return "Block Matching"
-        case .allow: return "Only Show Matching"
-        }
-    }
 }
 
 // MARK: - Filter Category
@@ -117,9 +110,5 @@ struct LyricsFilter {
         case .allow:
             return !matches
         }
-    }
-
-    static func isRegexKey(_ key: String) -> Bool {
-        key.hasPrefix("/")
     }
 }

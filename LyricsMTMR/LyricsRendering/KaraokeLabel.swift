@@ -18,6 +18,16 @@ enum KaraokeStyle {
     case jump
 }
 
+/// Layout constants for ruby (furigana/romaji) annotation rendering.
+private enum RubyMetrics {
+    static let fontSizeRatio: CGFloat = 0.3
+    static let maxWidthRatio: CGFloat = 0.8
+    static let minFontSize: CGFloat = 1.0
+    static let shrinkFactor: CGFloat = 0.9
+    static let verticalOffsetRatio: CGFloat = 0.2
+    static let defaultFontSize: CGFloat = 24
+}
+
 class KaraokeLabel: NSTextField {
     @objc dynamic var isVertical = false {
         didSet {
@@ -63,6 +73,8 @@ class KaraokeLabel: NSTextField {
             clearCache()
         }
     }
+
+    // MARK: - Cache
 
     private func clearCache() {
         _attrString = nil
@@ -133,6 +145,21 @@ class KaraokeLabel: NSTextField {
         return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
     }
 
+    /// The full measured text width from CoreText layout.
+    var fullTextWidth: CGFloat {
+        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
+        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
+        let framesetter = CTFramesetter.create(attributedString: attrString)
+        let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
+        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size.width
+    }
+
+    /// Returns the pixel x-position of a given character index in the first line.
+    func charPosition(at index: Int) -> CGFloat {
+        guard let line = ctFrame().lines.first else { return 0 }
+        return line.offset(charIndex: index).primary
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current else { return }
         let cgContext = context.cgContext
@@ -148,10 +175,14 @@ class KaraokeLabel: NSTextField {
 
     private lazy var progressLayer: CALayer = {
         let pLayer = CALayer()
-        wantsLayer = true
-        layer?.addSublayer(pLayer)
         return pLayer
     }()
+
+    private func ensureProgressLayer() {
+        guard progressLayer.superlayer == nil else { return }
+        wantsLayer = true
+        layer?.addSublayer(progressLayer)
+    }
 
     @objc dynamic var progressColor: NSColor? {
         get {
@@ -164,6 +195,7 @@ class KaraokeLabel: NSTextField {
 
     func setProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle = .progressive) {
         removeProgressAnimation()
+        ensureProgressLayer()
         guard let line = ctFrame().lines.first,
               let origin = ctFrame().lineOrigins(range: CFRange(location: 0, length: 1)).first else {
             return
@@ -248,6 +280,8 @@ class KaraokeLabel: NSTextField {
         CATransaction.commit()
     }
 
+    // MARK: - Romaji Annotations
+
     private func drawRomajiAnnotations(in context: CGContext, frame: CTFrame) {
         guard drawRomajin, !romajinAnnotations.isEmpty else { return }
 
@@ -255,63 +289,23 @@ class KaraokeLabel: NSTextField {
         let origins = frame.lineOrigins(range: CFRangeMake(0, lines.count))
         var annotationIndex = 0
 
+        // Draw annotations that fall within known glyph runs
         for (line, origin) in zip(lines, origins) {
-            let runs = line.glyphRuns
-            for run in runs {
+            for run in line.glyphRuns {
                 let range = run.stringRange
                 var subIndex = 0
 
                 while annotationIndex + subIndex < romajinAnnotations.count {
                     let (romajin, annotationRange) = romajinAnnotations[annotationIndex + subIndex]
                     if NSRange(location: range.location, length: range.length).contains(annotationRange.location) {
-                        var ascent: CGFloat = 0
-                        var descent: CGFloat = 0
-                        var leading: CGFloat = 0
-                        let width = CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &ascent, &descent, &leading)
-                        var position = CGPoint.zero
-                        CTRunGetPositions(run, CFRangeMake(0, 1), &position)
-                        let glyphX = origin.x + position.x
-
-                        let relativeOffset = CGFloat(annotationRange.location - range.location) / CGFloat(range.length) * width
-                        let glyphBounds = CGRect(
-                            x: glyphX + relativeOffset,
-                            y: origin.y - descent,
-                            width: width / CGFloat(range.length) * CGFloat(annotationRange.length),
-                            height: ascent + descent
+                        drawRubyAnnotation(
+                            romajin: romajin,
+                            annotationRange: annotationRange,
+                            run: run,
+                            lineOrigin: origin,
+                            range: range,
+                            in: context
                         )
-
-                        let fontSize = font?.pointSize ?? 24
-                        var rubyFontSize = fontSize * 0.3
-                        let rubyFontBase = NSFont.systemFont(ofSize: rubyFontSize)
-                        let rubyAttrBase: [NSAttributedString.Key: Any] = [
-                            .foregroundColor: textColor ?? .black,
-                            .font: rubyFontBase,
-                        ]
-                        var rubyString = NSAttributedString(string: romajin, attributes: rubyAttrBase)
-                        var rubyWidth = rubyString.size().width
-                        let maxWidth = glyphBounds.width
-
-                        while rubyWidth > maxWidth * 0.8, rubyFontSize > 1 {
-                            rubyFontSize *= 0.9
-                            let rubyFont = NSFont.systemFont(ofSize: rubyFontSize)
-                            let rubyAttr: [NSAttributedString.Key: Any] = [
-                                .font: rubyFont,
-                                .foregroundColor: textColor ?? .black,
-                            ]
-                            rubyString = NSAttributedString(string: romajin, attributes: rubyAttr)
-                            rubyWidth = rubyString.size().width
-                        }
-
-                        let glyphWidth = glyphBounds.width
-                        let xOffset = (glyphWidth - rubyWidth) / 2
-                        let rubyPoint = CGPoint(
-                            x: glyphBounds.minX + xOffset,
-                            y: glyphBounds.minY - fontSize * 0.2
-                        )
-                        let rubyLine = CTLineCreateWithAttributedString(rubyString)
-                        context.textPosition = rubyPoint
-                        CTLineDraw(rubyLine, context)
-
                         subIndex += 1
                     } else {
                         break
@@ -321,6 +315,7 @@ class KaraokeLabel: NSTextField {
             }
         }
 
+        // Draw any remaining annotations after the last glyph run
         while annotationIndex < romajinAnnotations.count {
             let (romajin, _) = romajinAnnotations[annotationIndex]
             if let lastLine = lines.last, let lastOrigin = origins.last, let lastRun = lastLine.glyphRuns.last {
@@ -337,44 +332,77 @@ class KaraokeLabel: NSTextField {
                     width: width,
                     height: ascent + descent
                 )
-
-                let fontSize = font?.pointSize ?? 24
-                var rubyFontSize = fontSize * 0.3
-                let rubyAttrBase: [NSAttributedString.Key: Any] = [
-                    .foregroundColor: textColor ?? .black,
-                ]
-                var rubyString = NSAttributedString(string: romajin, attributes: rubyAttrBase)
-                var rubyWidth = rubyString.size().width
-                let maxWidth = glyphBounds.width
-
-                while rubyWidth > maxWidth * 0.8, rubyFontSize > 1 {
-                    rubyFontSize *= 0.9
-                    let rubyFont = NSFont.systemFont(ofSize: rubyFontSize)
-                    let rubyAttr: [NSAttributedString.Key: Any] = [
-                        .font: rubyFont,
-                        .foregroundColor: textColor ?? .black,
-                    ]
-                    rubyString = NSAttributedString(string: romajin, attributes: rubyAttr)
-                    rubyWidth = rubyString.size().width
-                }
-
-                let glyphWidth = glyphBounds.width
-                let xOffset = (glyphWidth - rubyWidth) / 2
-                let rubyPoint = CGPoint(
-                    x: glyphBounds.minX + xOffset,
-                    y: glyphBounds.minY - 0.2 * fontSize
-                )
-                let rubyLine = CTLineCreateWithAttributedString(rubyString)
-                context.textPosition = rubyPoint
-                CTLineDraw(rubyLine, context)
+                drawRubyText(romajin: romajin, glyphBounds: glyphBounds, in: context)
             }
             annotationIndex += 1
         }
     }
-}
 
-extension CGAffineTransform {
-    static func translateBy(x: CGFloat, y: CGFloat) -> CGAffineTransform {
-        CGAffineTransform(translationX: x, y: y)
+    /// Draws a single ruby annotation positioned over its corresponding glyph bounds.
+    private func drawRubyAnnotation(
+        romajin: String,
+        annotationRange: NSRange,
+        run: CTRun,
+        lineOrigin: CGPoint,
+        range: CFRange,
+        in context: CGContext
+    ) {
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        var leading: CGFloat = 0
+        let width = CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &ascent, &descent, &leading)
+        var position = CGPoint.zero
+        CTRunGetPositions(run, CFRangeMake(0, 1), &position)
+        let glyphX = lineOrigin.x + position.x
+
+        let relativeOffset = CGFloat(annotationRange.location - range.location) / CGFloat(range.length) * width
+        let glyphBounds = CGRect(
+            x: glyphX + relativeOffset,
+            y: lineOrigin.y - descent,
+            width: width / CGFloat(range.length) * CGFloat(annotationRange.length),
+            height: ascent + descent
+        )
+
+        drawRubyText(romajin: romajin, glyphBounds: glyphBounds, in: context)
+    }
+
+    /// Creates a ruby (small superscript) attributed string that fits within the given glyph bounds.
+    /// The font size is progressively shrunk until the text fits or the minimum size is reached.
+    private func makeRubyAttributedString(for romajin: String, maxWidth: CGFloat) -> NSAttributedString {
+        let fontSize = font?.pointSize ?? RubyMetrics.defaultFontSize
+        var rubyFontSize = fontSize * RubyMetrics.fontSizeRatio
+        let font = NSFont.systemFont(ofSize: rubyFontSize)
+        var rubyString = NSAttributedString(string: romajin, attributes: [
+            .font: font,
+            .foregroundColor: textColor ?? .black,
+        ])
+        var rubyWidth = rubyString.size().width
+
+        while rubyWidth > maxWidth * RubyMetrics.maxWidthRatio, rubyFontSize > RubyMetrics.minFontSize {
+            rubyFontSize *= RubyMetrics.shrinkFactor
+            let rubyFont = NSFont.systemFont(ofSize: rubyFontSize)
+            rubyString = NSAttributedString(string: romajin, attributes: [
+                .font: rubyFont,
+                .foregroundColor: textColor ?? .black,
+            ])
+            rubyWidth = rubyString.size().width
+        }
+
+        return rubyString
+    }
+
+    /// Draws a ruby annotation centered horizontally above the given glyph bounds.
+    private func drawRubyText(romajin: String, glyphBounds: CGRect, in context: CGContext) {
+        let fontSize = font?.pointSize ?? RubyMetrics.defaultFontSize
+        let rubyString = makeRubyAttributedString(for: romajin, maxWidth: glyphBounds.width)
+        let rubyWidth = rubyString.size().width
+        let xOffset = (glyphBounds.width - rubyWidth) / 2
+        let rubyPoint = CGPoint(
+            x: glyphBounds.minX + xOffset,
+            y: glyphBounds.minY - fontSize * RubyMetrics.verticalOffsetRatio
+        )
+        let rubyLine = CTLineCreateWithAttributedString(rubyString)
+        context.textPosition = rubyPoint
+        CTLineDraw(rubyLine, context)
     }
 }

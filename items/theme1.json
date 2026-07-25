@@ -1,5 +1,16 @@
 [
   {
+    "type": "themeSwitch",
+    "themes": [
+      { "label": "1", "preset": "theme1.json" },
+      { "label": "2", "preset": "theme2.json" },
+      { "label": "3", "preset": "theme3.json" }
+    ],
+    "align": "left",
+    "width": 44
+  },
+  /*
+  {
   "type": "staticButton",
   "title": "←",
   "align": "left",
@@ -20,20 +31,28 @@
     "inline": "tell application \"System Events\" to key code 124 using {control down}"
   }
   },
+  */
 
 
 
 
   { "type": "dock", "width": 175, "align": "left" },
+  
+  
+  //歌词
   {
     "type": "lyrics",
-    "width": 350,
+    "width": 530,
     "align": "center",
     "displayMode": "karaoke",
     "karaokeStyle": "progressive",
     "showArtwork": true,
     "clickAction": "original"
   },
+
+
+
+
   {
     "type": "group",
     "align": "left",
@@ -52,6 +71,10 @@
     "inline": "tell application \"System Events\" to key code 123 using {control down}"
   }
   },
+  
+
+
+
   
   {
   "type": "staticButton",
@@ -81,17 +104,17 @@
     "background": "#666666"
     },
 
-  {"type": "expandable", "title": "🌐", "align": "center", "width": 75,
-    "closePosition": "left",
-    "cardWidthRatio": 0.6,
+  {"type": "group", "title": "🌐", "background": "#666666", "align": "center", "width": 75, "border": false,
+  
     "items":[
-      {"type": "staticButton", "title": "Moodle", "bordered": true, "align": "center", "action": "openUrl", "url": "https://moodle.must.edu.mo/my/", "background": "6000D2"},
+      {"type": "staticButton", "title": "Moodle", "bordered": false, "align": "center", "action": "openUrl", "url": "https://moodle.must.edu.mo/my/", "background": "6000D2"},
       {"type": "staticButton", "title": "FnOS", "bordered": true, "align": "center", "action": "openUrl", "url": "https://fnos.net/litang", "background": "FF3333"},
       {"type": "staticButton", "title": "Overleaf", "bordered": true, "align": "center", "action": "openUrl", "url": "https://www.overleaf.com/login?", "background": "339CFF"},
-      {"type": "staticButton", "title": "GitHub", "bordered": true, "align": "center", "action": "openUrl", "url": "https://github.com/", "background": "#E91E63"},
-      {"type": "staticButton", "title": "Bilibili", "bordered": true, "align": "center", "action": "openUrl", "url": "https://www.bilibili.com/", "background": "#FF9800"},
-      {"type": "staticButton", "title": "菜鸟", "bordered": true, "align": "center", "action": "openUrl", "url": "https://www.runoob.com/", "background": "#4CAF50"}
-    ]
+    {"type": "staticButton", "title": "GitHub", "bordered": true, "align": "center", "action": "openUrl", "url": "https://github.com/", "background": "#E91E63"},
+    {"type": "staticButton", "title": "Bilibili", "bordered": true, "align": "center", "action": "openUrl", "url": "https://www.bilibili.com/", "background": "#FF9800"},
+    {"type": "staticButton", "title": "菜鸟", "bordered": true, "align": "center", "action": "openUrl", "url": "https://www.runoob.com/", "background": "#4CAF50"},
+
+      {"type": "close", "width": 64, "bordered": true, "align": "right"}]
   },
 
 
@@ -212,16 +235,16 @@
 
 
 
-  {
-    "type": "timeButton",
-    "formatTemplate": "HH:mm",
-    "align": "right",
-    "bordered": false,
-    "longAction": "shellScript",
-    "longExecutablePath": "/usr/bin/pmset",
-    "longShellArguments": ["sleepnow"],
-    "background": "#666666"
-  },
+  // {
+  //   "type": "timeButton",
+  //   "formatTemplate": "HH:mm",
+  //   "align": "right",
+  //   "bordered": false,
+  //   "longAction": "shellScript",
+  //   "longExecutablePath": "/usr/bin/pmset",
+  //   "longShellArguments": ["sleepnow"],
+  //   "background": "#666666"
+  // },
 
 
 
@@ -258,7 +281,7 @@
   // 测试新股票组件
   {
     "type": "stock",
-    "stocks": ["sh600519"],
+    "stocks": ["sh603568"],
     "displayMode": "compact",
     "refreshInterval": 10,
     "textWidth": 70,
@@ -269,32 +292,19 @@
     "width": 200,
     "bordered": false
   },
-
-  // AI 服务商用量探查
   {
-    "type": "usage",
-    "providers": [
-      {
-        "provider": "deepseek",
-        "api_key": "sk-your-deepseek-api-key"
-      },
-      {
-        "provider": "longcat",
-        "api_key": "sk-your-longcat-api-key",
-        "base_url": "https://api.longcat.chat"
-      },
-      {
-        "provider": "bailian",
-        "api_key": "sk-your-bailian-api-key"
-      }
-    ],
-    "refreshInterval": 300,
+    "type": "stock",
+    "stocks": ["sz002150"],
     "displayMode": "compact",
-    "widgetWidth": 120,
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
     "align": "center",
+    "width": 200,
     "bordered": false
   },
-
   {"type": "exitTouchbar", "title": "☠️","align": "right", "width": 50}
   
 ]

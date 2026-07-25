@@ -292,8 +292,11 @@ enum ItemType: Decodable {
     case swipe(direction: String, fingers: Int, minOffset: Float, sourceApple: SourceProtocol?, sourceBash: SourceProtocol?)
     case upnext(from: Double, to: Double, maxToShow: Int, autoResize: Bool)
     case lyrics(style: String, displayMode: String, karaokeStyle: String, showArtwork: Bool, clickAction: String, marqueeEnabled: Bool, marqueeStyle: String)
-    case stock(stocks: [String], displayMode: String, refreshInterval: Double, textWidth: CGFloat, chartWidth: CGFloat, showChart: Bool, chartMode: String)
+    case stock(stocks: [String], apiSource: String, displayMode: String, refreshInterval: Double, textWidth: CGFloat, chartWidth: CGFloat, showChart: Bool, chartMode: String)
     case themeSwitch(themes: [ThemeDefinition])
+    case usage(providers: [ProviderConfig], refreshInterval: Double, displayMode: String, widgetWidth: CGFloat)
+    case deepseekBalance(apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double)
+    case expandable(items: [BarItemDefinition], closePosition: String, cardWidthRatio: CGFloat)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -334,11 +337,18 @@ enum ItemType: Decodable {
         case marqueeEnabled
         case marqueeStyle
         case stocks
+        case apiSource
         case textWidth
         case chartWidth
         case showChart
         case chartMode
+        case apiKey
+        case showRemaining
         case themes
+        case providers
+        case widgetWidth
+        case closePosition
+        case cardWidthRatio
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -367,6 +377,9 @@ enum ItemType: Decodable {
         case lyrics
         case stock
         case themeSwitch
+        case usage
+        case deepseekBalance
+        case expandable
     }
 
     init(from decoder: Decoder) throws {
@@ -443,6 +456,12 @@ enum ItemType: Decodable {
             let items = try container.decode([BarItemDefinition].self, forKey: .items)
             self = .group(items: items)
 
+        case .expandable:
+            let items = try container.decode([BarItemDefinition].self, forKey: .items)
+            let closePosition = try container.decodeIfPresent(String.self, forKey: .closePosition) ?? "left"
+            let cardWidthRatio = try container.decodeIfPresent(CGFloat.self, forKey: .cardWidthRatio) ?? 0.5
+            self = .expandable(items: items, closePosition: closePosition, cardWidthRatio: cardWidthRatio)
+
         case .nightShift:
             self = .nightShift
 
@@ -490,17 +509,32 @@ enum ItemType: Decodable {
 
         case .stock:
             let stocks = try container.decodeIfPresent([String].self, forKey: .stocks) ?? ["sh600519"]
+            let apiSource = try container.decodeIfPresent(String.self, forKey: .apiSource) ?? "tencent"
             let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
             let textWidth = try container.decodeIfPresent(CGFloat.self, forKey: .textWidth) ?? 70
             let chartWidth = try container.decodeIfPresent(CGFloat.self, forKey: .chartWidth) ?? 130
             let showChart = try container.decodeIfPresent(Bool.self, forKey: .showChart) ?? true
             let chartMode = try container.decodeIfPresent(String.self, forKey: .chartMode) ?? "fenzhong"
-            self = .stock(stocks: stocks, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
+            self = .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
 
         case .themeSwitch:
             let themes = try container.decode([ThemeDefinition].self, forKey: .themes)
             self = .themeSwitch(themes: themes)
+
+        case .usage:
+            let providers = try container.decodeIfPresent([ProviderConfig].self, forKey: .providers) ?? []
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
+            let widgetWidth = try container.decodeIfPresent(CGFloat.self, forKey: .widgetWidth) ?? 120
+            self = .usage(providers: providers, refreshInterval: interval, displayMode: displayMode, widgetWidth: widgetWidth)
+
+        case .deepseekBalance:
+            let apiKey = try container.decodeIfPresent(String.self, forKey: .apiKey) ?? ""
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "both"
+            let showRemaining = try container.decodeIfPresent(Bool.self, forKey: .showRemaining) ?? true
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            self = .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: refreshInterval)
         }
     }
 }

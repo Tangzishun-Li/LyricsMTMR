@@ -1,44 +1,5 @@
-//
-//  LyricsTouchBarItem.swift
-//  LyricsMTMR
-//
-//  Adapted from LyricsX TouchBarLyricsItem
-//  Original: https://github.com/MxIris-LyricsX-Project/LyricsX
-//
-//  A full-featured Touch Bar item that displays:
-//  - Current song artwork (optional)
-//  - Karaoke lyrics with progressive or jump animation
-//  - Static "Title - Artist" mode
-//  - Artwork-only mode
-//  - Click to cycle: original → translation → romaji
-//  - Marquee / follow scrolling for long lines
-//
-//  This source code is licensed under GPL 2.0.
-//  See LICENSE file in the project root for full license information.
-//
-
 import Cocoa
 import Combine
-
-/// Timing constants for marquee scrolling animation.
-private enum MarqueeMetrics {
-    static let fps: Double = 60.0
-    static let defaultTimeBudget: TimeInterval = 4.0
-    static let flashDuration: TimeInterval = 1.5
-    static let overflowPadding: CGFloat = 15
-    static let followVisibleRatio: CGFloat = 0.65
-    static let animationDuration: TimeInterval = 0.2
-}
-
-/// Combined snapshot of engine state needed to render a lyrics line.
-private struct LyricsRenderState {
-    let lineIndex: Int?
-    let lyrics: SimpleLyrics?
-    let translationLyrics: SimpleLyrics?
-    let romajiLyrics: SimpleLyrics?
-    let clickAction: LyricsClickAction
-    let track: EngineTrackInfo
-}
 
 class LyricsTouchBarItem: NSCustomTouchBarItem {
     private let stackView = NSStackView()
@@ -53,7 +14,8 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private var marqueeTimer: Timer?
     private var marqueeStartTime: Date?
     private var marqueeOverflowWidth: CGFloat = 0
-    private var marqueeTimeBudget: TimeInterval = MarqueeMetrics.defaultTimeBudget
+    private var marqueeTimeBudget: TimeInterval = 4.0
+    private var artworkConstraints: [NSLayoutConstraint] = []
 
     override init(identifier: NSTouchBarItem.Identifier) {
         self.config = LyricsItemConfig.shared
@@ -62,45 +24,106 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         setupSubscriptions()
         setupGesture()
         updatePlaceholder()
+        observeConfigChanges()
     }
 
     deinit {
         stopMarqueeTimer()
+        NotificationCenter.default.removeObserver(self)
     }
 
-    func applyConfig(_ config: LyricsItemConfig) {
-        self.config = config
-        lyricsLabel.font = config.font
-        lyricsLabel.textColor = config.textColor
-        lyricsLabel.progressColor = config.progressColor
-        updateArtworkVisibility()
+    // MARK: - Observe config changes
+
+    private func observeConfigChanges() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(configDidChange),
+            name: .lyricsItemConfigDidChange,
+            object: nil
+        )
+    }
+
+    @objc private func configDidChange() {
+        DispatchQueue.main.async { [weak self] in
+            self?.applyConfig()
+        }
+    }
+
+    // MARK: - Apply config (can be called multiple times)
+
+    func applyConfig() {
+        let cfg = LyricsItemConfig.shared
+        self.config = cfg
+
+        // Update label appearance
+        lyricsLabel.font = cfg.font
+        lyricsLabel.textColor = cfg.textColor
+        lyricsLabel.progressColor = cfg.progressColor
+        lyricsLabel.drawFurigana = cfg.drawFurigana
+        lyricsLabel.drawRomajin = cfg.drawRomajin
+
+        // Update placeholder
+        placeholderLabel.font = cfg.font
+        placeholderLabel.textColor = cfg.textColor.withAlphaComponent(0.5)
+
+        // Update artwork visibility
+        if cfg.showArtwork {
+            if !stackView.arrangedSubviews.contains(artworkView) {
+                stackView.insertArrangedSubview(artworkView, at: 0)
+                if artworkConstraints.isEmpty {
+                    artworkConstraints = [
+                        artworkView.widthAnchor.constraint(equalToConstant: cfg.artworkSize),
+                        artworkView.heightAnchor.constraint(equalToConstant: cfg.artworkSize)
+                    ]
+                }
+                NSLayoutConstraint.activate(artworkConstraints)
+            }
+            // Update size if changed
+            if let w = artworkConstraints.first, w.constant != cfg.artworkSize {
+                w.constant = cfg.artworkSize
+                artworkConstraints[1].constant = cfg.artworkSize
+            }
+        } else {
+            if stackView.arrangedSubviews.contains(artworkView) {
+                NSLayoutConstraint.deactivate(artworkConstraints)
+                artworkView.removeFromSuperview()
+            }
+        }
+
+        // Refresh display
+        if let idx = engine.currentLineIndex,
+           let lyrics = engine.activeLyrics,
+           idx < lyrics.lines.count {
+            let line = lyrics.lines[idx]
+            lyricsLabel.stringValue = line.content
+        }
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: - View Setup
-
     private func setupViews() {
+        let cfg = config
+
         artworkView.wantsLayer = true
         artworkView.layer?.cornerRadius = 4
         artworkView.imageScaling = .scaleProportionallyUpOrDown
 
-        lyricsLabel.font = config.font
-        lyricsLabel.textColor = config.textColor
-        lyricsLabel.progressColor = config.progressColor
+        lyricsLabel.font = cfg.font
+        lyricsLabel.textColor = cfg.textColor
+        lyricsLabel.progressColor = cfg.progressColor
         lyricsLabel.isVertical = false
-        lyricsLabel.drawFurigana = false
-        lyricsLabel.drawRomajin = false
+        lyricsLabel.drawFurigana = cfg.drawFurigana
+        lyricsLabel.drawRomajin = cfg.drawRomajin
         lyricsLabel.lineBreakMode = .byClipping
         lyricsLabel.refusesFirstResponder = true
 
         stackView.wantsLayer = true
         stackView.layer?.masksToBounds = true
 
-        placeholderLabel.font = config.font
-        placeholderLabel.textColor = config.textColor.withAlphaComponent(0.5)
+        placeholderLabel.font = cfg.font
+        placeholderLabel.textColor = cfg.textColor.withAlphaComponent(0.5)
         placeholderLabel.isBezeled = false
         placeholderLabel.drawsBackground = false
         placeholderLabel.lineBreakMode = .byTruncatingTail
@@ -110,9 +133,12 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         stackView.spacing = 6
         stackView.distribution = .fill
 
-        if config.showArtwork {
-            artworkView.widthAnchor.constraint(equalToConstant: config.artworkSize).isActive = true
-            artworkView.heightAnchor.constraint(equalToConstant: config.artworkSize).isActive = true
+        if cfg.showArtwork {
+            artworkConstraints = [
+                artworkView.widthAnchor.constraint(equalToConstant: cfg.artworkSize),
+                artworkView.heightAnchor.constraint(equalToConstant: cfg.artworkSize)
+            ]
+            NSLayoutConstraint.activate(artworkConstraints)
             stackView.addArrangedSubview(artworkView)
         }
 
@@ -121,10 +147,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         view = stackView
     }
 
-    // MARK: - Subscriptions
-
     private func setupSubscriptions() {
-        // Track info changes → update placeholder
         engine.$trackInfo
             .receive(on: DispatchQueue.main)
             .sink { [weak self] info in
@@ -132,43 +155,20 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             }
             .store(in: &cancellables)
 
-        // Artwork changes → update image (deduplicated via lightweight hash)
         engine.$trackInfo
-            .removeDuplicates(by: { ($0.artwork?.contentHash ?? 0) == ($1.artwork?.contentHash ?? 0) })
             .map(\.artwork)
+            .removeDuplicates(by: { $0?.tiffRepresentation == $1?.tiffRepresentation })
             .receive(on: DispatchQueue.main)
             .sink { [weak self] artwork in
                 self?.artworkView.image = artwork
             }
             .store(in: &cancellables)
 
-        // Lyrics/line/track updates → render current line
         engine.$currentLineIndex
-            .combineLatest(engine.$currentLyrics)
-            .combineLatest(engine.$translationLyrics)
-            .combineLatest(engine.$romajiLyrics)
-            .combineLatest(engine.$clickAction)
-            .combineLatest(engine.$trackInfo)
-            .map { value in
-                LyricsRenderState(
-                    lineIndex: value.0.0.0.0.0,
-                    lyrics: value.0.0.0.0.1,
-                    translationLyrics: value.0.0.0.1,
-                    romajiLyrics: value.0.0.1,
-                    clickAction: value.0.1,
-                    track: value.1
-                )
-            }
+            .combineLatest(engine.$currentLyrics, engine.$translationLyrics, engine.$romajiLyrics, engine.$clickAction, engine.$trackInfo)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
-                self?.onLyricsUpdate(
-                    lineIndex: state.lineIndex,
-                    lyrics: state.lyrics,
-                    translationLyrics: state.translationLyrics,
-                    romajiLyrics: state.romajiLyrics,
-                    clickAction: state.clickAction,
-                    track: state.track
-                )
+            .sink { [weak self] idx, lyrics, tLyrics, rLyrics, action, info in
+                self?.onLyricsUpdate(lineIndex: idx, lyrics: lyrics, translationLyrics: tLyrics, romajiLyrics: rLyrics, clickAction: action, track: info)
             }
             .store(in: &cancellables)
     }
@@ -192,14 +192,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     // MARK: - Lyrics Update
 
-    private func onLyricsUpdate(
-        lineIndex: Int?,
-        lyrics: SimpleLyrics?,
-        translationLyrics: SimpleLyrics?,
-        romajiLyrics: SimpleLyrics?,
-        clickAction: LyricsClickAction,
-        track: EngineTrackInfo
-    ) {
+    private func onLyricsUpdate(lineIndex: Int?, lyrics: SimpleLyrics?, translationLyrics: SimpleLyrics?, romajiLyrics: SimpleLyrics?, clickAction: LyricsClickAction, track: EngineTrackInfo) {
         guard config.isKaraoke else { return }
 
         let activeLyrics: SimpleLyrics?
@@ -230,7 +223,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
                 ($0.0 + line.position - timeDelay - position, $0.1)
             }
 
-            let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
+            let style: KaraokeStyle = config.karaokeStyle == "jump" ? .jump : .progressive
             lyricsLabel.setProgressAnimation(color: config.progressColor, progress: progress, style: style)
         } else {
             lyricsLabel.removeProgressAnimation()
@@ -257,9 +250,9 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             return
         }
 
-        let overflowWidth = textWidth - clipWidth + MarqueeMetrics.overflowPadding
+        let overflowWidth = textWidth - clipWidth + 15
 
-        if config.marqueeStyle == .follow {
+        if config.marqueeStyle == "follow" {
             if !line.timetags.isEmpty {
                 stopMarqueeTimer()
                 updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflowWidth)
@@ -269,7 +262,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             return
         }
 
-        // marqueeStyle == .marquee
+        // marqueeStyle == "marquee"
         if !line.timetags.isEmpty {
             stopMarqueeTimer()
             updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflowWidth)
@@ -294,14 +287,14 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         let charX = lyricsLabel.charPosition(at: activeCharIndex)
         let clipWidth = stackView.bounds.width
 
-        let targetVisibleX = clipWidth * MarqueeMetrics.followVisibleRatio
+        let targetVisibleX = clipWidth * 0.65
         let maxOffset: CGFloat = 0
         let minOffset = -overflowWidth
         let desiredOffset = max(minOffset, min(maxOffset, targetVisibleX - charX))
 
         if abs(lyricsLabel.bounds.origin.x - desiredOffset) > 2 {
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = MarqueeMetrics.animationDuration
+                ctx.duration = 0.2
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 lyricsLabel.animator().setBoundsOrigin(NSPoint(x: desiredOffset, y: 0))
             }
@@ -315,7 +308,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         if lineIndex + 1 < active.lines.count {
             nextPosition = active.lines[lineIndex + 1].position
         } else {
-            nextPosition = track.playbackTime + MarqueeMetrics.defaultTimeBudget
+            nextPosition = track.playbackTime + 4.0
         }
 
         let timeBudget = max(nextPosition - track.playbackTime, 1.0)
@@ -324,7 +317,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         marqueeTimeBudget = timeBudget
         marqueeStartTime = Date()
 
-        marqueeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / MarqueeMetrics.fps, repeats: true) { [weak self] _ in
+        marqueeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             guard let self, let startTime = self.marqueeStartTime else { return }
             let elapsed = Date().timeIntervalSince(startTime)
             let t = elapsed.truncatingRemainder(dividingBy: self.marqueeTimeBudget) / self.marqueeTimeBudget
@@ -348,56 +341,28 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     // MARK: - Placeholder
 
-    private func updatePlaceholder() {
-        if !engine.trackInfo.title.isEmpty {
-            placeholderLabel.stringValue = "♫ Loading lyrics..."
-        } else {
-            placeholderLabel.stringValue = "♫ No music playing..."
-        }
-        showPlaceholder()
-    }
-
     private func showPlaceholder() {
-        guard config.displayMode != .artwork else { return }
+        placeholderLabel.isHidden = false
         lyricsLabel.isHidden = true
-        placeholderLabel.stringValue = "♫ No music..."
-        if placeholderLabel.superview == nil {
-            stackView.addArrangedSubview(placeholderLabel)
-        }
     }
 
     private func hidePlaceholder() {
-        placeholderLabel.removeFromSuperview()
+        placeholderLabel.isHidden = true
         lyricsLabel.isHidden = false
     }
 
-    // MARK: - Tap Handling
+    private func updatePlaceholder() {
+        placeholderLabel.stringValue = "LyricsMTMR"
+        showPlaceholder()
+    }
+
+    // MARK: - Tap handler
 
     @objc private func handleTap() {
-        let modes: [LyricsClickAction] = [.original, .translation, .romaji]
-        guard let currentIdx = modes.firstIndex(of: engine.clickAction) else { return }
-        let nextIdx = (currentIdx + 1) % modes.count
-        let nextAction = modes[nextIdx]
-
-        engine.clickAction = nextAction
-
-        if let line = engine.currentLyrics?.lines[engine.currentLineIndex ?? 0] {
-            lyricsLabel.stringValue = line.content
-        }
-
-        let label = nextAction == .original ? "原文" : nextAction == .translation ? "翻译" : "音译"
-        showFlash(label)
-    }
-
-    private func showFlash(_ text: String) {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(clearFlash), object: nil)
-        perform(#selector(clearFlash), with: nil, afterDelay: MarqueeMetrics.flashDuration)
-    }
-
-    @objc private func clearFlash() {
-    }
-
-    private func updateArtworkVisibility() {
-        artworkView.isHidden = !config.showArtwork
+        let actions = LyricsClickAction.allCases
+        let currentIdx = actions.firstIndex(of: config.clickAction) ?? 0
+        let nextIdx = (currentIdx + 1) % actions.count
+        config.clickAction = actions[nextIdx]
+        engine.setClickAction(config.clickAction)
     }
 }

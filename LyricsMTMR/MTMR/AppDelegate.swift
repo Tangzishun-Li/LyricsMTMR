@@ -12,6 +12,7 @@
 
 import Cocoa
 import Sparkle
+import SwiftUI
 
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -19,24 +20,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isBlockedApp: Bool = false
 
     private var fileSystemSource: DispatchSourceFileSystemObject?
+    private var statusPopover: NSPopover?
+    private var menuModel: StatusBarMenuModel?
+    private var eventMonitor: Any?
 
     func applicationDidFinishLaunching(_: Notification) {
-        // Sparkle auto-update is disabled (no EdDSA key configured).
-        // Manual check is available via the status menu.
-
-        // Accessibility permission check
-        let trusted = AXIsProcessTrusted()
         AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary)
 
-        // Scan for haptic device ID
         HapticFeedback.instance.scanAllDeviceIDs()
-
         TouchBarController.shared.setupControlStripPresence()
 
         if let button = statusItem.button {
             button.image = #imageLiteral(resourceName: "StatusImage")
+            button.action = #selector(togglePopover)
+            button.target = self
         }
-        createMenu()
+
+        setupPopover()
 
         reloadOnDefaultConfigChanged()
 
@@ -45,11 +45,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
         LyricsEngine.shared.start()
+        SlotManager.shared.ensureSlotsDirectory()
+
     }
 
-    func applicationWillTerminate(_: Notification) {
-        killWebServer()
+    func applicationWillTerminate(_: Notification) {}
+
+    // MARK: - Popover
+
+    private func setupPopover() {
+        let model = StatusBarMenuModel()
+        model.appDelegate = self
+        model.onDismiss = { [weak self] in self?.closePopover() }
+        menuModel = model
+
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 326, height: 580)
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentViewController = NSHostingController(
+            rootView: StatusBarMenuView(model: model)
+        )
+        statusPopover = popover
     }
+
+    @objc func togglePopover() {
+        guard let popover = statusPopover, let button = statusItem.button else { return }
+        if popover.isShown {
+            closePopover()
+        } else {
+            menuModel?.refresh()
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
+        }
+    }
+
+    private func closePopover() {
+        statusPopover?.performClose(nil)
+    }
+
+    // MARK: - App State
 
     @objc func updateIsBlockedApp() {
         if let frontmostAppId = TouchBarController.shared.frontmostApplicationIdentifier {
@@ -57,101 +92,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             isBlockedApp = false
         }
-        createMenu()
+        menuModel?.refresh()
     }
+
+    // MARK: - Actions (kept for compatibility)
 
     @objc func openPreferences(_: Any?) {
-        let task = Process()
         let appSupportDirectory = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let presetPath = appSupportDirectory.appending("/items.json")
-        task.launchPath = "/usr/bin/open"
-        task.arguments = [presetPath]
-        task.launch()
-    }
-
-    @objc func toggleControlStrip(_ item: NSMenuItem) {
-        item.state = item.state == .on ? .off : .on
-        AppSettings.showControlStripState = item.state == .off
-        TouchBarController.shared.resetControlStrip()
-    }
-
-    @objc func toggleBlackListedApp(_: Any?) {
-        if let appIdentifier = TouchBarController.shared.frontmostApplicationIdentifier {
-            if let index = TouchBarController.shared.blacklistAppIdentifiers.firstIndex(of: appIdentifier) {
-                TouchBarController.shared.blacklistAppIdentifiers.remove(at: index)
-            } else {
-                TouchBarController.shared.blacklistAppIdentifiers.append(appIdentifier)
-            }
-            
-            AppSettings.blacklistedAppIds = TouchBarController.shared.blacklistAppIdentifiers
-            TouchBarController.shared.updateActiveApp()
-            updateIsBlockedApp()
-        }
-    }
-
-    @objc func toggleHapticFeedback(_ item: NSMenuItem) {
-        item.state = item.state == .on ? .off : .on
-        AppSettings.hapticFeedbackState = item.state == .on
-    }
-
-    @objc func toggleMultitouch(_ item: NSMenuItem) {
-        item.state = item.state == .on ? .off : .on
-        AppSettings.multitouchGestures = item.state == .on
-        TouchBarController.shared.basicView?.legacyGesturesEnabled = item.state == .on
-    }
-
-    @objc func toggleMirrorWindow(_ item: NSMenuItem) {
-        item.state = item.state == .on ? .off : .on
-        TouchBarMirrorWindowController.shared.toggle()
-    }
-
-    @objc func selectLanguage(_ sender: NSMenuItem) {
-        guard let lang = sender.representedObject as? AppLanguage else { return }
-        let prevLang = AppSettings.appLanguage
-        AppSettings.appLanguage = lang
-
-        if lang == prevLang { return }
-
-        if lang == .system {
-            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        } else {
-            UserDefaults.standard.set([lang.rawValue], forKey: "AppleLanguages")
-        }
-        UserDefaults.standard.synchronize()
-
-        let alert = NSAlert()
-        alert.messageText = Localized.languageChanged
-        alert.informativeText = Localized.restartPrompt
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
-
-    @objc func togglePlayer(_ sender: NSMenuItem) {
-        guard let playerId = sender.representedObject as? String else { return }
-        var selected = AppSettings.selectedPlayerIds
-        if let idx = selected.firstIndex(of: playerId) {
-            selected.remove(at: idx)
-        } else {
-            selected.append(playerId)
-        }
-        AppSettings.selectedPlayerIds = selected
-        createMenu()
-    }
-
-    @objc func selectAllPlayers(_ sender: NSMenuItem) {
-        let allIds = MusicPlayer.allCases.map { $0.rawValue }
-        if AppSettings.selectedPlayerIds.count == allIds.count {
-            AppSettings.selectedPlayerIds = []
-        } else {
-            AppSettings.selectedPlayerIds = allIds
-        }
-        createMenu()
+        NSWorkspace.shared.open(URL(fileURLWithPath: presetPath))
     }
 
     @objc func openPreset(_: Any?) {
         let dialog = NSOpenPanel()
-
         dialog.title = "Choose a items.json file"
         dialog.showsResizeIndicator = true
         dialog.showsHiddenFiles = true
@@ -160,7 +113,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dialog.allowsMultipleSelection = false
         dialog.allowedFileTypes = ["json"]
         dialog.directoryURL = NSURL.fileURL(withPath: NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR"), isDirectory: true)
-
         if dialog.runModal() == .OK, let path = dialog.url?.path {
             TouchBarController.shared.reloadPreset(path: path)
         }
@@ -172,33 +124,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func toggleStartAtLogin(_: Any?) {
         LaunchAtLoginController().setLaunchAtLogin(!LaunchAtLoginController().launchAtLogin, for: NSURL.fileURL(withPath: Bundle.main.bundlePath))
-        createMenu()
+        menuModel?.refresh()
     }
 
-    private var jsonEditorController: JSONEditorController?
-
-    @objc func openJSONEditor(_: Any?) {
-        if jsonEditorController == nil {
-            jsonEditorController = JSONEditorController()
-        }
-        jsonEditorController?.showWindow(nil)
-        jsonEditorController?.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private var webSettingsController: WebSettingsController?
+    private var unifiedSettingsController: UnifiedSettingsWindowController?
 
     @objc func openSettings(_: Any?) {
-        if webSettingsController == nil {
-            webSettingsController = WebSettingsController()
+        if unifiedSettingsController == nil {
+            unifiedSettingsController = UnifiedSettingsWindowController()
         }
-        webSettingsController?.showWindow(nil)
-        webSettingsController?.window?.makeKeyAndOrderFront(nil)
+        unifiedSettingsController?.showWindow(nil)
+        unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @objc func killWebServer() {
-        webSettingsController = nil
     }
 
     @objc func requestAccessibility(_: Any?) {
@@ -207,7 +144,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !trusted {
             let appPath = Bundle.main.bundlePath
             let appFolder = (appPath as NSString).deletingLastPathComponent
-
             let alert = NSAlert()
             alert.messageText = Localized.accessibilityTitle
             alert.informativeText = Localized.accessibilityMessage + appFolder
@@ -220,110 +156,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func createMenu() {
-        let menu = NSMenu()
-
-        let startAtLogin = NSMenuItem(title: Localized.startAtLogin, action: #selector(toggleStartAtLogin(_:)), keyEquivalent: "L")
-        startAtLogin.state = LaunchAtLoginController().launchAtLogin ? .on : .off
-
-        let toggleBlackList = NSMenuItem(title: Localized.toggleBlacklist, action: #selector(toggleBlackListedApp(_:)), keyEquivalent: "B")
-        toggleBlackList.state = isBlockedApp ? .on : .off
-
-        let hideControlStrip = NSMenuItem(title: Localized.hideControlStrip, action: #selector(toggleControlStrip(_:)), keyEquivalent: "T")
-        hideControlStrip.state = AppSettings.showControlStripState ? .off : .on
-
-        let hapticFeedback = NSMenuItem(title: Localized.hapticFeedback, action: #selector(toggleHapticFeedback(_:)), keyEquivalent: "H")
-        hapticFeedback.state = AppSettings.hapticFeedbackState ? .on : .off
-
-        let multitouchGestures = NSMenuItem(title: Localized.multitouchGestures, action: #selector(toggleMultitouch(_:)), keyEquivalent: "")
-        multitouchGestures.state = AppSettings.multitouchGestures ? .on : .off
-
-        let mirrorWindow = NSMenuItem(title: "Show Touch Bar Mirror Window", action: #selector(toggleMirrorWindow(_:)), keyEquivalent: "M")
-        mirrorWindow.state = AppSettings.showMirrorWindow ? .on : .off
-
-        let settingSeparator = NSMenuItem(title: Localized.settings, action: nil, keyEquivalent: "")
-        settingSeparator.isEnabled = false
-
-        let isTrusted = AXIsProcessTrusted()
-        let accessibilityItem = NSMenuItem(
-            title: isTrusted ? Localized.accessibilityGranted : Localized.accessibilityNeeded,
-            action: #selector(requestAccessibility(_:)),
-            keyEquivalent: ""
-        )
-
-        menu.addItem(withTitle: "🔄 " + Localized.openJSONEditor, action: #selector(openJSONEditor(_:)), keyEquivalent: "e")
-        menu.addItem(withTitle: "⟳ 刷新预设", action: #selector(refreshPreset), keyEquivalent: "r")
-        menu.addItem(accessibilityItem)
-        menu.addItem(withTitle: Localized.preferences, action: #selector(openPreferences(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: Localized.openPreset, action: #selector(openPreset(_:)), keyEquivalent: "O")
-        menu.addItem(withTitle: Localized.checkForUpdates, action: #selector(SUUpdater.checkForUpdates(_:)), keyEquivalent: "").target = SUUpdater.shared()
-
-        menu.addItem(NSMenuItem.separator())
-
-        let settingsTitle = AppSettings.appLanguage == .chinese ? "设置…" : "Settings..."
-        menu.addItem(withTitle: settingsTitle, action: #selector(openSettings(_:)), keyEquivalent: ",")
-
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(settingSeparator)
-        menu.addItem(hapticFeedback)
-        menu.addItem(hideControlStrip)
-        menu.addItem(toggleBlackList)
-        menu.addItem(startAtLogin)
-        menu.addItem(multitouchGestures)
-        menu.addItem(mirrorWindow)
-
-        // Language submenu
-        let langItem = NSMenuItem(title: Localized.language, action: nil, keyEquivalent: "")
-        let langMenu = NSMenu()
-        for lang in AppLanguage.allCases {
-            let item = NSMenuItem(title: lang.displayName, action: #selector(selectLanguage(_:)), keyEquivalent: "")
-            item.state = AppSettings.appLanguage == lang ? .on : .off
-            item.representedObject = lang
-            langMenu.addItem(item)
-        }
-        langItem.submenu = langMenu
-        menu.addItem(langItem)
-
-        // Music Player submenu
-        let playerTitle = AppSettings.appLanguage == .chinese ? "音乐源" : "Music Source"
-        let playerItem = NSMenuItem(title: playerTitle, action: nil, keyEquivalent: "")
-        let playerMenu = NSMenu()
-        let allSelected = AppSettings.selectedPlayerIds.count == MusicPlayer.allCases.count
-        let allItem = NSMenuItem(title: allSelected ? "✓ 全部" : "☐ 全部", action: #selector(selectAllPlayers(_:)), keyEquivalent: "")
-        playerMenu.addItem(allItem)
-        playerMenu.addItem(NSMenuItem.separator())
-        for player in MusicPlayer.allCases {
-            let isOn = AppSettings.selectedPlayerIds.contains(player.rawValue)
-            let item = NSMenuItem(title: (isOn ? "✓ " : "☐ ") + player.displayName, action: #selector(togglePlayer(_:)), keyEquivalent: "")
-            item.representedObject = player.rawValue
-            playerMenu.addItem(item)
-        }
-        playerItem.submenu = playerMenu
-        menu.addItem(playerItem)
-
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: Localized.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        statusItem.menu = menu
-    }
+    // MARK: - Config Watcher
 
     func reloadOnDefaultConfigChanged() {
         let file = NSURL.fileURL(withPath: standardConfigPath)
-
         let fd = open(file.path, O_EVTONLY)
-
         fileSystemSource = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: DispatchQueue(label: "DefaultConfigChanged"))
-
         fileSystemSource?.setEventHandler(handler: {
             AppLog.appEvent("Config file changed, reloading...")
             DispatchQueue.main.async {
                 TouchBarController.shared.reloadPreset(path: file.path)
             }
         })
-
-        fileSystemSource?.setCancelHandler(handler: {
-            close(fd)
-        })
-
+        fileSystemSource?.setCancelHandler(handler: { close(fd) })
         fileSystemSource?.resume()
     }
 }

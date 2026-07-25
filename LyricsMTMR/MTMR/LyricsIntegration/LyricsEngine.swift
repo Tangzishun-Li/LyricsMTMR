@@ -1,5 +1,32 @@
 import Cocoa
 import Combine
+import CoreGraphics
+
+extension NSImage {
+    /// A cheap content-based hash for change detection.
+    /// Uses CGImage metadata + a sample of pixel data instead of full TIFF encoding.
+    var contentHash: UInt64 {
+        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return 0
+        }
+        var hash = UInt64(cgImage.width)
+        hash = hash &* 31 &+ UInt64(cgImage.height)
+        hash = hash &* 31 &+ UInt64(cgImage.bitsPerPixel)
+        hash = hash &* 31 &+ UInt64(cgImage.bytesPerRow)
+        // Sample first 64 bytes of pixel data for content identity
+        if let dataProvider = cgImage.dataProvider,
+           let cfData = dataProvider.data {
+            let length = min(64, CFDataGetLength(cfData))
+            let data = CFDataGetBytePtr(cfData)
+            if let data {
+                for i in 0..<length {
+                    hash = hash &* 31 &+ UInt64(data[i])
+                }
+            }
+        }
+        return hash
+    }
+}
 
 // MARK: - Track Info
 
@@ -220,6 +247,10 @@ class LyricsEngine: NSObject {
     @Published var coverURL: URL?
     @Published var searchFailed: Bool = false
 
+    /// Lightweight hash of the current artwork for cheap change detection.
+    /// Avoids expensive tiffRepresentation encoding on every track update.
+    @Published private(set) var artworkHash: UInt64 = 0
+
     private let mrAdapter = MediaRemoteAdapter()
     private var lineCheckTimer: DispatchWorkItem?
     private var playbackTimer: Timer?
@@ -232,6 +263,10 @@ class LyricsEngine: NSObject {
 
     private override init() {
         super.init()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     var activeLyrics: SimpleLyrics? {
@@ -252,6 +287,15 @@ class LyricsEngine: NSObject {
 
     func start() {
         AppLog.info("LyricsEngine starting (MediaRemoteAdapter subprocess mode)...")
+
+        // Sync clickAction from LyricsItemConfig and observe changes
+        clickAction = LyricsItemConfig.shared.clickAction
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(configDidChange),
+            name: .lyricsItemConfigDidChange,
+            object: nil
+        )
 
         // Delay startup slightly to let the Touch Bar system initialize,
         // avoiding the NSFunctionRowDevice mutation-while-enumerated crash.
@@ -393,6 +437,15 @@ class LyricsEngine: NSObject {
         timeBase = (trackInfo.playbackTime, Date())
     }
 
+    @objc private func configDidChange() {
+        let newAction = LyricsItemConfig.shared.clickAction
+        if newAction != clickAction {
+            clickAction = newAction
+            scheduleLineCheck()
+            updateKaraokeProgress()
+        }
+    }
+
     // MARK: - Track Info Update
 
     private var lastTrackTitle = ""
@@ -401,11 +454,11 @@ class LyricsEngine: NSObject {
         if trackInfo == newInfo { return }
 
         let prevTitle = trackInfo.title
-        let prevArtworkData = trackInfo.artwork?.tiffRepresentation
-        let newArtworkData = newInfo.artwork?.tiffRepresentation
-        let artworkChanged = prevArtworkData != newArtworkData
+        let newHash = newInfo.artwork?.contentHash ?? 0
+        let artworkChanged = newHash != artworkHash
 
         trackInfo = newInfo
+        artworkHash = newHash
 
         let titleChanged = !newInfo.title.isEmpty && newInfo.title != prevTitle && newInfo.title != lastTrackTitle
 
@@ -432,6 +485,7 @@ class LyricsEngine: NSObject {
                         playbackTime: trackInfo.playbackTime,
                         bundleIdentifier: trackInfo.bundleIdentifier
                     )
+                    artworkHash = image.contentHash
                 } else {
                     AppLog.warn("updateTrackInfo: cover image fetch FAILED for \(url.absoluteString.prefix(50))")
                 }
@@ -647,25 +701,5 @@ class LyricsEngine: NSObject {
         karaokeProgress = line.timetags.map {
             ($0.0 + line.position - timeDelay - position, $0.1)
         }
-    }
-
-    // MARK: - Display Helpers
-
-    var currentLineText: String {
-        guard let lyrics = activeLyrics,
-              let idx = currentLineIndex,
-              idx < lyrics.lines.count else {
-            return ""
-        }
-        return lyrics.lines[idx].content
-    }
-
-    var hasTimetag: Bool {
-        guard let lyrics = activeLyrics,
-              let idx = currentLineIndex,
-              idx < lyrics.lines.count else {
-            return false
-        }
-        return !lyrics.lines[idx].timetags.isEmpty
     }
 }

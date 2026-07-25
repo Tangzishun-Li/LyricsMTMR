@@ -1,0 +1,72 @@
+[
+  {
+    "type": "themeSwitch",
+    "themes": [
+      { "label": "1", "preset": "theme1.json" },
+      { "label": "2", "preset": "theme2.json" },
+      { "label": "3", "preset": "theme3.json" }
+    ],
+    "align": "left",
+    "width": 44
+  },
+
+  {
+    "type": "stock",
+    "stocks": ["sh000001"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+
+  {
+    "type": "stock",
+    "stocks": ["sh605117"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+  {
+    "type": "stock",
+    "stocks": ["BK1320"],
+    "apiSource": "eastmoney",
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 50,
+    "chartWidth": 150,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+
+  {
+    "type": "stock",
+    "stocks": ["sz002150"],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  }
+
+
+
+
+]

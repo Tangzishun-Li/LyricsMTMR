@@ -11,7 +11,6 @@
 #import "TouchBarSupport.h"
 #import "DeprecatedCarbonAPI.h"
 #import "CBBlueLightClient.h"
-#import "LaunchAtLoginController.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

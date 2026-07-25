@@ -14,15 +14,7 @@ import CoreGraphics
 
 extension CTFrame {
     var lines: [CTLine] {
-        let rawLines = CTFrameGetLines(self)
-        let count = CFArrayGetCount(rawLines)
-        var lines: [CTLine] = []
-        lines.reserveCapacity(count)
-        for i in 0..<count {
-            let rawLine = unsafeBitCast(CFArrayGetValueAtIndex(rawLines, i), to: CTLine.self)
-            lines.append(rawLine)
-        }
-        return lines
+        CTFrameGetLines(self) as! [CTLine]
     }
 
     func lineOrigins(range: CFRange) -> [CGPoint] {
@@ -35,19 +27,11 @@ extension CTFrame {
 
 extension CTLine {
     func bounds() -> CGRect {
-        return CTLineGetBoundsWithOptions(self, .init())
+        CTLineGetBoundsWithOptions(self, .init())
     }
 
     var glyphRuns: [CTRun] {
-        let rawRuns = CTLineGetGlyphRuns(self)
-        let count = CFArrayGetCount(rawRuns)
-        var runs: [CTRun] = []
-        runs.reserveCapacity(count)
-        for i in 0..<count {
-            let rawRun = unsafeBitCast(CFArrayGetValueAtIndex(rawRuns, i), to: CTRun.self)
-            runs.append(rawRun)
-        }
-        return runs
+        CTLineGetGlyphRuns(self) as! [CTRun]
     }
 
     func offset(charIndex: Int) -> (primary: CGFloat, secondary: CGFloat) {
@@ -59,13 +43,13 @@ extension CTLine {
 
 extension CTRun {
     var stringRange: CFRange {
-        return CTRunGetStringRange(self)
+        CTRunGetStringRange(self)
     }
 }
 
 extension CTFramesetter {
     static func create(attributedString: NSAttributedString) -> CTFramesetter {
-        return CTFramesetterCreateWithAttributedString(attributedString)
+        CTFramesetterCreateWithAttributedString(attributedString)
     }
 
     func suggestFrameSize(constraints: CGSize, frameAttributes: [CTFrame.AttributeKey: Any]?) -> (size: CGSize, fitRange: CFRange) {
@@ -75,7 +59,7 @@ extension CTFramesetter {
     }
 
     func frame(stringRange: CFRange, path: CGPath, frameAttributes: [CTFrame.AttributeKey: Any]?) -> CTFrame {
-        return CTFramesetterCreateFrame(self, stringRange, path, frameAttributes as CFDictionary?)
+        CTFramesetterCreateFrame(self, stringRange, path, frameAttributes as CFDictionary?)
     }
 }
 

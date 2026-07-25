@@ -56,6 +56,9 @@ struct AppSettings {
     
     @UserDefault(key: "com.toxblh.mtmr.lyrics.selectedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.netease.163music", "com.tencent.QQMusicMac"])
     static var selectedPlayerIds: [String]
+
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.archivedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.tencent.QQMusicMac"])
+    static var archivedPlayerIds: [String]
     
     @UserDefault(key: "com.toxblh.mtmr.settings.appLanguage", defaultValue: "System")
     static var appLanguageRaw: String
@@ -142,4 +145,7 @@ struct Localized {
     static var openSettings: String { isChinese ? "打开系统设置" : "Open System Settings" }
     static var later: String { isChinese ? "稍后" : "Later" }
     static var quit: String { isChinese ? "退出" : "Quit" }
+
+    static var slots: String { isChinese ? "槽位" : "Slots" }
+    static var noSlots: String { isChinese ? "暂无槽位" : "No slots" }
 }
