@@ -301,6 +301,62 @@ enum ItemType: Decodable {
     case playbackProgress
     case lyricsTranslate
     case quickReply(configPath: String?)
+    case networkSpeed(refreshInterval: Double, units: String)
+    case gitStatus(repoPath: String, refreshInterval: Double)
+    case apiLatency(endpoint: String, refreshInterval: Double)
+    case windowSnap
+    case sshStatus(host: String, refreshInterval: Double)
+    case portChecker(defaultPort: Int)
+    case httpCodes
+    case regexTester
+    case timestampConvert
+    case uuidGen(length: Int, includeSymbols: Bool)
+    case base64Tool(mode: String)
+    case jsonFormatter
+    case hashCalc(algorithm: String)
+    case colorConvert
+    case regexReference
+    case packageTracker(refreshInterval: Double, company: String, trackingNumber: String)
+    case foodDelivery(refreshInterval: Double)
+    case weatherOutfit(refreshInterval: Double, lat: Double, lon: Double)
+    case noiseMeter(refreshInterval: Double)
+    case expenseTracker(dataPath: String, categories: String)
+    case subscriptionCountdown(refreshInterval: Double, dataPath: String)
+    case breathingGuide(pattern: String)
+    case postureReminder(refreshInterval: Double, intervalMin: Double)
+    case travelCountdown(refreshInterval: Double, calendarFilter: String)
+    case birthdayCountdown(refreshInterval: Double, dataPath: String)
+    case dailyQuote(refreshInterval: Double)
+    case screenLock
+    case emailBadge(refreshInterval: Double)
+    case meetingCountdown(refreshInterval: Double)
+    case slackUnread(refreshInterval: Double, channels: String)
+    case printerStatus(refreshInterval: Double)
+    case standupTimer(durationMin: Double)
+    case clipboardHistory(maxItems: Int)
+    case classCountdown(refreshInterval: Double, dataPath: String)
+    case ddlList(refreshInterval: Double, dataPath: String)
+    case readingProgress(refreshInterval: Double, dataPath: String)
+    case wordLookup(provider: String)
+    case readTimer
+    case noteCapture(filePath: String)
+    case billSplit
+    case savingsGoal(refreshInterval: Double, dataPath: String)
+    case taxEstimate(annualIncome: Double, refreshInterval: Double)
+    case creditCardDue(refreshInterval: Double, dataPath: String)
+    case dockerStatus(refreshInterval: Double)
+    case ciPipeline(repo: String, refreshInterval: Double)
+    case serverMonitor(host: String, refreshInterval: Double)
+    case systemTemp(refreshInterval: Double)
+    case diskIO(refreshInterval: Double)
+    case bluetoothToggle
+    case quickScreenshot(mode: String)
+    case shortcutHints
+    case pixelPet(petType: String, refreshInterval: Double)
+    case screenPicker
+    case homekitScene(scenes: String)
+    case aiSelectedText(model: String, prompt: String)
+    case rssUnread(provider: String, refreshInterval: Double)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -355,6 +411,34 @@ enum ItemType: Decodable {
         case cardWidthRatio
         case barCount
         case configPath
+        case repoPath
+        case endpoint
+        case host
+        case defaultPort
+        case length
+        case includeSymbols
+        case mode
+        case algorithm
+        case company
+        case trackingNumber
+        case lat
+        case lon
+        case dataPath
+        case categories
+        case pattern
+        case intervalMin
+        case calendarFilter
+        case channels
+        case durationMin
+        case maxItems
+        case provider
+        case filePath
+        case annualIncome
+        case repo
+        case petType
+        case scenes
+        case model
+        case prompt
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -390,6 +474,62 @@ enum ItemType: Decodable {
         case playbackProgress
         case lyricsTranslate
         case quickReply
+        case networkSpeed
+        case gitStatus
+        case apiLatency
+        case windowSnap
+        case sshStatus
+        case portChecker
+        case httpCodes
+        case regexTester
+        case timestampConvert
+        case uuidGen
+        case base64Tool
+        case jsonFormatter
+        case hashCalc
+        case colorConvert
+        case regexReference
+        case packageTracker
+        case foodDelivery
+        case weatherOutfit
+        case noiseMeter
+        case expenseTracker
+        case subscriptionCountdown
+        case breathingGuide
+        case postureReminder
+        case travelCountdown
+        case birthdayCountdown
+        case dailyQuote
+        case screenLock
+        case emailBadge
+        case meetingCountdown
+        case slackUnread
+        case printerStatus
+        case standupTimer
+        case clipboardHistory
+        case classCountdown
+        case ddlList
+        case readingProgress
+        case wordLookup
+        case readTimer
+        case noteCapture
+        case billSplit
+        case savingsGoal
+        case taxEstimate
+        case creditCardDue
+        case dockerStatus
+        case ciPipeline
+        case serverMonitor
+        case systemTemp
+        case diskIO
+        case bluetoothToggle
+        case quickScreenshot
+        case shortcutHints
+        case pixelPet
+        case screenPicker
+        case homekitScene
+        case aiSelectedText
+        case rssUnread
     }
 
     init(from decoder: Decoder) throws {
@@ -559,6 +699,188 @@ enum ItemType: Decodable {
         case .quickReply:
             let configPath = try container.decodeIfPresent(String.self, forKey: .configPath)
             self = .quickReply(configPath: configPath)
+
+        case .networkSpeed:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 2.0
+            let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "auto"
+            self = .networkSpeed(refreshInterval: refreshInterval, units: units)
+        case .gitStatus:
+            let repoPath = try container.decodeIfPresent(String.self, forKey: .repoPath) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
+            self = .gitStatus(repoPath: repoPath, refreshInterval: refreshInterval)
+        case .apiLatency:
+            let endpoint = try container.decodeIfPresent(String.self, forKey: .endpoint) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            self = .apiLatency(endpoint: endpoint, refreshInterval: refreshInterval)
+        case .windowSnap:
+            self = .windowSnap
+        case .sshStatus:
+            let host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 20.0
+            self = .sshStatus(host: host, refreshInterval: refreshInterval)
+        case .portChecker:
+            let defaultPort = try container.decodeIfPresent(Int.self, forKey: .defaultPort) ?? 8080
+            self = .portChecker(defaultPort: defaultPort)
+        case .httpCodes:
+            self = .httpCodes
+        case .regexTester:
+            self = .regexTester
+        case .timestampConvert:
+            self = .timestampConvert
+        case .uuidGen:
+            let length = try container.decodeIfPresent(Int.self, forKey: .length) ?? 16
+            let includeSymbols = try container.decodeIfPresent(Bool.self, forKey: .includeSymbols) ?? true
+            self = .uuidGen(length: length, includeSymbols: includeSymbols)
+        case .base64Tool:
+            let mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "encode"
+            self = .base64Tool(mode: mode)
+        case .jsonFormatter:
+            self = .jsonFormatter
+        case .hashCalc:
+            let algorithm = try container.decodeIfPresent(String.self, forKey: .algorithm) ?? "SHA256"
+            self = .hashCalc(algorithm: algorithm)
+        case .colorConvert:
+            self = .colorConvert
+        case .regexReference:
+            self = .regexReference
+        case .packageTracker:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let company = try container.decodeIfPresent(String.self, forKey: .company) ?? ""
+            let trackingNumber = try container.decodeIfPresent(String.self, forKey: .trackingNumber) ?? ""
+            self = .packageTracker(refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber)
+        case .foodDelivery:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            self = .foodDelivery(refreshInterval: refreshInterval)
+        case .weatherOutfit:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
+            let lon = try container.decodeIfPresent(Double.self, forKey: .lon) ?? 121.47
+            self = .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon)
+        case .noiseMeter:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1.0
+            self = .noiseMeter(refreshInterval: refreshInterval)
+        case .expenseTracker:
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            let categories = try container.decodeIfPresent(String.self, forKey: .categories) ?? ""
+            self = .expenseTracker(dataPath: dataPath, categories: categories)
+        case .subscriptionCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .breathingGuide:
+            let pattern = try container.decodeIfPresent(String.self, forKey: .pattern) ?? "4-7-8"
+            self = .breathingGuide(pattern: pattern)
+        case .postureReminder:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            let intervalMin = try container.decodeIfPresent(Double.self, forKey: .intervalMin) ?? 45.0
+            self = .postureReminder(refreshInterval: refreshInterval, intervalMin: intervalMin)
+        case .travelCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            let calendarFilter = try container.decodeIfPresent(String.self, forKey: .calendarFilter) ?? ""
+            self = .travelCountdown(refreshInterval: refreshInterval, calendarFilter: calendarFilter)
+        case .birthdayCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .dailyQuote:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
+            self = .dailyQuote(refreshInterval: refreshInterval)
+        case .screenLock:
+            self = .screenLock
+        case .emailBadge:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 120.0
+            self = .emailBadge(refreshInterval: refreshInterval)
+        case .meetingCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            self = .meetingCountdown(refreshInterval: refreshInterval)
+        case .slackUnread:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 120.0
+            let channels = try container.decodeIfPresent(String.self, forKey: .channels) ?? ""
+            self = .slackUnread(refreshInterval: refreshInterval, channels: channels)
+        case .printerStatus:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            self = .printerStatus(refreshInterval: refreshInterval)
+        case .standupTimer:
+            let durationMin = try container.decodeIfPresent(Double.self, forKey: .durationMin) ?? 15.0
+            self = .standupTimer(durationMin: durationMin)
+        case .clipboardHistory:
+            let maxItems = try container.decodeIfPresent(Int.self, forKey: .maxItems) ?? 5
+            self = .clipboardHistory(maxItems: maxItems)
+        case .classCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .classCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .ddlList:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .ddlList(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .readingProgress:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .readingProgress(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .wordLookup:
+            let provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? "dictionary"
+            self = .wordLookup(provider: provider)
+        case .readTimer:
+            self = .readTimer
+        case .noteCapture:
+            let filePath = try container.decodeIfPresent(String.self, forKey: .filePath) ?? ""
+            self = .noteCapture(filePath: filePath)
+        case .billSplit:
+            self = .billSplit
+        case .savingsGoal:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .savingsGoal(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .taxEstimate:
+            let annualIncome = try container.decodeIfPresent(Double.self, forKey: .annualIncome) ?? 0.0
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            self = .taxEstimate(annualIncome: annualIncome, refreshInterval: refreshInterval)
+        case .creditCardDue:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .creditCardDue(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .dockerStatus:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            self = .dockerStatus(refreshInterval: refreshInterval)
+        case .ciPipeline:
+            let repo = try container.decodeIfPresent(String.self, forKey: .repo) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            self = .ciPipeline(repo: repo, refreshInterval: refreshInterval)
+        case .serverMonitor:
+            let host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            self = .serverMonitor(host: host, refreshInterval: refreshInterval)
+        case .systemTemp:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            self = .systemTemp(refreshInterval: refreshInterval)
+        case .diskIO:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 2.0
+            self = .diskIO(refreshInterval: refreshInterval)
+        case .bluetoothToggle:
+            self = .bluetoothToggle
+        case .quickScreenshot:
+            let mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "region"
+            self = .quickScreenshot(mode: mode)
+        case .shortcutHints:
+            self = .shortcutHints
+        case .pixelPet:
+            let petType = try container.decodeIfPresent(String.self, forKey: .petType) ?? "cat"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3.0
+            self = .pixelPet(petType: petType, refreshInterval: refreshInterval)
+        case .screenPicker:
+            self = .screenPicker
+        case .homekitScene:
+            let scenes = try container.decodeIfPresent(String.self, forKey: .scenes) ?? ""
+            self = .homekitScene(scenes: scenes)
+        case .aiSelectedText:
+            let model = try container.decodeIfPresent(String.self, forKey: .model) ?? ""
+            let prompt = try container.decodeIfPresent(String.self, forKey: .prompt) ?? ""
+            self = .aiSelectedText(model: model, prompt: prompt)
+        case .rssUnread:
+            let provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            self = .rssUnread(provider: provider, refreshInterval: refreshInterval)
         }
     }
 }

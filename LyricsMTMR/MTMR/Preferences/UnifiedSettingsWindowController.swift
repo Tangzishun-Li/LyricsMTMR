@@ -70,7 +70,7 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 // MARK: - Tabs
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, lyrics, slots, editor
+    case general, lyrics, slots, editor, services
 
     var id: String { rawValue }
 
@@ -80,6 +80,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return localized("歌词", "Lyrics")
         case .slots: return localized("槽位", "Slots")
         case .editor: return localized("编辑器", "Editor")
+        case .services: return localized("服务", "Services")
         }
     }
 
@@ -89,6 +90,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return localized("Touch Bar 歌词的外观与行为", "How lyrics look & behave on the Touch Bar")
         case .slots: return localized("一键切换整套 Touch Bar 配置", "Switch whole Touch Bar layouts in one tap")
         case .editor: return localized("可视化调整 Touch Bar 元素", "Visually arrange Touch Bar elements")
+        case .services: return localized("集中管理第三方 API 密钥", "Manage third-party API keys in one place")
         }
     }
 
@@ -98,6 +100,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return "music.note.list"
         case .slots: return "square.stack.3d.up"
         case .editor: return "slider.horizontal.3"
+        case .services: return "key"
         }
     }
 }
@@ -739,6 +742,7 @@ struct SettingsRootView: View {
         case .lyrics: LyricsTab()
         case .slots: SlotsTab()
         case .editor: EditorHostTab()
+        case .services: ServicesTab()
         }
     }
 }

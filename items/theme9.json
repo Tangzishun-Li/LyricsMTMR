@@ -1,7 +1,7 @@
 [
   {
     "type": "themeSwitch",
-        "themes": [
+    "themes": [
       {
         "label": "1",
         "preset": "theme1.json"
@@ -64,52 +64,53 @@
       }
     ],
     "align": "left",
-    "width": 44
+    "width": 60
   },
-
-  { "type": "escape", "width": 64, "align": "left" },
-
   {
-    "type": "audioSpectrum",
-    "barCount": 16,
-    "align": "left",
-    "width": 130
-  },
-
-  {
-    "type": "playbackProgress",
-    "align": "center",
-    "width": 200
-  },
-
-  {
-    "type": "lyrics",
-    "width": 240,
-    "align": "center",
-    "displayMode": "karaoke",
-    "karaokeStyle": "progressive",
-    "showArtwork": true,
-    "clickAction": "original"
-  },
-
-  {
-    "type": "lyricsTranslate",
-    "align": "right",
-    "width": 44
-  },
-
-  {
-    "type": "quickReply",
-    "align": "right",
-    "width": 44
-  },
-
-  {
-    "type": "dock",
-    "width": 180,
+    "type": "escape",
+    "width": 64,
     "align": "left"
   },
-
+  {
+    "type": "packageTracker",
+    "align": "left",
+    "width": 120,
+    "company": "auto",
+    "trackingNumber": "",
+    "refreshInterval": 300
+  },
+  {
+    "type": "foodDelivery",
+    "align": "left",
+    "width": 110,
+    "refreshInterval": 30
+  },
+  {
+    "type": "weatherOutfit",
+    "align": "center",
+    "width": 120,
+    "lat": 31.23,
+    "lon": 121.47,
+    "refreshInterval": 1800
+  },
+  {
+    "type": "noiseMeter",
+    "align": "center",
+    "width": 100,
+    "refreshInterval": 1
+  },
+  {
+    "type": "expenseTracker",
+    "align": "right",
+    "width": 110,
+    "categories": "餐饮,交通,购物,娱乐"
+  },
+  {
+    "type": "subscriptionCountdown",
+    "align": "right",
+    "width": 120,
+    "refreshInterval": 3600
+  },
   {
     "type": "timeButton",
     "formatTemplate": "HH:mm",

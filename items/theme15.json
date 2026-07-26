@@ -1,7 +1,7 @@
 [
   {
     "type": "themeSwitch",
-        "themes": [
+    "themes": [
       {
         "label": "1",
         "preset": "theme1.json"
@@ -64,52 +64,45 @@
       }
     ],
     "align": "left",
-    "width": 44
+    "width": 60
   },
-
-  { "type": "escape", "width": 64, "align": "left" },
-
   {
-    "type": "audioSpectrum",
-    "barCount": 16,
-    "align": "left",
-    "width": 130
-  },
-
-  {
-    "type": "playbackProgress",
-    "align": "center",
-    "width": 200
-  },
-
-  {
-    "type": "lyrics",
-    "width": 240,
-    "align": "center",
-    "displayMode": "karaoke",
-    "karaokeStyle": "progressive",
-    "showArtwork": true,
-    "clickAction": "original"
-  },
-
-  {
-    "type": "lyricsTranslate",
-    "align": "right",
-    "width": 44
-  },
-
-  {
-    "type": "quickReply",
-    "align": "right",
-    "width": 44
-  },
-
-  {
-    "type": "dock",
-    "width": 180,
+    "type": "escape",
+    "width": 64,
     "align": "left"
   },
-
+  {
+    "type": "pixelPet",
+    "align": "left",
+    "width": 100,
+    "petType": "cat",
+    "refreshInterval": 3
+  },
+  {
+    "type": "screenPicker",
+    "align": "left",
+    "width": 100
+  },
+  {
+    "type": "homekitScene",
+    "align": "center",
+    "width": 100,
+    "scenes": "回家,离家"
+  },
+  {
+    "type": "aiSelectedText",
+    "align": "center",
+    "width": 84,
+    "model": "deepseek-v4-flash",
+    "prompt": "解释这段文字"
+  },
+  {
+    "type": "rssUnread",
+    "align": "right",
+    "width": 100,
+    "provider": "feedly",
+    "refreshInterval": 300
+  },
   {
     "type": "timeButton",
     "formatTemplate": "HH:mm",

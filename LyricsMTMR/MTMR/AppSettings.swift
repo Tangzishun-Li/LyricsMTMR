@@ -95,6 +95,45 @@ struct AppSettings {
 
     @UserDefault(key: "com.lyricsmtmr.theme.selectedIndex", defaultValue: 0)
     static var selectedThemeIndex: Int
+
+    // MARK: - Services (API keys configured in Settings → 服务 / Services)
+    // Widgets read these lazily; an empty value means "未配置" and falls back to mock data.
+
+    @UserDefault(key: "com.lyricsmtmr.services.deepseekAPIKey", defaultValue: "")
+    static var deepseekAPIKey: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.deepseekModel", defaultValue: "deepseek-v4-flash")
+    static var deepseekModel: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.deepseekBaseURL", defaultValue: "https://api.deepseek.com")
+    static var deepseekBaseURL: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.kuaidi100Key", defaultValue: "")
+    static var kuaidi100Key: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.kuaidi100Customer", defaultValue: "")
+    static var kuaidi100Customer: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.slackBotToken", defaultValue: "")
+    static var slackBotToken: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.githubToken", defaultValue: "")
+    static var githubToken: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.rssProvider", defaultValue: "feedly")
+    static var rssProvider: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.rssAPIKey", defaultValue: "")
+    static var rssAPIKey: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.mijiaToken", defaultValue: "")
+    static var mijiaToken: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.sshHost", defaultValue: "")
+    static var sshHost: String
+
+    @UserDefault(key: "com.lyricsmtmr.services.sshUser", defaultValue: "")
+    static var sshUser: String
 }
 
 @propertyWrapper

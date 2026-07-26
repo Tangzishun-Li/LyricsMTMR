@@ -3,6 +3,7 @@
 //  LyricsMTMR
 //
 //  Comprehensive bottom inspector — shows ALL editable fields per item type.
+//  Two-column grid layout, full-width.
 //
 
 import Cocoa
@@ -75,6 +76,12 @@ private struct FieldDef {
     let key: String
     let label: String
     let kind: FieldKind
+    var fullWidth: Bool {
+        switch kind {
+        case .stringList: return true
+        default: return false
+        }
+    }
 }
 
 private func schemaFor(type: String) -> [FieldDef] {
@@ -200,18 +207,22 @@ private let managedKeys: Set<String> = [
 struct InspectorRoot: View {
     @ObservedObject var model: InspectorModel
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16),
+    ]
+
     var body: some View {
         ScrollView {
             if let item = model.item {
                 content(for: item)
-                    .padding(.top, 22)
-                    .padding(.horizontal, 14)
+                    .padding(.top, 18)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 empty
                     .padding(.top, 36)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 20)
                     .frame(maxWidth: .infinity, minHeight: 120)
             }
         }
@@ -233,6 +244,9 @@ struct InspectorRoot: View {
         let type = item["type"] as? String ?? "unknown"
         let schema = schemaFor(type: type)
 
+        let normalFields = schema.filter { !$0.fullWidth }
+        let wideFields = schema.filter { $0.fullWidth }
+
         return VStack(alignment: .leading, spacing: 14) {
             // Header
             HStack(spacing: 8) {
@@ -246,9 +260,18 @@ struct InspectorRoot: View {
             }
             Rectangle().fill(Deck.hairline).frame(height: 1)
 
-            // Schema-driven fields
-            ForEach(schema, id: \.key) { field in
+            // Two-column grid for normal fields
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                ForEach(normalFields, id: \.key) { field in
+                    fieldView(field)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            // Full-width fields (string lists etc.)
+            ForEach(wideFields, id: \.key) { field in
                 fieldView(field)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // Remaining unmanaged keys
@@ -258,18 +281,22 @@ struct InspectorRoot: View {
                 Text(localized("其他参数", "Other"))
                     .font(Deck.captionFont)
                     .foregroundStyle(Deck.textTertiary)
-                ForEach(otherKeys, id: \.self) { key in
-                    InspectorRow(label: key) {
-                        Deck.Field(
-                            placeholder: key,
-                            text: Binding(
-                                get: { anyToString(model.item?[key]) },
-                                set: { model.update(key, $0) }),
-                            mono: true)
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                    ForEach(otherKeys, id: \.self) { key in
+                        InspectorRow(label: key) {
+                            Deck.Field(
+                                placeholder: key,
+                                text: Binding(
+                                    get: { anyToString(model.item?[key]) },
+                                    set: { model.update(key, $0) }),
+                                mono: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

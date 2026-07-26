@@ -87,6 +87,118 @@ extension ItemType {
             return "com.lyricsmtmr.lyricsTranslate."
         case .quickReply(configPath: _):
             return "com.lyricsmtmr.quickReply."
+        case .networkSpeed(refreshInterval: _, units: _):
+            return "com.lyricsmtmr.networkSpeed."
+        case .gitStatus(repoPath: _, refreshInterval: _):
+            return "com.lyricsmtmr.gitStatus."
+        case .apiLatency(endpoint: _, refreshInterval: _):
+            return "com.lyricsmtmr.apiLatency."
+        case .windowSnap:
+            return "com.lyricsmtmr.windowSnap."
+        case .sshStatus(host: _, refreshInterval: _):
+            return "com.lyricsmtmr.sshStatus."
+        case .portChecker(defaultPort: _):
+            return "com.lyricsmtmr.portChecker."
+        case .httpCodes:
+            return "com.lyricsmtmr.httpCodes."
+        case .regexTester:
+            return "com.lyricsmtmr.regexTester."
+        case .timestampConvert:
+            return "com.lyricsmtmr.timestampConvert."
+        case .uuidGen(length: _, includeSymbols: _):
+            return "com.lyricsmtmr.uuidGen."
+        case .base64Tool(mode: _):
+            return "com.lyricsmtmr.base64Tool."
+        case .jsonFormatter:
+            return "com.lyricsmtmr.jsonFormatter."
+        case .hashCalc(algorithm: _):
+            return "com.lyricsmtmr.hashCalc."
+        case .colorConvert:
+            return "com.lyricsmtmr.colorConvert."
+        case .regexReference:
+            return "com.lyricsmtmr.regexReference."
+        case .packageTracker(refreshInterval: _, company: _, trackingNumber: _):
+            return "com.lyricsmtmr.packageTracker."
+        case .foodDelivery(refreshInterval: _):
+            return "com.lyricsmtmr.foodDelivery."
+        case .weatherOutfit(refreshInterval: _, lat: _, lon: _):
+            return "com.lyricsmtmr.weatherOutfit."
+        case .noiseMeter(refreshInterval: _):
+            return "com.lyricsmtmr.noiseMeter."
+        case .expenseTracker(dataPath: _, categories: _):
+            return "com.lyricsmtmr.expenseTracker."
+        case .subscriptionCountdown(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.subscriptionCountdown."
+        case .breathingGuide(pattern: _):
+            return "com.lyricsmtmr.breathingGuide."
+        case .postureReminder(refreshInterval: _, intervalMin: _):
+            return "com.lyricsmtmr.postureReminder."
+        case .travelCountdown(refreshInterval: _, calendarFilter: _):
+            return "com.lyricsmtmr.travelCountdown."
+        case .birthdayCountdown(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.birthdayCountdown."
+        case .dailyQuote(refreshInterval: _):
+            return "com.lyricsmtmr.dailyQuote."
+        case .screenLock:
+            return "com.lyricsmtmr.screenLock."
+        case .emailBadge(refreshInterval: _):
+            return "com.lyricsmtmr.emailBadge."
+        case .meetingCountdown(refreshInterval: _):
+            return "com.lyricsmtmr.meetingCountdown."
+        case .slackUnread(refreshInterval: _, channels: _):
+            return "com.lyricsmtmr.slackUnread."
+        case .printerStatus(refreshInterval: _):
+            return "com.lyricsmtmr.printerStatus."
+        case .standupTimer(durationMin: _):
+            return "com.lyricsmtmr.standupTimer."
+        case .clipboardHistory(maxItems: _):
+            return "com.lyricsmtmr.clipboardHistory."
+        case .classCountdown(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.classCountdown."
+        case .ddlList(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.ddlList."
+        case .readingProgress(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.readingProgress."
+        case .wordLookup(provider: _):
+            return "com.lyricsmtmr.wordLookup."
+        case .readTimer:
+            return "com.lyricsmtmr.readTimer."
+        case .noteCapture(filePath: _):
+            return "com.lyricsmtmr.noteCapture."
+        case .billSplit:
+            return "com.lyricsmtmr.billSplit."
+        case .savingsGoal(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.savingsGoal."
+        case .taxEstimate(annualIncome: _, refreshInterval: _):
+            return "com.lyricsmtmr.taxEstimate."
+        case .creditCardDue(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.creditCardDue."
+        case .dockerStatus(refreshInterval: _):
+            return "com.lyricsmtmr.dockerStatus."
+        case .ciPipeline(repo: _, refreshInterval: _):
+            return "com.lyricsmtmr.ciPipeline."
+        case .serverMonitor(host: _, refreshInterval: _):
+            return "com.lyricsmtmr.serverMonitor."
+        case .systemTemp(refreshInterval: _):
+            return "com.lyricsmtmr.systemTemp."
+        case .diskIO(refreshInterval: _):
+            return "com.lyricsmtmr.diskIO."
+        case .bluetoothToggle:
+            return "com.lyricsmtmr.bluetoothToggle."
+        case .quickScreenshot(mode: _):
+            return "com.lyricsmtmr.quickScreenshot."
+        case .shortcutHints:
+            return "com.lyricsmtmr.shortcutHints."
+        case .pixelPet(petType: _, refreshInterval: _):
+            return "com.lyricsmtmr.pixelPet."
+        case .screenPicker:
+            return "com.lyricsmtmr.screenPicker."
+        case .homekitScene(scenes: _):
+            return "com.lyricsmtmr.homekitScene."
+        case .aiSelectedText(model: _, prompt: _):
+            return "com.lyricsmtmr.aiSelectedText."
+        case .rssUnread(provider: _, refreshInterval: _):
+            return "com.lyricsmtmr.rssUnread."
         }
     }
 }
@@ -470,7 +582,120 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = LyricsTranslateBarItem(identifier: identifier)
         case let .quickReply(configPath: configPath):
             barItem = QuickReplyBarItem(identifier: identifier, configPath: configPath)
-        }
+        case let .networkSpeed(refreshInterval: refreshInterval, units: units):
+            barItem = NetworkSpeedItem(identifier: identifier, refreshInterval: refreshInterval, units: units)
+        case let .gitStatus(repoPath: repoPath, refreshInterval: refreshInterval):
+            barItem = GitStatusItem(identifier: identifier, repoPath: repoPath, refreshInterval: refreshInterval)
+        case let .apiLatency(endpoint: endpoint, refreshInterval: refreshInterval):
+            barItem = ApiLatencyItem(identifier: identifier, endpoint: endpoint, refreshInterval: refreshInterval)
+        case .windowSnap:
+            barItem = WindowSnapItem(identifier: identifier)
+        case let .sshStatus(host: host, refreshInterval: refreshInterval):
+            barItem = SshStatusItem(identifier: identifier, host: host, refreshInterval: refreshInterval)
+        case let .portChecker(defaultPort: defaultPort):
+            barItem = PortCheckerItem(identifier: identifier, defaultPort: defaultPort)
+        case .httpCodes:
+            barItem = HttpCodesItem(identifier: identifier)
+        case .regexTester:
+            barItem = RegexTesterItem(identifier: identifier)
+        case .timestampConvert:
+            barItem = TimestampConvertItem(identifier: identifier)
+        case let .uuidGen(length: length, includeSymbols: includeSymbols):
+            barItem = UuidGenItem(identifier: identifier, length: length, includeSymbols: includeSymbols)
+        case let .base64Tool(mode: mode):
+            barItem = Base64ToolItem(identifier: identifier, mode: mode)
+        case .jsonFormatter:
+            barItem = JsonFormatterItem(identifier: identifier)
+        case let .hashCalc(algorithm: algorithm):
+            barItem = HashCalcItem(identifier: identifier, algorithm: algorithm)
+        case .colorConvert:
+            barItem = ColorConvertItem(identifier: identifier)
+        case .regexReference:
+            barItem = RegexReferenceItem(identifier: identifier)
+        case let .packageTracker(refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber):
+            barItem = PackageTrackerItem(identifier: identifier, refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber)
+        case let .foodDelivery(refreshInterval: refreshInterval):
+            barItem = FoodDeliveryItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon):
+            barItem = WeatherOutfitItem(identifier: identifier, refreshInterval: refreshInterval, lat: lat, lon: lon)
+        case let .noiseMeter(refreshInterval: refreshInterval):
+            barItem = NoiseMeterItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .expenseTracker(dataPath: dataPath, categories: categories):
+            barItem = ExpenseTrackerItem(identifier: identifier, dataPath: dataPath, categories: categories)
+        case let .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = SubscriptionCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .breathingGuide(pattern: pattern):
+            barItem = BreathingGuideItem(identifier: identifier, pattern: pattern)
+        case let .postureReminder(refreshInterval: refreshInterval, intervalMin: intervalMin):
+            barItem = PostureReminderItem(identifier: identifier, refreshInterval: refreshInterval, intervalMin: intervalMin)
+        case let .travelCountdown(refreshInterval: refreshInterval, calendarFilter: calendarFilter):
+            barItem = TravelCountdownItem(identifier: identifier, refreshInterval: refreshInterval, calendarFilter: calendarFilter)
+        case let .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = BirthdayCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .dailyQuote(refreshInterval: refreshInterval):
+            barItem = DailyQuoteItem(identifier: identifier, refreshInterval: refreshInterval)
+        case .screenLock:
+            barItem = ScreenLockItem(identifier: identifier)
+        case let .emailBadge(refreshInterval: refreshInterval):
+            barItem = EmailBadgeItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .meetingCountdown(refreshInterval: refreshInterval):
+            barItem = MeetingCountdownItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .slackUnread(refreshInterval: refreshInterval, channels: channels):
+            barItem = SlackUnreadItem(identifier: identifier, refreshInterval: refreshInterval, channels: channels)
+        case let .printerStatus(refreshInterval: refreshInterval):
+            barItem = PrinterStatusItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .standupTimer(durationMin: durationMin):
+            barItem = StandupTimerItem(identifier: identifier, durationMin: durationMin)
+        case let .clipboardHistory(maxItems: maxItems):
+            barItem = ClipboardHistoryItem(identifier: identifier, maxItems: maxItems)
+        case let .classCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = ClassCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .ddlList(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = DdlListItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .readingProgress(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = ReadingProgressItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .wordLookup(provider: provider):
+            barItem = WordLookupItem(identifier: identifier, provider: provider)
+        case .readTimer:
+            barItem = ReadTimerItem(identifier: identifier)
+        case let .noteCapture(filePath: filePath):
+            barItem = NoteCaptureItem(identifier: identifier, filePath: filePath)
+        case .billSplit:
+            barItem = BillSplitItem(identifier: identifier)
+        case let .savingsGoal(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = SavingsGoalItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .taxEstimate(annualIncome: annualIncome, refreshInterval: refreshInterval):
+            barItem = TaxEstimateItem(identifier: identifier, annualIncome: annualIncome, refreshInterval: refreshInterval)
+        case let .creditCardDue(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = CreditCardDueItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .dockerStatus(refreshInterval: refreshInterval):
+            barItem = DockerStatusItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .ciPipeline(repo: repo, refreshInterval: refreshInterval):
+            barItem = CiPipelineItem(identifier: identifier, repo: repo, refreshInterval: refreshInterval)
+        case let .serverMonitor(host: host, refreshInterval: refreshInterval):
+            barItem = ServerMonitorItem(identifier: identifier, host: host, refreshInterval: refreshInterval)
+        case let .systemTemp(refreshInterval: refreshInterval):
+            barItem = SystemTempItem(identifier: identifier, refreshInterval: refreshInterval)
+        case let .diskIO(refreshInterval: refreshInterval):
+            barItem = DiskIOItem(identifier: identifier, refreshInterval: refreshInterval)
+        case .bluetoothToggle:
+            barItem = BluetoothToggleItem(identifier: identifier)
+        case let .quickScreenshot(mode: mode):
+            barItem = QuickScreenshotItem(identifier: identifier, mode: mode)
+        case .shortcutHints:
+            barItem = ShortcutHintsItem(identifier: identifier)
+        case let .pixelPet(petType: petType, refreshInterval: refreshInterval):
+            barItem = PixelPetItem(identifier: identifier, petType: petType, refreshInterval: refreshInterval)
+        case .screenPicker:
+            barItem = ScreenPickerItem(identifier: identifier)
+        case let .homekitScene(scenes: scenes):
+            barItem = HomekitSceneItem(identifier: identifier, scenes: scenes)
+        case let .aiSelectedText(model: model, prompt: prompt):
+            barItem = AiSelectedTextItem(identifier: identifier, model: model, prompt: prompt)
+        case let .rssUnread(provider: provider, refreshInterval: refreshInterval):
+            barItem = RssUnreadItem(identifier: identifier, provider: provider, refreshInterval: refreshInterval)
+        default:
+            break        }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {
             item.actions.append(ItemAction(trigger: .singleTap, action))
