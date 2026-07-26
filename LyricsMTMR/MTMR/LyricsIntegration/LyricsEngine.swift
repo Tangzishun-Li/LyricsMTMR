@@ -234,7 +234,7 @@ private func parseMRInfo(_ info: [String: Any]) -> (title: String, artist: Strin
 
 // MARK: - LyricsEngine
 
-class LyricsEngine: NSObject {
+class LyricsEngine: NSObject, ObservableObject {
     static let shared = LyricsEngine()
 
     @Published var trackInfo: EngineTrackInfo = .empty
@@ -244,8 +244,16 @@ class LyricsEngine: NSObject {
     @Published var romajiLyrics: SimpleLyrics?
     @Published var clickAction: LyricsClickAction = .original
     @Published var karaokeProgress: [(TimeInterval, Int)] = []
+
+    /// Convenience accessors for UI binding.
+    var trackTitle: String { trackInfo.title }
+    var trackArtist: String { trackInfo.artist }
     @Published var coverURL: URL?
     @Published var searchFailed: Bool = false
+
+    /// Whether the current track was detected as browser video playback.
+    @Published private(set) var isSubtitleMode: Bool = false
+    @Published private(set) var subtitleSourceURL: URL?
 
     /// Lightweight hash of the current artwork for cheap change detection.
     /// Avoids expensive tiffRepresentation encoding on every track update.
@@ -285,8 +293,31 @@ class LyricsEngine: NSObject {
 
     // MARK: - Start / Stop
 
+    /// Clears all lyrics state (used when the global toggle is turned off).
+    func clearLyrics() {
+        currentLyrics = nil
+        translationLyrics = nil
+        romajiLyrics = nil
+        currentLineIndex = nil
+        searchFailed = false
+        isSubtitleMode = false
+        subtitleSourceURL = nil
+        AppLog.info("LyricsEngine: clearLyrics() — global toggle off")
+    }
+
     func start() {
         AppLog.info("LyricsEngine starting (MediaRemoteAdapter subprocess mode)...")
+
+        // Register lyrics providers (extensible via LyricsProviderProtocol).
+        let registry = LyricsProviderRegistry.shared
+        registry.register(NetEaseProviderAdapter())
+        registry.register(QQMusicProviderAdapter())
+        registry.register(KugouProviderAdapter())
+        registry.register(MiguProviderAdapter())
+
+        // Register subtitle providers (placeholder — not yet wired to playback).
+        registry.registerSubtitle(BilibiliSubtitleProvider())
+        registry.registerSubtitle(YouTubeSubtitleProvider())
 
         // Sync clickAction from LyricsItemConfig and observe changes
         clickAction = LyricsItemConfig.shared.clickAction
@@ -374,6 +405,51 @@ class LyricsEngine: NSObject {
         let idString = parsed.bundleID.isEmpty ? "" : " (\(parsed.bundleID))"
         AppLog.info("MR_handle: → EngineTrackInfo「\(parsed.title.prefix(30))」— \(parsed.artist.prefix(20))\(idString) dur=\(parsed.duration) elap=\(elapsed) state=\(state)")
 
+        // ─── Whitelist filter: only allow selected players to trigger lyrics ───
+        let allowedPlayers = Set(AppSettings.selectedPlayerIds)
+        if !allowedPlayers.isEmpty,
+           !parsed.bundleID.isEmpty,
+           !allowedPlayers.contains(parsed.bundleID) {
+            if BrowserURLDetector.isBrowser(bundleID: parsed.bundleID) {
+                // Browser source: update title display only, skip lyrics search.
+                // The subtitle pipeline in searchLyrics() will handle it if enabled.
+                AppLog.info("MR_handle: browser「\(parsed.bundleID)」not in whitelist → display-only mode")
+                let displayOnly = EngineTrackInfo(
+                    title: parsed.title,
+                    artist: parsed.artist,
+                    album: parsed.album,
+                    artwork: parsed.artwork,
+                    duration: parsed.duration,
+                    playbackState: state,
+                    playbackTime: elapsed,
+                    bundleIdentifier: parsed.bundleID
+                )
+                let titleChanged = !parsed.title.isEmpty && parsed.title != trackInfo.title && parsed.title != lastTrackTitle
+                if titleChanged {
+                    lastTrackTitle = parsed.title
+                    trackInfo = displayOnly
+                    currentLyrics = nil
+                    currentLineIndex = nil
+                    if AppSettings.lyricsEnabled {
+                        searchLyrics(title: parsed.title, artist: parsed.artist)
+                    }
+                } else {
+                    trackInfo = displayOnly
+                    scheduleLineCheck()
+                }
+                return
+            } else {
+                // Unknown non-whitelisted source: ignore entirely
+                AppLog.info("MR_handle:「\(parsed.bundleID)」not in whitelist and not a browser → ignoring")
+                if trackInfo != .empty {
+                    trackInfo = .empty
+                    currentLyrics = nil
+                    currentLineIndex = nil
+                }
+                return
+            }
+        }
+
         updateTrackInfo(newInfo)
     }
 
@@ -422,7 +498,6 @@ class LyricsEngine: NSObject {
                 playbackTime: computedTime,
                 bundleIdentifier: self.trackInfo.bundleIdentifier
             )
-            self.scheduleLineCheck()
             self.updateKaraokeProgress()
         }
     }
@@ -472,7 +547,8 @@ class LyricsEngine: NSObject {
             searchLyrics(title: newInfo.title, artist: newInfo.artist)
         } else if artworkChanged, let url = coverURL {
             AppLog.info("updateTrackInfo: ARTWORK CHANGED (no title change), fetching coverURL=\(url.absoluteString.prefix(50))...")
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
                 if let image = await CoverCache.shared.image(for: url) {
                     AppLog.info("updateTrackInfo: cover image fetched OK (\(image.size.width)x\(image.size.height))")
                     trackInfo = EngineTrackInfo(
@@ -500,17 +576,70 @@ class LyricsEngine: NSObject {
 
     private func searchLyrics(title: String, artist: String) {
         searchFailed = false
+        isSubtitleMode = false
+        subtitleSourceURL = nil
+
+        guard AppSettings.lyricsEnabled else {
+            AppLog.lyrics("searchLyrics: DISABLED by global toggle — skipping")
+            currentLyrics = nil
+            currentLineIndex = nil
+            return
+        }
+
         AppLog.lyrics("searchLyrics: begin — title=「\(title.prefix(30))」 artist=「\(artist.prefix(20))」")
 
+        // P1: Browser video detection — if the active app is a browser,
+        // try to grab the current tab URL and fetch video subtitles.
+        if let bundleID = trackInfo.bundleIdentifier,
+           BrowserURLDetector.isBrowser(bundleID: bundleID) {
+            AppLog.lyrics("searchLyrics: browser detected (\(bundleID)), attempting subtitle fetch...")
+            if let detection = BrowserURLDetector.detect(bundleID: bundleID),
+               detection.isVideoSite {
+                isSubtitleMode = true
+                subtitleSourceURL = detection.url
+                let videoURL = detection.url
+                Task { [weak self] in
+                    guard let self else { return }
+                    do {
+                        let subtitles = try await BrowserURLDetector.fetchSubtitles(for: videoURL)
+                        await MainActor.run {
+                            guard self.lastTrackTitle == title else { return }
+                            let filtered = subtitles.filtered
+                            AppLog.lyrics("searchLyrics: SUBTITLE mode — \(filtered.lines.count) lines from \(detection.browser.displayName)")
+                            self.currentLyrics = filtered
+                            self.translationLyrics = nil
+                            self.romajiLyrics = nil
+                            self.scheduleLineCheck()
+                        }
+                    } catch {
+                        await MainActor.run {
+                            AppLog.lyrics("searchLyrics: subtitle fetch failed (\(error)), NOT falling back to music search (browser source)")
+                            self.isSubtitleMode = false
+                            self.subtitleSourceURL = nil
+                            self.searchFailed = true
+                        }
+                    }
+                }
+                return
+            }
+            AppLog.lyrics("searchLyrics: browser detected but not a video site → skipping music search")
+            return
+        }
+
+        searchLyricsViaMusic(title: title, artist: artist)
+    }
+
+    /// Standard music lyrics search pipeline (local → cache → online).
+    private func searchLyricsViaMusic(title: String, artist: String) {
         if let lyrics = loadLocalLyrics(title: title, artist: artist) {
             let filtered = lyrics.filtered
-            AppLog.lyrics("searchLyrics: FOUND local lyrics (\(lyrics.lines.count) lines, filtered to \(filtered.lines.count)) for: \(title.prefix(30))")
+            AppLog.lyrics("searchLyricsViaMusic: FOUND local lyrics (\(lyrics.lines.count) lines, filtered to \(filtered.lines.count)) for: \(title.prefix(30))")
             currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
             scheduleLineCheck()
             return
         }
 
-        AppLog.lyrics("searchLyrics: no match in ~/Music/LyricsX/<title> - <artist>.lrc[x], trying broader search...")
+        AppLog.lyrics("searchLyricsViaMusic: no match in ~/Music/LyricsX/<title> - <artist>.lrc[x], trying broader search...")
         let searchPaths = [
             "~/Music/LyricsX/\(title) - \(artist).lrcx",
             "~/Music/LyricsX/\(title) - \(artist).lrc",
@@ -521,16 +650,41 @@ class LyricsEngine: NSObject {
             let expanded = (path as NSString).expandingTildeInPath
             if let lyrics = loadLyricsFile(path: expanded) {
                 let filtered = lyrics.filtered
-                AppLog.lyrics("searchLyrics: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines, filtered to \(filtered.lines.count)")
+                AppLog.lyrics("searchLyricsViaMusic: FOUND at path[\(i)] (\(expanded)), \(lyrics.lines.count) lines, filtered to \(filtered.lines.count)")
                 currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
                 scheduleLineCheck()
                 return
             } else {
-                AppLog.lyrics("searchLyrics: path[\(i)] \(expanded) — not found")
+                AppLog.lyrics("searchLyricsViaMusic: path[\(i)] \(expanded) — not found")
             }
         }
 
-        AppLog.lyrics("searchLyrics: no local file found, starting online search...")
+        // Check if user previously pinned a match for this track.
+        if let cached = LyricsSelectionCache.shared.find(title: title, artist: artist) {
+            let candidate = cached.selectedCandidate
+            AppLog.lyrics("searchLyricsViaMusic: cache HIT → using \(candidate.provider.displayName) #\(candidate.sourceId)")
+            if let provider = LyricsProviderRegistry.shared.get(candidate.provider) {
+                Task { [weak self] in
+                    guard let self else { return }
+                    do {
+                        let result = try await provider.fetch(for: candidate)
+                        await MainActor.run {
+                            guard self.lastTrackTitle == title else { return }
+                            let filtered = result.lyrics.filtered
+                            self.currentLyrics = self.injectTitleLineIfNeeded(filtered, title: title, artist: artist)
+                            self.translationLyrics = result.translationLyrics
+                            self.romajiLyrics = result.romajiLyrics
+                            self.scheduleLineCheck()
+                        }
+                    } catch {
+                        AppLog.lyrics("searchLyricsViaMusic: cached provider fetch failed, falling through: \(error)")
+                    }
+                }
+                return
+            }
+        }
+
+        AppLog.lyrics("searchLyricsViaMusic: no local file found, starting online search...")
         let maxAttempts = 3
         Task { [weak self] in
             guard let self else { return }
@@ -542,18 +696,18 @@ class LyricsEngine: NSObject {
                     break
                 }
                 let delay = UInt64((1 << attempt) * 1_000_000_000)
-                AppLog.lyrics("searchLyrics: online no lyrics for「\(title.prefix(30))」(attempt \(attempt+1)/\(maxAttempts)), retrying in \(1 << attempt)s...")
+                AppLog.lyrics("searchLyricsViaMusic: online no lyrics for「\(title.prefix(30))」(attempt \(attempt+1)/\(maxAttempts)), retrying in \(1 << attempt)s...")
                 try? await Task.sleep(nanoseconds: delay)
             }
 
             await MainActor.run {
                 guard self.lastTrackTitle == title else {
-                    AppLog.lyrics("searchLyrics: stale online result — user switched tracks")
+                    AppLog.lyrics("searchLyricsViaMusic: stale online result — user switched tracks")
                     return
                 }
 
                 guard let result = lastResult, let lyrics = result.lyrics else {
-                    AppLog.lyrics("searchLyrics: online no lyrics found for: \(title.prefix(30)) — giving up after \(maxAttempts) attempts")
+                    AppLog.lyrics("searchLyricsViaMusic: online no lyrics found for: \(title.prefix(30)) — giving up after \(maxAttempts) attempts")
                     self.currentLyrics = nil
                     self.translationLyrics = nil
                     self.romajiLyrics = nil
@@ -561,27 +715,28 @@ class LyricsEngine: NSObject {
                     return
                 }
 
-                AppLog.lyrics("searchLyrics: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
+                AppLog.lyrics("searchLyricsViaMusic: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
                 let filtered = lyrics.filtered
-                AppLog.lyrics("searchLyrics: filtered to \(filtered.lines.count) lines")
+                AppLog.lyrics("searchLyricsViaMusic: filtered to \(filtered.lines.count) lines")
                 self.currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
                 self.translationLyrics = result.translationLyrics
                 self.romajiLyrics = result.romajiLyrics
                 if let t = result.translationLyrics {
-                    AppLog.lyrics("searchLyrics: also loaded \(t.lines.count) translation lines")
+                    AppLog.lyrics("searchLyricsViaMusic: also loaded \(t.lines.count) translation lines")
                 }
                 if let r = result.romajiLyrics {
-                    AppLog.lyrics("searchLyrics: also loaded \(r.lines.count) romaji lines")
+                    AppLog.lyrics("searchLyricsViaMusic: also loaded \(r.lines.count) romaji lines")
                 }
                 self.scheduleLineCheck()
 
                 if let coverURL = result.coverURL {
-                    AppLog.lyrics("searchLyrics: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
+                    AppLog.lyrics("searchLyricsViaMusic: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
                     self.coverURL = coverURL
-                    Task {
+                    Task { [weak self] in
                         if let image = await CoverCache.shared.image(for: coverURL) {
-                            AppLog.lyrics("searchLyrics: cover image fetched OK (\(image.size.width)x\(image.size.height))")
+                            AppLog.lyrics("searchLyricsViaMusic: cover image fetched OK (\(image.size.width)x\(image.size.height))")
                             await MainActor.run {
+                                guard let self = self else { return }
                                 self.trackInfo = EngineTrackInfo(
                                     title: self.trackInfo.title,
                                     artist: self.trackInfo.artist,
@@ -594,11 +749,11 @@ class LyricsEngine: NSObject {
                                 )
                             }
                         } else {
-                            AppLog.lyrics("searchLyrics: cover image fetch FAILED")
+                            AppLog.lyrics("searchLyricsViaMusic: cover image fetch FAILED")
                         }
                     }
                 } else {
-                    AppLog.lyrics("searchLyrics: no coverURL in result")
+                    AppLog.lyrics("searchLyricsViaMusic: no coverURL in result")
                 }
             }
         }
@@ -659,7 +814,8 @@ class LyricsEngine: NSObject {
             return
         }
 
-        let time = trackInfo.playbackTime + lyrics.adjustedTimeDelay
+        let userOffset = TimeInterval(LyricsItemConfig.shared.lyricsOffsetMs) / 1000.0
+        let time = trackInfo.playbackTime + lyrics.adjustedTimeDelay + userOffset
         guard let (index, nextPosition) = lyrics.line(at: time) else {
             AppLog.lyrics("scheduleLineCheck: lyrics.line(at: \(time)) returned nil")
             currentLineIndex = nil

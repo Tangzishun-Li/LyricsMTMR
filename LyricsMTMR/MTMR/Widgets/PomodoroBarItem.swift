@@ -108,7 +108,8 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
 
     private func tick() {
         timeLeft -= 1
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             if self.timeLeft >= 0 {
                 self.title = self.defaultTitle + " " + self.timeLeftString
             } else {

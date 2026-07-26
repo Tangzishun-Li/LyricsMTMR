@@ -38,7 +38,8 @@ class CPUBarItem: CustomButtonTouchBarItem {
     }
     
     func refreshAndSchedule() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             // Get CPU load
             let usage = 100 - CPU.systemUsage().idle
             guard usage.isFinite else {

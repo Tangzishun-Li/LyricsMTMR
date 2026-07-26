@@ -25,12 +25,14 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
+        window.isMovableByWindowBackground = false
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = Deck.windowColor
 
         self.init(window: window)
         UnifiedSettingsWindowController.current = self
         window.delegate = self
+        Self.installTitlebarDrag(accessory: window)
 
         let hosting = NSHostingView(rootView: SettingsRootView())
         hosting.translatesAutoresizingMaskIntoConstraints = false
@@ -47,6 +49,21 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         UnifiedSettingsWindowController.current = nil
+    }
+
+    /// Installs an invisible title-bar accessory so the window can still be
+    /// dragged from the top edge even though `titlebarAppearsTransparent`
+    /// and `fullSizeContentView` hide the standard title bar.
+    private static func installTitlebarDrag(accessory window: NSWindow) {
+        let accessory = NSTitlebarAccessoryViewController()
+        let v = NSView(frame: NSRect(x: 0, y: 0, width: 100, height: 28))
+        v.wantsLayer = true
+        v.layer?.backgroundColor = NSColor.clear.cgColor
+        // Mark it as a movable area
+        accessory.view = v
+        accessory.layoutAttribute = .top
+        accessory.fullScreenMinHeight = 28
+        window.addTitlebarAccessoryViewController(accessory)
     }
 }
 

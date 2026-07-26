@@ -29,10 +29,18 @@ class SwipeItem: NSCustomTouchBarItem {
     }
     
     func processEvent(offset: CGFloat, fingers: Int) {
+        // Horizontal directions (original)
         if direction == "right" && Float(offset) > self.minOffset && self.fingers == fingers {
             self.execute()
         }
         if direction == "left" && Float(offset) < -self.minOffset && self.fingers == fingers {
+            self.execute()
+        }
+        // Vertical directions (new)
+        if direction == "down" && Float(offset) < -self.minOffset && self.fingers == fingers {
+            self.execute()
+        }
+        if direction == "up" && Float(offset) > self.minOffset && self.fingers == fingers {
             self.execute()
         }
     }

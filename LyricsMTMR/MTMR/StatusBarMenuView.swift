@@ -16,7 +16,6 @@ final class StatusBarMenuModel: ObservableObject {
     @Published var activeSlotId: String?
     @Published var selectedLanguage: AppLanguage = AppSettings.appLanguage
     @Published var selectedPlayers: Set<String> = Set(AppSettings.selectedPlayerIds)
-    @Published var showMusicSource = false
 
     var onDismiss: (() -> Void)?
     weak var appDelegate: AppDelegate?
@@ -186,7 +185,6 @@ struct StatusBarMenuView: View {
                 }
                 ToggleCard(model: model)
                 LanguageCard(model: model)
-                MusicSourceCard(model: model)
                 MenuFooter(model: model)
             }
             .padding(14)
@@ -488,58 +486,6 @@ struct LanguagePill: View {
     }
 }
 
-// MARK: - Music Source Card
-
-struct MusicSourceCard: View {
-    @ObservedObject var model: StatusBarMenuModel
-
-    private var allSelected: Bool { model.selectedPlayers.count == MusicPlayer.allCases.count }
-
-    var body: some View {
-        MenuCardView(title: Localized.musicSource, icon: "music.note.list", iconColor: Deck.gold) {
-            VStack(spacing: 2) {
-                // "All" toggle
-                Button(action: { model.toggleAllPlayers() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: allSelected ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 13))
-                            .foregroundColor(allSelected ? Deck.gold : Deck.textTertiary)
-                        Text(Localized.allPlayers)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Deck.textPrimary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 8)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(Color.white.opacity(0.025)))
-                }
-                .buttonStyle(.plain)
-
-                Rectangle().fill(Deck.hairline).frame(height: 1).padding(.vertical, 3)
-
-                ForEach(MusicPlayer.allCases, id: \.rawValue) { player in
-                    let isOn = model.selectedPlayers.contains(player.rawValue)
-                    Button(action: { model.togglePlayer(player.rawValue) }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                                .font(.system(size: 12))
-                                .foregroundColor(isOn ? Deck.gold : Deck.textTertiary)
-                            Text(player.displayName)
-                                .font(Deck.bodyFont)
-                                .foregroundColor(isOn ? Deck.textPrimary : Deck.textSecondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
-                        .contentShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Footer
 
@@ -551,7 +497,6 @@ struct MenuFooter: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Settings button (accent, prominent)
             Button(action: { model.openSettings() }) {
                 HStack(spacing: 7) {
                     Image(systemName: "slider.horizontal.3")
@@ -576,7 +521,6 @@ struct MenuFooter: View {
             .onHover { h in withAnimation(.easeOut(duration: 0.15)) { settingsHover = h } }
 
             HStack(spacing: 8) {
-                // Check updates
                 Button(action: { model.checkForUpdates() }) {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -595,7 +539,6 @@ struct MenuFooter: View {
                 .buttonStyle(.plain)
                 .onHover { h in withAnimation(.easeOut(duration: 0.12)) { updateHover = h } }
 
-                // Quit
                 Button(action: { model.quit() }) {
                     HStack(spacing: 5) {
                         Image(systemName: "xmark.circle")

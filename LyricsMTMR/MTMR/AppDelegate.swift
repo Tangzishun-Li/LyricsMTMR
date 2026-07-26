@@ -7,6 +7,7 @@
 //  Copyright © 2018 Anton Palgunov. All rights reserved.
 //
 //  This source code is licensed under MIT.
+
 //  See LICENSE file in the project root for full license information.
 //
 
@@ -25,7 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventMonitor: Any?
 
     func applicationDidFinishLaunching(_: Notification) {
-        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary)
+        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary)
 
         HapticFeedback.instance.scanAllDeviceIDs()
         TouchBarController.shared.setupControlStripPresence()
@@ -139,7 +140,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func requestAccessibility(_: Any?) {
-        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true] as NSDictionary
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
         if !trusted {
             let appPath = Bundle.main.bundlePath
@@ -161,6 +162,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func reloadOnDefaultConfigChanged() {
         let file = NSURL.fileURL(withPath: standardConfigPath)
         let fd = open(file.path, O_EVTONLY)
+        guard fd >= 0 else {
+            AppLog.appEvent("Config file not found at \(file.path), skipping watcher")
+            return
+        }
         fileSystemSource = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: DispatchQueue(label: "DefaultConfigChanged"))
         fileSystemSource?.setEventHandler(handler: {
             AppLog.appEvent("Config file changed, reloading...")

@@ -14,6 +14,8 @@ class NetworkBarItem: CustomButtonTouchBarItem, Widget {
     
     private let flip: Bool
     private let units: String
+    private var bandwidthProcess: Process?
+    private var dataObserver: NSObjectProtocol?
     
     init(identifier: NSTouchBarItem.Identifier, flip: Bool = false, units: String) {
         self.flip = flip
@@ -26,64 +28,57 @@ class NetworkBarItem: CustomButtonTouchBarItem, Widget {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        if let observer = dataObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        bandwidthProcess?.terminate()
+        bandwidthProcess = nil
+    }
+
     func startMonitoringProcess() {
-        var pipe: Pipe
-        var outputHandle: FileHandle
-        var bandwidthProcess: Process?
-        var dSpeed: UInt64?
-        var uSpeed: UInt64?
-        var curr: Array<Substring>?
-        var dataAvailable: NSObjectProtocol?
+        let pipe = Pipe()
+        let process = Process()
+        process.launchPath = "/usr/bin/env"
+        process.arguments = ["netstat", "-w1", "-l", "en0"]
+        process.standardOutput = pipe
+        bandwidthProcess = process
 
-        pipe = Pipe()
-        bandwidthProcess = Process()
-        bandwidthProcess?.launchPath = "/usr/bin/env"
-        bandwidthProcess?.arguments = ["netstat", "-w1", "-l", "en0"]
-        bandwidthProcess?.standardOutput = pipe
-
-        outputHandle = pipe.fileHandleForReading
+        let outputHandle = pipe.fileHandleForReading
         outputHandle.waitForDataInBackgroundAndNotify(forModes: [RunLoop.Mode.common])
 
-        dataAvailable = NotificationCenter.default.addObserver(
+        dataObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name.NSFileHandleDataAvailable,
             object: outputHandle,
             queue: nil
-        ) { _ -> Void in
-            let data = pipe.fileHandleForReading.availableData
+        ) { [weak self] _ -> Void in
+            guard let self = self else { return }
+            let data = outputHandle.availableData
             if data.count > 0 {
                 if let str = NSString(data: data, encoding: String.Encoding.utf8.rawValue) {
-                    curr = [""]
-                    curr = str
+                    let curr = str
                         .replacingOccurrences(of: "  ", with: " ")
                         .split(separator: " ")
-                    if curr == nil || (curr?.count)! < 6 {} else {
-                        if Int64(curr![2]) == nil {} else {
-                            dSpeed = UInt64(curr![2])
-                            uSpeed = UInt64(curr![5])
-
-                            self.setTitle(up: self.getHumanizeSize(speed: uSpeed!), down: self.getHumanizeSize(speed: dSpeed!))
+                    if curr.count >= 6, let dVal = UInt64(curr[2]), let uVal = UInt64(curr[5]) {
+                        DispatchQueue.main.async { [weak self] in
+                            self?.setTitle(up: self?.getHumanizeSize(speed: uVal) ?? "", down: self?.getHumanizeSize(speed: dVal) ?? "")
                         }
                     }
                 }
                 outputHandle.waitForDataInBackgroundAndNotify()
-            } else if let dataAvailable = dataAvailable {
-                NotificationCenter.default.removeObserver(dataAvailable)
             }
         }
 
-        var dataReady: NSObjectProtocol?
-        dataReady = NotificationCenter.default.addObserver(
-            forName: Process.didTerminateNotification,
-            object: outputHandle,
-            queue: nil
-        ) { _ -> Void in
-            print("Task terminated!")
-            if let observer = dataReady {
-                NotificationCenter.default.removeObserver(observer)
+        process.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.async {
+                if let observer = self?.dataObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                    self?.dataObserver = nil
+                }
             }
         }
 
-        bandwidthProcess?.launch()
+        process.launch()
     }
 
     func getHumanizeSize(speed: UInt64) -> String {

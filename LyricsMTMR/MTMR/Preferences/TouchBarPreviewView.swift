@@ -2,7 +2,8 @@
 //  TouchBarPreviewView.swift
 //  LyricsMTMR
 //
-//  Realistic Touch Bar strip preview with drag-reorder and live updates.
+//  Full-width Touch Bar strip preview with drag-reorder, right-click delete,
+//  and keyboard delete support.
 //
 
 import Cocoa
@@ -30,7 +31,6 @@ class EditorStripView: NSView {
     override var acceptsFirstResponder: Bool { true }
 
     override func keyDown(with event: NSEvent) {
-        // Backspace (51) or Delete (117) removes selected item
         if event.keyCode == 51 || event.keyCode == 117 {
             if selectedIndex != nil {
                 onDeleteSelected?()
@@ -53,21 +53,11 @@ class EditorStripView: NSView {
         stripBg.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stripBg)
 
-        let screenWidth = NSScreen.main?.frame.width ?? 1440
-        let maxTouchBarWidth = screenWidth * 0.76
-
-        let leadC = stripBg.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16)
-        leadC.priority = NSLayoutConstraint.Priority(999)
-        let trailC = stripBg.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16)
-        trailC.priority = NSLayoutConstraint.Priority(999)
-
         NSLayoutConstraint.activate([
             stripBg.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             stripBg.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
-            stripBg.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stripBg.widthAnchor.constraint(lessThanOrEqualToConstant: maxTouchBarWidth),
-            leadC,
-            trailC,
+            stripBg.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            stripBg.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
         ])
 
         outerScroll.translatesAutoresizingMaskIntoConstraints = false
@@ -111,7 +101,6 @@ class EditorStripView: NSView {
     func setItems(_ newItems: [[String: Any]]) {
         items = newItems
         rebuildViews()
-        // Re-apply selection after rebuild
         if let sel = selectedIndex, sel < items.count {
             applySelectionVisual(sel)
         } else {
@@ -119,7 +108,6 @@ class EditorStripView: NSView {
         }
     }
 
-    /// Update a single pill's display text without full rebuild (live editing).
     func updatePill(at index: Int, with item: [String: Any]) {
         guard index >= 0 && index < pillViews.count else { return }
         items[index] = item
@@ -149,6 +137,7 @@ class EditorStripView: NSView {
         for (index, item) in items.enumerated() {
             let pill = StripPillView(item: item, index: index)
             pill.onClicked = { [weak self] in self?.onItemSelected?(index) }
+            pill.onDeleteRequested = { [weak self] in self?.deleteItem(at: index) }
             hStack.addArrangedSubview(pill)
             pillViews.append(pill)
         }
@@ -209,6 +198,7 @@ class EditorStripView: NSView {
 class StripPillView: NSView {
 
     var onClicked: (() -> Void)?
+    var onDeleteRequested: (() -> Void)?
 
     private var item: [String: Any]
     private let index: Int
@@ -272,7 +262,6 @@ class StripPillView: NSView {
         addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil))
     }
 
-    /// Live-update the pill text when properties change in the inspector.
     func updateContent(item newItem: [String: Any]) {
         item = newItem
         label?.stringValue = displayText(for: newItem["type"] as? String ?? "unknown")
@@ -301,6 +290,25 @@ class StripPillView: NSView {
     }
 
     @objc private func clicked() { onClicked?() }
+
+    // MARK: - Right-click context menu
+
+    override func rightMouseDown(with event: NSEvent) {
+        onClicked?()
+        let menu = NSMenu()
+        let deleteItem = NSMenuItem(
+            title: localized("删除此项", "Delete Item"),
+            action: #selector(contextDelete),
+            keyEquivalent: "")
+        deleteItem.target = self
+        deleteItem.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        menu.addItem(deleteItem)
+        menu.popUp(positioning: nil, at: convert(event.locationInWindow, from: nil), in: self)
+    }
+
+    @objc private func contextDelete() {
+        onDeleteRequested?()
+    }
 
     // MARK: - Drag Source
 

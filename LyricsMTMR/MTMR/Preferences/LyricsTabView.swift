@@ -52,8 +52,10 @@ extension LyricsClickAction {
 
 struct LyricsTab: View {
     @ObservedObject private var config = LyricsItemConfig.shared
+    @StateObject private var matchManager = LyricsMatchManager()
 
     @State private var selectedPlayers = AppSettings.selectedPlayerIds
+    @State private var lyricsEnabled = AppSettings.lyricsEnabled
     @State private var filterEnabled = AppSettings.lyricsFilterEnabled
     @State private var filterModeRaw = AppSettings.lyricsFilterModeRaw
     @State private var filterKeysText = AppSettings.lyricsFilterKeys.joined(separator: ", ")
@@ -66,12 +68,16 @@ struct LyricsTab: View {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.lyrics.title, subtitle: SettingsTab.lyrics.subtitle)
                 TouchBarPreview(config: config)
+                globalToggleSection
                 musicSourceSection
                 modeSection
                 colorSection
                 fontSection
                 artworkSection
+                offsetSection
+                lrcDropSection
                 filterSection
+                LyricsMatchSection()
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -82,6 +88,41 @@ struct LyricsTab: View {
     }
 
     // MARK: Display mode
+
+    // MARK: - Global toggle
+
+    private var globalToggleSection: some View {
+        Deck.Card {
+            HStack(spacing: 12) {
+                Image(systemName: lyricsEnabled ? "music.note" : "music.note")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(lyricsEnabled ? Deck.accent : Deck.textTertiary)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(lyricsEnabled ? Deck.accent.opacity(0.14) : Color.white.opacity(0.05)))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(localized("歌词总开关", "Lyrics Master Switch"))
+                        .font(Deck.rowFont)
+                        .foregroundStyle(Deck.textPrimary)
+                    Text(localized(
+                        "关闭后 Touch Bar 不再显示任何歌词",
+                        "When off, no lyrics appear on the Touch Bar"))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                }
+                Spacer(minLength: 12)
+                Deck.Pill(isOn: $lyricsEnabled)
+            }
+            .padding(.vertical, 5)
+        }
+        .onChange(of: lyricsEnabled) { _, isOn in
+            AppSettings.lyricsEnabled = isOn
+            if !isOn {
+                LyricsEngine.shared.clearLyrics()
+            }
+        }
+    }
 
     // MARK: - Music sources
 
@@ -349,6 +390,274 @@ struct LyricsTab: View {
     }
 
     // MARK: Filter
+
+    // MARK: - Offset fine-tune
+
+    private var offsetSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(
+                title: localized("时间轴偏移", "Lyrics Offset"),
+                hint: localized("微调歌词与音频的同步", "Fine-tune lyrics-to-audio sync"))
+            Deck.Card {
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Text(offsetDisplay)
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(config.lyricsOffsetMs == 0 ? Deck.textTertiary : Deck.accent)
+                            .frame(minWidth: 80)
+                        Spacer()
+                        Button(localized("重置", "Reset")) {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                config.lyricsOffsetMs = 0
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(config.lyricsOffsetMs == 0 ? Deck.textTertiary.opacity(0.5) : Deck.accent)
+                        .disabled(config.lyricsOffsetMs == 0)
+                    }
+
+                    HStack(spacing: 10) {
+                        offsetStepButton(label: "−500", amount: -500)
+                        offsetStepButton(label: "−100", amount: -100)
+                        offsetStepButton(label: "−10", amount: -10)
+
+                        Slider(
+                            value: Binding(
+                                get: { Double(config.lyricsOffsetMs) },
+                                set: { config.lyricsOffsetMs = Int($0.rounded()) }),
+                            in: -2000...2000, step: 5)
+                            .frame(maxWidth: .infinity)
+
+                        offsetStepButton(label: "+10", amount: 10)
+                        offsetStepButton(label: "+100", amount: 100)
+                        offsetStepButton(label: "+500", amount: 500)
+                    }
+
+                    Text(localized(
+                        "负值 = 歌词提前，正值 = 歌词延后。范围 ±2000 ms",
+                        "Negative = lyrics earlier, positive = lyrics later. Range ±2000 ms"))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                }
+            }
+        }
+    }
+
+    private var offsetDisplay: String {
+        let ms = config.lyricsOffsetMs
+        let sign = ms > 0 ? "+" : ""
+        return "\(sign)\(ms) ms"
+    }
+
+    private func offsetStepButton(label: String, amount: Int) -> some View {
+        Button(label) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                let newValue = config.lyricsOffsetMs + amount
+                config.lyricsOffsetMs = max(-2000, min(2000, newValue))
+            }
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+        .foregroundStyle(Deck.textSecondary)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Deck.insetFill))
+    }
+
+    // MARK: - LRC Drag & Drop
+
+    @State private var isDropTargeted = false
+    @State private var lrcImportMessage: String?
+
+    private var lrcDropSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(
+                title: localized("本地歌词文件", "Local Lyrics Files"),
+                hint: localized("拖拽 .lrc / .lrcx 文件到此处导入", "Drag .lrc / .lrcx files here to import"))
+
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    Image(systemName: isDropTargeted ? "arrow.down.doc.fill" : "doc.text")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(isDropTargeted ? Deck.accent : Deck.textTertiary)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDropTargeted)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("拖拽歌词文件到此处", "Drop lyrics files here"))
+                            .font(Deck.rowFont)
+                            .foregroundStyle(isDropTargeted ? Deck.accent : Deck.textPrimary)
+                        Text(localized("支持 .lrc 和 .lrcx 格式，将保存到 ~/Music/LyricsX/", "Supports .lrc and .lrcx, saved to ~/Music/LyricsX/"))
+                            .font(Deck.captionFont)
+                            .foregroundStyle(Deck.textTertiary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        openFilePicker()
+                    } label: {
+                        Text(localized("选择文件…", "Choose…"))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Deck.accent)
+                }
+                .padding(16)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isDropTargeted ? Deck.accent.opacity(0.08) : Deck.insetFill)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(
+                                    isDropTargeted ? Deck.accent.opacity(0.5) : Deck.hairline,
+                                    style: StrokeStyle(lineWidth: isDropTargeted ? 2 : 1, dash: isDropTargeted ? [] : [6, 4]))
+                        }
+                }
+                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDropTargeted)
+                .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+                    handleDrop(providers: providers)
+                }
+
+                if let message = lrcImportMessage {
+                    Text(message)
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.accent)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                lrcFileList
+            }
+        }
+    }
+
+    @State private var lrcFiles: [URL] = []
+
+    private var lrcFileList: some View {
+        Group {
+            if !lrcFiles.isEmpty {
+                Deck.Card {
+                    VStack(spacing: 0) {
+                        ForEach(lrcFiles, id: \.absoluteString) { fileURL in
+                            HStack(spacing: 10) {
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Deck.accent)
+                                    .frame(width: 22, height: 22)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .fill(Deck.accent.opacity(0.12)))
+                                Text(fileURL.lastPathComponent)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(Deck.textPrimary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Button {
+                                    removeLrcFile(fileURL)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Deck.textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.vertical, 4)
+
+                            if fileURL != lrcFiles.last {
+                                Deck.RowDivider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear { refreshLrcFileList() }
+    }
+
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        var handled = false
+        for provider in providers {
+            guard provider.hasItemConformingToTypeIdentifier("public.file-url") else { continue }
+            handled = true
+            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
+                guard let data = item as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                let ext = url.pathExtension.lowercased()
+                guard ext == "lrc" || ext == "lrcx" else {
+                    DispatchQueue.main.async {
+                        withAnimation { lrcImportMessage = localized("⚠️ 不支持的格式：\(ext)", "⚠️ Unsupported format: \(ext)") }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            withAnimation { lrcImportMessage = nil }
+                        }
+                    }
+                    return
+                }
+                DispatchQueue.main.async {
+                    importLrcFile(url)
+                }
+            }
+        }
+        return handled
+    }
+
+    private func openFilePicker() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "lrc")!, .init(filenameExtension: "lrcx")!]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.message = localized("选择 .lrc / .lrcx 歌词文件", "Select .lrc / .lrcx lyrics files")
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                importLrcFile(url)
+            }
+        }
+    }
+
+    private func importLrcFile(_ sourceURL: URL) {
+        let destDir = ("~/Music/LyricsX" as NSString).expandingTildeInPath
+        try? FileManager.default.createDirectory(atPath: destDir, withIntermediateDirectories: true)
+
+        let destURL = URL(fileURLWithPath: destDir).appendingPathComponent(sourceURL.lastPathComponent)
+        do {
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            withAnimation {
+                lrcImportMessage = localized("✅ 已导入：\(sourceURL.lastPathComponent)", "✅ Imported: \(sourceURL.lastPathComponent)")
+            }
+            refreshLrcFileList()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation { lrcImportMessage = nil }
+            }
+        } catch {
+            withAnimation {
+                lrcImportMessage = localized("❌ 导入失败：\(error.localizedDescription)", "❌ Import failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func removeLrcFile(_ url: URL) {
+        try? FileManager.default.removeItem(at: url)
+        withAnimation { refreshLrcFileList() }
+    }
+
+    private func refreshLrcFileList() {
+        let dir = ("~/Music/LyricsX" as NSString).expandingTildeInPath
+        let fm = FileManager.default
+        guard let contents = try? fm.contentsOfDirectory(atPath: dir) else {
+            lrcFiles = []
+            return
+        }
+        lrcFiles = contents
+            .filter { $0.hasSuffix(".lrc") || $0.hasSuffix(".lrcx") }
+            .sorted()
+            .map { URL(fileURLWithPath: dir).appendingPathComponent($0) }
+    }
 
     private var filterSection: some View {
         VStack(alignment: .leading, spacing: 8) {

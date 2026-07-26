@@ -39,3 +39,6 @@ Sparkle.framework/
 .idea/
 *.swp
 *.swo
+# Backup files
+*.bak
+*.backup

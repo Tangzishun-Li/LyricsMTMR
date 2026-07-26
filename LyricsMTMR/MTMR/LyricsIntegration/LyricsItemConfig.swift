@@ -50,6 +50,7 @@ class LyricsItemConfig: NSObject, ObservableObject {
     @Published var artworkSize: CGFloat = 24
     @Published var marqueeEnabled: Bool = true
     @Published var marqueeStyle: LyricsMarqueeStyle = .marquee
+    @Published var lyricsOffsetMs: Int = 0
 
     private var configCancellables: Set<AnyCancellable> = []
 
@@ -74,6 +75,7 @@ class LyricsItemConfig: NSObject, ObservableObject {
             $artworkSize.map { _ in () }.eraseToAnyPublisher(),
             $marqueeEnabled.map { _ in () }.eraseToAnyPublisher(),
             $marqueeStyle.map { _ in () }.eraseToAnyPublisher(),
+            $lyricsOffsetMs.map { _ in () }.eraseToAnyPublisher(),
         ]
 
         Publishers.MergeMany(changes)
@@ -99,6 +101,7 @@ class LyricsItemConfig: NSObject, ObservableObject {
         static let artworkSize = "com.lyricsmtmr.lyricsConfig.artworkSize"
         static let marqueeEnabled = "com.lyricsmtmr.lyricsConfig.marqueeEnabled"
         static let marqueeStyle = "com.lyricsmtmr.lyricsConfig.marqueeStyle"
+        static let lyricsOffsetMs = "com.lyricsmtmr.lyricsConfig.lyricsOffsetMs"
     }
 
     private func persist() {
@@ -112,6 +115,7 @@ class LyricsItemConfig: NSObject, ObservableObject {
         defaults.set(Double(artworkSize), forKey: StorageKey.artworkSize)
         defaults.set(marqueeEnabled, forKey: StorageKey.marqueeEnabled)
         defaults.set(marqueeStyle.rawValue, forKey: StorageKey.marqueeStyle)
+        defaults.set(lyricsOffsetMs, forKey: StorageKey.lyricsOffsetMs)
         if let data = try? NSKeyedArchiver.archivedData(withRootObject: progressColor, requiringSecureCoding: false) {
             defaults.set(data, forKey: StorageKey.progressColor)
         }
@@ -154,6 +158,10 @@ class LyricsItemConfig: NSObject, ObservableObject {
         if let raw = defaults.string(forKey: StorageKey.marqueeStyle),
            let value = LyricsMarqueeStyle(rawValue: raw) {
             marqueeStyle = value
+        }
+        let storedOffset = defaults.integer(forKey: StorageKey.lyricsOffsetMs)
+        if storedOffset != 0 {
+            lyricsOffsetMs = storedOffset
         }
         if let data = defaults.data(forKey: StorageKey.progressColor),
            let color = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data) {

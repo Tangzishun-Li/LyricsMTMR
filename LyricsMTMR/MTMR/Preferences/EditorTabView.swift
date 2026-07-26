@@ -2,8 +2,7 @@
 //  EditorTabView.swift
 //  LyricsMTMR
 //
-//  Vertical layout editor: top palette bubbles, middle Touch Bar strip,
-//  bottom properties inspector. Dark "Night Deck" theme.
+//  Vertical layout editor: toolbar → palette → strip → group strip → inspector.
 //
 
 import Cocoa
@@ -15,8 +14,12 @@ class EditorTabView: NSView {
 
     private var paletteView: EditorPaletteView!
     private var stripView: EditorStripView!
+    private var groupStripView: EditorStripView!
+    private var groupStripContainer: NSView!
     private var inspectorView: EditorInspectorView!
     private var toolbarView: NSView!
+
+    private var groupStripHeightConstraint: NSLayoutConstraint!
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -58,7 +61,7 @@ class EditorTabView: NSView {
         paletteView.heightAnchor.constraint(equalToConstant: 72).isActive = true
         vStack.addArrangedSubview(hairline())
 
-        // 3) Touch Bar strip
+        // 3) Main Touch Bar strip (full width)
         stripView = EditorStripView()
         stripView.translatesAutoresizingMaskIntoConstraints = false
         stripView.onItemSelected = { [weak self] index in
@@ -66,15 +69,57 @@ class EditorTabView: NSView {
         }
         stripView.onItemsReordered = { [weak self] newItems in
             self?.items = newItems
+            self?.saveToMTMR()
         }
         stripView.onDeleteSelected = { [weak self] in
             self?.deleteSelectedItem()
         }
         vStack.addArrangedSubview(stripView)
-        stripView.heightAnchor.constraint(equalToConstant: 64).isActive = true
+        stripView.heightAnchor.constraint(equalToConstant: 80).isActive = true
+
+        // 4) Group children strip (hidden by default)
+        groupStripContainer = NSView()
+        groupStripContainer.wantsLayer = true
+        groupStripContainer.layer?.backgroundColor = EditorDark.bg.cgColor
+        groupStripContainer.translatesAutoresizingMaskIntoConstraints = false
+        groupStripContainer.isHidden = true
+        vStack.addArrangedSubview(groupStripContainer)
+
+        groupStripHeightConstraint = groupStripContainer.heightAnchor.constraint(equalToConstant: 0)
+        groupStripHeightConstraint.isActive = true
+
+        let groupLabel = NSTextField(labelWithString: localized("▾ Group 子项", "▾ Group Items"))
+        groupLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        groupLabel.textColor = EditorDark.mint
+        groupLabel.translatesAutoresizingMaskIntoConstraints = false
+        groupStripContainer.addSubview(groupLabel)
+
+        groupStripView = EditorStripView()
+        groupStripView.translatesAutoresizingMaskIntoConstraints = false
+        groupStripView.onItemSelected = { [weak self] index in
+            self?.selectGroupChild(at: index)
+        }
+        groupStripView.onItemsReordered = { [weak self] newChildren in
+            self?.updateGroupChildren(newChildren)
+        }
+        groupStripView.onDeleteSelected = { [weak self] in
+            self?.deleteSelectedGroupChild()
+        }
+        groupStripContainer.addSubview(groupStripView)
+
+        NSLayoutConstraint.activate([
+            groupLabel.topAnchor.constraint(equalTo: groupStripContainer.topAnchor, constant: 6),
+            groupLabel.leadingAnchor.constraint(equalTo: groupStripContainer.leadingAnchor, constant: 20),
+
+            groupStripView.topAnchor.constraint(equalTo: groupLabel.bottomAnchor, constant: 4),
+            groupStripView.leadingAnchor.constraint(equalTo: groupStripContainer.leadingAnchor),
+            groupStripView.trailingAnchor.constraint(equalTo: groupStripContainer.trailingAnchor),
+            groupStripView.bottomAnchor.constraint(equalTo: groupStripContainer.bottomAnchor, constant: -4),
+        ])
+
         vStack.addArrangedSubview(hairline())
 
-        // 4) Inspector (fills remaining space)
+        // 5) Inspector
         inspectorView = EditorInspectorView()
         inspectorView.translatesAutoresizingMaskIntoConstraints = false
         inspectorView.onPropertyChanged = { [weak self] in
@@ -83,13 +128,63 @@ class EditorTabView: NSView {
         inspectorView.onItemUpdated = { [weak self] updatedItem in
             guard let self = self, let index = self.selectedItemIndex else { return }
             self.items[index] = updatedItem
-            // Live-update the pill without full rebuild
             self.stripView.updatePill(at: index, with: updatedItem)
-        }
-        inspectorView.onDeleteRequested = { [weak self] in
-            self?.deleteSelectedItem()
+            if (updatedItem["type"] as? String) == "group" {
+                self.showGroupStrip(for: updatedItem)
+            }
         }
         vStack.addArrangedSubview(inspectorView)
+    }
+
+    // MARK: - Delete
+
+    private func deleteSelectedItem() {
+        guard let index = selectedItemIndex else { return }
+        stripView.deleteItem(at: index)
+        items = currentItemsFromStrip()
+        selectedItemIndex = nil
+        inspectorView.clear()
+        hideGroupStrip()
+        saveToMTMR()
+    }
+
+    private func deleteSelectedGroupChild() {
+        // handled internally by groupStripView
+    }
+
+    private func currentItemsFromStrip() -> [[String: Any]] {
+        // items array is kept in sync via onItemsReordered
+        return items
+    }
+
+    // MARK: - Group strip
+
+    private func showGroupStrip(for groupItem: [String: Any]) {
+        let children = groupItem["items"] as? [[String: Any]] ?? []
+        groupStripView.setItems(children)
+        groupStripHeightConstraint.constant = 76
+        groupStripContainer.isHidden = false
+    }
+
+    private func hideGroupStrip() {
+        groupStripHeightConstraint.constant = 0
+        groupStripContainer.isHidden = true
+    }
+
+    private func selectGroupChild(at index: Int) {
+        guard let parentIdx = selectedItemIndex,
+              parentIdx < items.count,
+              var children = items[parentIdx]["items"] as? [[String: Any]],
+              index < children.count else { return }
+        groupStripView.setSelectedIndex(index)
+        inspectorView.setItem(children[index])
+    }
+
+    private func updateGroupChildren(_ newChildren: [[String: Any]]) {
+        guard let parentIdx = selectedItemIndex, parentIdx < items.count else { return }
+        items[parentIdx]["items"] = newChildren
+        stripView.updatePill(at: parentIdx, with: items[parentIdx])
+        saveToMTMR()
     }
 
     // MARK: - Toolbar
@@ -185,6 +280,7 @@ class EditorTabView: NSView {
         stripView.setItems(items)
         selectedItemIndex = nil
         inspectorView.clear()
+        hideGroupStrip()
 
         let destPath = appSupport + "/items.json"
         try? JSONSerialization.data(withJSONObject: items, options: []).write(to: URL(fileURLWithPath: destPath))
@@ -211,31 +307,54 @@ class EditorTabView: NSView {
 
         while i < input.endIndex {
             let c = input[i]
+
             if inString {
                 result.append(c)
                 if c == "\\" {
                     let next = input.index(after: i)
-                    if next < input.endIndex { result.append(input[next]); i = input.index(after: next); continue }
-                } else if c == "\"" { inString = false }
-                i = input.index(after: i); continue
+                    if next < input.endIndex {
+                        result.append(input[next])
+                        i = input.index(after: next)
+                        continue
+                    }
+                } else if c == "\"" {
+                    inString = false
+                }
+                i = input.index(after: i)
+                continue
             }
-            if c == "\"" { inString = true; result.append(c); i = input.index(after: i); continue }
+
+            if c == "\"" {
+                inString = true
+                result.append(c)
+                i = input.index(after: i)
+                continue
+            }
+
             if c == "/", input.index(after: i) < input.endIndex, input[input.index(after: i)] == "*" {
                 i = input.index(after: input.index(after: i))
                 while i < input.endIndex {
-                    if input[i] == "*", input.index(after: i) < input.endIndex, input[input.index(after: i)] == "/" { i = input.index(after: input.index(after: i)); break }
+                    if input[i] == "*", input.index(after: i) < input.endIndex, input[input.index(after: i)] == "/" {
+                        i = input.index(after: input.index(after: i))
+                        break
+                    }
                     i = input.index(after: i)
                 }
                 continue
             }
+
             if c == "/", input.index(after: i) < input.endIndex, input[input.index(after: i)] == "/" {
                 i = input.index(after: input.index(after: i))
-                while i < input.endIndex, input[i] != "\n" { i = input.index(after: i) }
+                while i < input.endIndex, input[i] != "\n" {
+                    i = input.index(after: i)
+                }
                 continue
             }
+
             result.append(c)
             i = input.index(after: i)
         }
+
         return result
     }
 
@@ -244,19 +363,23 @@ class EditorTabView: NSView {
     @objc private func loadFromMTMR() {
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let path = appSupport + "/items.json"
+
         guard let json = loadJSON(from: path) else {
             showAlert(localized("加载失败", "Load Failed"), localized("无法读取 items.json", "Could not read items.json"))
             return
         }
+
         items = json
         stripView.setItems(items)
         selectedItemIndex = nil
         inspectorView.clear()
+        hideGroupStrip()
     }
 
     @objc private func saveToMTMR() {
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let path = appSupport + "/items.json"
+
         do {
             let data = try JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted])
             try FileManager.default.createDirectory(atPath: appSupport, withIntermediateDirectories: true)
@@ -271,45 +394,55 @@ class EditorTabView: NSView {
 
     private func addElement(type: String) {
         var newItem: [String: Any] = ["type": type]
+
         switch type {
         case "staticButton":
-            newItem["title"] = "Button"; newItem["align"] = "center"
+            newItem["title"] = "Button"
+            newItem["align"] = "center"
         case "lyrics":
-            newItem["align"] = "center"; newItem["width"] = 350; newItem["displayMode"] = "karaoke"
+            newItem["align"] = "center"
+            newItem["width"] = 350
+            newItem["displayMode"] = "karaoke"
         case "timeButton":
-            newItem["formatTemplate"] = "HH:mm"; newItem["align"] = "center"
+            newItem["formatTemplate"] = "HH:mm"
+            newItem["align"] = "center"
         case "dock":
-            newItem["align"] = "left"; newItem["width"] = 200
+            newItem["align"] = "left"
+            newItem["width"] = 200
         case "stock":
-            newItem["align"] = "center"; newItem["width"] = 200
+            newItem["align"] = "center"
+            newItem["width"] = 200
+            newItem["stocks"] = ["AAPL"]
         case "group":
-            newItem["title"] = "Group"; newItem["align"] = "center"; newItem["items"] = [[String: Any]]()
+            newItem["title"] = "Group"
+            newItem["align"] = "center"
+            newItem["items"] = [[String: Any]]()
         default:
             newItem["align"] = "center"
         }
+
         items.append(newItem)
         stripView.setItems(items)
         selectItem(at: items.count - 1)
+        saveToMTMR()
     }
 
     private func selectItem(at index: Int) {
         guard index >= 0 && index < items.count else {
             selectedItemIndex = nil
             inspectorView.clear()
+            hideGroupStrip()
             return
         }
         selectedItemIndex = index
         stripView.setSelectedIndex(index)
         inspectorView.setItem(items[index])
-    }
 
-    private func deleteSelectedItem() {
-        guard let index = selectedItemIndex else { return }
-        stripView.deleteItem(at: index)
-
-        selectedItemIndex = nil
-        inspectorView.clear()
-        saveToMTMR()
+        if (items[index]["type"] as? String) == "group" {
+            showGroupStrip(for: items[index])
+        } else {
+            hideGroupStrip()
+        }
     }
 
     private func showAlert(_ title: String, _ message: String) {

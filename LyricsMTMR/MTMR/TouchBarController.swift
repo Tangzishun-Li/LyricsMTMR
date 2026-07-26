@@ -79,6 +79,14 @@ extension ItemType {
             return "com.lyricsmtmr.deepseekBalance."
         case .expandable(items: _, closePosition: _, cardWidthRatio: _):
             return "com.lyricsmtmr.expandable."
+        case .audioSpectrum(barCount: _):
+            return "com.lyricsmtmr.audioSpectrum."
+        case .playbackProgress:
+            return "com.lyricsmtmr.playbackProgress."
+        case .lyricsTranslate:
+            return "com.lyricsmtmr.lyricsTranslate."
+        case .quickReply(configPath: _):
+            return "com.lyricsmtmr.quickReply."
         }
     }
 }
@@ -451,10 +459,17 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = UsageBarItem(identifier: identifier, providers: providers, interval: interval, displayMode: displayMode, widgetWidth: width)
         case let .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval):
             barItem = DeepseekBalanceBarItem(identifier: identifier, apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval)
-        case let .expandable(items: items, closePosition: _, cardWidthRatio: _):
-            // Fallback: render as a group until ExpandableCardItem is properly integrated
-            let groupItem = GroupBarItem(identifier: identifier, items: items)
-            barItem = groupItem
+        case let .expandable(items: items, closePosition: closePos, cardWidthRatio: ratio):
+            let pos = ExpandableCardItem.ClosePosition(rawValue: closePos) ?? .left
+            barItem = ExpandableCardItem(identifier: identifier, items: items, closePosition: pos, cardWidthRatio: ratio)
+        case let .audioSpectrum(barCount: barCount):
+            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount)
+        case .playbackProgress:
+            barItem = PlaybackProgressBarItem(identifier: identifier)
+        case .lyricsTranslate:
+            barItem = LyricsTranslateBarItem(identifier: identifier)
+        case let .quickReply(configPath: configPath):
+            barItem = QuickReplyBarItem(identifier: identifier, configPath: configPath)
         }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {
@@ -483,6 +498,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         }
         if case let .title(value)? = item.additionalParameters[.title] {
             if let item = barItem as? GroupBarItem {
+                item.collapsedRepresentationLabel = value
+            } else if let item = barItem as? ExpandableCardItem {
                 item.collapsedRepresentationLabel = value
             } else if let item = barItem as? CustomButtonTouchBarItem {
                 item.title = value
@@ -525,7 +542,6 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 task.launchPath = executable
                 task.arguments = parameters
                 task.launch()
-                task.waitUntilExit()
             }
         case let .openUrl(url: url):
             return {

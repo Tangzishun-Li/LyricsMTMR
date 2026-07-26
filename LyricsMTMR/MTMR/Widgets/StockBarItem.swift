@@ -74,7 +74,8 @@ class StockBarItem: CustomButtonTouchBarItem {
     // MARK: - 定时刷新
 
     private func scheduleRefresh() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             self.timer?.invalidate()
             self.timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
                 self?.refreshData()

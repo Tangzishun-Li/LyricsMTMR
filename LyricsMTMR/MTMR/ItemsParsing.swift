@@ -297,6 +297,10 @@ enum ItemType: Decodable {
     case usage(providers: [ProviderConfig], refreshInterval: Double, displayMode: String, widgetWidth: CGFloat)
     case deepseekBalance(apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double)
     case expandable(items: [BarItemDefinition], closePosition: String, cardWidthRatio: CGFloat)
+    case audioSpectrum(barCount: Int)
+    case playbackProgress
+    case lyricsTranslate
+    case quickReply(configPath: String?)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -349,6 +353,8 @@ enum ItemType: Decodable {
         case widgetWidth
         case closePosition
         case cardWidthRatio
+        case barCount
+        case configPath
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -380,6 +386,10 @@ enum ItemType: Decodable {
         case usage
         case deepseekBalance
         case expandable
+        case audioSpectrum
+        case playbackProgress
+        case lyricsTranslate
+        case quickReply
     }
 
     init(from decoder: Decoder) throws {
@@ -535,6 +545,20 @@ enum ItemType: Decodable {
             let showRemaining = try container.decodeIfPresent(Bool.self, forKey: .showRemaining) ?? true
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
             self = .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: refreshInterval)
+
+        case .audioSpectrum:
+            let barCount = try container.decodeIfPresent(Int.self, forKey: .barCount) ?? 16
+            self = .audioSpectrum(barCount: barCount)
+
+        case .playbackProgress:
+            self = .playbackProgress
+
+        case .lyricsTranslate:
+            self = .lyricsTranslate
+
+        case .quickReply:
+            let configPath = try container.decodeIfPresent(String.self, forKey: .configPath)
+            self = .quickReply(configPath: configPath)
         }
     }
 }
@@ -762,6 +786,7 @@ enum GeneralParameter {
     case background(_: NSColor)
     case title(_: String)
     case matchAppId(_: String)
+    case divider(_: Bool)
 }
 
 struct GeneralParameters: Decodable {
@@ -775,6 +800,7 @@ struct GeneralParameters: Decodable {
         case background
         case title
         case matchAppId
+        case divider
     }
 
     init(from decoder: Decoder) throws {
@@ -806,6 +832,10 @@ struct GeneralParameters: Decodable {
 
         if let matchAppId = try container.decodeIfPresent(String.self, forKey: .matchAppId) {
             result[.matchAppId] = .matchAppId(matchAppId)
+        }
+
+        if let divider = try container.decodeIfPresent(Bool.self, forKey: .divider) {
+            result[.divider] = .divider(divider)
         }
 
         parameters = result

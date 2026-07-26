@@ -86,7 +86,7 @@ class TouchBarMirrorWindowController: NSObject {
 
     private func startSyncTimer() {
         syncTimer?.invalidate()
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.syncFromTouchBar()
         }
     }
@@ -94,7 +94,7 @@ class TouchBarMirrorWindowController: NSObject {
     private func positionAtBottomCenter() {
         guard let window = window, let screen = NSScreen.main else { return }
         let sf = screen.frame
-        let w = sf.width
+        let w = min(sf.width * 0.76, 1065)
         let x = sf.origin.x + (sf.width - w) / 2
         let y = sf.origin.y + 4
         window.setFrame(NSRect(x: x, y: y, width: w, height: 34), display: true)
@@ -175,8 +175,18 @@ class TouchBarMirrorWindowController: NSObject {
         }
 
         if let li = item as? LyricsTouchBarItem {
-            let txt = extractText(from: li.view) ?? "♫"
+            var txt = "♫"
+            if let stack = li.view as? NSStackView {
+                for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
+                    let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
+                    if !s.isEmpty {
+                        txt = s
+                        break
+                    }
+                }
+            }
             let label = simpleLabel(txt)
+            label.font = .systemFont(ofSize: 15, weight: .medium)
             if let itemView = item.view, itemView.frame.width > 0 {
                 label.widthAnchor.constraint(equalToConstant: itemView.frame.width).isActive = true
             }
@@ -225,16 +235,34 @@ class TouchBarMirrorWindowController: NSObject {
 
     private func snapshot(_ view: NSView?) -> NSImageView? {
         guard let v = view, v.frame.width > 0, v.frame.height > 0 else { return nil }
-        if let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
-            v.cacheDisplay(in: v.bounds, to: rep)
-            let img = NSImage(size: v.bounds.size)
-            img.addRepresentation(rep)
-            let iv = NSImageView(image: img)
-            iv.translatesAutoresizingMaskIntoConstraints = false
-            iv.imageScaling = .scaleProportionallyDown
-            return iv
+        let size = v.bounds.size
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width),
+            pixelsHigh: Int(size.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        let ctx = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        if v.wantsLayer, let layer = v.layer {
+            layer.render(in: ctx!.cgContext)
+        } else {
+            v.cacheDisplay(in: v.bounds, to: v.bitmapImageRepForCachingDisplay(in: v.bounds)!)
         }
-        return nil
+        NSGraphicsContext.restoreGraphicsState()
+        let img = NSImage(size: size)
+        img.addRepresentation(rep)
+        let iv = NSImageView(image: img)
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        iv.imageScaling = .scaleProportionallyDown
+        return iv
     }
 
     private func extractText(from view: NSView?) -> String? {

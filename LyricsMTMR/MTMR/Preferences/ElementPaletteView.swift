@@ -2,8 +2,7 @@
 //  ElementPaletteView.swift
 //  LyricsMTMR
 //
-//  Horizontal scrolling palette with bubble chips.
-//  Dark "Night Deck" theme.
+//  Horizontal scrolling palette with bubble chips + edge scroll arrows.
 //
 
 import Cocoa
@@ -36,6 +35,8 @@ class EditorPaletteView: NSView {
 
     private let scrollView = NSScrollView()
     private let hStack = NSStackView()
+    private var leftArrow: NSButton!
+    private var rightArrow: NSButton!
 
     private let categories: [(label: String, elements: [(type: String, label: String, symbol: String)])] = [
         (localized("基础", "Basic"), [
@@ -72,6 +73,12 @@ class EditorPaletteView: NSView {
             ("themeSwitch", localized("主题", "Theme"), "paintpalette"),
             ("deepseekBalance", "DS", "brain"),
         ]),
+        (localized("音乐", "Music+"), [
+            ("audioSpectrum", localized("频谱", "Spectrum"), "waveform"),
+            ("playbackProgress", localized("进度", "Progress"), "play.circle"),
+            ("lyricsTranslate", localized("翻译", "Translate"), "globe"),
+            ("quickReply", localized("快回", "Reply"), "bubble.left.and.bubble.right"),
+        ]),
         (localized("特殊", "Misc"), [
             ("group", localized("分组", "Group"), "square.stack"),
             ("swipe", localized("滑动", "Swipe"), "hand.draw"),
@@ -97,17 +104,35 @@ class EditorPaletteView: NSView {
         scrollView.scrollerStyle = .overlay
         addSubview(scrollView)
 
+        // Left arrow
+        leftArrow = makeArrowButton("chevron.left", action: #selector(scrollLeft))
+        addSubview(leftArrow)
+
+        // Right arrow
+        rightArrow = makeArrowButton("chevron.right", action: #selector(scrollRight))
+        addSubview(rightArrow)
+
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 28),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -28),
+
+            leftArrow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            leftArrow.centerYAnchor.constraint(equalTo: centerYAnchor),
+            leftArrow.widthAnchor.constraint(equalToConstant: 22),
+            leftArrow.heightAnchor.constraint(equalToConstant: 36),
+
+            rightArrow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            rightArrow.centerYAnchor.constraint(equalTo: centerYAnchor),
+            rightArrow.widthAnchor.constraint(equalToConstant: 22),
+            rightArrow.heightAnchor.constraint(equalToConstant: 36),
         ])
 
         hStack.orientation = .horizontal
         hStack.spacing = 6
         hStack.alignment = .centerY
-        hStack.edgeInsets = NSEdgeInsets(top: 0, left: 14, bottom: 0, right: 14)
+        hStack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
         hStack.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = hStack
 
@@ -117,7 +142,7 @@ class EditorPaletteView: NSView {
             if catIndex > 0 {
                 let sep = NSView()
                 sep.wantsLayer = true
-                sep.layer?.backgroundColor = EditorDark.hairline.cgColor
+                sep.layer?.backgroundColor = EditorDark.hairlineStrong.cgColor
                 sep.translatesAutoresizingMaskIntoConstraints = false
                 sep.widthAnchor.constraint(equalToConstant: 1).isActive = true
                 sep.heightAnchor.constraint(equalToConstant: 28).isActive = true
@@ -132,6 +157,39 @@ class EditorPaletteView: NSView {
                 hStack.addArrangedSubview(bubble)
             }
         }
+    }
+
+    private func makeArrowButton(_ symbol: String, action: Selector) -> NSButton {
+        let btn = NSButton()
+        btn.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        btn.imageScaling = .scaleProportionallyDown
+        btn.bezelStyle = .inline
+        btn.isBordered = false
+        btn.contentTintColor = EditorDark.textSecondary
+        btn.target = self
+        btn.action = action
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.wantsLayer = true
+        btn.layer?.cornerRadius = 6
+        btn.layer?.backgroundColor = EditorDark.card.cgColor
+        return btn
+    }
+
+    @objc private func scrollLeft() {
+        let clip = scrollView.contentView
+        var origin = clip.bounds.origin
+        origin.x = max(0, origin.x - 200)
+        clip.scroll(to: origin)
+        scrollView.reflectScrolledClipView(clip)
+    }
+
+    @objc private func scrollRight() {
+        let clip = scrollView.contentView
+        var origin = clip.bounds.origin
+        let maxX = (hStack.frame.width - clip.bounds.width)
+        origin.x = min(max(0, maxX), origin.x + 200)
+        clip.scroll(to: origin)
+        scrollView.reflectScrolledClipView(clip)
     }
 }
 

@@ -2,8 +2,7 @@
 //  PropertiesInspectorView.swift
 //  LyricsMTMR
 //
-//  Bottom properties inspector — SwiftUI, reusing the Deck design system.
-//  Fills available width; includes delete action.
+//  Comprehensive bottom inspector — shows ALL editable fields per item type.
 //
 
 import Cocoa
@@ -12,11 +11,17 @@ import SwiftUI
 final class InspectorModel: ObservableObject {
     @Published var item: [String: Any]? = nil
     var onCommit: (([String: Any]) -> Void)?
-    var onDelete: (() -> Void)?
 
     func update(_ key: String, _ value: Any) {
         guard var it = item else { return }
         it[key] = value
+        item = it
+        onCommit?(it)
+    }
+
+    func removeKey(_ key: String) {
+        guard var it = item else { return }
+        it.removeValue(forKey: key)
         item = it
         onCommit?(it)
     }
@@ -26,7 +31,6 @@ class EditorInspectorView: NSView {
 
     var onPropertyChanged: (() -> Void)?
     var onItemUpdated: (([String: Any]) -> Void)?
-    var onDeleteRequested: (() -> Void)?
 
     private let model = InspectorModel()
 
@@ -38,9 +42,6 @@ class EditorInspectorView: NSView {
         model.onCommit = { [weak self] it in
             self?.onPropertyChanged?()
             self?.onItemUpdated?(it)
-        }
-        model.onDelete = { [weak self] in
-            self?.onDeleteRequested?()
         }
 
         let host = NSHostingView(rootView: InspectorRoot(model: model))
@@ -60,24 +61,160 @@ class EditorInspectorView: NSView {
     func clear() { model.item = nil }
 }
 
+// MARK: - Field schema
+
+private enum FieldKind {
+    case text(placeholder: String, mono: Bool)
+    case number(placeholder: String)
+    case toggle
+    case segment(options: [(id: String, label: String, symbol: String?)])
+    case stringList(placeholder: String)
+}
+
+private struct FieldDef {
+    let key: String
+    let label: String
+    let kind: FieldKind
+}
+
+private func schemaFor(type: String) -> [FieldDef] {
+    let alignSeg = FieldDef(
+        key: "align", label: localized("对齐", "Alignment"),
+        kind: .segment(options: [
+            ("left", localized("左", "Left"), "text.alignleft"),
+            ("center", localized("中", "Center"), "text.aligncenter"),
+            ("right", localized("右", "Right"), "text.alignright"),
+        ]))
+
+    var fields: [FieldDef] = [
+        FieldDef(key: "title", label: localized("标题", "Title"), kind: .text(placeholder: localized("显示文字", "Display text"), mono: false)),
+        FieldDef(key: "width", label: localized("宽度", "Width"), kind: .number(placeholder: "px")),
+        alignSeg,
+    ]
+
+    switch type {
+    case "stock":
+        fields += [
+            FieldDef(key: "stocks", label: localized("股票代码", "Stock Symbols"), kind: .stringList(placeholder: "AAPL, 0700.HK")),
+            FieldDef(key: "displayMode", label: localized("显示模式", "Display Mode"), kind: .segment(options: [
+                ("text", localized("文字", "Text"), nil),
+                ("chart", localized("图表", "Chart"), "chart.xyaxis.line"),
+            ])),
+            FieldDef(key: "chartMode", label: localized("图表模式", "Chart Mode"), kind: .segment(options: [
+                ("line", localized("折线", "Line"), nil),
+                ("candle", localized("蜡烛", "Candle"), nil),
+            ])),
+            FieldDef(key: "showChart", label: localized("显示图表", "Show Chart"), kind: .toggle),
+            FieldDef(key: "chartWidth", label: localized("图表宽度", "Chart Width"), kind: .number(placeholder: "px")),
+            FieldDef(key: "textWidth", label: localized("文字宽度", "Text Width"), kind: .number(placeholder: "px")),
+            FieldDef(key: "refreshInterval", label: localized("刷新间隔(秒)", "Refresh (sec)"), kind: .number(placeholder: "60")),
+            FieldDef(key: "apiSource", label: "API Source", kind: .text(placeholder: "yahoo", mono: true)),
+            FieldDef(key: "bordered", label: localized("显示边框", "Bordered"), kind: .toggle),
+        ]
+    case "lyrics":
+        fields += [
+            FieldDef(key: "displayMode", label: localized("显示模式", "Display Mode"), kind: .segment(options: [
+                ("karaoke", localized("卡拉OK", "Karaoke"), "waveform"),
+                ("static", localized("静态", "Static"), "text.alignleft"),
+                ("artwork", localized("封面", "Art"), "photo"),
+            ])),
+            FieldDef(key: "karaokeStyle", label: localized("卡拉OK 风格", "Karaoke Style"), kind: .segment(options: [
+                ("progressive", localized("渐进", "Progressive"), nil),
+                ("jump", localized("逐字", "Jump"), nil),
+            ])),
+            FieldDef(key: "clickAction", label: localized("点击动作", "Click Action"), kind: .segment(options: [
+                ("none", localized("无", "None"), nil),
+                ("playPause", localized("播放/暂停", "Play/Pause"), "play.pause"),
+                ("next", localized("下一首", "Next"), "forward.fill"),
+            ])),
+            FieldDef(key: "showArtwork", label: localized("显示封面", "Show Artwork"), kind: .toggle),
+        ]
+    case "timeButton":
+        fields += [
+            FieldDef(key: "formatTemplate", label: localized("时间格式", "Time Format"), kind: .text(placeholder: "HH:mm", mono: true)),
+        ]
+    case "deepseekBalance":
+        fields += [
+            FieldDef(key: "apiKey", label: "API Key", kind: .text(placeholder: "sk-...", mono: true)),
+            FieldDef(key: "displayMode", label: localized("显示模式", "Display Mode"), kind: .segment(options: [
+                ("balance", localized("余额", "Balance"), nil),
+                ("usage", localized("用量", "Usage"), nil),
+            ])),
+            FieldDef(key: "refreshInterval", label: localized("刷新间隔(秒)", "Refresh (sec)"), kind: .number(placeholder: "300")),
+            FieldDef(key: "showRemaining", label: localized("显示剩余", "Show Remaining"), kind: .toggle),
+            FieldDef(key: "bordered", label: localized("显示边框", "Bordered"), kind: .toggle),
+        ]
+    case "themeSwitch":
+        fields += [
+            FieldDef(key: "themes", label: localized("主题列表", "Themes"), kind: .stringList(placeholder: "theme1, theme2")),
+        ]
+    case "weather":
+        fields += [
+            FieldDef(key: "city", label: localized("城市", "City"), kind: .text(placeholder: "Beijing", mono: false)),
+            FieldDef(key: "api_key", label: "API Key", kind: .text(placeholder: "...", mono: true)),
+            FieldDef(key: "refreshInterval", label: localized("刷新间隔(秒)", "Refresh (sec)"), kind: .number(placeholder: "600")),
+        ]
+    case "currency":
+        fields += [
+            FieldDef(key: "currency", label: localized("货币对", "Currency Pair"), kind: .text(placeholder: "USD-CNY", mono: true)),
+            FieldDef(key: "refreshInterval", label: localized("刷新间隔(秒)", "Refresh (sec)"), kind: .number(placeholder: "300")),
+        ]
+    case "pomodoro":
+        fields += [
+            FieldDef(key: "duration", label: localized("时长(分)", "Duration (min)"), kind: .number(placeholder: "25")),
+        ]
+    case "staticButton":
+        fields += [
+            FieldDef(key: "source", label: localized("执行命令", "Action / Source"), kind: .text(placeholder: "shellScriptPath", mono: true)),
+        ]
+    case "group":
+        fields += [
+            FieldDef(key: "bordered", label: localized("显示边框", "Bordered"), kind: .toggle),
+        ]
+    case "dock":
+        break
+    default:
+        break
+    }
+
+    return fields
+}
+
+// Keys managed by the schema (won't show in "other" section)
+private let managedKeys: Set<String> = [
+    "type", "title", "width", "align", "bordered",
+    "stocks", "displayMode", "chartMode", "showChart", "chartWidth", "textWidth", "refreshInterval", "apiSource",
+    "karaokeStyle", "clickAction", "showArtwork",
+    "formatTemplate",
+    "apiKey", "showRemaining",
+    "themes",
+    "city", "api_key",
+    "currency",
+    "duration",
+    "source",
+    "items",
+]
+
 // MARK: - Root
 
 struct InspectorRoot: View {
     @ObservedObject var model: InspectorModel
 
     var body: some View {
-        ScrollView(.vertical) {
+        ScrollView {
             if let item = model.item {
                 content(for: item)
                     .padding(.top, 22)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 empty
-                    .padding(.top, 40)
-                    .frame(minHeight: 100)
+                    .padding(.top, 36)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, minHeight: 120)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var empty: some View {
@@ -90,14 +227,14 @@ struct InspectorRoot: View {
                 .foregroundStyle(Deck.textTertiary)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func content(for item: [String: Any]) -> some View {
         let type = item["type"] as? String ?? "unknown"
+        let schema = schemaFor(type: type)
 
         return VStack(alignment: .leading, spacing: 14) {
-            // Header row
+            // Header
             HStack(spacing: 8) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 12, weight: .semibold))
@@ -106,159 +243,99 @@ struct InspectorRoot: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(Deck.textPrimary)
                 Spacer()
-                Button(action: { model.onDelete?() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11, weight: .medium))
-                        Text(localized("删除", "Delete"))
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundStyle(.red.opacity(0.85))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
             }
-
             Rectangle().fill(Deck.hairline).frame(height: 1)
 
-            // Two-column grid
-            HStack(alignment: .top, spacing: 24) {
-                VStack(alignment: .leading, spacing: 14) {
-                    fieldRow(localized("标题", "Title"), key: "title", placeholder: localized("显示文字", "Display text"))
-                    fieldRow(localized("宽度", "Width"), key: "width", placeholder: "px", mono: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                VStack(alignment: .leading, spacing: 14) {
-                    segmentRow(
-                        localized("对齐", "Alignment"), key: "align", default: "center",
-                        options: [
-                            ("left", localized("左", "Left"), "text.alignleft"),
-                            ("center", localized("中", "Center"), "text.aligncenter"),
-                            ("right", localized("右", "Right"), "text.alignright"),
-                        ])
-                    typeSpecificFields(type: type, item: item)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Schema-driven fields
+            ForEach(schema, id: \.key) { field in
+                fieldView(field)
             }
 
-            if type == "group" {
-                groupChildrenSection(item)
+            // Remaining unmanaged keys
+            let otherKeys = item.keys.filter { !managedKeys.contains($0) }.sorted()
+            if !otherKeys.isEmpty {
+                Rectangle().fill(Deck.hairline).frame(height: 1).padding(.top, 4)
+                Text(localized("其他参数", "Other"))
+                    .font(Deck.captionFont)
+                    .foregroundStyle(Deck.textTertiary)
+                ForEach(otherKeys, id: \.self) { key in
+                    InspectorRow(label: key) {
+                        Deck.Field(
+                            placeholder: key,
+                            text: Binding(
+                                get: { anyToString(model.item?[key]) },
+                                set: { model.update(key, $0) }),
+                            mono: true)
+                    }
+                }
             }
         }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
-    private func typeSpecificFields(type: String, item: [String: Any]) -> some View {
-        if type == "lyrics" {
-            segmentRow(
-                localized("显示模式", "Display Mode"), key: "displayMode", default: "karaoke",
-                options: [
-                    ("karaoke", localized("卡拉OK", "Karaoke"), "waveform"),
-                    ("static", localized("静态", "Static"), "text.alignleft"),
-                    ("artwork", localized("封面", "Art"), "photo"),
-                ])
-            segmentRow(
-                localized("卡拉OK 风格", "Karaoke Style"), key: "karaokeStyle", default: "progressive",
-                options: [
-                    ("progressive", localized("渐进", "Progressive"), ""),
-                    ("jump", localized("逐字", "Jump"), ""),
-                ])
-        } else if type == "timeButton" {
-            fieldRow(localized("时间格式", "Time Format"), key: "formatTemplate", placeholder: "HH:mm", mono: true)
-        } else if type == "stock" {
-            let initial = (item["stocks"] as? [String])?.joined(separator: ", ") ?? ""
-            InspectorRow(label: localized("股票代码", "Stock Symbols")) {
-                StocksField(model: model, initial: initial)
+    private func fieldView(_ field: FieldDef) -> some View {
+        switch field.kind {
+        case .text(let placeholder, let mono):
+            InspectorRow(label: field.label) {
+                Deck.Field(
+                    placeholder: placeholder,
+                    text: Binding(
+                        get: { anyToString(model.item?[field.key]) },
+                        set: { model.update(field.key, $0) }),
+                    mono: mono)
             }
-            .id("stock-\(initial)")
-        }
-    }
-
-    // MARK: - Group children
-
-    private func groupChildrenSection(_ item: [String: Any]) -> some View {
-        let children = item["items"] as? [[String: Any]] ?? []
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "square.stack")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Deck.mint)
-                Text(localized("Group 子项", "Group Items"))
-                    .font(Deck.captionFont)
-                    .foregroundStyle(Deck.textSecondary)
-                Spacer()
-                Text("\(children.count)")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Deck.textTertiary)
+        case .number(let placeholder):
+            InspectorRow(label: field.label) {
+                Deck.Field(
+                    placeholder: placeholder,
+                    text: Binding(
+                        get: { numberToString(model.item?[field.key]) },
+                        set: { newVal in
+                            if let n = Int(newVal) { model.update(field.key, n) }
+                            else if let d = Double(newVal) { model.update(field.key, d) }
+                            else { model.update(field.key, newVal) }
+                        }),
+                    mono: true)
             }
-
-            if children.isEmpty {
-                Text(localized("空 Group — 添加子项后在 Touch Bar 上点击即可展开", "Empty group — add items, then tap on Touch Bar to expand"))
-                    .font(Deck.captionFont)
-                    .foregroundStyle(Deck.textTertiary)
-                    .padding(.vertical, 6)
-            } else {
-                ForEach(Array(children.enumerated()), id: \.offset) { _, child in
-                    let childType = child["type"] as? String ?? "unknown"
-                    let childTitle = child["title"] as? String ?? childType
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Deck.textTertiary)
-                        Text(childTitle)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Deck.textPrimary)
-                            .lineLimit(1)
-                        Spacer()
-                        Text(childType)
-                            .font(.system(size: 10, weight: .regular, design: .monospaced))
-                            .foregroundStyle(Deck.textTertiary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Deck.insetFill, in: RoundedRectangle(cornerRadius: 4))
-                    }
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 10)
-                    .background(Deck.cardFill, in: RoundedRectangle(cornerRadius: 6))
-                }
+        case .toggle:
+            ToggleRow(
+                label: field.label,
+                isOn: Binding(
+                    get: { (model.item?[field.key] as? Bool) ?? false },
+                    set: { model.update(field.key, $0) }))
+        case .segment(let options):
+            InspectorRow(label: field.label) {
+                Deck.Segmented(
+                    options: options.map { Deck.SegmentOption(id: $0.id, label: $0.label, symbol: $0.symbol) },
+                    selection: Binding(
+                        get: { (model.item?[field.key] as? String) ?? "" },
+                        set: { model.update(field.key, $0) }))
             }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Deck.insetFill, in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    // MARK: - Row builders
-
-    private func fieldRow(_ label: String, key: String, placeholder: String, mono: Bool = false) -> some View {
-        InspectorRow(label: label) {
-            Deck.Field(
-                placeholder: placeholder,
-                text: Binding(
-                    get: { stringValue(model.item?[key]) },
-                    set: { model.update(key, $0) }),
-                mono: mono)
+        case .stringList(let placeholder):
+            let initial = stringListValue(model.item?[field.key])
+            InspectorRow(label: field.label) {
+                ListField(model: model, key: field.key, initial: initial, placeholder: placeholder)
+            }
+            .id("\(field.key)-\(initial)")
         }
     }
 
-    private func segmentRow(_ label: String, key: String, default d: String, options: [(String, String, String)]) -> some View {
-        InspectorRow(label: label) {
-            Deck.Segmented(
-                options: options.map { Deck.SegmentOption(id: $0.0, label: $0.1, symbol: $0.2.isEmpty ? nil : $0.2) },
-                selection: Binding(
-                    get: { (model.item?[key] as? String) ?? d },
-                    set: { model.update(key, $0) }))
-        }
-    }
-
-    private func stringValue(_ any: Any?) -> String {
+    private func anyToString(_ any: Any?) -> String {
         if let s = any as? String { return s }
         if let any { return "\(any)" }
+        return ""
+    }
+
+    private func numberToString(_ any: Any?) -> String {
+        if let i = any as? Int { return "\(i)" }
+        if let d = any as? Double { return d == d.rounded() ? "\(Int(d))" : "\(d)" }
+        if let s = any as? String { return s }
+        return ""
+    }
+
+    private func stringListValue(_ any: Any?) -> String {
+        if let arr = any as? [String] { return arr.joined(separator: ", ") }
+        if let s = any as? String { return s }
         return ""
     }
 }
@@ -275,26 +352,48 @@ struct InspectorRow<Control: View>: View {
                 .font(Deck.captionFont)
                 .foregroundStyle(Deck.textTertiary)
             control()
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-// MARK: - Stocks field
+// MARK: - Toggle row (inline)
 
-struct StocksField: View {
+struct ToggleRow: View {
+    let label: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(Deck.captionFont)
+                .foregroundStyle(Deck.textTertiary)
+            Spacer()
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .scaleEffect(0.85)
+        }
+    }
+}
+
+// MARK: - String list field (CSV ↔ [String])
+
+struct ListField: View {
     @ObservedObject var model: InspectorModel
+    let key: String
     @State private var text: String
+    let placeholder: String
 
-    init(model: InspectorModel, initial: String) {
+    init(model: InspectorModel, key: String, initial: String, placeholder: String) {
         self.model = model
+        self.key = key
+        self.placeholder = placeholder
         _text = State(initialValue: initial)
     }
 
     var body: some View {
         Deck.Field(
-            placeholder: "AAPL, 0700.HK",
+            placeholder: placeholder,
             text: $text,
             mono: true,
             onSubmit: commit,
@@ -306,6 +405,6 @@ struct StocksField: View {
             .split(separator: ",")
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        model.update("stocks", arr)
+        model.update(key, arr)
     }
 }

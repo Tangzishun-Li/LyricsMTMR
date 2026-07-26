@@ -57,6 +57,9 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.lyrics.selectedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.netease.163music", "com.tencent.QQMusicMac"])
     static var selectedPlayerIds: [String]
 
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.enabled", defaultValue: true)
+    static var lyricsEnabled: Bool
+
     @UserDefault(key: "com.toxblh.mtmr.lyrics.archivedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.tencent.QQMusicMac"])
     static var archivedPlayerIds: [String]
     
