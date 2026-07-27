@@ -150,5 +150,6 @@ class SettingsSync {
            let data = try? Data(contentsOf: URL(fileURLWithPath: defaultPresetPath)) {
             try? data.write(to: URL(fileURLWithPath: itemsJSONPath))
         }
+        NotificationCenter.default.post(name: .settingsProfileImported, object: nil)
     }
 }

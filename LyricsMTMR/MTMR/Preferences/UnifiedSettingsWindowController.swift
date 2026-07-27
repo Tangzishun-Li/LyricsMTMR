@@ -8,6 +8,72 @@
 import Cocoa
 import SwiftUI
 
+// MARK: - Dock Visibility Manager
+
+/// Manages the app's Dock visibility based on settings window state.
+/// - Settings window visible  -> .regular  (shows Dock icon)
+/// - Settings window hidden   -> .accessory (hides Dock icon)
+final class DockVisibilityManager: NSObject, NSWindowDelegate {
+    static let shared = DockVisibilityManager()
+
+    private var trackedWindow: NSWindow?
+    private var observers: [NSObjectProtocol] = []
+
+    private override init() {
+        super.init()
+    }
+
+    /// Begin tracking a settings window so its visibility drives the Dock icon.
+    func track(window: NSWindow) {
+        trackedWindow = window
+        // Window is being shown -> show Dock icon.
+        updatePolicyForVisibleState()
+        setupObservers(for: window)
+    }
+
+    func handleSettingsWindowClosed() {
+        trackedWindow = nil
+        removeObservers()
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    // MARK: Notification Observers
+
+    private func setupObservers(for window: NSWindow) {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
+            self?.updatePolicyForVisibleState()
+        })
+        observers.append(center.addObserver(forName: NSWindow.didMiniaturizeNotification, object: window, queue: .main) { [weak self] _ in
+            self?.handleWindowMiniaturized()
+        })
+        observers.append(center.addObserver(forName: NSWindow.didDeminiaturizeNotification, object: window, queue: .main) { [weak self] _ in
+            self?.handleWindowDeminiaturized()
+        })
+    }
+
+    private func removeObservers() {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.removeAll()
+    }
+
+    private func handleWindowMiniaturized() {
+        // Minimized -> hide Dock icon.
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    private func handleWindowDeminiaturized() {
+        // Restored from Dock -> show Dock icon.
+        updatePolicyForVisibleState()
+    }
+
+    private func updatePolicyForVisibleState() {
+        guard let window = trackedWindow, window.isVisible else { return }
+        NSApp.setActivationPolicy(.regular)
+    }
+}
+
+
 class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private static weak var current: UnifiedSettingsWindowController?
@@ -32,6 +98,7 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         self.init(window: window)
         UnifiedSettingsWindowController.current = self
         window.delegate = self
+        DockVisibilityManager.shared.track(window: window)
         Self.installTitlebarDrag(accessory: window)
 
         let hosting = NSHostingView(rootView: SettingsRootView())
@@ -49,6 +116,7 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         UnifiedSettingsWindowController.current = nil
+        DockVisibilityManager.shared.handleSettingsWindowClosed()
     }
 
     /// Installs an invisible title-bar accessory so the window can still be
@@ -78,6 +146,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case package, calendar, homekit, ai
     // P2
     case expense, dock, notification, systemMonitor, wellness, lifestyle, tools
+    // Theme management
+    case themes
 
     var id: String { rawValue }
 
@@ -103,6 +173,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("健康", "Wellness")
         case .lifestyle: return localized("生活", "Lifestyle")
         case .tools: return localized("快捷工具", "Tools")
+        case .themes: return localized("主题", "Themes")
         }
     }
 
@@ -128,6 +199,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("久坐、阅读与呼吸", "Posture, reading & breathing")
         case .lifestyle: return localized("外卖、穿衣与宠物", "Food, outfit & pet")
         case .tools: return localized("剪贴板、哈希与窗口", "Clipboard, hash & windows")
+        case .themes: return localized("管理、排序与归档主题", "Manage, reorder & archive themes")
         }
     }
 
@@ -153,6 +225,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return "heart"
         case .lifestyle: return "takeoutbag.and.cup.and.straw"
         case .tools: return "wrench.and.screwdriver"
+        case .themes: return "rectangle.stack"
         }
     }
 
@@ -207,7 +280,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 
     var tabs: [SettingsTab] {
         switch self {
-        case .basic: return [.general, .lyrics, .slots, .editor, .services]
+        case .basic: return [.general, .lyrics, .slots, .themes, .editor, .services]
         case .data: return [.stock, .weather, .calendar, .package]
         case .productivity: return [.pomodoro, .homekit, .ai]
         case .life: return [.expense, .wellness, .lifestyle, .dock]
@@ -754,6 +827,7 @@ extension Deck {
 struct SettingsRootView: View {
     @State private var selection: SettingsTab = .general
     @Namespace private var navNamespace
+    @State private var refreshToken: UUID = UUID()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -761,6 +835,14 @@ struct SettingsRootView: View {
             content
         }
         .background(Deck.Background())
+        .onReceive(NotificationCenter.default.publisher(for: .settingsProfileImported)) { _ in
+            // Force all tabs to reload by toggling away and back
+            let current = selection
+            selection = .general
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                selection = current
+            }
+        }
     }
 
     private var sidebar: some View {
@@ -938,6 +1020,7 @@ struct SettingsRootView: View {
         case .wellness: WellnessTab()
         case .lifestyle: LifestyleTab()
         case .tools: ToolsTab()
+        case .themes: ThemesTab()
         }
     }
 }
