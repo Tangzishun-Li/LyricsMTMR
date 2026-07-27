@@ -70,7 +70,14 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 // MARK: - Tabs
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, lyrics, slots, editor, services
+    // Existing
+    case general, lyrics, slots, editor, services, about
+    // P0
+    case stock, pomodoro, weather
+    // P1
+    case package, calendar, homekit, ai
+    // P2
+    case expense, dock, notification, systemMonitor, wellness, lifestyle, tools
 
     var id: String { rawValue }
 
@@ -81,6 +88,21 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .slots: return localized("槽位", "Slots")
         case .editor: return localized("编辑器", "Editor")
         case .services: return localized("服务", "Services")
+        case .about: return localized("关于", "About")
+        case .stock: return localized("股票", "Stock")
+        case .pomodoro: return localized("番茄钟", "Pomodoro")
+        case .weather: return localized("天气", "Weather")
+        case .package: return localized("快递", "Package")
+        case .calendar: return localized("日历", "Calendar")
+        case .homekit: return localized("智能家居", "HomeKit")
+        case .ai: return localized("AI 助手", "AI")
+        case .expense: return localized("记账", "Expense")
+        case .dock: return localized("Dock", "Dock")
+        case .notification: return localized("通知", "Notification")
+        case .systemMonitor: return localized("系统监控", "Monitor")
+        case .wellness: return localized("健康", "Wellness")
+        case .lifestyle: return localized("生活", "Lifestyle")
+        case .tools: return localized("快捷工具", "Tools")
         }
     }
 
@@ -91,6 +113,21 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .slots: return localized("一键切换整套 Touch Bar 配置", "Switch whole Touch Bar layouts in one tap")
         case .editor: return localized("可视化调整 Touch Bar 元素", "Visually arrange Touch Bar elements")
         case .services: return localized("集中管理第三方 API 密钥", "Manage third-party API keys in one place")
+        case .about: return localized("项目构造说明与致谢", "Project credits & acknowledgments")
+        case .stock: return localized("A 股行情与图表", "A-share quotes & charts")
+        case .pomodoro: return localized("工作/休息时长", "Work & break intervals")
+        case .weather: return localized("城市、单位与显示", "City, units & display")
+        case .package: return localized("快递单号与刷新", "Tracking numbers & refresh")
+        case .calendar: return localized("日历源与日程范围", "Calendar sources & range")
+        case .homekit: return localized("米家场景与设备", "MiJia scenes & devices")
+        case .ai: return localized("模型与 Prompt 模板", "Model & prompt templates")
+        case .expense: return localized("类别、预算与目标", "Categories, budget & goals")
+        case .dock: return localized("固定应用与图标", "Pinned apps & icons")
+        case .notification: return localized("提醒开关与免打扰", "Alert toggles & DND")
+        case .systemMonitor: return localized("CPU/网络刷新率", "CPU & network refresh")
+        case .wellness: return localized("久坐、阅读与呼吸", "Posture, reading & breathing")
+        case .lifestyle: return localized("外卖、穿衣与宠物", "Food, outfit & pet")
+        case .tools: return localized("剪贴板、哈希与窗口", "Clipboard, hash & windows")
         }
     }
 
@@ -101,9 +138,84 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .slots: return "square.stack.3d.up"
         case .editor: return "slider.horizontal.3"
         case .services: return "key"
+        case .about: return "info.circle"
+        case .stock: return "chart.line.uptrend.xyaxis"
+        case .pomodoro: return "timer"
+        case .weather: return "cloud.sun"
+        case .package: return "shippingbox"
+        case .calendar: return "calendar"
+        case .homekit: return "house.fill"
+        case .ai: return "sparkles"
+        case .expense: return "yensign.circle"
+        case .dock: return "dock.rectangle"
+        case .notification: return "bell.badge"
+        case .systemMonitor: return "cpu"
+        case .wellness: return "heart"
+        case .lifestyle: return "takeoutbag.and.cup.and.straw"
+        case .tools: return "wrench.and.screwdriver"
+        }
+    }
+
+    /// Keywords for search (includes setting item titles)
+    var searchKeywords: [String] {
+        switch self {
+        case .stock: return ["股票", "Stock", "代码", "Symbol", "刷新", "Refresh", "图表", "Chart"]
+        case .pomodoro: return ["番茄钟", "Pomodoro", "工作", "Work", "休息", "Rest", "时长", "Duration"]
+        case .weather: return ["天气", "Weather", "城市", "City", "温度", "Temperature", "单位", "Unit"]
+        case .package: return ["快递", "Package", "单号", "Tracking", "物流", "Delivery"]
+        case .calendar: return ["日历", "Calendar", "日程", "Event", "会议", "Meeting"]
+        case .homekit: return ["智能家居", "HomeKit", "米家", "MiJia", "场景", "Scene"]
+        case .ai: return ["AI", "DeepSeek", "模型", "Model", "Prompt", "提示词"]
+        case .expense: return ["记账", "Expense", "类别", "Category", "预算", "Budget", "储蓄", "Savings"]
+        case .dock: return ["Dock", "应用", "App", "图标", "Icon"]
+        case .notification: return ["通知", "Notification", "提醒", "Alert", "免打扰", "DND"]
+        case .systemMonitor: return ["系统监控", "Monitor", "CPU", "网络", "Network", "温度", "Temp"]
+        case .wellness: return ["健康", "Wellness", "久坐", "Posture", "阅读", "Reading", "呼吸", "Breathing"]
+        case .lifestyle: return ["生活", "Lifestyle", "外卖", "Food", "穿衣", "Outfit", "宠物", "Pet"]
+        case .tools: return ["快捷工具", "Tools", "剪贴板", "Clipboard", "哈希", "Hash", "窗口", "Window"]
+        default: return []
         }
     }
 }
+
+// MARK: - Groups
+
+enum SettingsGroup: String, CaseIterable, Identifiable {
+    case basic, data, productivity, life, tools
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .basic: return localized("基础", "Basic")
+        case .data: return localized("数据", "Data")
+        case .productivity: return localized("效率", "Productivity")
+        case .life: return localized("生活", "Life")
+        case .tools: return localized("工具", "Tools")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .basic: return "gearshape.2"
+        case .data: return "chart.line.uptrend.xyaxis"
+        case .productivity: return "timer"
+        case .life: return "heart"
+        case .tools: return "wrench.and.screwdriver"
+        }
+    }
+
+    var tabs: [SettingsTab] {
+        switch self {
+        case .basic: return [.general, .lyrics, .slots, .editor, .services]
+        case .data: return [.stock, .weather, .calendar, .package]
+        case .productivity: return [.pomodoro, .homekit, .ai]
+        case .life: return [.expense, .wellness, .lifestyle, .dock]
+        case .tools: return [.systemMonitor, .notification, .tools, .about]
+        }
+    }
+}
+
 
 // MARK: - Design System
 
@@ -656,7 +768,11 @@ struct SettingsRootView: View {
             identity
                 .padding(.horizontal, 16)
                 .padding(.top, 46)
-                .padding(.bottom, 24)
+                .padding(.bottom, 10)
+
+            searchField
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
 
             nav
                 .padding(.horizontal, 10)
@@ -667,11 +783,33 @@ struct SettingsRootView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
         }
-        .frame(width: 212)
+        .frame(width: 220)
         .frame(maxHeight: .infinity)
         .background(Deck.sidebarFill.opacity(0.88))
         .overlay(alignment: .trailing) {
             Rectangle().fill(Deck.hairline).frame(width: 1)
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Deck.textTertiary)
+            TextField(localized("搜索设置", "Search"), text: $searchText)
+                .textFieldStyle(.plain)
+                .font(Deck.bodyFont)
+                .foregroundStyle(Deck.textPrimary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Deck.insetFill)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(Deck.hairline)
+                }
         }
     }
 
@@ -699,26 +837,68 @@ struct SettingsRootView: View {
         }
     }
 
+    @State private var searchText: String = ""
+
     private var nav: some View {
-        VStack(spacing: 4) {
-            ForEach(SettingsTab.allCases) { tab in
-                NavItem(tab: tab, isSelected: selection == tab, namespace: navNamespace) {
-                    selection = tab
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                if searchText.isEmpty {
+                    ForEach(SettingsGroup.allCases) { group in
+                        GroupSection(group: group, selection: $selection, namespace: navNamespace)
+                    }
+                } else {
+                    ForEach(matchingTabs, id: \.id) { tab in
+                        NavItem(tab: tab, isSelected: selection == tab, namespace: navNamespace) {
+                            selection = tab
+                        }
+                    }
                 }
             }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var matchingTabs: [SettingsTab] {
+        let q = searchText.lowercased()
+        return SettingsTab.allCases.filter { tab in
+            tab.title.lowercased().contains(q)
+                || tab.subtitle.lowercased().contains(q)
+                || tab.searchKeywords.contains { $0.lowercased().contains(q) }
         }
     }
 
     private var footer: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(Deck.mint)
-                .frame(width: 5, height: 5)
-            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
-                .font(Deck.monoFont)
-                .foregroundStyle(Deck.textTertiary)
-            Spacer()
-            Deck.Equalizer(tint: Deck.textTertiary.opacity(0.85), barCount: 3)
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Button {
+                    ImportExport.exportProfile()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 10))
+                        Text(localized("导出", "Export")).font(.system(size: 11))
+                    }.foregroundStyle(Deck.textSecondary)
+                }.buttonStyle(.plain)
+
+                Button {
+                    ImportExport.importProfile()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.down").font(.system(size: 10))
+                        Text(localized("导入", "Import")).font(.system(size: 11))
+                    }.foregroundStyle(Deck.textSecondary)
+                }.buttonStyle(.plain)
+            }
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Deck.mint)
+                    .frame(width: 5, height: 5)
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    .font(Deck.monoFont)
+                    .foregroundStyle(Deck.textTertiary)
+                Spacer()
+                Deck.Equalizer(tint: Deck.textTertiary.opacity(0.85), barCount: 3)
+            }
         }
     }
 
@@ -743,6 +923,21 @@ struct SettingsRootView: View {
         case .slots: SlotsTab()
         case .editor: EditorHostTab()
         case .services: ServicesTab()
+        case .about: AboutTab()
+        case .stock: StockTab()
+        case .pomodoro: PomodoroTab()
+        case .weather: WeatherTab()
+        case .package: PackageTab()
+        case .calendar: CalendarTab()
+        case .homekit: HomekitTab()
+        case .ai: AITab()
+        case .expense: ExpenseTab()
+        case .dock: DockTab()
+        case .notification: NotificationTab()
+        case .systemMonitor: SystemMonitorTab()
+        case .wellness: WellnessTab()
+        case .lifestyle: LifestyleTab()
+        case .tools: ToolsTab()
         }
     }
 }
@@ -787,6 +982,58 @@ struct NavItem: View {
     }
 }
 
+// MARK: - Group Section
+
+struct GroupSection: View {
+    let group: SettingsGroup
+    @Binding var selection: SettingsTab
+    let namespace: Namespace.ID
+
+    @State private var isExpanded: Bool = true
+
+    private var expandKey: String { "group.expanded.\(group.rawValue)" }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: group.symbol)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Deck.textTertiary)
+                        .frame(width: 18)
+                    Text(group.title)
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Deck.textTertiary)
+                    Spacer(minLength: 0)
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Deck.textTertiary)
+                }
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onChange(of: isExpanded) { _, newValue in
+                UserDefaults.standard.set(newValue, forKey: expandKey)
+            }
+
+            if isExpanded {
+                ForEach(group.tabs) { tab in
+                    NavItem(tab: tab, isSelected: selection == tab, namespace: namespace) {
+                        selection = tab
+                    }
+                }
+            }
+        }
+        .onAppear {
+            isExpanded = UserDefaults.standard.object(forKey: expandKey) as? Bool ?? true
+        }
+    }
+}
+
 // MARK: - Editor tab host (legacy AppKit editor, darkened to match)
 
 struct EditorHostTab: View {
@@ -828,7 +1075,7 @@ class SettingsRow: NSView {
         setup()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
@@ -865,7 +1112,7 @@ class SettingsPopup: NSPopUpButton {
         action = #selector(selectionChanged)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     @objc private func selectionChanged() {
         onSelectionChanged?(indexOfSelectedItem)
