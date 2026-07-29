@@ -357,6 +357,14 @@ enum ItemType: Decodable {
     case homekitScene(scenes: String)
     case aiSelectedText(model: String, prompt: String)
     case rssUnread(provider: String, refreshInterval: Double)
+    case latexSymbols
+    case citationGen(style: String)
+    case paperProgress(refreshInterval: Double, dataPath: String)
+    case paperTags(dataPath: String)
+    case bilibiliFeed(refreshInterval: Double)
+    case qrCode
+    case apiTester(defaultUrl: String)
+    case finderTags
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -439,6 +447,10 @@ enum ItemType: Decodable {
         case scenes
         case model
         case prompt
+        case redFolder
+        case greenFolder
+        case blueFolder
+        case defaultUrl
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -530,6 +542,14 @@ enum ItemType: Decodable {
         case homekitScene
         case aiSelectedText
         case rssUnread
+        case latexSymbols
+        case citationGen
+        case paperProgress
+        case paperTags
+        case bilibiliFeed
+        case qrCode
+        case apiTester
+        case finderTags
     }
 
     init(from decoder: Decoder) throws {
@@ -579,7 +599,7 @@ enum ItemType: Decodable {
         case .weather:
             let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
             let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "metric"
-            let api_key = try container.decodeIfPresent(String.self, forKey: .api_key) ?? "32c4256d09a4c52b38aecddba7a078f6"
+            let api_key = try container.decodeIfPresent(String.self, forKey: .api_key) ?? ""
             let icon_type = try container.decodeIfPresent(String.self, forKey: .icon_type) ?? "text"
             self = .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type)
             
@@ -881,6 +901,28 @@ enum ItemType: Decodable {
             let provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? ""
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
             self = .rssUnread(provider: provider, refreshInterval: refreshInterval)
+        case .latexSymbols:
+            self = .latexSymbols
+        case .citationGen:
+            let style = try container.decodeIfPresent(String.self, forKey: .style) ?? "both"
+            self = .citationGen(style: style)
+        case .paperProgress:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .paperProgress(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .paperTags:
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            self = .paperTags(dataPath: dataPath)
+        case .bilibiliFeed:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            self = .bilibiliFeed(refreshInterval: refreshInterval)
+        case .qrCode:
+            self = .qrCode
+        case .apiTester:
+            let defaultUrl = try container.decodeIfPresent(String.self, forKey: .defaultUrl) ?? ""
+            self = .apiTester(defaultUrl: defaultUrl)
+        case .finderTags:
+            self = .finderTags
         }
     }
 }
@@ -894,6 +936,18 @@ struct ThemeDefinition: Decodable {
         case label
         case preset
         case matchAppIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        preset = try container.decode(String.self, forKey: .preset)
+        matchAppIds = try container.decodeIfPresent([String].self, forKey: .matchAppIds)
+        // label may be null in JSON written by older sync code; fall back to preset stem
+        if let decoded = try container.decodeIfPresent(String.self, forKey: .label) {
+            label = decoded
+        } else {
+            label = (preset as NSString).deletingPathExtension
+        }
     }
 }
 

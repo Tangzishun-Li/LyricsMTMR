@@ -131,11 +131,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var unifiedSettingsController: UnifiedSettingsWindowController?
 
     @objc func openSettings(_: Any?) {
-        if unifiedSettingsController == nil {
+        if unifiedSettingsController == nil || unifiedSettingsController?.window == nil {
             unifiedSettingsController = UnifiedSettingsWindowController()
         }
         unifiedSettingsController?.showWindow(nil)
         unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)
+        // If the window was minimized, restore it.
+        if unifiedSettingsController?.window?.isMiniaturized == true {
+            unifiedSettingsController?.window?.deminiaturize(nil)
+        }
         NSApp.activate(ignoringOtherApps: true)
     }
 

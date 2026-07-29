@@ -16,11 +16,11 @@ class WordLookupItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("查词", "Word"), symbol: "character.book.closed.fill", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.86, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("剪贴板单词 → 点查询（\(provider)）", "clip word → lookup"), tint: TB.textSecondary)
         let go = TBOverlay.pillButton(title: localized("查询", "Lookup"), tag: 0, target: self, action: #selector(lookup), tint: TB.sky)
@@ -49,16 +49,16 @@ class WordLookupItem: TBPopoverItem {
 
     private func fetch(_ word: String) -> String {
         if provider == "deepseek" {
-            let key = AppSettings.deepseekAPIKey
+            let key = SecretsManager.shared.retrieve(.deepseekAPIKey)
             guard !key.isEmpty else { return localized("未配置 DeepSeek", "no DeepSeek key") }
             let body: [String: Any] = [
-                "model": AppSettings.deepseekModel,
+                "model": SecretsManager.shared.retrieve(.deepseekModel),
                 "messages": [
                     ["role": "system", "content": "用一句中文解释这个英文单词的含义"],
                     ["role": "user", "content": word],
                 ],
             ]
-            let url = AppSettings.deepseekBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/chat/completions"
+            let url = SecretsManager.shared.retrieve(.deepseekBaseURL).trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/chat/completions"
             if let json = TBNet.postJSON(url, body: body, headers: ["Authorization": "Bearer \(key)"]) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],
                let message = choices.first?["message"] as? [String: Any],

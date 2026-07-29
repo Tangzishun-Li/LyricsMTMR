@@ -1,7 +1,7 @@
 [
   {
     "type": "themeSwitch",
-        "themes": [
+    "themes": [
       {
         "label": "1",
         "preset": "theme1.json"
@@ -66,22 +66,17 @@
     "align": "left",
     "width": 44
   },
-
-  { "type": "escape", "width": 64, "align": "left" },
-
   {
     "type": "audioSpectrum",
     "barCount": 16,
     "align": "left",
     "width": 130
   },
-
   {
     "type": "playbackProgress",
     "align": "center",
     "width": 200
   },
-
   {
     "type": "lyrics",
     "width": 240,
@@ -91,25 +86,21 @@
     "showArtwork": true,
     "clickAction": "original"
   },
-
   {
     "type": "lyricsTranslate",
     "align": "right",
     "width": 44
   },
-
   {
     "type": "quickReply",
     "align": "right",
     "width": 44
   },
-
   {
     "type": "dock",
     "width": 180,
     "align": "left"
   },
-
   {
     "type": "timeButton",
     "formatTemplate": "HH:mm",

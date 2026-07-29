@@ -184,7 +184,7 @@
     "type": "weather",
     "align": "center",
     "icon_type": "images",
-    "api_key": "ca93a0bb8cdb428552660d83249e4bc9",
+    "api_key": "",
     "bordered": false,
     "longAction": "appleScript",
     "longActionAppleScript": {

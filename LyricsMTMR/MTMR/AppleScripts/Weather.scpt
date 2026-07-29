@@ -4,7 +4,7 @@
 tell application "Location Helper"
 	set clocation_coords to get location coordinates
 	tell application "JSON Helper"
-		set weather to fetch JSON from "http://api.openweathermap.org/data/2.5/weather?lat=" & item 1 of clocation_coords & "&lon=" & item 2 of clocation_coords & "&units=metric&appid=32c4256d09a4c52b38aecddba7a078f6"
+		set weather to fetch JSON from "http://api.openweathermap.org/data/2.5/weather?lat=" & item 1 of clocation_coords & "&lon=" & item 2 of clocation_coords & "&units=metric&appid=YOUR_OPENWEATHER_API_KEY"
 		set temp to temp of main of weather as string
 		set cond_icon to icon of item 1 of weather of weather as string
 		if cond_icon is in ["01d", "01n"] then

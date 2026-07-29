@@ -60,9 +60,7 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
         updateView()
     }
     
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
     
     private func updateView() -> Void {
         items = []
@@ -164,9 +162,7 @@ private class UpNextItem : CustomButtonTouchBarItem {
         super.init(identifier: NSTouchBarItem.Identifier(rawValue: identifier), title: title)
     }
     
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
     
     private static func getTitle(event: UpNextEventModel) -> String {
         var title = ""

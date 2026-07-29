@@ -67,11 +67,6 @@
     "width": 60
   },
   {
-    "type": "escape",
-    "width": 64,
-    "align": "left"
-  },
-  {
     "type": "billSplit",
     "align": "left",
     "width": 84

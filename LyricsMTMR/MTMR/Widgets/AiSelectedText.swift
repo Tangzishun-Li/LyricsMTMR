@@ -18,11 +18,11 @@ class AiSelectedTextItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "AI", symbol: "sparkles", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.94, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点按发送剪贴板文本给 AI", "send clipboard to AI"), tint: TB.textSecondary)
         let send = TBOverlay.pillButton(title: localized("发送", "Send"), tag: 0, target: self, action: #selector(send), tint: TB.purple)
@@ -38,7 +38,7 @@ class AiSelectedTextItem: TBPopoverItem {
             resultLabel?.textColor = TB.coral
             return
         }
-        let key = AppSettings.deepseekAPIKey
+        let key = SecretsManager.shared.retrieve(.deepseekAPIKey)
         guard !key.isEmpty else {
             resultLabel?.stringValue = localized("未配置 DeepSeek Key", "no API key")
             resultLabel?.textColor = TB.gold
@@ -47,8 +47,8 @@ class AiSelectedTextItem: TBPopoverItem {
         resultLabel?.stringValue = localized("思考中…", "thinking…")
         resultLabel?.textColor = TB.textSecondary
         let system = prompt.isEmpty ? localized("用一句话简明解答或润色以下内容。", "Answer or polish concisely.") : prompt
-        let useModel = model.isEmpty ? AppSettings.deepseekModel : model
-        let base = AppSettings.deepseekBaseURL
+        let useModel = model.isEmpty ? SecretsManager.shared.retrieve(.deepseekModel) : model
+        let base = SecretsManager.shared.retrieve(.deepseekBaseURL)
         DispatchQueue.global().async { [weak self] in
             let body: [String: Any] = [
                 "model": useModel,

@@ -16,11 +16,11 @@ class HashCalcItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "Hash", symbol: "fingerprint", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.86, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("剪贴板 → 选择算法（默认 \(algorithm.uppercased())）", "clip → pick algo"), tint: TB.textSecondary)
         let md5 = TBOverlay.pillButton(title: "MD5", tag: 0, target: self, action: #selector(run(_:)), tint: TB.gold)

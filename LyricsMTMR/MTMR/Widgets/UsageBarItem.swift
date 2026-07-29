@@ -74,9 +74,7 @@ class UsageBarItem: CustomButtonTouchBarItem {
         scheduleRefresh()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     deinit {
         refreshTimer?.invalidate()
@@ -144,9 +142,13 @@ class UsageBarItem: CustomButtonTouchBarItem {
             return
         }
 
+        // JSON 配置优先；留空则回退到「设置 → 服务」中填写的 key
+        let resolvedKey = config.apiKey.isEmpty ? SecretsManager.shared.retrieve(.deepseekAPIKey) : config.apiKey
+        guard !resolvedKey.isEmpty else { completion(nil); return }
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(resolvedKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 15
 

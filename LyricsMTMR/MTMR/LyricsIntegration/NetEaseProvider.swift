@@ -57,52 +57,58 @@ enum NetEaseProvider {
 
     // MARK: - Fetch Lyrics
 
-    static func fetchLyrics(songId: Int) async throws -> SimpleLyrics {
-        let payload: [String: Any] = [
-            "id": "\(songId)",
-            "cp": "false",
-            "lv": "0",
-            "kv": "0",
-            "tv": "0",
-            "rv": "0",
-            "yv": "0",
-            "ytv": "0",
-            "yrv": "0",
-            "csrf_token": "",
-        ]
+   static func fetchLyrics(songId: Int) async throws -> SimpleLyrics {
+       let payload: [String: Any] = [
+           "id": "\(songId)",
+           "cp": "false",
+            "lv": "-1",
+            "kv": "-1",
+           "tv": "0",
+           "rv": "0",
+            "yv": "-1",
+           "ytv": "0",
+           "yrv": "0",
+           "csrf_token": "",
+       ]
 
         let raw = try await eapiPost(
             url: "https://interface3.music.163.com/eapi/song/lyric/v1",
             payload: payload
         )
 
-        guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
-            throw NetEaseError.parseFailed
-        }
+       guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
+           throw NetEaseError.parseFailed
+       }
 
-        if let yrc = json["yrc"] as? [String: Any],
-           let yrcLyric = yrc["lyric"] as? String,
-           !yrcLyric.isEmpty,
-           let lyrics = parseYRC(yrcLyric) {
-            return lyrics
-        }
+       if let yrc = json["yrc"] as? [String: Any],
+          let yrcLyric = yrc["lyric"] as? String,
+          !yrcLyric.isEmpty,
+          let lyrics = parseYRC(yrcLyric) {
+            let wordCount = lyrics.lines.reduce(0) { $0 + $1.words.count }
+            AppLog.lyrics("NetEase.fetchLyrics: YRC path — \(lyrics.lines.count) lines, \(wordCount) words total")
+           return lyrics
+       }
 
-        if let klyric = json["klyric"] as? [String: Any],
-           let kLyricText = klyric["lyric"] as? String,
-           !kLyricText.isEmpty,
-           let lyrics = parseKRC(kLyricText) {
-            return lyrics
-        }
+       if let klyric = json["klyric"] as? [String: Any],
+          let kLyricText = klyric["lyric"] as? String,
+          !kLyricText.isEmpty,
+          let lyrics = parseKRC(kLyricText) {
+            let wordCount = lyrics.lines.reduce(0) { $0 + $1.words.count }
+            AppLog.lyrics("NetEase.fetchLyrics: KRC path — \(lyrics.lines.count) lines, \(wordCount) words total")
+           return lyrics
+       }
 
-        if let lrc = json["lrc"] as? [String: Any],
-           let lrcLyric = lrc["lyric"] as? String,
-           !lrcLyric.isEmpty,
-           let lyrics = SimpleLyrics.parse(lrcContent: lrcLyric) {
-            return lyrics
-        }
+       if let lrc = json["lrc"] as? [String: Any],
+          let lrcLyric = lrc["lyric"] as? String,
+          !lrcLyric.isEmpty,
+          let lyrics = SimpleLyrics.parse(lrcContent: lrcLyric) {
+            AppLog.lyrics("NetEase.fetchLyrics: LRC fallback — \(lyrics.lines.count) lines (no word timing)")
+           return lyrics
+       }
 
-        throw NetEaseError.noLyrics
-    }
+        AppLog.lyrics("NetEase.fetchLyrics: NO lyrics found for songId=\(songId)")
+       throw NetEaseError.noLyrics
+   }
 
     static func fetchTranslation(songId: Int) async -> SimpleLyrics? {
         let payload: [String: Any] = [
@@ -283,36 +289,58 @@ enum NetEaseProvider {
                   let sec = Double(components[1]) else { continue }
             let lineTime = min * 60 + sec
 
-            var wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
-            wordContent = wordContent.replacingOccurrences(of: #"^\[tt\]"#, with: "", options: .regularExpression)
-            wordContent = wordContent.replacingOccurrences(of: #"^\[(\d+),(\d+)\]"#, with: "", options: .regularExpression)
-            wordContent = wordContent.replacingOccurrences(of: #"^(<(\d+,\d+)>)+"#, with: "", options: .regularExpression)
-            var cleanText = ""
-            var timetags: [(TimeInterval, Int)] = []
+           var wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
+           wordContent = wordContent.replacingOccurrences(of: #"^\[tt\]"#, with: "", options: .regularExpression)
+           wordContent = wordContent.replacingOccurrences(of: #"^\[(\d+),(\d+)\]"#, with: "", options: .regularExpression)
+           var cleanText = ""
+           var words: [SimpleLyrics.Word] = []
 
-            let hasParen = wordContent.contains("(")
-            let hasAngle = wordContent.contains("<")
-            let wordPattern = hasParen ? yrcWordPattern : (hasAngle ? yrcWordPatternAngle : nil)
-            if let wp = wordPattern {
-                let wordMatches = wp.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
-                for wm in wordMatches {
-                    let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
-                    let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
-                    let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
-                    guard let wordMs = Double(wordMsStr),
-                          let wordDurMs = Double(wordDurMsStr) else { continue }
+           let hasParen = wordContent.contains("(")
+           let hasAngle = wordContent.contains("<")
+            // Choose word pattern: prefer paren format (123,456)text, fall back to angle <123,456>text.
+            // For angle format, we need to handle the first word which starts at position 0
+            // (its timing tag is at the very beginning of wordContent).
+            let wordPattern: NSRegularExpression? = hasParen ? yrcWordPattern : (hasAngle ? yrcWordPatternAngle : nil)
+           if let wp = wordPattern {
+               let wordMatches = wp.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
+               for wm in wordMatches {
+                   let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
+                   let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
+                   let wordText = (wordContent as NSString).substring(with: wm.range(at: 3))
+                   guard let wordMs = Double(wordMsStr),
+                         let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                    let prevCount = cleanText.count
-                    let strippedWord = wordText
+                   let strippedWord = wordText
+                       .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    let wordStartUTF16 = (cleanText as NSString).length
+                   cleanText += strippedWord
+                   if wm.range(at: 4).location != NSNotFound {
+                       cleanText += " "
+                   }
+                   words.append(SimpleLyrics.Word(
+                       text: strippedWord,
+                       startTime: wordMs / 1000.0,
+                       duration: wordDurMs / 1000.0,
+                       charIndex: wordStartUTF16
+                   ))
+               }
+
+                // Handle any leading text before the first word match (angle bracket format
+                // where the first word's timing tag was at position 0 and got matched, but
+                // there might be un-matched prefix text in paren format edge cases).
+                if let firstMatch = wordMatches.first, firstMatch.range.location > 0 {
+                    let prefixText = (wordContent as NSString).substring(to: firstMatch.range.location)
+                        .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
-                    cleanText += strippedWord
-                    if wm.range(at: 4).location != NSNotFound {
-                        cleanText += " "
+                        .trimmingCharacters(in: .whitespaces)
+                    if !prefixText.isEmpty {
+                        let prefixLen = (prefixText as NSString).length
+                        // Shift all existing word charIndices forward
+                        words = words.map { SimpleLyrics.Word(text: $0.text, startTime: $0.startTime, duration: $0.duration, charIndex: $0.charIndex + prefixLen) }
+                        cleanText = prefixText + cleanText
                     }
-                    timetags.append((wordMs / 1000.0, prevCount))
-                    _ = wordDurMs
                 }
-            }
+           }
 
             if cleanText.isEmpty {
                 cleanText = wordContent
@@ -323,7 +351,7 @@ enum NetEaseProvider {
             }
 
             guard !cleanText.isEmpty else { continue }
-            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, timetags: timetags))
+            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, words: words))
         }
 
         guard !lines.isEmpty else { return nil }
@@ -331,9 +359,10 @@ enum NetEaseProvider {
         return SimpleLyrics(lines: lines, adjustedTimeDelay: adjustedTimeDelay)
     }
 
-    private static let yrcLinePattern = try! NSRegularExpression(pattern: #"\[(\d+:\d+\.\d+)\](.*)"#)
-    private static let yrcWordPattern = try! NSRegularExpression(pattern: #"\((\d+),(\d+)\)([^\(]*?)(?=\(\d+,\d+\)|$)"#)
-    private static let yrcWordPatternAngle = try! NSRegularExpression(pattern: #"<(\d+),(\d+)>([^<]*?)(?=<\d+,\d+>|$)"#)
+   private static let yrcLinePattern = try! NSRegularExpression(pattern: #"\[(\d+:\d+\.\d+)\](.*)"#)
+   private static let yrcWordPattern = try! NSRegularExpression(pattern: #"\((\d+),(\d+)\)([^\(]*?)(?=\(\d+,\d+\)|$)"#)
+    // Angle format: <startMs,durMs>text — matches each timed segment including the first one.
+    private static let yrcWordPatternAngle = try! NSRegularExpression(pattern: #"<(\d+),(\d+)>([^<]*?)(?=<\d+,\d+>|<\d+>|$)"#)
 
     // MARK: - KRC Parser
 
@@ -366,7 +395,7 @@ enum NetEaseProvider {
 
             let wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
             var cleanText = ""
-            var timetags: [(TimeInterval, Int)] = []
+            var words: [SimpleLyrics.Word] = []
             var dt: TimeInterval = 0
 
             let hasUnicodeAngle = wordContent.contains("\u{3008}") || wordContent.contains("\u{3009}")
@@ -381,14 +410,19 @@ enum NetEaseProvider {
                     guard let wordMs = Double(wordMsStr),
                           let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                    let prevCount = cleanText.count
+                    let prevCount = (cleanText as NSString).length
                     let strippedWord = wordText
                         .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    let wordStartUTF16 = prevCount
                     cleanText += strippedWord
                     if wm.range(at: 4).location != NSNotFound { cleanText += " " }
                     dt += wordMs / 1000.0
-                    timetags.append((dt, prevCount))
-                    _ = wordDurMs
+                    words.append(SimpleLyrics.Word(
+                        text: strippedWord,
+                        startTime: dt,
+                        duration: wordDurMs / 1000.0,
+                        charIndex: wordStartUTF16
+                    ))
                 }
             }
 
@@ -402,7 +436,7 @@ enum NetEaseProvider {
             }
 
             guard !cleanText.isEmpty else { continue }
-            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, timetags: timetags))
+            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, words: words))
         }
 
         guard !lines.isEmpty else { return nil }

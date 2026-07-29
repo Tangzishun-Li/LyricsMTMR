@@ -152,4 +152,36 @@ class SettingsSync {
         }
         NotificationCenter.default.post(name: .settingsProfileImported, object: nil)
     }
+
+    // MARK: - Editor <-> Settings Tab sync
+
+    /// Post when an item property changes in the editor inspector.
+    static func postItemConfigChanged(itemType: String, key: String, newValue: Any) {
+        NotificationCenter.default.post(
+            name: .mtmrItemConfigChanged,
+            object: nil,
+            userInfo: ["itemType": itemType, "key": key, "newValue": newValue]
+        )
+    }
+
+    /// Post when a global setting changes in a settings tab.
+    static func postGlobalConfigChanged(domain: String, key: String, newValue: Any) {
+        NotificationCenter.default.post(
+            name: .mtmrGlobalConfigChanged,
+            object: nil,
+            userInfo: ["domain": domain, "key": key, "newValue": newValue]
+        )
+    }
+}
+
+// MARK: - Notification names for editor/settings sync
+
+extension Notification.Name {
+    /// An item's property was changed in the editor inspector.
+    /// userInfo: itemType (String), key (String), newValue (Any)
+    static let mtmrItemConfigChanged = Notification.Name("LyricsMTMRItemConfigChangedNotification")
+
+    /// A global setting was changed in a settings tab.
+    /// userInfo: domain (String), key (String), newValue (Any)
+    static let mtmrGlobalConfigChanged = Notification.Name("LyricsMTMRGlobalConfigChangedNotification")
 }

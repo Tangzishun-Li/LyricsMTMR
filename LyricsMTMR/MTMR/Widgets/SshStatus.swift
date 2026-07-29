@@ -14,13 +14,13 @@ class SshStatusItem: TBPollItem {
     private var configured = true
 
     init(identifier: NSTouchBarItem.Identifier, host: String, refreshInterval: Double) {
-        let resolved = host.isEmpty ? AppSettings.sshHost : host
+        let resolved = host.isEmpty ? SecretsManager.shared.retrieve(.sshHost) : host
         self.host = resolved
         super.init(identifier: identifier, refreshInterval: refreshInterval,
                    icon: "network.badge.shield.half.filled", tint: TB.purple,
                    label: localized("主机", "SSH"), width: 120)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard !host.isEmpty else {

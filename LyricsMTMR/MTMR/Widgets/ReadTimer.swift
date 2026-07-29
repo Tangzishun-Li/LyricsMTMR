@@ -17,11 +17,11 @@ class ReadTimerItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("阅读计时", "ReadTimer"), symbol: "book.pages.fill", tint: TB.mint)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.6, accent: TB.mint)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.mint)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let ring = TBRingView(frame: NSRect(x: close.frame.maxX + 10, y: (card.bounds.height - 24) / 2, width: 24, height: 24))
         ring.tint = TB.mint
@@ -40,7 +40,7 @@ class ReadTimerItem: TBPopoverItem {
         refresh()
         let toggle = TBOverlay.pillButton(title: running ? localized("暂停", "Pause") : localized("开始", "Start"), tag: 0, target: self, action: #selector(toggle), tint: TB.mint)
         let reset = TBOverlay.pillButton(title: localized("归零", "Reset"), tag: 1, target: self, action: #selector(reset), tint: TB.sky)
-        TBOverlay.buttonRow(in: card, buttons: [toggle, reset], afterClose: close)
+        TBOverlay.buttonRow(in: card, buttons: [toggle, reset], afterClose: close, centered: true)
         return root
     }
 

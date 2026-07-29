@@ -16,11 +16,11 @@ class PortCheckerItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("端口", "Port"), symbol: "point.3.connected.trianglepath.dotted", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.92, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点选端口查询占用…", "pick a port"), tint: TB.textSecondary)
         var ports = [8080, 3000, 5173, 8000, 5432, 3306, 6379, 27017]

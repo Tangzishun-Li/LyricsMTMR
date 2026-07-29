@@ -18,7 +18,7 @@ class MeetingCountdownItem: TBPollItem {
                    label: localized("会议", "Meet"), width: 168)
         TBEvents.requestAccess()
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard TBEvents.authorized else {

@@ -11,6 +11,7 @@
 #import "TouchBarSupport.h"
 #import "DeprecatedCarbonAPI.h"
 #import "CBBlueLightClient.h"
+#import "../MTMRExceptionCatcher.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

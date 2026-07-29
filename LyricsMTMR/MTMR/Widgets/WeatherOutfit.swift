@@ -22,7 +22,7 @@ class WeatherOutfitItem: TBPollItem {
                    icon: "tshirt.fill", tint: TB.sky,
                    label: localized("穿衣", "Outfit"), width: 168)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let url = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=temperature_2m,weather_code"

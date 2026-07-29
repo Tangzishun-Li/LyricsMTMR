@@ -139,15 +139,13 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     // Existing
-    case general, lyrics, slots, editor, services, about
+    case general, lyrics, slots, editor, keyBindings, services, about
     // P0
-    case stock, pomodoro, weather
+    case stock, pomodoro, weather, rss
     // P1
     case package, calendar, homekit, ai
     // P2
     case expense, dock, notification, systemMonitor, wellness, lifestyle, tools
-    // Theme management
-    case themes
 
     var id: String { rawValue }
 
@@ -157,11 +155,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return localized("歌词", "Lyrics")
         case .slots: return localized("槽位", "Slots")
         case .editor: return localized("编辑器", "Editor")
+        case .keyBindings: return localized("键位", "Keys")
         case .services: return localized("服务", "Services")
         case .about: return localized("关于", "About")
         case .stock: return localized("股票", "Stock")
         case .pomodoro: return localized("番茄钟", "Pomodoro")
         case .weather: return localized("天气", "Weather")
+        case .rss: return localized("RSS", "RSS")
         case .package: return localized("快递", "Package")
         case .calendar: return localized("日历", "Calendar")
         case .homekit: return localized("智能家居", "HomeKit")
@@ -173,7 +173,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("健康", "Wellness")
         case .lifestyle: return localized("生活", "Lifestyle")
         case .tools: return localized("快捷工具", "Tools")
-        case .themes: return localized("主题", "Themes")
         }
     }
 
@@ -183,11 +182,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return localized("Touch Bar 歌词的外观与行为", "How lyrics look & behave on the Touch Bar")
         case .slots: return localized("一键切换整套 Touch Bar 配置", "Switch whole Touch Bar layouts in one tap")
         case .editor: return localized("可视化调整 Touch Bar 元素", "Visually arrange Touch Bar elements")
+        case .keyBindings: return localized("可视化编辑快捷键绑定", "Visually edit key bindings")
         case .services: return localized("集中管理第三方 API 密钥", "Manage third-party API keys in one place")
         case .about: return localized("项目构造说明与致谢", "Project credits & acknowledgments")
         case .stock: return localized("A 股行情与图表", "A-share quotes & charts")
         case .pomodoro: return localized("工作/休息时长", "Work & break intervals")
         case .weather: return localized("城市、单位与显示", "City, units & display")
+        case .rss: return localized("订阅源、获取方式与未读角标", "Feeds, fetch mode & unread badge")
         case .package: return localized("快递单号与刷新", "Tracking numbers & refresh")
         case .calendar: return localized("日历源与日程范围", "Calendar sources & range")
         case .homekit: return localized("米家场景与设备", "MiJia scenes & devices")
@@ -199,7 +200,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("久坐、阅读与呼吸", "Posture, reading & breathing")
         case .lifestyle: return localized("外卖、穿衣与宠物", "Food, outfit & pet")
         case .tools: return localized("剪贴板、哈希与窗口", "Clipboard, hash & windows")
-        case .themes: return localized("管理、排序与归档主题", "Manage, reorder & archive themes")
         }
     }
 
@@ -209,11 +209,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .lyrics: return "music.note.list"
         case .slots: return "square.stack.3d.up"
         case .editor: return "slider.horizontal.3"
+        case .keyBindings: return "keyboard"
         case .services: return "key"
         case .about: return "info.circle"
         case .stock: return "chart.line.uptrend.xyaxis"
         case .pomodoro: return "timer"
         case .weather: return "cloud.sun"
+        case .rss: return "dot.radiowaves.left.and.right"
         case .package: return "shippingbox"
         case .calendar: return "calendar"
         case .homekit: return "house.fill"
@@ -225,16 +227,17 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return "heart"
         case .lifestyle: return "takeoutbag.and.cup.and.straw"
         case .tools: return "wrench.and.screwdriver"
-        case .themes: return "rectangle.stack"
         }
     }
 
     /// Keywords for search (includes setting item titles)
     var searchKeywords: [String] {
         switch self {
+        case .keyBindings: return ["键位", "Keys", "快捷键", "Shortcut", "绑定", "Binding", "keyCode", "组合键", "Combo"]
         case .stock: return ["股票", "Stock", "代码", "Symbol", "刷新", "Refresh", "图表", "Chart"]
         case .pomodoro: return ["番茄钟", "Pomodoro", "工作", "Work", "休息", "Rest", "时长", "Duration"]
         case .weather: return ["天气", "Weather", "城市", "City", "温度", "Temperature", "单位", "Unit"]
+        case .rss: return ["RSS", "订阅", "Feed", "订阅源", "Source", "未读", "Unread", "Feedly", "Miniflux", "FreshRSS", "RSSHub"]
         case .package: return ["快递", "Package", "单号", "Tracking", "物流", "Delivery"]
         case .calendar: return ["日历", "Calendar", "日程", "Event", "会议", "Meeting"]
         case .homekit: return ["智能家居", "HomeKit", "米家", "MiJia", "场景", "Scene"]
@@ -280,8 +283,8 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 
     var tabs: [SettingsTab] {
         switch self {
-        case .basic: return [.general, .lyrics, .slots, .themes, .editor, .services]
-        case .data: return [.stock, .weather, .calendar, .package]
+        case .basic: return [.general, .lyrics, .slots, .editor, .keyBindings, .services]
+        case .data: return [.stock, .weather, .calendar, .package, .rss]
         case .productivity: return [.pomodoro, .homekit, .ai]
         case .life: return [.expense, .wellness, .lifestyle, .dock]
         case .tools: return [.systemMonitor, .notification, .tools, .about]
@@ -828,13 +831,38 @@ struct SettingsRootView: View {
     @State private var selection: SettingsTab = .general
     @Namespace private var navNamespace
     @State private var refreshToken: UUID = UUID()
+    @State private var sidebarVisible: Bool = true
+
+    private let sidebarVisibilityKey = "settings.sidebar.visible"
+
+    /// Standard macOS title-bar height. Traffic lights are vertically
+    /// centred inside this 28 pt strip, so custom controls that should
+    /// sit on the same row use the same constant.
+    private static let titleBarHeight: CGFloat = 28
 
     var body: some View {
         HStack(spacing: 0) {
-            sidebar
+            if sidebarVisible {
+                sidebar
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)))
+            }
             content
         }
         .background(Deck.Background())
+        .overlay(alignment: .topLeading) {
+            // Sidebar toggle — lives in the title-bar strip, vertically
+            // centred with the traffic lights and just to their right.
+            sidebarToggleButton
+                .padding(.leading, 70)
+                .padding(.top, (Self.titleBarHeight - 26) / 2)   // ≈ 1 pt
+        }
+        // fullSizeContentView lets the hosting view extend under the
+        // title bar, but SwiftUI still insets for the title-bar safe
+        // area. Ignore it so the overlay origin sits at the true
+        // window top — same coordinate space as the traffic lights.
+        .ignoresSafeArea(.container, edges: .top)
         .onReceive(NotificationCenter.default.publisher(for: .settingsProfileImported)) { _ in
             // Force all tabs to reload by toggling away and back
             let current = selection
@@ -843,13 +871,46 @@ struct SettingsRootView: View {
                 selection = current
             }
         }
+        .onAppear {
+            let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool
+            sidebarVisible = saved ?? true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .editorFocusModeRequested)) { _ in
+            // Hide sidebar
+            sidebarVisible = false
+            UserDefaults.standard.set(false, forKey: sidebarVisibilityKey)
+            // Zoom window to maximum size (not fullscreen)
+            if let window = NSApp.keyWindow {
+                window.performZoom(nil)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyBindingTabRequested)) { _ in
+            sidebarVisible = true
+            selection = .keyBindings
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: sidebarVisible)
+    }
+
+    private var sidebarToggleButton: some View {
+        Button {
+            sidebarVisible.toggle()
+            UserDefaults.standard.set(sidebarVisible, forKey: sidebarVisibilityKey)
+        } label: {
+            Image(systemName: sidebarVisible ? "sidebar.left" : "sidebar.leading")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Deck.textSecondary)
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(localized("切换侧栏", "Toggle Sidebar"))
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             identity
                 .padding(.horizontal, 16)
-                .padding(.top, 46)
+                .padding(.top, Self.titleBarHeight + 10)   // 38 pt — clear of the title bar
                 .padding(.bottom, 10)
 
             searchField
@@ -1004,11 +1065,13 @@ struct SettingsRootView: View {
         case .lyrics: LyricsTab()
         case .slots: SlotsTab()
         case .editor: EditorHostTab()
+        case .keyBindings: KeyBindingTab()
         case .services: ServicesTab()
         case .about: AboutTab()
         case .stock: StockTab()
         case .pomodoro: PomodoroTab()
         case .weather: WeatherTab()
+        case .rss: RSSTab()
         case .package: PackageTab()
         case .calendar: CalendarTab()
         case .homekit: HomekitTab()
@@ -1020,7 +1083,6 @@ struct SettingsRootView: View {
         case .wellness: WellnessTab()
         case .lifestyle: LifestyleTab()
         case .tools: ToolsTab()
-        case .themes: ThemesTab()
         }
     }
 }
@@ -1117,30 +1179,54 @@ struct GroupSection: View {
     }
 }
 
-// MARK: - Editor tab host (legacy AppKit editor, darkened to match)
+// MARK: - Editor tab host (modern SwiftUI ribbon editor)
 
 struct EditorHostTab: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Deck.Header(title: SettingsTab.editor.title, subtitle: SettingsTab.editor.subtitle)
-                .padding(.horizontal, 26)
-                .padding(.top, 38)
-            EditorHost()
+        VStack(alignment: .leading, spacing: 0) {
+            editorFocusHint
+            RibbonEditorView()
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
-}
 
-struct EditorHost: NSViewRepresentable {
-    func makeNSView(context: Context) -> EditorTabView {
-        let view = EditorTabView()
-        view.appearance = NSAppearance(named: .darkAqua)
-        return view
+    /// Slim hint bar: suggests maximizing + hiding sidebar, with a one-tap focus button.
+    private var editorFocusHint: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lightbulb")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Deck.accent.opacity(0.8))
+            Text(localized("放大并隐藏侧栏获得最佳编写效果", "Maximize and hide the sidebar for the best editing experience"))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Deck.textTertiary)
+            Spacer()
+            Button {
+                NotificationCenter.default.post(name: .editorFocusModeRequested, object: nil)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 9, weight: .bold))
+                    Text(localized("专注模式", "Focus"))
+                        .font(.system(size: 10.5, weight: .semibold))
+                }
+                .foregroundStyle(Deck.accent)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4.5)
+                .background(
+                    Capsule()
+                        .fill(Deck.accent.opacity(0.12))
+                        .overlay(Capsule().strokeBorder(Deck.accent.opacity(0.28), lineWidth: 0.8))
+                )
+            }
+            .buttonStyle(.plain)
+            .help(localized("窗口放到最大（不全屏）并隐藏侧栏", "Zoom the window (not fullscreen) and hide the sidebar"))
+        }
+        .padding(.horizontal, 26)
+        .padding(.top, 34)
+        .padding(.bottom, 10)
     }
-
-    func updateNSView(_ nsView: EditorTabView, context: Context) {}
 }
 
 // MARK: - Legacy AppKit controls (used by the editor inspector)
@@ -1200,4 +1286,13 @@ class SettingsPopup: NSPopUpButton {
     @objc private func selectionChanged() {
         onSelectionChanged?(indexOfSelectedItem)
     }
+}
+
+// MARK: - Editor focus mode notification
+
+extension Notification.Name {
+    /// Posted by the editor's focus button to request sidebar-hidden + window zoom.
+    static let editorFocusModeRequested = Notification.Name("LyricsMTMREditorFocusModeRequestedNotification")
+    /// Posted by the editor toolbar to request switching to the keyBindings tab.
+    static let keyBindingTabRequested = Notification.Name("LyricsMTMRKeyBindingTabRequestedNotification")
 }

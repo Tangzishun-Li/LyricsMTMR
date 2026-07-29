@@ -15,7 +15,7 @@ class DiskIOItem: TBPollItem {
                    icon: "internaldrive.fill", tint: TB.sky,
                    label: localized("磁盘", "Disk"), width: 168)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         // iostat 第二行起为采样数据；取最后一行的传输列（KB/t, xfrs, MB/s）。

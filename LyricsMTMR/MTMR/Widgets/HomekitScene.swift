@@ -17,11 +17,11 @@ class HomekitSceneItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("家居", "Home"), symbol: "house.fill", tint: TB.mint)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.82, accent: TB.mint)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.mint)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("选择场景", "pick a scene"), tint: TB.textSecondary)
         let buttons = scenes.enumerated().map { index, name -> NSButton in
@@ -34,7 +34,7 @@ class HomekitSceneItem: TBPopoverItem {
     @objc private func trigger(_ sender: NSButton) {
         HapticFeedback.instance.tap(type: .medium)
         let scene = scenes[sender.tag]
-        let token = AppSettings.mijiaToken
+        let token = SecretsManager.shared.retrieve(.mijiaToken)
         if token.isEmpty {
             resultLabel?.stringValue = localized("「\(scene)」已触发 (mock)", "triggered (mock)")
             resultLabel?.textColor = TB.mint

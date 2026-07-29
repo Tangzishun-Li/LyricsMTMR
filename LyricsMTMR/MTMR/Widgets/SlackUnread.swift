@@ -18,10 +18,10 @@ class SlackUnreadItem: TBPollItem {
                    icon: "number.square.fill", tint: TB.purple,
                    label: "Slack", width: 140)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
-        let token = AppSettings.slackBotToken
+        let token = SecretsManager.shared.retrieve(.slackBotToken)
         guard !token.isEmpty else {
             value = localized("未配置", "no token")
             sub = "mock · 3"

@@ -67,11 +67,6 @@
     "width": 60
   },
   {
-    "type": "escape",
-    "width": 64,
-    "align": "left"
-  },
-  {
     "type": "pixelPet",
     "align": "left",
     "width": 100,
@@ -87,14 +82,14 @@
     "type": "homekitScene",
     "align": "center",
     "width": 100,
-    "scenes": "回家,离家"
+    "scenes": "\u56de\u5bb6,\u79bb\u5bb6"
   },
   {
     "type": "aiSelectedText",
     "align": "center",
     "width": 84,
     "model": "deepseek-v4-flash",
-    "prompt": "解释这段文字"
+    "prompt": "\u89e3\u91ca\u8fd9\u6bb5\u6587\u5b57"
   },
   {
     "type": "rssUnread",

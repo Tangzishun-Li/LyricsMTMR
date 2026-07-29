@@ -15,11 +15,11 @@ class BillSplitItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("AA", "Split"), symbol: "arrow.triangle.branch", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.92, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         amount = Self.parseAmount(TBClip.read())
         let hint = amount > 0 ? localized("¥\(Self.fmt(amount)) · 选人数", "¥\(Self.fmt(amount))") : localized("剪贴板无金额 · 点选示例", "no amount")

@@ -13,11 +13,11 @@ class ShortcutHintsItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("快捷键", "Keys"), symbol: "command", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.94, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let (app, hints) = Self.currentHints()
         resultLabel = TBOverlay.resultLabel(in: card, text: "\(app) · \(hints)", tint: TB.purple)

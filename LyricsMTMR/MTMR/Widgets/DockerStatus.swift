@@ -16,7 +16,7 @@ class DockerStatusItem: TBPollItem {
                    icon: "shippingbox.fill", tint: TB.sky,
                    label: "Docker", width: 138)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let probe = TBShell.run("command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && echo ok")

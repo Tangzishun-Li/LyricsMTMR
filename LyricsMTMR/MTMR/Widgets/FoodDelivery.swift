@@ -23,7 +23,7 @@ class FoodDeliveryItem: TBPollItem {
                    label: localized("外卖", "Food"), width: 156)
         metric.progressTint = TB.coral
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         progress += 0.04

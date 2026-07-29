@@ -36,9 +36,8 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         button.addGestureRecognizer(longPress)
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder: NSCoder) { return nil }
+
 
     // MARK: - Trigger
 

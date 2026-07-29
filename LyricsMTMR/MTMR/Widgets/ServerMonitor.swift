@@ -19,11 +19,11 @@ class ServerMonitorItem: TBPollItem {
                    icon: "server.rack", tint: TB.purple,
                    label: localized("服务器", "Server"), width: 150)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
-        let target = host.isEmpty ? AppSettings.sshHost : host
-        let user = AppSettings.sshUser
+        let target = host.isEmpty ? SecretsManager.shared.retrieve(.sshHost) : host
+        let user = SecretsManager.shared.retrieve(.sshUser)
         guard !target.isEmpty else {
             configured = false
             load = localized("未配置", "unset")
@@ -56,7 +56,7 @@ class ServerMonitorItem: TBPollItem {
     }
 
     private var target: String {
-        let t = host.isEmpty ? AppSettings.sshHost : host
+        let t = host.isEmpty ? SecretsManager.shared.retrieve(.sshHost) : host
         return t.isEmpty ? "host" : t
     }
 }

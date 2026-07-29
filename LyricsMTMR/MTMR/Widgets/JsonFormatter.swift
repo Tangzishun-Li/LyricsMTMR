@@ -13,11 +13,11 @@ class JsonFormatterItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "JSON", symbol: "curlybraces", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.82, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("剪贴板 JSON → 美化 / 压缩", "clip JSON → pretty / min"), tint: TB.textSecondary)
         let pretty = TBOverlay.pillButton(title: localized("美化", "Pretty"), tag: 0, target: self, action: #selector(run(_:)), tint: TB.sky)

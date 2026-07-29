@@ -19,10 +19,10 @@ class CiPipelineItem: TBPollItem {
                    icon: "gearshape.2.fill", tint: TB.mint,
                    label: "CI", width: 138)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
-        let token = AppSettings.githubToken
+        let token = SecretsManager.shared.retrieve(.githubToken)
         guard !token.isEmpty, !repo.isEmpty else {
             configured = false
             state = localized("未配置", "unset")

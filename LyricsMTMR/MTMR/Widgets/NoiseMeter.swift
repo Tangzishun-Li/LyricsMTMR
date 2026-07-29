@@ -20,7 +20,7 @@ class NoiseMeterItem: TBPollItem {
         metric.progressTint = TB.purple
         startEngine()
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
     deinit { engine.stop() }
 
     private func startEngine() {

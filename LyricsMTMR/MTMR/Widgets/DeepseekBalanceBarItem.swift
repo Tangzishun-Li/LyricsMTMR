@@ -17,7 +17,8 @@ class DeepseekBalanceBarItem: CustomButtonTouchBarItem {
     private var balanceData: String = "--"
 
     init(identifier: NSTouchBarItem.Identifier, apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double) {
-        self.apiKey = apiKey
+        // JSON 配置优先；留空则回退到「设置 → 服务」中填写的 key
+        self.apiKey = apiKey.isEmpty ? SecretsManager.shared.retrieve(.deepseekAPIKey) : apiKey
         self.displayMode = displayMode
         self.showRemaining = showRemaining
         self.refreshInterval = max(refreshInterval, 60)
@@ -34,9 +35,8 @@ class DeepseekBalanceBarItem: CustomButtonTouchBarItem {
         }
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder: NSCoder) { return nil }
+
 
     deinit {
         timer?.invalidate()

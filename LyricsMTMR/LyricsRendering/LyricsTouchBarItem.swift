@@ -55,6 +55,14 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private var marqueeOverflowWidth: CGFloat = 0
     private var marqueeTimeBudget: TimeInterval = MarqueeMetrics.defaultTimeBudget
 
+    /// Tracks which line/mode the karaoke animation was last built for,
+    /// so we only create the (expensive) CAKeyframeAnimation once per
+    /// line change instead of every 0.25 s playback tick.
+    private var lastAnimatedLineIndex: Int?
+    private var lastAnimatedClickAction: LyricsClickAction?
+    private var lastAnimatedLyricsId: ObjectIdentifier?
+    private var lastPlaybackState: PlaybackState?
+
     override init(identifier: NSTouchBarItem.Identifier) {
         self.config = LyricsItemConfig.shared
         super.init(identifier: identifier)
@@ -214,33 +222,69 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
               idx < active.lines.count else {
             showPlaceholder()
             stopMarqueeTimer()
+            lastAnimatedLineIndex = nil
+            lastAnimatedClickAction = nil
+            lastAnimatedLyricsId = nil
             return
         }
 
         let line = active.lines[idx]
-        lyricsLabel.stringValue = line.content
-        hidePlaceholder()
 
+        // ── Detect whether the visible line or mode actually changed ──
+        let lyricsChanged = ObjectIdentifier(active) != lastAnimatedLyricsId
+        let lineChanged = idx != lastAnimatedLineIndex
+            || clickAction != lastAnimatedClickAction
+            || lyricsChanged
+
+        if lineChanged {
+            lyricsLabel.stringValue = line.content
+            hidePlaceholder()
+            lastAnimatedLineIndex = idx
+            lastAnimatedClickAction = clickAction
+            lastAnimatedLyricsId = ObjectIdentifier(active)
+
+            // Build the karaoke CAKeyframeAnimation ONCE per line.
+            // The animation runs on the render server and advances
+            // autonomously — no per-tick teardown/recreate needed.
+            AppLog.lyrics("onLyricsUpdate: lineChanged idx=\(idx) content=「\(line.content.prefix(30))」words=\(line.words.count) timetags=\(line.timetags.count)")
+            if !line.timetags.isEmpty {
+                let position = track.playbackTime
+                let timeDelay = active.adjustedTimeDelay
+                let progress = line.timetags.map {
+                    ($0.0 + line.position - timeDelay - position, $0.1)
+                }
+                AppLog.lyrics("onLyricsUpdate: setting progressAnimation with \(progress.count) points, playbackTime=\(position), linePos=\(line.position)")
+                let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
+                lyricsLabel.setProgressAnimation(color: config.progressColor, progress: progress, style: style)
+            } else {
+                AppLog.lyrics("onLyricsUpdate: NO timetags — removing animation")
+                lyricsLabel.removeProgressAnimation()
+            }
+        }
+
+        // ── Lightweight per-tick updates (scroll + pause/resume) ──
         handleTextScroll(line: line, lineIndex: idx, active: active, track: track)
 
-        if !line.timetags.isEmpty, track.playbackState == .playing {
-            let position = track.playbackTime
-            let timeDelay = active.adjustedTimeDelay
-            let progress = line.timetags.map {
-                ($0.0 + line.position - timeDelay - position, $0.1)
+        // Only pause/resume on STATE TRANSITIONS. Calling resume every
+        // 0.25 s tick resets the CAKeyframeAnimation beginTime and the
+        // progress bar never advances past the first fraction of a second.
+        let wasPlaying = lastPlaybackState == .playing
+        let nowPlaying = track.playbackState == .playing
+
+        if lineChanged {
+            // Animation was just (re)created — it starts running by default.
+            // Only act if the player is paused.
+            if !nowPlaying {
+                lyricsLabel.pauseProgressAnimation()
             }
-
-            let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
-            lyricsLabel.setProgressAnimation(color: config.progressColor, progress: progress, style: style)
-        } else {
-            lyricsLabel.removeProgressAnimation()
-        }
-
-        if track.playbackState == .playing {
+        } else if nowPlaying && !wasPlaying {
+            // Resumed from pause → unpick the freeze.
             lyricsLabel.resumeProgressAnimation()
-        } else {
+        } else if !nowPlaying && wasPlaying {
+            // Paused → freeze the animation in place.
             lyricsLabel.pauseProgressAnimation()
         }
+        lastPlaybackState = track.playbackState
     }
 
     // MARK: - Text Scrolling

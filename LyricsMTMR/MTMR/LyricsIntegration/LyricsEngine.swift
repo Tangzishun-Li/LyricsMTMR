@@ -56,15 +56,38 @@ enum PlaybackState: Equatable {
 // MARK: - Simple Lyrics Model
 
 class SimpleLyrics {
+    /// A single word/syllable with precise timing information.
+    struct Word {
+        let text: String
+        /// Start time relative to the line's `position` (seconds).
+        let startTime: TimeInterval
+        /// Duration of this word (seconds). Zero if unknown.
+        let duration: TimeInterval
+        /// UTF-16 offset of this word's first character in `Line.content`.
+        let charIndex: Int
+    }
+
     struct Line {
         let position: TimeInterval
         let content: String
-        let timetags: [(TimeInterval, Int)]
+        let words: [Word]
 
-        init(position: TimeInterval, content: String, timetags: [(TimeInterval, Int)] = []) {
+        /// Backward-compatible accessor: (startTime, charIndex) pairs.
+        var timetags: [(TimeInterval, Int)] {
+            words.map { ($0.startTime, $0.charIndex) }
+        }
+
+        init(position: TimeInterval, content: String, words: [Word] = []) {
             self.position = position
             self.content = content
-            self.timetags = timetags
+            self.words = words
+        }
+
+        /// Legacy convenience init for code that still builds (time, charIndex) tuples.
+        init(position: TimeInterval, content: String, timetags: [(TimeInterval, Int)]) {
+            self.position = position
+            self.content = content
+            self.words = timetags.map { Word(text: "", startTime: $0.0, duration: 0, charIndex: $0.1) }
         }
     }
 
@@ -80,12 +103,24 @@ class SimpleLyrics {
         let filteredLines = lines
             .filter { !LyricsFilter.shouldExclude($0.content) }
             .map { line in
+                // If the parser already produced clean content (YRC/KRC/QRC path),
+                // the regex replacements below are no-ops and indices stay valid.
+                // Only strip residual markup if it's actually present.
+                let needsStrip = line.content.contains("<") || line.content.contains("[tt]")
+                    || line.content.range(of: #"\(\d+,\d+\)"#, options: .regularExpression) != nil
+                guard needsStrip else {
+                    return line
+                }
+                AppLog.lyrics("filtered: STRIPPING words from line「\(line.content.prefix(40))」(had \(line.words.count) words)")
                 let cleaned = line.content
                     .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
                     .replacingOccurrences(of: #"\[tt\]"#, with: "", options: .regularExpression)
-                return SimpleLyrics.Line(position: line.position, content: cleaned.trimmingCharacters(in: .whitespaces), timetags: line.timetags)
+                    .trimmingCharacters(in: .whitespaces)
+                // Stripping changed the content length — word charIndices are now
+                // invalid. Drop them rather than render misaligned karaoke.
+                return SimpleLyrics.Line(position: line.position, content: cleaned, words: [])
             }
             .filter { !$0.content.isEmpty }
         return SimpleLyrics(lines: filteredLines, adjustedTimeDelay: adjustedTimeDelay)
@@ -93,6 +128,10 @@ class SimpleLyrics {
 
     static func parse(lrcContent: String) -> SimpleLyrics? {
         var lines: [Line] = []
+        // Tracks [tt] timing data keyed by line position (seconds).
+        // In .lrcx files, word timing lives on a separate [tt] line that
+        // shares the same timestamp as its lyric text line.
+        var pendingTTLines: [(position: TimeInterval, ttContent: String)] = []
 
         let lrcLines = lrcContent.components(separatedBy: .newlines)
         for lrcLine in lrcLines {
@@ -112,7 +151,23 @@ class SimpleLyrics {
             let cleanText = text.trimmingCharacters(in: .whitespaces)
             guard !cleanText.isEmpty else { continue }
 
-            var timetags: [(TimeInterval, Int)] = []
+            // Compute the timestamp shared by all [mm:ss.xx] tags on this line.
+            let firstMatch = matches[0]
+            let minStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 1))
+            let secStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 2))
+            let msStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 3))
+            guard let min = Double(minStr), let sec = Double(secStr), let ms = Double(msStr) else { continue }
+            let lineTime = min * 60 + sec + ms / (msStr.count == 3 ? 1000 : 100)
+
+            // ── Detect [tt] word-timing lines (Kugou .lrcx format) ──
+            // Format: [tt]<timeMs,charIdx><timeMs,charIdx>...<endMs>
+            if cleanText.hasPrefix("[tt]") {
+                let ttPayload = String(cleanText.dropFirst(4)) // strip "[tt]"
+                pendingTTLines.append((position: lineTime, ttContent: ttPayload))
+                continue
+            }
+
+            var inlineWords: [Word] = []
 
             for match in matches {
                 let minStr = substring(in: trimmed as NSString, range: match.range(at: 1))
@@ -145,9 +200,8 @@ class SimpleLyrics {
                             let wordRange = NSRange(location: 0, length: wMatch.range.location)
                             let word = remaining.substring(with: wordRange)
                             let charsBefore = (cleanText as NSString).length - remaining.length + wordRange.location
-                            timetags.append((wordTime, charsBefore))
+                            inlineWords.append(Word(text: word, startTime: wordTime, duration: 0, charIndex: charsBefore))
                             remaining = remaining.substring(from: wMatch.range.upperBound) as NSString
-                            _ = word
                         } else {
                             break
                         }
@@ -158,14 +212,126 @@ class SimpleLyrics {
                         .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                         .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
-                    let line = Line(position: time, content: content, timetags: timetags)
+                    // Infer per-word duration from the gap to the next word's start.
+                    var wordsWithDuration = inlineWords
+                    for i in 0..<wordsWithDuration.count {
+                        let nextStart = (i + 1 < wordsWithDuration.count)
+                            ? wordsWithDuration[i + 1].startTime
+                            : wordsWithDuration[i].startTime  // last word: zero duration
+                        let dur = max(nextStart - wordsWithDuration[i].startTime, 0)
+                        wordsWithDuration[i] = Word(
+                            text: wordsWithDuration[i].text,
+                            startTime: wordsWithDuration[i].startTime,
+                            duration: dur,
+                            charIndex: wordsWithDuration[i].charIndex
+                        )
+                    }
+                    let line = Line(position: time, content: content, words: wordsWithDuration)
                     lines.append(line)
+                }
+            }
+        }
+
+        // ── Merge [tt] timing data into their corresponding lyric lines ──
+        if !pendingTTLines.isEmpty {
+            for tt in pendingTTLines {
+                // Find the lyric line with matching position (tolerance 10ms).
+                guard let idx = lines.firstIndex(where: { abs($0.position - tt.position) < 0.01 && $0.words.isEmpty }) else { continue }
+                let lyricLine = lines[idx]
+                let words = Self.parseTTWords(ttContent: tt.ttContent, lineContent: lyricLine.content)
+                if !words.isEmpty {
+                    lines[idx] = Line(position: lyricLine.position, content: lyricLine.content, words: words)
                 }
             }
         }
 
         lines.sort { $0.position < $1.position }
         return lines.isEmpty ? nil : SimpleLyrics(lines: lines)
+    }
+
+    /// Parses Kugou-style `[tt]<timeMs,charIdx>...<endMs>` timing data into Word structs.
+    /// Each `<time,charIdx>` pair means "at `time` ms (relative to line start), the
+    /// karaoke highlight reaches character `charIdx`". A trailing `<endMs>` (no comma)
+    /// marks the end of the last segment.
+    private static func parseTTWords(ttContent: String, lineContent: String) -> [Word] {
+        let ttPattern = try? NSRegularExpression(pattern: #"<(\d+)(?:,(\d+))?>"#)
+        let nsRange = NSRange(ttContent.startIndex..., in: ttContent)
+        let matches = ttPattern?.matches(in: ttContent, options: [], range: nsRange) ?? []
+        guard matches.count >= 2 else { return [] }
+
+        let contentLen = (lineContent as NSString).length
+        var words: [Word] = []
+
+        for i in 0..<matches.count {
+            let m = matches[i]
+            let timeStr = substring(in: ttContent as NSString, range: m.range(at: 1))
+            guard let timeMs = Double(timeStr) else { continue }
+
+            // Group 2 (charIndex) is absent for the trailing end-marker.
+            let charIdx: Int
+            if m.range(at: 2).location != NSNotFound,
+               let idxStr = Optional(substring(in: ttContent as NSString, range: m.range(at: 2))),
+               let parsed = Int(idxStr) {
+                charIdx = parsed
+            } else {
+                // End marker — no charIndex; skip as a "word" but use its time
+                // to close the previous word's duration.
+                if let lastIdx = words.indices.last {
+                    let dur = max(timeMs / 1000.0 - words[lastIdx].startTime, 0)
+                    words[lastIdx] = Word(
+                        text: words[lastIdx].text,
+                        startTime: words[lastIdx].startTime,
+                        duration: dur,
+                        charIndex: words[lastIdx].charIndex
+                    )
+                }
+                continue
+            }
+
+            guard charIdx < contentLen else { continue }
+
+            // Determine the text slice for this word segment.
+            let nextCharIdx: Int
+            if i + 1 < matches.count {
+                let nextM = matches[i + 1]
+                if nextM.range(at: 2).location != NSNotFound,
+                   let nextStr = Optional(substring(in: ttContent as NSString, range: nextM.range(at: 2))),
+                   let nextParsed = Int(nextStr) {
+                    nextCharIdx = nextParsed
+                } else {
+                    nextCharIdx = contentLen // end marker follows
+                }
+            } else {
+                nextCharIdx = contentLen
+            }
+
+            let sliceLen = max(nextCharIdx - charIdx, 0)
+            let wordText: String
+            if charIdx + sliceLen <= contentLen {
+                wordText = (lineContent as NSString).substring(with: NSRange(location: charIdx, length: sliceLen))
+            } else {
+                wordText = ""
+            }
+
+            // Duration is inferred from the gap to the next segment's start time.
+            let nextTimeMs: Double
+            if i + 1 < matches.count {
+                let nextTimeStr = substring(in: ttContent as NSString, range: matches[i + 1].range(at: 1))
+                nextTimeMs = Double(nextTimeStr) ?? timeMs
+            } else {
+                nextTimeMs = timeMs
+            }
+            let dur = max((nextTimeMs - timeMs) / 1000.0, 0)
+
+            words.append(Word(
+                text: wordText,
+                startTime: timeMs / 1000.0,
+                duration: dur,
+                charIndex: charIdx
+            ))
+        }
+
+        return words
     }
 
     func line(at time: TimeInterval) -> (Int, TimeInterval?)? {
@@ -512,6 +678,26 @@ class LyricsEngine: NSObject, ObservableObject {
         timeBase = (trackInfo.playbackTime, Date())
     }
 
+    // MARK: - Seeking
+
+    /// Seek playback to the given time (seconds). Updates the local timebase immediately
+    /// so the UI reflects the new position without waiting for the next MR notification.
+    func seek(to seconds: TimeInterval) {
+        let clamped = max(0, min(seconds, trackInfo.duration))
+        mrAdapter.setTime(seconds: clamped)
+        timeBase = (clamped, Date())
+        trackInfo = EngineTrackInfo(
+            title: trackInfo.title,
+            artist: trackInfo.artist,
+            album: trackInfo.album,
+            artwork: trackInfo.artwork,
+            duration: trackInfo.duration,
+            playbackState: trackInfo.playbackState,
+            playbackTime: clamped,
+            bundleIdentifier: trackInfo.bundleIdentifier
+        )
+    }
+
     @objc private func configDidChange() {
         let newAction = LyricsItemConfig.shared.clickAction
         if newAction != clickAction {
@@ -764,7 +950,7 @@ class LyricsEngine: NSObject, ObservableObject {
             return lyrics
         }
         let displayText = artist.isEmpty ? title : "\(title) — \(artist)"
-        let syntheticLine = SimpleLyrics.Line(position: 0, content: displayText, timetags: [])
+        let syntheticLine = SimpleLyrics.Line(position: 0, content: displayText, words: [])
         var newLines = lyrics.lines
         newLines.insert(syntheticLine, at: 0)
         return SimpleLyrics(lines: newLines, adjustedTimeDelay: lyrics.adjustedTimeDelay)

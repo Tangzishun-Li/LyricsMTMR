@@ -249,7 +249,7 @@
         },
         "type": "weather",
         "align": "center",
-        "api_key": "ca93a0bb8cdb428552660d83249e4bc9",
+        "api_key": "",
         "bordered": false,
         "divider": true
       }

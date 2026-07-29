@@ -25,11 +25,11 @@ class ExpenseTrackerItem: TBPopoverItem {
         TBStore.seed(filename: Self.filename, sample: Self.sample)
         configureButton(title: Self.todayTotal(path: dataPath), symbol: "yensign.circle.fill", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.9, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("今日 \(Self.todayTotal(path: dataPath)) · 剪贴板填金额，点分类记账", "tap a category"), tint: TB.textSecondary)
         let tints: [NSColor] = [TB.coral, TB.sky, TB.pink, TB.mint, TB.purple, TB.gold]

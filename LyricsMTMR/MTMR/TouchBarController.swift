@@ -199,6 +199,22 @@ extension ItemType {
             return "com.lyricsmtmr.aiSelectedText."
         case .rssUnread(provider: _, refreshInterval: _):
             return "com.lyricsmtmr.rssUnread."
+        case .latexSymbols:
+            return "com.lyricsmtmr.latexSymbols."
+        case .citationGen(style: _):
+            return "com.lyricsmtmr.citationGen."
+        case .paperProgress(refreshInterval: _, dataPath: _):
+            return "com.lyricsmtmr.paperProgress."
+        case .paperTags(dataPath: _):
+            return "com.lyricsmtmr.paperTags."
+        case .bilibiliFeed(refreshInterval: _):
+            return "com.lyricsmtmr.bilibiliFeed."
+        case .qrCode:
+            return "com.lyricsmtmr.qrCode."
+        case .apiTester(defaultUrl: _):
+            return "com.lyricsmtmr.apiTester."
+        case .finderTags:
+            return "com.lyricsmtmr.finderTags."
         }
     }
 }
@@ -228,6 +244,50 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return NSWorkspace.shared.frontmostApplication?.bundleIdentifier
     }
 
+    // MARK: - App-specific theme auto-switch
+
+    /// The preset path that was active before an app-triggered auto-switch, used to revert.
+    private var preAutoSwitchPresetPath: String?
+
+    /// Whether we are currently showing a theme that was auto-selected by an app rule.
+    private(set) var isAutoSwitched = false
+
+    /// App theme rules loaded from AppSettings (bundleId → AppThemeMode rawValue).
+    var appThemeRules: [String: Int] = [:]
+
+    /// The bundle id of the app that triggered the current auto-switch.
+    private(set) var autoSwitchedAppId: String?
+
+    /// Tracks the last app we saw, to detect actual app changes (for .onActivation mode).
+    private var lastSeenAppId: String?
+
+    /// Whether the user manually overrode the app theme (via themeSwitch). Reset on app change.
+    private var userOverrodeAppTheme = false
+
+    /// Directory where app-specific theme JSON files live.
+    var appThemesDir: String {
+        appSupportDirectory + "/app-themes"
+    }
+
+    /// Returns the file path for a given app's theme.
+    func appThemePath(for bundleId: String) -> String {
+        appThemesDir + "/\(bundleId).json"
+    }
+
+    /// Items that failed to create — tracked so we can log and surface errors
+    private(set) var failedItemIds: [NSTouchBarItem.Identifier] = []
+
+    /// Maximum seconds allowed for a single item's construction.
+    /// Items exceeding this are replaced with an error indicator.
+    private let itemCreationTimeout: TimeInterval = 5.0
+
+    /// Serial queue for item creation to prevent race conditions during rapid theme switches
+    private let creationQueue = DispatchQueue(label: "com.lyricsmtmr.itemCreation", qos: .userInitiated)
+
+    /// Tracks the path of the preset currently being loaded, to debounce rapid theme switches.
+    private var pendingPresetPath: String?
+    private let pendingLock = NSLock()
+
     private override init() {
         super.init()
         SupportedTypesHolder.sharedInstance.register(
@@ -254,7 +314,21 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 parameters: [.width: .width(30), .image: .image(source: (NSImage(named: NSImage.stopProgressFreestandingTemplateName))!)])
         }
 
+
+        // Register themeSwitch type so it can be properly decoded
+        SupportedTypesHolder.sharedInstance.register(typename: "themeSwitch") { decoder in
+            let item = try ItemType(from: decoder)
+            return (
+                item: item,
+                actions: [],
+                legacyAction: .none,
+                legacyLongAction: .none,
+                parameters: [:]
+            )
+        }
+
         blacklistAppIdentifiers = AppSettings.blacklistedAppIds
+        appThemeRules = AppSettings.appThemeRules
 
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged), name: NSWorkspace.didLaunchApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
@@ -365,15 +439,117 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func updateActiveApp() {
-        if frontmostApplicationIdentifier != nil && blacklistAppIdentifiers.firstIndex(of: frontmostApplicationIdentifier!) != nil {
+        let currentAppId = frontmostApplicationIdentifier
+        let appDidChange = currentAppId != lastSeenAppId
+        lastSeenAppId = currentAppId
+
+        // Reset user override flag when the app actually changes
+        if appDidChange {
+            userOverrodeAppTheme = false
+        }
+
+        let frozen = AppSettings.freezeOnAppSwitch
+        if let appId = currentAppId, blacklistAppIdentifiers.contains(appId) {
             dismissTouchBar()
+        } else if let appId = currentAppId, let modeRaw = appThemeRules[appId],
+                  let mode = AppThemeMode(rawValue: modeRaw), mode != .disabled {
+            // App-specific theme rule matched and is active
+            handleAppThemeSwitch(appId: appId, mode: mode, appDidChange: appDidChange)
+        } else if frozen {
+            // Leaving an auto-switched theme — revert
+            if isAutoSwitched {
+                revertAutoSwitch()
+            }
+            if touchBarContainsAnyItems() {
+                presentTouchBar()
+            } else {
+                prepareTouchBar()
+                if touchBarContainsAnyItems() {
+                    presentTouchBar()
+                } else {
+                    dismissTouchBar()
+                }
+            }
         } else {
+            // Leaving an auto-switched theme — revert
+            if isAutoSwitched {
+                revertAutoSwitch()
+            }
             prepareTouchBar()
             if touchBarContainsAnyItems() {
                 presentTouchBar()
             } else {
                 dismissTouchBar()
             }
+        }
+    }
+
+    // MARK: - App Theme Auto-Switch
+
+    private func handleAppThemeSwitch(appId: String, mode: AppThemeMode, appDidChange: Bool) {
+        let themePath = appThemePath(for: appId)
+
+        // File cleanup: if the theme file was manually deleted, remove the rule and fallback
+        guard FileManager.default.fileExists(atPath: themePath) else {
+            AppLog.appEvent("App theme file missing for \(appId), removing rule")
+            var rules = AppSettings.appThemeRules
+            rules.removeValue(forKey: appId)
+            AppSettings.appThemeRules = rules
+            appThemeRules = rules
+            if isAutoSwitched { revertAutoSwitch() }
+            prepareTouchBar()
+            if touchBarContainsAnyItems() { presentTouchBar() } else { dismissTouchBar() }
+            return
+        }
+
+        // .onActivation: only force on actual app change, respect user override
+        if mode == .onActivation && !appDidChange && userOverrodeAppTheme {
+            presentTouchBar()
+            return
+        }
+
+        // Already showing this app's theme
+        if isAutoSwitched && autoSwitchedAppId == appId && lastPresetPath == themePath {
+            presentTouchBar()
+            return
+        }
+
+        // Save the current preset path so we can revert later
+        if !isAutoSwitched {
+            preAutoSwitchPresetPath = lastPresetPath
+        }
+        setAutoSwitched(true, appId: appId)
+
+        AppLog.appEvent("App theme: loading \(themePath) for \(appId) (mode: \(mode))")
+        reloadPresetAsync(path: themePath)
+    }
+
+    /// Call this when the user manually switches theme (e.g. via themeSwitch button).
+    func markUserOverrideAppTheme() {
+        if isAutoSwitched {
+            userOverrodeAppTheme = true
+            setAutoSwitched(false, appId: nil)
+        }
+    }
+
+    private func revertAutoSwitch() {
+        guard isAutoSwitched else { return }
+        setAutoSwitched(false, appId: nil)
+
+        if let revertPath = preAutoSwitchPresetPath, lastPresetPath != revertPath {
+            AppLog.appEvent("App theme revert: restoring \(revertPath)")
+            reloadPresetAsync(path: revertPath)
+        }
+        preAutoSwitchPresetPath = nil
+    }
+
+    private func setAutoSwitched(_ value: Bool, appId: String?) {
+        guard isAutoSwitched != value || autoSwitchedAppId != appId else { return }
+        isAutoSwitched = value
+        autoSwitchedAppId = appId
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .appThemeAutoSwitchDidChange, object: nil,
+                                            userInfo: ["isAutoSwitched": value, "appId": appId as Any])
         }
     }
     
@@ -436,14 +612,46 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             }
             
             if show {
-                let item = createItem(forIdentifier: identifier, definition: definition)
-                if item is SwipeItem {
-                    swipeItems.append(item as! SwipeItem)
+                let item = createItemWithTimeout(forIdentifier: identifier, definition: definition)
+                if let item = item {
+                    if item is SwipeItem {
+                        swipeItems.append(item as! SwipeItem)
+                    } else {
+                        items[identifier] = item
+                    }
                 } else {
-                    items[identifier] = item
+                    failedItemIds.append(identifier)
+                    AppLog.warn("Item \(definition.type) skipped (timeout or fatal error)")
                 }
             }
         }
+    }
+
+    /// Creates an item on a background queue with a timeout guard.
+    /// If the item init hangs or crashes (ObjC exception / Swift error),
+    /// the calling thread is unblocked after `itemCreationTimeout` seconds
+    /// and an error-indicator item is returned instead. This prevents a
+    /// single misbehaving widget from freezing the entire Touch Bar.
+    private func createItemWithTimeout(forIdentifier identifier: NSTouchBarItem.Identifier,
+                                       definition: BarItemDefinition) -> NSTouchBarItem? {
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: NSTouchBarItem?
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { semaphore.signal(); return }
+            result = self.createItemSafely(forIdentifier: identifier, definition: definition)
+            semaphore.signal()
+        }
+
+        let waitResult = semaphore.wait(timeout: .now() + itemCreationTimeout)
+        if waitResult == .timedOut {
+            let typeLabel = String(describing: definition.type).prefix(40)
+            AppLog.error("Item \(typeLabel) timed out after \(itemCreationTimeout)s — isolating")
+            return createErrorItem(forIdentifier: identifier,
+                                  reason: "Timed out after \(itemCreationTimeout)s",
+                                  originalType: String(describing: definition.type))
+        }
+        return result
     }
 
     @objc func setupControlStripPresence() {
@@ -475,6 +683,42 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         updateControlStripPresence()
     }
 
+    /// Rebuilds the touch bar layout using the already-created items,
+    /// then presents it. This avoids the expensive createItems() pass
+    /// that updateActiveApp() → prepareTouchBar() would trigger.
+    private func presentTouchBarWithCurrentItems() {
+        guard !items.isEmpty || !swipeItems.isEmpty else {
+            dismissTouchBar()
+            return
+        }
+
+        let centerItems = centerIdentifiers.compactMap { items[$0] }
+        let centerScrollArea = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollArea.".appending(UUID().uuidString))
+        let scrollArea = ScrollViewItem(identifier: centerScrollArea, items: centerItems)
+
+        basicViewIdentifier = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollView.".appending(UUID().uuidString))
+
+        touchBar.delegate = self
+        touchBar.defaultItemIdentifiers = [basicViewIdentifier]
+
+        let leftItems = leftIdentifiers.compactMap { items[$0] }
+        let rightItems = rightIdentifiers.compactMap { items[$0] }
+
+        basicView = BasicView(identifier: basicViewIdentifier, items: leftItems + [scrollArea] + rightItems, swipeItems: swipeItems)
+        basicView?.legacyGesturesEnabled = AppSettings.multitouchGestures
+
+        DispatchQueue.main.async { [weak self] in
+            guard self != nil else { return }
+            TouchBarMirrorWindowController.shared.syncFromTouchBar()
+        }
+
+        if frontmostApplicationIdentifier != nil && blacklistAppIdentifiers.firstIndex(of: frontmostApplicationIdentifier!) != nil {
+            dismissTouchBar()
+        } else {
+            presentTouchBar()
+        }
+    }
+
     @objc func resetControlStrip() {
         dismissTouchBar()
         updateActiveApp()
@@ -489,6 +733,51 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func createItem(forIdentifier identifier: NSTouchBarItem.Identifier, definition item: BarItemDefinition) -> NSTouchBarItem? {
+        // Legacy entry point: wraps in safe handler for backwards compatibility
+        return createItemSafely(forIdentifier: identifier, definition: item)
+    }
+
+    /// Fault-isolated item creation. Catches all errors and returns an error-indicator item on failure,
+    /// so a single broken widget never freezes the entire touch bar.
+    private func createItemSafely(forIdentifier identifier: NSTouchBarItem.Identifier, definition item: BarItemDefinition) -> NSTouchBarItem? {
+        // Swift-level error catch
+        do {
+            let created = try createItemInternal(forIdentifier: identifier, definition: item)
+            
+            // Also wrap in ObjC exception catch — Swift's `catch` does NOT
+            // intercept NSException, which Cocoa APIs can throw (e.g. if a
+            // view hierarchy is in an unexpected state).
+            var objcError: Error?
+            var objcCreated: NSTouchBarItem?
+            if let c = created {
+                // ObjC wrapper: crashes inside the block become an NSError
+                // instead of terminating the process.
+                objcError = MTMRTryOrError {
+                    // Validate the item can be used — accessing .view may
+                    // trigger an NSException in broken states.
+                    _ = c.view
+                    objcCreated = c
+                }
+                if let err = objcError {
+                    let typeLabel = String(describing: item.type).prefix(40)
+                    AppLog.error("Item \(typeLabel) threw ObjC exception: \(err.localizedDescription) — isolating")
+                    return createErrorItem(forIdentifier: identifier,
+                                          reason: err.localizedDescription,
+                                          originalType: String(describing: item.type))
+                }
+                return objcCreated ?? created
+            } else {
+                return nil
+            }
+        } catch {
+            let typeLabel = String(describing: item.type).prefix(40)
+            AppLog.error("Item \(typeLabel) creation failed: \(error.localizedDescription) — isolating")
+            return createErrorItem(forIdentifier: identifier, reason: error.localizedDescription, originalType: String(describing: item.type))
+        }
+    }
+
+    /// Core item creation — extracted so it can be called inside a timeout guard
+    private func createItemInternal(forIdentifier identifier: NSTouchBarItem.Identifier, definition item: BarItemDefinition) throws -> NSTouchBarItem? {
         var barItem: NSTouchBarItem!
         switch item.type {
         case let .staticButton(title: title):
@@ -694,6 +983,22 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = AiSelectedTextItem(identifier: identifier, model: model, prompt: prompt)
         case let .rssUnread(provider: provider, refreshInterval: refreshInterval):
             barItem = RssUnreadItem(identifier: identifier, provider: provider, refreshInterval: refreshInterval)
+        case .latexSymbols:
+            barItem = LatexSymbolsItem(identifier: identifier)
+        case let .citationGen(style: style):
+            barItem = CitationGenItem(identifier: identifier, style: style)
+        case let .paperProgress(refreshInterval: refreshInterval, dataPath: dataPath):
+            barItem = PaperProgressItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .paperTags(dataPath: dataPath):
+            barItem = PaperTagsItem(identifier: identifier, dataPath: dataPath)
+        case let .bilibiliFeed(refreshInterval: refreshInterval):
+            barItem = BilibiliFeedItem(identifier: identifier, refreshInterval: refreshInterval)
+        case .qrCode:
+            barItem = QRCodeItem(identifier: identifier)
+        case let .apiTester(defaultUrl: defaultUrl):
+            barItem = ApiTesterItem(identifier: identifier, defaultUrl: defaultUrl)
+        case .finderTags:
+            barItem = FinderTagsItem(identifier: identifier)
         default:
             break        }
 
@@ -733,7 +1038,145 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return barItem
     }
     
+    /// Creates a visual error indicator item to show on the touch bar in place of a failed widget.
+    private func createErrorItem(forIdentifier identifier: NSTouchBarItem.Identifier, reason: String, originalType: String) -> NSTouchBarItem {
+        let item = CustomButtonTouchBarItem(identifier: identifier, title: "\u{26A0}\u{FE0F}")
+        item.isBordered = false
+        item.actions.append(ItemAction(trigger: .singleTap) {
+            let alert = NSAlert()
+            alert.messageText = "Widget Error"
+            alert.informativeText = "Type: \(originalType)\nReason: \(reason)\n\nThis item has been isolated."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        })
+        return item
+    }
+
+    /// Non-blocking preset reload that creates items on a background queue, then swaps atomically.
+    func reloadPresetAsync(path: String) {
+        guard let newItems = path.fileData?.barItemDefinitions() else {
+            AppLog.error("Failed to parse preset: \(path)")
+            return
+        }
+        lastPresetPath = path
+
+        // Debounce: if a reload is already pending, just update the pending path
+        // so the in-flight operation picks up the latest request when it reaches
+        // the barrier block.
+        pendingLock.lock()
+        let isAlreadyLoading = pendingPresetPath != nil
+        pendingPresetPath = path
+        pendingLock.unlock()
+
+        if isAlreadyLoading {
+            AppLog.touchBar("Theme switch debounced — updating pending path")
+            return
+        }
+
+        creationQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            // Pick up the latest pending path (may have been updated while we were waiting)
+            self.pendingLock.lock()
+            let actualPath = self.pendingPresetPath ?? path
+            self.pendingPresetPath = nil
+            self.pendingLock.unlock()
+
+            // If the path changed since this block was queued, re-evaluate
+            if actualPath != path && self.lastPresetPath != actualPath {
+                AppLog.touchBar("Theme switch superseded — skipping \(path)")
+                return
+            }
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "HH-mm-ss"
+            let time = dateFormatter.string(from: Date())
+            var newDefs: [NSTouchBarItem.Identifier: BarItemDefinition] = [:]
+            var newLeft: [NSTouchBarItem.Identifier] = []
+            var newCenter: [NSTouchBarItem.Identifier] = []
+            var newRight: [NSTouchBarItem.Identifier] = []
+            for it in newItems {
+                let idStr = it.type.identifierBase + time + "--" + UUID().uuidString
+                let id = NSTouchBarItem.Identifier(idStr)
+                newDefs[id] = it
+                switch it.align {
+                case .left: newLeft.append(id)
+                case .center: newCenter.append(id)
+                case .right: newRight.append(id)
+                }
+            }
+            let totalTimeout: TimeInterval = 15.0
+            let batchGroup = DispatchGroup()
+            let syncLock = NSLock()
+            var newItemsDict: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
+            var newSwipeItems: [SwipeItem] = []
+            var newFailed: [NSTouchBarItem.Identifier] = []
+            for (theId, def) in newDefs {
+                batchGroup.enter()
+                // Use global concurrent queue for parallel item creation (NOT self.creationQueue which is serial)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let item = self.createItemSafely(forIdentifier: theId, definition: def)
+                    syncLock.lock()
+                    if let item = item {
+                        if let swipe = item as? SwipeItem {
+                            newSwipeItems.append(swipe)
+                        } else {
+                            newItemsDict[theId] = item
+                        }
+                    } else {
+                        newFailed.append(theId)
+                    }
+                    syncLock.unlock()
+                    batchGroup.leave()
+                }
+            }
+            // Use notify instead of wait to avoid serial-queue deadlock
+            batchGroup.notify(queue: .main) {
+                guard self.lastPresetPath == path else {
+                    AppLog.touchBar("Theme switch superseded — skipping UI update")
+                    return
+                }
+                self.jsonItems = newItems
+                self.itemDefinitions = newDefs
+                self.leftIdentifiers = newLeft
+                self.centerIdentifiers = newCenter
+                self.rightIdentifiers = newRight
+                self.items = newItemsDict
+                self.swipeItems = newSwipeItems
+                self.failedItemIds = newFailed
+                if let oldBar = self.touchBar {
+                    minimizeSystemModal(oldBar)
+                }
+                self.touchBar = NSTouchBar()
+                // Items are already created — just rebuild the touch bar layout
+                // without calling createItems() again (which would double-create
+                // everything and cause the freeze).
+                self.presentTouchBarWithCurrentItems()
+                if !newFailed.isEmpty {
+                    AppLog.warn("\(newFailed.count) item(s) failed to load")
+                }
+            }
+        }
+    }
+
     func closure(for action: Action) -> (() -> Void)? {
+        let raw = self.rawClosure(for: action)
+        guard let raw = raw else { return nil }
+        return { [weak self] in
+            guard let self = self else { return }
+            let error = MTMRTryOrError {
+                raw()
+            }
+            if let error = error {
+                AppLog.error("Action closure crashed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    /// The original closure implementation, extracted so it can be wrapped
+    /// in ObjC exception protection by `closure(for:)`.
+    private func rawClosure(for action: Action) -> (() -> Void)? {
         switch action.value {
         case let .hidKey(keycode: keycode):
             return {

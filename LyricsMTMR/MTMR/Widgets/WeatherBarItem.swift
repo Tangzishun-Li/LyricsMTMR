@@ -26,7 +26,8 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
         activity = NSBackgroundActivityScheduler(identifier: "\(identifier.rawValue).updatecheck")
         activity.interval = interval
         self.units = units
-        self.api_key = api_key
+        // JSON 配置优先；留空则回退到「设置 → 服务」中填写的 key
+        self.api_key = api_key.isEmpty ? SecretsManager.shared.retrieve(.openWeatherAPIKey) : api_key
 
         if self.units == "metric" {
             units_str = "°C"
@@ -69,9 +70,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
         manager.startUpdatingLocation()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     @objc func updateWeather() {
         if location != nil {

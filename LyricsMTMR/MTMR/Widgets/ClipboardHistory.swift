@@ -19,7 +19,7 @@ class ClipboardHistoryItem: TBPopoverItem {
         configureButton(title: localized("剪贴板", "Clipboard"), symbol: "doc.on.clipboard.fill", tint: TB.sky)
         watcher = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in Self.poll() }
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
     deinit { watcher?.invalidate() }
 
     private static func poll() {
@@ -34,7 +34,7 @@ class ClipboardHistoryItem: TBPopoverItem {
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.92, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let items = Array(Self.history.prefix(maxItems))
         if items.isEmpty {

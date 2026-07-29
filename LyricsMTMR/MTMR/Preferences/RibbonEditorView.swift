@@ -4,21 +4,100 @@
 //
 //  Office-style ribbon editor: grouped ribbon toolbar, categorized palette,
 //  Touch Bar strip (realistic shape), property inspector.
-//  Undo/redo, snapshot, explicit save (no auto-save on mutation).
+//  Undo/redo, multi-select, clipboard panel, edit/preview mode toggle.
 //
 
 import SwiftUI
 import Cocoa
 
-// MARK: - Observable model with undo
+// MARK: - Editor mode
+
+enum EditorMode: String {
+    case edit
+    case preview
+
+    var label: String {
+        switch self {
+        case .edit: return localized("编辑", "Edit")
+        case .preview: return localized("预览", "Preview")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .edit: return "pencil"
+        case .preview: return "eye"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .edit: return EditorColors.accentSwift
+        case .preview: return EditorColors.mintSwift
+        }
+    }
+}
+
+// MARK: - Clipboard slot
+
+struct ClipboardSlot: Identifiable, Equatable {
+    static func == (lhs: ClipboardSlot, rhs: ClipboardSlot) -> Bool {
+        lhs.id == rhs.id && lhs.items.count == rhs.items.count
+    }
+
+    let id: Int
+    var items: [[String: Any]] = []
+
+    var isEmpty: Bool { items.isEmpty }
+    var summary: String {
+        if items.isEmpty { return "" }
+        if items.count == 1 {
+            let type = items[0]["type"] as? String ?? "?"
+            if let title = items[0]["title"] as? String, !title.isEmpty { return title }
+            return EditorSchema.schema(for: type).displayName
+        }
+        return "\(items.count) items"
+    }
+    var primarySymbol: String {
+        if items.isEmpty { return "square.dashed" }
+        if items.count == 1 {
+            return EditorSchema.schema(for: items[0]["type"] as? String ?? "unknown").symbol
+        }
+        return "square.stack.3d.up"
+    }
+}
+
+// MARK: - Observable model with undo, multi-select, clipboard, modes
+
+// MARK: - Navigation level (for nested container editing)
+
+struct NavigationLevel {
+    var items: [[String: Any]]
+    var selectedIndex: Int?
+    let containerType: String
+    let containerTitle: String
+    let containerIndex: Int
+}
 
 final class RibbonModel: ObservableObject {
     @Published var items: [[String: Any]] = []
-    @Published var selectedIndex: Int?
+    @Published var selectedIndices: Set<Int> = []
     @Published var isDirty: Bool = false
     @Published var currentThemePath: String = ""
     @Published var canUndo: Bool = false
     @Published var canRedo: Bool = false
+    @Published var editorMode: EditorMode = .edit
+    @Published var clipboardSlots: [ClipboardSlot] = (0..<9).map { ClipboardSlot(id: $0) }
+
+    // ── Draft system ──
+    @Published var currentDraft: Draft?
+    @Published var isLivePreview: Bool = false
+
+    // ── Nested container navigation ──
+    @Published var navigationPath: [NavigationLevel] = []
+
+    // Selection anchor for shift-range selection
+    private var selectionAnchor: Int?
 
     private var undoStack: [[[String: Any]]] = []
     private var redoStack: [[[String: Any]]] = []
@@ -27,22 +106,205 @@ final class RibbonModel: ObservableObject {
     var onSave: (([[String: Any]], String) -> Void)?
     var onSelectionChange: (([String: Any]?) -> Void)?
 
+    // Convenience: first selected index (for inspector)
+    var selectedIndex: Int? { selectedIndices.sorted().first }
+
+    // MARK: Active items (respects navigation depth)
+
+    var activeItems: [[String: Any]] {
+        get {
+            if let level = navigationPath.last {
+                return level.items
+            }
+            return items
+        }
+        set {
+            if navigationPath.isEmpty {
+                items = newValue
+            } else {
+                navigationPath[navigationPath.count - 1].items = newValue
+                // Sync back to parent
+                syncNavigationToItems()
+            }
+        }
+    }
+
+    private func syncNavigationToItems() {
+        // Propagate nested items back up through the chain so root `items` stays consistent.
+        guard !navigationPath.isEmpty else { return }
+        for i in stride(from: navigationPath.count - 1, through: 0, by: -1) {
+            let level = navigationPath[i]
+            let childItems = level.items
+            let idx = level.containerIndex
+            if i == 0 {
+                guard idx >= 0, idx < items.count else { continue }
+                items[idx]["items"] = childItems
+            } else {
+                guard idx >= 0, idx < navigationPath[i - 1].items.count else { continue }
+                navigationPath[i - 1].items[idx]["items"] = childItems
+            }
+        }
+    }
+
+    // MARK: Nested navigation
+
+    func drillInto(index: Int) {
+        let source = activeItems
+        guard index >= 0, index < source.count else { return }
+        var item = source[index]
+        // Robust cast: JSON-bridged NSArray may not directly cast to [[String: Any]]
+        var children: [[String: Any]]
+        if let direct = item["items"] as? [[String: Any]] {
+            children = direct
+        } else if let arr = item["items"] as? [Any] {
+            children = arr.compactMap { $0 as? [String: Any] }
+        } else {
+            // Container type without "items" key yet: initialize empty
+            children = []
+            item["items"] = children
+            var src = activeItems
+            src[index] = item
+            activeItems = src
+        }
+        let type = item["type"] as? String ?? "group"
+        let title = item["title"] as? String ?? EditorSchema.schema(for: type).displayName
+
+        let level = NavigationLevel(
+            items: children,
+            selectedIndex: nil,
+            containerType: type,
+            containerTitle: title,
+            containerIndex: index
+        )
+        navigationPath.append(level)
+        selectedIndices = []
+        selectionAnchor = nil
+        notifySelection()
+    }
+
+    func navigateBack() {
+        guard !navigationPath.isEmpty else { return }
+        let currentLevel = navigationPath.removeLast()
+        let idx = currentLevel.containerIndex
+        if navigationPath.isEmpty {
+            if idx >= 0 && idx < items.count {
+                items[idx]["items"] = currentLevel.items
+            }
+        } else {
+            var parentItems = navigationPath[navigationPath.count - 1].items
+            if idx >= 0 && idx < parentItems.count {
+                parentItems[idx]["items"] = currentLevel.items
+                navigationPath[navigationPath.count - 1].items = parentItems
+            }
+        }
+        selectedIndices = []
+        selectionAnchor = nil
+        didMutate()
+        notifySelection()
+    }
+
+    func navigateToRoot() {
+        while !navigationPath.isEmpty {
+            let level = navigationPath.removeLast()
+            let idx = level.containerIndex
+            if navigationPath.isEmpty {
+                if idx >= 0 && idx < items.count {
+                    items[idx]["items"] = level.items
+                }
+            } else {
+                var parentItems = navigationPath[navigationPath.count - 1].items
+                if idx >= 0 && idx < parentItems.count {
+                    parentItems[idx]["items"] = level.items
+                    navigationPath[navigationPath.count - 1].items = parentItems
+                }
+            }
+        }
+        selectedIndices = []
+        selectionAnchor = nil
+        didMutate()
+        notifySelection()
+    }
+
+    private func writeBackToParent(children: [[String: Any]]) {
+        // Kept for API compatibility; actual write-back is done inline in navigateBack/navigateToRoot.
+    }
+
+    // MARK: Update property at specific index (used by simulator zone moves)
+
+    func updatePropertyAtIndex(_ index: Int, key: String, value: Any) {
+        guard index >= 0, index < activeItems.count else { return }
+        if !isDirty { snapshot() }
+        var source = activeItems
+        source[index][key] = value
+        activeItems = source
+        didMutate()
+        objectWillChange.send()
+    }
+
+    // MARK: Draft operations
+
+    func createBlankDraft() {
+        let draft = DraftManager.shared.createBlank()
+        loadDraft(draft)
+    }
+
+    func createDraftFromTheme(path: String) {
+        guard let draft = DraftManager.shared.createFromTheme(path: path) else { return }
+        loadDraft(draft)
+    }
+
+    func loadDraft(_ draft: Draft) {
+        currentDraft = draft
+        navigationPath = []
+        load(draft.items, from: draft.sourceTheme ?? "")
+        isDirty = false
+    }
+
+    func openDraft(id: String) {
+        guard let draft = DraftManager.shared.load(id: id) else { return }
+        loadDraft(draft)
+    }
+
+    func deleteCurrentDraft() {
+        guard let draft = currentDraft else { return }
+        DraftManager.shared.deleteDraft(id: draft.id)
+        currentDraft = nil
+    }
+
+    func applyToTheme(path: String) {
+        guard var draft = currentDraft else { return }
+        draft.items = items
+        DraftManager.shared.apply(draft: draft, to: path)
+        isDirty = false
+    }
+
+    func applyAsNewTheme(name: String) {
+        guard var draft = currentDraft else { return }
+        draft.items = items
+        let newPath = DraftManager.shared.applyAsNew(draft: draft, name: name)
+        currentThemePath = newPath
+        isDirty = false
+    }
+
     // MARK: Load
 
     func load(_ newItems: [[String: Any]], from path: String) {
         items = newItems
-        selectedIndex = nil
+        selectedIndices = []
+        selectionAnchor = nil
         currentThemePath = path
         isDirty = false
+        navigationPath = []
         undoStack.removeAll()
         redoStack.removeAll()
         updateUndoFlags()
+        notifySelection()
     }
 
     // MARK: Undo / Redo
 
     func snapshot() {
-        undoStack.append(deepCopy(items))
+        undoStack.append(deepCopy(activeItems))
         if undoStack.count > maxUndoDepth { undoStack.removeFirst() }
         redoStack.removeAll()
         updateUndoFlags()
@@ -50,20 +312,22 @@ final class RibbonModel: ObservableObject {
 
     func undo() {
         guard let prev = undoStack.popLast() else { return }
-        redoStack.append(deepCopy(items))
-        items = prev
-        selectedIndex = nil
-        isDirty = true
+        redoStack.append(deepCopy(activeItems))
+        activeItems = prev
+        selectedIndices = []
+        selectionAnchor = nil
+        didMutate()
         updateUndoFlags()
         notifySelection()
     }
 
     func redo() {
         guard let next = redoStack.popLast() else { return }
-        undoStack.append(deepCopy(items))
-        items = next
-        selectedIndex = nil
-        isDirty = true
+        undoStack.append(deepCopy(activeItems))
+        activeItems = next
+        selectedIndices = []
+        selectionAnchor = nil
+        didMutate()
         updateUndoFlags()
         notifySelection()
     }
@@ -73,9 +337,67 @@ final class RibbonModel: ObservableObject {
         canRedo = !redoStack.isEmpty
     }
 
+    // MARK: Selection (multi-select)
+
+    func select(_ index: Int) {
+        selectedIndices = [index]
+        selectionAnchor = index
+        notifySelection()
+    }
+
+    func toggleSelect(_ index: Int) {
+        if selectedIndices.contains(index) {
+            selectedIndices.remove(index)
+            if let anchor = selectionAnchor, anchor == index {
+                selectionAnchor = selectedIndices.sorted().first
+            }
+        } else {
+            selectedIndices.insert(index)
+            if selectionAnchor == nil { selectionAnchor = index }
+        }
+        notifySelection()
+    }
+
+    func rangeSelect(to index: Int) {
+        guard let anchor = selectionAnchor else {
+            select(index)
+            return
+        }
+        let lower = min(anchor, index)
+        let upper = max(anchor, index)
+        selectedIndices = Set(lower...upper)
+        notifySelection()
+    }
+
+    func selectAll() {
+        let source = activeItems
+        guard !source.isEmpty else { return }
+        selectedIndices = Set(0..<source.count)
+        selectionAnchor = 0
+        notifySelection()
+    }
+
+    func clearSelection() {
+        selectedIndices = []
+        selectionAnchor = nil
+        notifySelection()
+    }
+
+    func isSelected(_ index: Int) -> Bool {
+        selectedIndices.contains(index)
+    }
+
+    // MARK: Mode
+
+    func setMode(_ mode: EditorMode) {
+        editorMode = mode
+        objectWillChange.send()
+    }
+
     // MARK: Mutations (all snapshot first, mark dirty, NO auto-save)
 
     func add(type: String) {
+        guard editorMode == .edit else { return }
         snapshot()
         let schema = EditorSchema.schema(for: type)
         var item = schema.defaultItem()
@@ -90,98 +412,225 @@ final class RibbonModel: ObservableObject {
         case "dnd": item["align"] = "left"; item["width"] = 38
         default: break
         }
-        items.append(item)
-        selectedIndex = items.count - 1
-        isDirty = true
+        var source = activeItems
+        source.append(item)
+        activeItems = source
+        selectedIndices = [source.count - 1]
+        selectionAnchor = source.count - 1
+        didMutate()
         notifySelection()
     }
 
     func deleteSelected() {
-        guard let i = selectedIndex, i >= 0, i < items.count else { return }
+        guard editorMode == .edit, !selectedIndices.isEmpty else { return }
+        let sorted = selectedIndices.sorted(by: >)
         snapshot()
-        items.remove(at: i)
-        if items.isEmpty {
-            selectedIndex = nil
-        } else if selectedIndex! >= items.count {
-            selectedIndex = items.count - 1
+        var source = activeItems
+        for i in sorted {
+            if i < source.count { source.remove(at: i) }
         }
-        isDirty = true
+        activeItems = source
+        selectedIndices = []
+        selectionAnchor = nil
+        didMutate()
         notifySelection()
     }
 
     func delete(at index: Int) {
-        guard index >= 0, index < items.count else { return }
+        guard editorMode == .edit, index >= 0, index < activeItems.count else { return }
         snapshot()
-        items.remove(at: index)
-        if let sel = selectedIndex {
-            if sel == index {
-                selectedIndex = nil
-                if index < items.count { selectedIndex = index }
-                else if !items.isEmpty { selectedIndex = items.count - 1 }
-            } else if sel > index {
-                selectedIndex = sel - 1
-            }
+        var source = activeItems
+        source.remove(at: index)
+        activeItems = source
+        selectedIndices.remove(index)
+        // Shift indices above
+        var newIndices = Set<Int>()
+        for idx in selectedIndices {
+            if idx > index { newIndices.insert(idx - 1) }
+            else if idx < index { newIndices.insert(idx) }
         }
-        isDirty = true
+        selectedIndices = newIndices
+        if let anchor = selectionAnchor {
+            if anchor == index { selectionAnchor = selectedIndices.sorted().first }
+            else if anchor > index { selectionAnchor = anchor - 1 }
+        }
+        didMutate()
         notifySelection()
     }
 
     func move(from source: Int, to destination: Int) {
-        guard source != destination, source >= 0, source < items.count else { return }
+        guard editorMode == .edit, source != destination, source >= 0, source < activeItems.count else { return }
         snapshot()
-        let item = items.remove(at: source)
-        let dest = min(max(destination, 0), items.count)
-        items.insert(item, at: dest)
-        selectedIndex = dest
-        isDirty = true
+        var arr = activeItems
+        let item = arr.remove(at: source)
+        let dest = min(max(destination, 0), arr.count)
+        arr.insert(item, at: dest)
+        activeItems = arr
+        selectedIndices = [dest]
+        selectionAnchor = dest
+        didMutate()
         notifySelection()
     }
 
     func duplicateSelected() {
-        guard let i = selectedIndex, i >= 0, i < items.count else { return }
+        guard editorMode == .edit, selectedIndices.count == 1, let i = selectedIndex, i >= 0, i < activeItems.count else { return }
         snapshot()
-        if let data = try? JSONSerialization.data(withJSONObject: items[i]),
+        var source = activeItems
+        if let data = try? JSONSerialization.data(withJSONObject: source[i]),
            let copy = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            items.insert(copy, at: i + 1)
-            selectedIndex = i + 1
-            isDirty = true
+            source.insert(copy, at: i + 1)
+            activeItems = source
+            selectedIndices = [i + 1]
+            selectionAnchor = i + 1
+            didMutate()
             notifySelection()
         }
     }
 
     func updateProperty(_ key: String, _ value: Any) {
-        guard let i = selectedIndex, i >= 0, i < items.count else { return }
+        guard selectedIndices.count == 1, let i = selectedIndex, i >= 0, i < activeItems.count else { return }
         if !isDirty { snapshot() }
-        if let existing = items[i][key] {
+        var source = activeItems
+        if let existing = source[i][key] {
             if existing is Int, let s = value as? String, let n = Int(s) {
-                items[i][key] = n
+                source[i][key] = n
             } else if existing is Bool {
-                items[i][key] = (value as? Bool) ?? false
+                source[i][key] = (value as? Bool) ?? false
             } else {
-                items[i][key] = value
+                source[i][key] = value
             }
         } else {
-            items[i][key] = value
+            source[i][key] = value
         }
-        isDirty = true
+        activeItems = source
+        didMutate()
         objectWillChange.send()
-    }
-
-    func select(_ index: Int?) {
-        selectedIndex = index
-        notifySelection()
+        // Notify settings tabs about the change
+        let itemType = source[i]["type"] as? String ?? ""
+        SettingsSync.postItemConfigChanged(itemType: itemType, key: key, newValue: source[i][key] ?? value)
     }
 
     var selectedItem: [String: Any]? {
-        guard let i = selectedIndex, i >= 0, i < items.count else { return nil }
-        return items[i]
+        guard let i = selectedIndex, i >= 0, i < activeItems.count else { return nil }
+        return activeItems[i]
+    }
+
+    // MARK: Clipboard operations
+
+    func copySelected() {
+        guard !selectedIndices.isEmpty else { return }
+        let sorted = selectedIndices.sorted()
+        let source = activeItems
+        let copied = sorted.compactMap { idx -> [String: Any]? in
+            guard idx >= 0, idx < source.count else { return nil }
+            guard let data = try? JSONSerialization.data(withJSONObject: source[idx]),
+                  let copy = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            return copy
+        }
+        clipboardSlots[0] = ClipboardSlot(id: 0, items: copied)
+    }
+
+    func cutSelected() {
+        guard editorMode == .edit, !selectedIndices.isEmpty else { return }
+        let sorted = selectedIndices.sorted()
+        let source = activeItems
+        let copied = sorted.compactMap { idx -> [String: Any]? in
+            guard idx >= 0, idx < source.count else { return nil }
+            guard let data = try? JSONSerialization.data(withJSONObject: source[idx]),
+                  let copy = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            return copy
+        }
+        clipboardSlots[0] = ClipboardSlot(id: 0, items: copied)
+        deleteSelected()
+    }
+
+    func pasteFromSlot(_ slotIndex: Int = 0) {
+        guard editorMode == .edit, slotIndex >= 0, slotIndex < clipboardSlots.count else { return }
+        let slot = clipboardSlots[slotIndex]
+        guard !slot.isEmpty else { return }
+        snapshot()
+        var source = activeItems
+        let insertAfter = selectedIndices.sorted().last ?? (source.count - 1)
+        let insertAt = min(insertAfter + 1, source.count)
+        for (offset, item) in slot.items.enumerated() {
+            source.insert(item, at: insertAt + offset)
+        }
+        activeItems = source
+        // Select pasted items
+        let pastedCount = slot.items.count
+        selectedIndices = Set(insertAt..<(insertAt + pastedCount))
+        selectionAnchor = insertAt
+        didMutate()
+        notifySelection()
     }
 
     // MARK: Explicit save
 
     func save() {
-        onSave?(items, currentThemePath)
+        // Save to draft first
+        if var draft = currentDraft {
+            draft.items = items
+            draft.isDirty = false
+            DraftManager.shared.save(draft)
+            currentDraft = draft
+        }
+        // Only write to items.json (hot-reload Touch Bar) if live preview is on
+        if isLivePreview {
+            syncToTouchBar()
+        }
         isDirty = false
+    }
+
+    /// Called after every mutation. Auto-saves draft and syncs live preview.
+    func didMutate() {
+        isDirty = true
+        // Auto-save to draft
+        if var draft = currentDraft {
+            draft.items = items
+            draft.isDirty = true
+            DraftManager.shared.save(draft)
+            currentDraft = draft
+        }
+        // Live preview: write items.json + reload Touch Bar immediately
+        if isLivePreview {
+            syncToTouchBar()
+        }
+    }
+
+    /// Write current items to items.json and hot-reload the Touch Bar.
+    private func syncToTouchBar() {
+        let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
+            .first!.appending("/LyricsMTMR")
+        let itemsPath = appSupport + "/items.json"
+        guard let data = try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted]) else { return }
+        try? data.write(to: URL(fileURLWithPath: itemsPath))
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    func renameDraft(_ newName: String) {
+        guard var draft = currentDraft, !newName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        draft.name = newName.trimmingCharacters(in: .whitespaces)
+        DraftManager.shared.save(draft)
+        currentDraft = draft
+    }
+
+    func toggleLivePreview() {
+        isLivePreview.toggle()
+        if isLivePreview {
+            // Turning on: sync current state to Touch Bar immediately
+            syncToTouchBar()
+        } else {
+            // Turning off: exit draft, reload the active theme (items.json)
+            currentDraft = nil
+            navigationPath = []
+            let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
+                .first!.appending("/LyricsMTMR")
+            let itemsPath = appSupport + "/items.json"
+            if let data = FileManager.default.contents(atPath: itemsPath),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                load(json, from: itemsPath)
+            }
+        }
     }
 
     private func notifySelection() {
@@ -201,7 +650,12 @@ struct RibbonEditorView: View {
     @StateObject private var model = RibbonModel()
     @State private var inspectorItem: [String: Any]?
     @State private var availableThemes: [ThemeEntry] = []
-    @State private var experimentMode: Bool = false
+    @State private var showClipboard: Bool = false
+    @State private var availableDrafts: [DraftMeta] = []
+    @State private var showNewThemeSheet: Bool = false
+    @State private var newThemeName: String = ""
+    @State private var showRenamePopover: Bool = false
+    @State private var renameText: String = ""
 
     var onLoad: ((RibbonModel) -> Void)?
     var onSave: (([[String: Any]]) -> Void)?
@@ -219,27 +673,40 @@ struct RibbonEditorView: View {
 
             Hairline()
 
-            if experimentMode {
-                // ── Palette (element categories) ──
-                PaletteRibbon(onAdd: { type in model.add(type: type) })
-                    .frame(height: 54)
+            // ── Palette (element categories) ──
+            PaletteRibbon(
+                onAdd: { type in model.add(type: type) },
+                isEnabled: model.editorMode == .edit
+            )
+            .frame(height: 54)
+            .background(EditorColors.sidebarSwift)
+
+            Hairline()
+
+            // ── Three-zone Touch Bar simulator ──
+            TouchBarSimulatorView(model: model)
+                .frame(height: 110)
+                .background(EditorColors.stripBgSwift)
+
+            // ── Breadcrumb navigation (nested containers) ──
+            if !model.navigationPath.isEmpty {
+                breadcrumbBar
+            }
+
+            Hairline()
+
+            // ── Property inspector ──
+            PropertyInspector(model: model)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(EditorColors.bgSwift)
+                .padding(.horizontal, 14)
+
+            // ── Clipboard panel (collapsible) ──
+            if showClipboard {
+                ClipboardPanelView(model: model, isVisible: $showClipboard)
+                    .frame(height: 120)
                     .background(EditorColors.sidebarSwift)
-
-                Hairline()
-
-                // ── Touch Bar strip (realistic shape) ──
-                TouchBarStrip(model: model)
-                    .frame(height: 100)
-                    .background(EditorColors.stripBgSwift)
-
-                Hairline()
-
-                // ── Property inspector ──
-                PropertyInspector(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(EditorColors.bgSwift)
-            } else {
-                lockedOverlay
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .onAppear {
@@ -248,9 +715,134 @@ struct RibbonEditorView: View {
             }
             model.onSelectionChange = { inspectorItem = $0 }
             scanThemes()
+            refreshDraftList()
             onLoad?(model)
         }
-        .background(KeyboardHandler(onUndo: { model.undo() }, onRedo: { model.redo() }, onSave: { model.save() }))
+        .background(
+            KeyboardHandler(
+                onUndo: { model.undo() },
+                onRedo: { model.redo() },
+                onSave: { model.save() },
+                onCopy: { model.copySelected() },
+                onCut: { model.cutSelected() },
+                onPaste: { model.pasteFromSlot(0) },
+                onSelectAll: { model.selectAll() },
+                onDelete: { model.deleteSelected() },
+                onEscape: {
+                    if !model.navigationPath.isEmpty {
+                        model.navigateBack()
+                    } else {
+                        model.clearSelection()
+                    }
+                }
+            )
+        )
+        .animation(.easeOut(duration: 0.15), value: showClipboard)
+        .sheet(isPresented: $showNewThemeSheet) {
+            newThemeSheet
+        }
+    }
+
+
+    // MARK: - Breadcrumb bar
+
+    private var breadcrumbBar: some View {
+        HStack(spacing: 0) {
+            BreadcrumbCrumb(
+                label: localized("根配置", "Root"),
+                symbol: "square.grid.2x2",
+                isCurrent: model.navigationPath.isEmpty
+            ) {
+                model.navigateToRoot()
+            }
+
+            ForEach(Array(model.navigationPath.enumerated()), id: \.offset) { levelIndex, level in
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                    .padding(.horizontal, 4)
+
+                BreadcrumbCrumb(
+                    label: level.containerTitle,
+                    symbol: EditorSchema.schema(for: level.containerType).symbol,
+                    isCurrent: levelIndex == model.navigationPath.count - 1
+                ) {
+                    while model.navigationPath.count > levelIndex + 1 {
+                        model.navigateBack()
+                    }
+                }
+            }
+
+            Spacer()
+
+            Button(action: { model.navigateBack() }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(localized("返回", "Back"))
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(EditorColors.accentSwift)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(EditorColors.accentSwift.opacity(0.1))
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(EditorColors.sidebarSwift.opacity(0.7))
+    }
+
+    // MARK: - New theme sheet
+
+    private var newThemeSheet: some View {
+        VStack(spacing: 16) {
+            Text(localized("另存为新主题", "Save as New Theme"))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(EditorColors.textPrimarySwift)
+
+            TextField(localized("主题名称", "Theme name"), text: $newThemeName)
+                .textFieldStyle(RibbonTextFieldStyle())
+                .frame(width: 240)
+
+            HStack(spacing: 12) {
+                Button(localized("取消", "Cancel")) {
+                    showNewThemeSheet = false
+                    newThemeName = ""
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EditorColors.textSecondarySwift)
+
+                Button(action: {
+                    let name = newThemeName.isEmpty ? "theme_custom" : newThemeName
+                    model.applyAsNewTheme(name: name)
+                    showNewThemeSheet = false
+                    newThemeName = ""
+                    scanThemes()
+                }) {
+                    Text(localized("保存", "Save"))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(EditorColors.accentSwift)
+                        }
+                }
+                .buttonStyle(.plain)
+                .disabled(newThemeName.isEmpty)
+            }
+        }
+        .padding(24)
+        .background(EditorColors.bgSwift)
+    }
+
+    private func refreshDraftList() {
+        availableDrafts = DraftManager.shared.listDrafts()
     }
 
     // MARK: - Office Ribbon Toolbar
@@ -290,6 +882,166 @@ struct RibbonEditorView: View {
 
             RibbonDivider()
 
+            // ━━ Group: Draft ━━
+            RibbonGroup(label: localized("草稿", "Draft")) {
+                HStack(spacing: 6) {
+                    Menu {
+                        Button(action: { model.createBlankDraft(); refreshDraftList() }) {
+                            Label(localized("新建空草稿", "New Blank Draft"), systemImage: "doc.badge.plus")
+                        }
+
+                        Menu(localized("从主题复制", "Copy from Theme")) {
+                            ForEach(availableThemes) { theme in
+                                Button(action: { model.createDraftFromTheme(path: theme.path); refreshDraftList() }) {
+                                    Text(theme.name)
+                                }
+                            }
+                        }
+
+                        if !availableDrafts.isEmpty {
+                            Divider()
+                            Menu(localized("打开草稿", "Open Draft")) {
+                                ForEach(availableDrafts) { draft in
+                                    Button(action: { model.openDraft(id: draft.id) }) {
+                                        Label("\(draft.name) (\(draft.itemCount))", systemImage: "doc.text")
+                                    }
+                                }
+                            }
+
+                            Divider()
+                            Menu(localized("删除草稿", "Delete Draft")) {
+                                ForEach(availableDrafts) { draft in
+                                    Button(role: .destructive, action: {
+                                        DraftManager.shared.deleteDraft(id: draft.id)
+                                        refreshDraftList()
+                                    }) {
+                                        Label(draft.name, systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.plaintext")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(model.currentDraft?.name ?? localized("草稿", "Draft"))
+                                .font(.system(size: 9.5, weight: .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(EditorColors.textSecondarySwift)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(EditorColors.hoverFillSwift)
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 110)
+
+                    // Draft rename button
+                    if model.currentDraft != nil {
+                        Button(action: {
+                            renameText = model.currentDraft?.name ?? ""
+                            showRenamePopover = true
+                        }) {
+                            Image(systemName: "pencil.line")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(EditorColors.textTertiarySwift)
+                                .padding(4)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(EditorColors.hoverFillSwift)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .help(localized("重命名草稿", "Rename draft"))
+                        .popover(isPresented: $showRenamePopover, arrowEdge: .bottom) {
+                            VStack(spacing: 10) {
+                                Text(localized("重命名草稿", "Rename Draft"))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(EditorColors.textPrimarySwift)
+                                TextField("", text: $renameText, prompt: Text(localized("草稿名称", "Draft name")))
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(size: 12))
+                                    .frame(width: 180)
+                                HStack {
+                                    Button(localized("取消", "Cancel")) {
+                                        showRenamePopover = false
+                                    }
+                                    .buttonStyle(.plain)
+                                    .font(.system(size: 11))
+                                    Spacer()
+                                    Button(localized("确定", "OK")) {
+                                        model.renameDraft(renameText)
+                                        showRenamePopover = false
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .tint(EditorColors.accentSwift)
+                                }
+                            }
+                            .padding(14)
+                            .frame(width: 210)
+                            .background(EditorColors.cardSwift)
+                        }
+                    }
+
+                    // Live preview toggle
+                    Button(action: { model.toggleLivePreview() }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: model.isLivePreview ? "eye.fill" : "eye.slash")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(localized("实时", "Live"))
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundStyle(model.isLivePreview ? EditorColors.mintSwift : EditorColors.textTertiarySwift)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 5)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(model.isLivePreview ? EditorColors.mintSwift.opacity(0.12) : Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .strokeBorder(model.isLivePreview ? EditorColors.mintSwift.opacity(0.4) : EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                                )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help(localized("开启后编辑实时同步到 Touch Bar", "When on, edits sync to Touch Bar in real-time"))
+                }
+            }
+
+            RibbonDivider()
+
+            // ━━ Group: Clip ━━
+            RibbonGroup(label: localized("剪贴", "Clip")) {
+                HStack(spacing: 6) {
+                    RibbonButton(
+                        symbol: "scissors",
+                        label: localized("剪切", "Cut"),
+                        shortcut: "⌘X",
+                        isEnabled: model.editorMode == .edit && !model.selectedIndices.isEmpty
+                    ) { model.cutSelected() }
+
+                    RibbonButton(
+                        symbol: "doc.on.doc",
+                        label: localized("复制", "Copy"),
+                        shortcut: "⌘C",
+                        isEnabled: !model.selectedIndices.isEmpty
+                    ) { model.copySelected() }
+
+                    RibbonButton(
+                        symbol: "doc.on.clipboard",
+                        label: localized("粘贴", "Paste"),
+                        shortcut: "⌘V",
+                        isEnabled: model.editorMode == .edit && !model.clipboardSlots[0].isEmpty
+                    ) { model.pasteFromSlot(0) }
+                }
+            }
+
+            RibbonDivider()
+
             // ━━ Group: History ━━
             RibbonGroup(label: localized("历史", "History")) {
                 HStack(spacing: 6) {
@@ -306,13 +1058,6 @@ struct RibbonEditorView: View {
                         shortcut: "⇧⌘Z",
                         isEnabled: model.canRedo
                     ) { model.redo() }
-
-                    RibbonButton(
-                        symbol: "clock.arrow.circlepath",
-                        label: localized("快照", "Snap"),
-                        shortcut: "",
-                        isEnabled: experimentMode
-                    ) { model.snapshot() }
                 }
             }
 
@@ -335,6 +1080,20 @@ struct RibbonEditorView: View {
                         shortcut: "",
                         isEnabled: true
                     ) { loadTheme(at: model.currentThemePath) }
+
+                    RibbonButton(
+                        symbol: "checkmark.circle",
+                        label: localized("应用", "Apply"),
+                        shortcut: "",
+                        isEnabled: model.currentDraft != nil && model.isDirty
+                    ) { model.applyToTheme(path: model.currentThemePath) }
+
+                    RibbonButton(
+                        symbol: "square.and.arrow.up",
+                        label: localized("另存", "Save As"),
+                        shortcut: "",
+                        isEnabled: model.currentDraft != nil
+                    ) { showNewThemeSheet = true }
                 }
             }
 
@@ -343,36 +1102,90 @@ struct RibbonEditorView: View {
             // ━━ Group: Mode ━━
             RibbonGroup(label: localized("模式", "Mode")) {
                 HStack(spacing: 8) {
-                    VStack(spacing: 3) {
-                        Toggle("", isOn: $experimentMode)
-                            .toggleStyle(RibbonToggleStyle())
-                            .labelsHidden()
-                        Text(localized("实验", "Edit"))
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(experimentMode ? EditorColors.mintSwift : EditorColors.textTertiarySwift)
+                    ForEach([EditorMode.edit, EditorMode.preview], id: \.self) { mode in
+                        let isActive = model.editorMode == mode
+                        Button(action: { model.setMode(mode) }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: mode.symbol)
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(mode.label)
+                                    .font(.system(size: 9.5, weight: .medium))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isActive ? mode.tint.opacity(0.2) : Color.clear)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .strokeBorder(isActive ? mode.tint : EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                                    )
+                            }
+                            .foregroundStyle(isActive ? mode.tint : EditorColors.textTertiarySwift)
+                        }
+                        .buttonStyle(.plain)
+                        .animation(.easeOut(duration: 0.1), value: model.editorMode)
                     }
+                }
+            }
+
+            RibbonDivider()
+
+            // ━━ Group: Keys ━━
+            RibbonGroup(label: localized("键位", "Keys")) {
+                RibbonButton(
+                    symbol: "keyboard",
+                    label: localized("键位编辑", "Key Editor"),
+                    isProminent: true
+                ) {
+                    NotificationCenter.default.post(name: .keyBindingTabRequested, object: nil)
                 }
             }
 
             Spacer(minLength: 12)
 
-            // ━━ Right: item count badge ━━
-            if experimentMode {
+            // ━━ Right: badges ━━
+            HStack(spacing: 8) {
+                // Selection badge
+                if !model.selectedIndices.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 9, weight: .medium))
+                        Text("\(model.selectedIndices.count)")
+                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    }
+                    .foregroundStyle(EditorColors.accentSwift)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background {
+                        Capsule().fill(EditorColors.accentSwift.opacity(0.12))
+                    }
+                }
+
+                // Item count
                 HStack(spacing: 5) {
                     Image(systemName: "square.stack.3d.up")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(EditorColors.textTertiarySwift)
-                    Text("\(model.items.count) items")
+                    Text("\(model.items.count)")
                         .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                        .foregroundStyle(EditorColors.textTertiarySwift)
                 }
-                .padding(.horizontal, 10)
+                .foregroundStyle(EditorColors.textTertiarySwift)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background {
                     Capsule().fill(EditorColors.cardSwift)
                 }
-                .padding(.trailing, 14)
+
+                // Clipboard toggle
+                Button(action: { showClipboard.toggle() }) {
+                    Image(systemName: showClipboard ? "rectangle.stack.fill" : "rectangle.stack")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(showClipboard ? EditorColors.accentSwift : EditorColors.textTertiarySwift)
+                }
+                .buttonStyle(.plain)
+                .help(localized("剪贴板面板", "Clipboard Panel"))
             }
+            .padding(.trailing, 14)
         }
         .frame(height: 72)
         .background {
@@ -384,28 +1197,6 @@ struct RibbonEditorView: View {
                     )
                 )
         }
-    }
-
-    // MARK: Locked overlay
-
-    private var lockedOverlay: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(EditorColors.cardSwift)
-                    .frame(width: 72, height: 72)
-                Image(systemName: "lock.open")
-                    .font(.system(size: 28, weight: .light))
-                    .foregroundStyle(EditorColors.textSecondarySwift)
-            }
-            Text(localized("开启实验模式以编辑主题", "Enable Experiment Mode to edit themes"))
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(EditorColors.textPrimarySwift)
-            Text(localized("编辑操作不会自动保存 · 随时 ⌘Z 撤销 · 支持快照回档", "No auto-save · ⌘Z undo · snapshot support"))
-                .font(.system(size: 12))
-                .foregroundStyle(EditorColors.textTertiarySwift)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Helpers
@@ -564,18 +1355,30 @@ struct RibbonButton: View {
     }
 }
 
-// MARK: - Keyboard handler (Cmd+Z, Cmd+Shift+Z, Cmd+S)
+// MARK: - Keyboard handler (⌘Z, ⌘⇧Z, ⌘S, ⌘C, ⌘X, ⌘V, ⌘A, Delete, Esc)
 
 struct KeyboardHandler: NSViewRepresentable {
     var onUndo: () -> Void
     var onRedo: () -> Void
     var onSave: () -> Void
+    var onCopy: () -> Void
+    var onCut: () -> Void
+    var onPaste: () -> Void
+    var onSelectAll: () -> Void
+    var onDelete: () -> Void
+    var onEscape: () -> Void
 
     func makeNSView(context: Context) -> ShortcutCaptureView {
         let view = ShortcutCaptureView()
         view.onUndo = onUndo
         view.onRedo = onRedo
         view.onSave = onSave
+        view.onCopy = onCopy
+        view.onCut = onCut
+        view.onPaste = onPaste
+        view.onSelectAll = onSelectAll
+        view.onDelete = onDelete
+        view.onEscape = onEscape
         DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
         return view
     }
@@ -584,23 +1387,49 @@ struct KeyboardHandler: NSViewRepresentable {
         nsView.onUndo = onUndo
         nsView.onRedo = onRedo
         nsView.onSave = onSave
+        nsView.onCopy = onCopy
+        nsView.onCut = onCut
+        nsView.onPaste = onPaste
+        nsView.onSelectAll = onSelectAll
+        nsView.onDelete = onDelete
+        nsView.onEscape = onEscape
     }
 
     class ShortcutCaptureView: NSView {
         var onUndo: (() -> Void)?
         var onRedo: (() -> Void)?
         var onSave: (() -> Void)?
+        var onCopy: (() -> Void)?
+        var onCut: (() -> Void)?
+        var onPaste: (() -> Void)?
+        var onSelectAll: (() -> Void)?
+        var onDelete: (() -> Void)?
+        var onEscape: (() -> Void)?
 
         override var acceptsFirstResponder: Bool { true }
 
         override func keyDown(with event: NSEvent) {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if flags == [.command] && event.charactersIgnoringModifiers == "z" {
+            let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+            if flags == [.command] && key == "z" {
                 onUndo?()
-            } else if flags == [.command, .shift] && event.charactersIgnoringModifiers == "z" {
+            } else if flags == [.command, .shift] && key == "z" {
                 onRedo?()
-            } else if flags == [.command] && event.charactersIgnoringModifiers == "s" {
+            } else if flags == [.command] && key == "s" {
                 onSave?()
+            } else if flags == [.command] && key == "c" {
+                onCopy?()
+            } else if flags == [.command] && key == "x" {
+                onCut?()
+            } else if flags == [.command] && key == "v" {
+                onPaste?()
+            } else if flags == [.command] && key == "a" {
+                onSelectAll?()
+            } else if event.keyCode == 51 || event.keyCode == 117 {
+                onDelete?()
+            } else if event.keyCode == 53 {
+                onEscape?()
             } else {
                 super.keyDown(with: event)
             }
@@ -612,6 +1441,7 @@ struct KeyboardHandler: NSViewRepresentable {
 
 struct PaletteRibbon: View {
     let onAdd: (String) -> Void
+    var isEnabled: Bool = true
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -620,7 +1450,7 @@ struct PaletteRibbon: View {
                     HStack(spacing: 4) {
                         ForEach(category.types, id: \.self) { type in
                             let schema = EditorSchema.schema(for: type)
-                            PaletteChip(symbol: schema.symbol, label: schema.displayName) {
+                            PaletteChip(schema: schema, isEnabled: isEnabled) {
                                 onAdd(type)
                             }
                         }
@@ -639,8 +1469,8 @@ struct PaletteRibbon: View {
 }
 
 struct PaletteChip: View {
-    let symbol: String
-    let label: String
+    let schema: ItemSchema
+    var isEnabled: Bool = true
     let action: () -> Void
 
     @State private var hovering = false
@@ -648,21 +1478,31 @@ struct PaletteChip: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 2) {
-                Image(systemName: symbol)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(hovering ? EditorColors.accentSwift : EditorColors.textSecondarySwift)
-                Text(label)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: schema.symbol)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(isEnabled ? (hovering ? EditorColors.accentSwift : EditorColors.textSecondarySwift) : EditorColors.textTertiarySwift.opacity(0.3))
+                    if schema.requiresAPIKey {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 6, weight: .bold))
+                            .foregroundStyle(EditorColors.accentSwift.opacity(0.7))
+                            .offset(x: 6, y: -2)
+                    }
+                }
+                Text(schema.displayName)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(EditorColors.textTertiarySwift)
+                    .foregroundStyle(isEnabled ? EditorColors.textTertiarySwift : EditorColors.textTertiarySwift.opacity(0.3))
             }
             .frame(width: 50, height: 38)
             .background {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(hovering ? EditorColors.hoverFillSwift : Color.clear)
+                    .fill(hovering && isEnabled ? EditorColors.hoverFillSwift : Color.clear)
             }
         }
         .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .disabled(!isEnabled)
+        .help(schema.description.isEmpty ? schema.displayName : schema.description)
+        .onHover { hovering = isEnabled ? $0 : false }
         .animation(.easeOut(duration: 0.1), value: hovering)
     }
 }
@@ -675,7 +1515,7 @@ struct TouchBarStrip: View {
 
     var body: some View {
         GeometryReader { geo in
-            let stripWidth = min(geo.size.width - 48, geo.size.width * 0.78)
+            let stripWidth = geo.size.width - 28
             let stripHeight: CGFloat = 44
 
             ZStack {
@@ -698,7 +1538,7 @@ struct TouchBarStrip: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         if model.items.isEmpty {
-                            Text(localized("点击上方元素添加", "Tap above to add"))
+                            Text(model.editorMode == .edit ? localized("点击上方元素添加", "Tap above to add") : localized("预览模式 — 无元素", "Preview — no items"))
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(Color(white: 0.35))
                         } else {
@@ -706,14 +1546,19 @@ struct TouchBarStrip: View {
                                 BubblePill(
                                     item: item,
                                     index: index,
-                                    isSelected: model.selectedIndex == index,
+                                    isSelected: model.isSelected(index),
+                                    isMultiMode: model.selectedIndices.count > 1,
                                     isDropTarget: dragOverIndex == index,
-                                    onDelete: { model.delete(at: index) }
+                                    isEditMode: model.editorMode == .edit,
+                                    onDelete: { model.delete(at: index) },
+                                    onTap: { handleTap(index) }
                                 )
-                                .onTapGesture { model.select(index) }
                                 .onDrag {
-                                    model.select(index)
-                                    return NSItemProvider(object: "\(index)" as NSString)
+                                    if model.editorMode == .edit {
+                                        model.select(index)
+                                        return NSItemProvider(object: "\(index)" as NSString)
+                                    }
+                                    return NSItemProvider()
                                 }
                                 .onDrop(of: [.text], delegate: BubbleDropDelegate(
                                     targetIndex: index,
@@ -733,16 +1578,32 @@ struct TouchBarStrip: View {
             .frame(width: geo.size.width, height: geo.size.height)
         }
     }
+
+    private func handleTap(_ index: Int) {
+        let cmdPressed = NSEvent.modifierFlags.contains(.command)
+        let shiftPressed = NSEvent.modifierFlags.contains(.shift)
+
+        if cmdPressed {
+            model.toggleSelect(index)
+        } else if shiftPressed {
+            model.rangeSelect(to: index)
+        } else {
+            model.select(index)
+        }
+    }
 }
 
-// MARK: - Bubble Pill (compact, Touch Bar style)
+// MARK: - Bubble Pill (compact, Touch Bar style, with multi-select support)
 
 struct BubblePill: View {
     let item: [String: Any]
     let index: Int
     let isSelected: Bool
+    let isMultiMode: Bool
     let isDropTarget: Bool
+    let isEditMode: Bool
     let onDelete: () -> Void
+    let onTap: () -> Void
 
     @State private var hovering = false
 
@@ -751,17 +1612,25 @@ struct BubblePill: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: schema.symbol)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Color(white: 0.55))
-                .frame(width: 12)
+            // Multi-select checkmark indicator
+            if isMultiMode && isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 10)
+            } else {
+                Image(systemName: schema.symbol)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Color(white: 0.55))
+                    .frame(width: 12)
+            }
 
             Text(displayText)
                 .font(.system(size: 10.5, weight: .medium, design: .rounded))
                 .foregroundStyle(isSelected ? Color.white : Color(white: 0.8))
                 .lineLimit(1)
 
-            if hovering {
+            if hovering && isEditMode {
                 Button(action: onDelete) {
                     Image(systemName: "xmark")
                         .font(.system(size: 7, weight: .bold))
@@ -789,6 +1658,7 @@ struct BubblePill: View {
                         )
                 )
         }
+        .onTapGesture { onTap() }
         .onHover { hv in withAnimation(.easeOut(duration: 0.12)) { hovering = hv } }
     }
 
@@ -827,6 +1697,126 @@ struct BubblePill: View {
     }
 }
 
+// MARK: - Clipboard Panel
+
+struct ClipboardPanelView: View {
+    @ObservedObject var model: RibbonModel
+    @Binding var isVisible: Bool
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 6),
+        GridItem(.flexible(), spacing: 6),
+        GridItem(.flexible(), spacing: 6),
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "rectangle.stack")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EditorColors.accentSwift)
+                Text(localized("剪贴板", "Clipboard"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EditorColors.textSecondarySwift)
+                Text("·")
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                Text(localized("点击槽位粘贴", "Tap a slot to paste"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+
+                Spacer()
+
+                Button(action: { isVisible = false }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+
+            Divider()
+                .background(EditorColors.hairlineSwift)
+
+            LazyVGrid(columns: columns, spacing: 6) {
+                ForEach(model.clipboardSlots) { slot in
+                    ClipboardSlotView(
+                        slot: slot,
+                        isEditMode: model.editorMode == .edit,
+                        onPaste: {
+                            model.pasteFromSlot(slot.id)
+                            isVisible = false
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+        .background(EditorColors.sidebarSwift)
+    }
+}
+
+struct ClipboardSlotView: View {
+    let slot: ClipboardSlot
+    let isEditMode: Bool
+    let onPaste: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onPaste) {
+            HStack(spacing: 6) {
+                // Slot number badge
+                Text("\(slot.id + 1)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(slot.isEmpty ? EditorColors.textTertiarySwift.opacity(0.4) : EditorColors.textSecondarySwift)
+                    .frame(width: 16, height: 16)
+                    .background {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(EditorColors.cardSwift.opacity(0.5))
+                    }
+
+                Image(systemName: slot.primarySymbol)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(slot.isEmpty ? EditorColors.textTertiarySwift.opacity(0.3) : EditorColors.textSecondarySwift)
+                    .frame(width: 16)
+
+                if slot.isEmpty {
+                    Text(localized("空槽", "Empty"))
+                        .font(.system(size: 10))
+                        .foregroundStyle(EditorColors.textTertiarySwift.opacity(0.4))
+                } else {
+                    Text(slot.summary)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(EditorColors.textSecondarySwift)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(hovering && !slot.isEmpty && isEditMode ? EditorColors.hoverFillSwift : EditorColors.cardSwift.opacity(0.6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(
+                                slot.id == 0 && !slot.isEmpty ? EditorColors.accentSwift.opacity(0.3) : EditorColors.hairlineSwift,
+                                lineWidth: 0.5
+                            )
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(slot.isEmpty || !isEditMode)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: hovering)
+    }
+}
+
 // MARK: - Drop Delegate
 
 struct BubbleDropDelegate: DropDelegate {
@@ -848,6 +1838,39 @@ struct BubbleDropDelegate: DropDelegate {
         return true
     }
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+}
+
+// MARK: - Breadcrumb crumb
+
+struct BreadcrumbCrumb: View {
+    let label: String
+    let symbol: String
+    let isCurrent: Bool
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 9, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 10.5, weight: isCurrent ? .semibold : .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isCurrent ? EditorColors.textPrimarySwift : EditorColors.textTertiarySwift)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(hovering ? EditorColors.hoverFillSwift : (isCurrent ? EditorColors.cardSwift.opacity(0.5) : Color.clear))
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: hovering)
+    }
 }
 
 // MARK: - Hairline helper

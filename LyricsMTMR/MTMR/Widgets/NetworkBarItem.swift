@@ -24,9 +24,7 @@ class NetworkBarItem: CustomButtonTouchBarItem, Widget {
         startMonitoringProcess()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     deinit {
         if let observer = dataObserver {

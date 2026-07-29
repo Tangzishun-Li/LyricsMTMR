@@ -18,7 +18,7 @@ class ApiLatencyItem: TBPollItem {
                    icon: "gauge.with.needle", tint: TB.mint,
                    label: localized("延迟", "PING"), width: 120)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let start = Date().timeIntervalSince1970

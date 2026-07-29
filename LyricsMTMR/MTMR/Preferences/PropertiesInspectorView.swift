@@ -56,7 +56,7 @@ class EditorInspectorView: NSView {
         ])
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     func setItem(_ item: [String: Any]) { model.item = item }
     func clear() { model.item = nil }
@@ -313,16 +313,15 @@ struct InspectorRoot: View {
             }
         case .number(let placeholder):
             InspectorRow(label: field.label) {
-                Deck.Field(
+                CommitNumberField(
                     placeholder: placeholder,
-                    text: Binding(
+                    committedValue: Binding(
                         get: { numberToString(model.item?[field.key]) },
                         set: { newVal in
                             if let n = Int(newVal) { model.update(field.key, n) }
                             else if let d = Double(newVal) { model.update(field.key, d) }
-                            else { model.update(field.key, newVal) }
-                        }),
-                    mono: true)
+                        })
+                )
             }
         case .toggle:
             ToggleRow(

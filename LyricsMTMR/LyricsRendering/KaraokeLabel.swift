@@ -198,6 +198,7 @@ class KaraokeLabel: NSTextField {
         ensureProgressLayer()
         guard let line = ctFrame().lines.first,
               let origin = ctFrame().lineOrigins(range: CFRange(location: 0, length: 1)).first else {
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — ctFrame has no lines (bounds=\(bounds))")
             return
         }
         var lineBounds = line.bounds()
@@ -223,15 +224,26 @@ class KaraokeLabel: NSTextField {
         mask.contents = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
         progressLayer.mask = mask
 
-        guard let index = progress.firstIndex(where: { $0.0 > 0 }) else { return }
+        guard let index = progress.firstIndex(where: { $0.0 > 0 }) else {
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — no future progress point (all \(progress.count) are <=0, first=\(progress.first?.0 ?? -999))")
+            return
+        }
         var map = progress.map { ($0.0, line.offset(charIndex: $0.1).primary) }
         if index > 0 {
             let progress = map[index - 1].1 + CGFloat(map[index - 1].0) * (map[index].1 - map[index - 1].1) / CGFloat(map[index].0 - map[index - 1].0)
             map.replaceSubrange(..<index, with: [(0, progress)])
+        } else {
+            // All words are still in the future — prepend a zero-progress
+            // anchor so keyTimes[0] == 0 as CAKeyframeAnimation requires.
+            map.insert((0, 0), at: 0)
         }
 
         let duration = map.last!.0
-        guard duration > 0 else { return }
+        guard duration > 0 else {
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — duration=\(duration) <=0")
+            return
+        }
+        AppLog.lyrics("KaraokeLabel.setProgressAnimation: OK — \(map.count) keyframes, duration=\(duration), values=\(map.map { $0.1 })")
 
         // Set the initial bounds to the first value (initial progress) before animation starts
         if let initialValue = map.first?.1 {
@@ -247,6 +259,8 @@ class KaraokeLabel: NSTextField {
         animation.values = map.map { $0.1 }
         animation.keyPath = isVertical ? "bounds.size.height" : "bounds.size.width"
         animation.duration = duration
+        animation.fillMode = .both
+        animation.isRemovedOnCompletion = false
 
         if style == .jump {
             animation.calculationMode = .discrete

@@ -16,7 +16,7 @@ class NoteCaptureItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("快捕", "Note"), symbol: "square.and.pencil", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     private func resolvedPath() -> String {
         if filePath.isEmpty { return appSupportDirectory.appending("/notes-touchbar.md") }
@@ -25,7 +25,7 @@ class NoteCaptureItem: TBPopoverItem {
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.9, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let fileName = resolvedPath().split(separator: "/").last.map(String.init) ?? "notes"
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("追加到 \(fileName)", "append to \(fileName)"), tint: TB.textSecondary)

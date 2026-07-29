@@ -27,7 +27,7 @@ class EditorTabView: NSView {
         loadFromMTMR()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     private func setup() {
         wantsLayer = true
@@ -285,9 +285,23 @@ class EditorTabView: NSView {
         let destPath = appSupport + "/items.json"
         try? JSONSerialization.data(withJSONObject: items, options: []).write(to: URL(fileURLWithPath: destPath))
         TouchBarController.shared.reloadStandardConfig()
+
+        // Sync ThemeSwitchBarItem: extract theme index from filename (e.g. "theme5.json" → 4)
+        if let themeIndex = themeIndex(from: name) {
+            AppSettings.selectedThemeIndex = themeIndex
+        }
     }
 
     // MARK: - JSON I/O
+
+    /// Extracts the theme index from a theme filename (e.g. "theme5" → 4, "theme10" → 9).
+    /// Returns nil if the filename doesn't match the expected pattern.
+    private func themeIndex(from name: String) -> Int? {
+        guard name.hasPrefix("theme") else { return nil }
+        let numberPart = String(name.dropFirst(5)) // Remove "theme" prefix
+        guard let num = Int(numberPart), num > 0 else { return nil }
+        return num - 1 // Convert to 0-based index
+    }
 
     private func loadJSON(from path: String) -> [[String: Any]]? {
         guard let data = FileManager.default.contents(atPath: path),

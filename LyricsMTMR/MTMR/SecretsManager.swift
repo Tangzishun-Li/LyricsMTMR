@@ -40,6 +40,7 @@ enum APIService: String, CaseIterable, Identifiable {
     case mijiaToken
     case sshHost
     case sshUser
+    case bilibiliCookie
 
     var id: String { rawValue }
 
@@ -59,6 +60,7 @@ enum APIService: String, CaseIterable, Identifiable {
         case .mijiaToken:       return "MiJia Token"
         case .sshHost:          return "SSH Host"
         case .sshUser:          return "SSH User"
+        case .bilibiliCookie:   return "Bilibili Cookie"
         }
     }
 
@@ -78,6 +80,7 @@ enum APIService: String, CaseIterable, Identifiable {
         case .mijiaToken:       return "com.lyricsmtmr.services.mijiaToken"
         case .sshHost:          return "com.lyricsmtmr.services.sshHost"
         case .sshUser:          return "com.lyricsmtmr.services.sshUser"
+        case .bilibiliCookie:   return "com.lyricsmtmr.services.bilibiliCookie"
         }
     }
 
@@ -86,7 +89,7 @@ enum APIService: String, CaseIterable, Identifiable {
         switch self {
         case .deepseekAPIKey, .openWeatherAPIKey, .kuaidi100Key,
                 .kuaidi100Customer, .slackBotToken, .githubToken,
-                .rssAPIKey, .mijiaToken:
+                .rssAPIKey, .mijiaToken, .bilibiliCookie:
             return true
         case .deepseekModel, .deepseekBaseURL, .rssProvider,
                 .sshHost, .sshUser:

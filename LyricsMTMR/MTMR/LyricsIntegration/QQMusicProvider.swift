@@ -296,7 +296,7 @@ enum QQMusicProvider {
 
             let wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
             var cleanText = ""
-            var timetags: [(TimeInterval, Int)] = []
+            var words: [SimpleLyrics.Word] = []
 
             let hasParen = wordContent.contains("(")
             let hasAngle = wordContent.contains("<")
@@ -310,13 +310,18 @@ enum QQMusicProvider {
                     guard let wordMs = Double(wordMsStr),
                           let wordDurMs = Double(wordDurMsStr) else { continue }
 
-                    let prevCount = cleanText.count
+                    let prevCount = (cleanText as NSString).length
                     let strippedWord = wordText
                         .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+                    let wordStartUTF16 = prevCount
                     cleanText += strippedWord
                     if wm.range(at: 4).location != NSNotFound { cleanText += " " }
-                    timetags.append((wordMs / 1000.0, prevCount))
-                    _ = wordDurMs
+                    words.append(SimpleLyrics.Word(
+                        text: strippedWord,
+                        startTime: wordMs / 1000.0,
+                        duration: wordDurMs / 1000.0,
+                        charIndex: wordStartUTF16
+                    ))
                 }
             }
 
@@ -329,7 +334,7 @@ enum QQMusicProvider {
             }
 
             guard !cleanText.isEmpty else { continue }
-            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, timetags: timetags))
+            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, words: words))
         }
 
         guard !lines.isEmpty else { return nil }

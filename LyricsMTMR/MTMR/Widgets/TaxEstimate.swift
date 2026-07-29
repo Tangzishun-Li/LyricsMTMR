@@ -18,7 +18,7 @@ class TaxEstimateItem: TBPollItem {
                    icon: "percent", tint: TB.purple,
                    label: localized("个税", "Tax"), width: 150)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         // 起征点 5000/月 → 60000/年，先扣除基本减除费用。

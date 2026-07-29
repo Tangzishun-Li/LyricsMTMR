@@ -3,13 +3,16 @@
 //  LyricsMTMR
 //
 //  Dynamic property inspector driven by EditorSchema.
-//  Two-column adaptive grid that fills the full available width.
+//  Section-grouped properties, collapsible headers, conditional visibility,
+//  new controls (stringList, slider, filePicker, colorPicker), container drill-in.
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PropertyInspector: View {
     @ObservedObject var model: RibbonModel
+    @State private var showKeyCapture: Bool = false
 
     private let gridColumns = [
         GridItem(.flexible(minimum: 180), spacing: 16),
@@ -18,12 +21,15 @@ struct PropertyInspector: View {
 
     var body: some View {
         Group {
-            if let index = model.selectedIndex,
-               index < model.items.count {
-                let item = model.items[index]
+            if model.selectedIndices.isEmpty {
+                emptyState
+            } else if model.selectedIndices.count == 1,
+                      let index = model.selectedIndex,
+                      index < model.activeItems.count {
+                let item = model.activeItems[index]
                 inspectorContent(item: item, index: index)
             } else {
-                emptyState
+                multiSelectState
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -38,31 +44,334 @@ struct PropertyInspector: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(EditorColors.textSecondarySwift)
                 .multilineTextAlignment(.center)
+            Text(localized("⌘+点击 多选 · ⇧+点击 连选 · 双击容器进入子项", "⌘+click multi · ⇧+click range · Double-click container to enter"))
+                .font(.system(size: 11))
+                .foregroundStyle(EditorColors.textTertiarySwift)
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 40)
     }
 
+    private var multiSelectState: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(EditorColors.cardSwift)
+                        .frame(width: 38, height: 38)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(EditorColors.accentSwift)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(localized("已选 \(model.selectedIndices.count) 项", "\(model.selectedIndices.count) items selected"))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(EditorColors.textPrimarySwift)
+                    Text(localized("使用 ⌘C 复制 · ⌘X 剪切 · Delete 删除", "⌘C copy · ⌘X cut · Delete remove"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                }
+
+                Spacer()
+
+                Button(action: { model.deleteSelected() }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(EditorColors.accentDeepSwift)
+                }
+                .buttonStyle(.plain)
+                .disabled(model.editorMode != .edit)
+                .help(localized("删除选中", "Delete selected"))
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+
+            selectedTypesSummary
+                .padding(.horizontal, 24)
+        }
+    }
+
+    private var selectedTypesSummary: some View {
+        let types = model.selectedIndices.compactMap { idx -> String? in
+            guard idx >= 0, idx < model.activeItems.count else { return nil }
+            return model.activeItems[idx]["type"] as? String
+        }
+        let counts = Dictionary(grouping: types, by: { $0 }).mapValues { $0.count }
+
+        return HStack(spacing: 8) {
+            ForEach(counts.sorted(by: { $0.value > $1.value }), id: \.key) { type, count in
+                let schema = EditorSchema.schema(for: type)
+                HStack(spacing: 4) {
+                    Image(systemName: schema.symbol)
+                        .font(.system(size: 9, weight: .medium))
+                    Text("\(count)")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                }
+                .foregroundStyle(EditorColors.textSecondarySwift)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background {
+                    Capsule().fill(EditorColors.cardSwift.opacity(0.6))
+                }
+            }
+            Spacer()
+        }
+    }
+
     private func inspectorContent(item: [String: Any], index: Int) -> some View {
         let type = item["type"] as? String ?? "unknown"
         let schema = EditorSchema.schema(for: type)
+        let sections = schema.sectionedProperties
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(type: type, schema: schema, index: index)
 
+                // Container drill-in button
+                if schema.hasPopup || (item["items"] as? [[String: Any]]) != nil {
+                    drillInButton(index: index, schema: schema)
+                }
+
                 diagnostics(item: item)
 
-                // Properties in adaptive two-column grid
-                LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 16) {
-                    ForEach(schema.properties) { property in
-                        propertyCell(property: property, item: item)
-                    }
+                // Shortcut binding section (when action is appleScript with key code)
+                shortcutSection(item: item, index: index)
+
+                // Section-grouped properties
+                ForEach(sections, id: \.section) { section in
+                    sectionView(section: section, item: item)
                 }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    // MARK: - Section view (collapsible)
+
+    // MARK: - Shortcut binding section
+
+    @ViewBuilder
+    private func shortcutSection(item: [String: Any], index: Int) -> some View {
+        let action = item["action"] as? String ?? ""
+        let scriptDict = item["actionAppleScript"] as? [String: Any]
+        let inline = scriptDict?["inline"] as? String ?? ""
+        let parsed = AppleScriptGenerator.parseKeyCombo(from: inline)
+
+        if action == "appleScript" || parsed != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                // Section header
+                HStack(spacing: 6) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(EditorColors.accentSwift)
+                    Text(localized("快捷键", "Shortcut"))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                        .textCase(.uppercase)
+                    Rectangle()
+                        .fill(EditorColors.hairlineSwift)
+                        .frame(height: 1)
+                }
+
+                if let combo = parsed {
+                    // Show current binding
+                    HStack(spacing: 8) {
+                        // Keycap display
+                        HStack(spacing: 3) {
+                            ForEach(combo.modifiers.sorted(by: { $0.sortOrder < $1.sortOrder })) { mod in
+                                Text(mod.symbol)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(EditorColors.textPrimarySwift)
+                                    .frame(width: 26, height: 26)
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(EditorColors.cardSwift)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 5)
+                                                    .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.8)
+                                            )
+                                    }
+                            }
+                            Text(KeyCodeMap.label(for: combo.keyCode))
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(EditorColors.accentSwift)
+                                .frame(minWidth: 26, minHeight: 26)
+                                .padding(.horizontal, 4)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(EditorColors.accentSwift.opacity(0.12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 5)
+                                                .strokeBorder(EditorColors.accentSwift.opacity(0.5), lineWidth: 0.8)
+                                        )
+                                }
+                        }
+
+                        Text("keyCode \(combo.keyCode)")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(EditorColors.textTertiarySwift)
+
+                        Spacer()
+
+                        // Modify button
+                        Button(action: { showKeyCapture = true }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text(localized("修改", "Edit"))
+                                    .font(.system(size: 10.5, weight: .medium))
+                            }
+                            .foregroundStyle(EditorColors.accentSwift)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(EditorColors.accentSwift.opacity(0.1))
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        // Clear button
+                        Button(action: {
+                            var src = model.activeItems
+                            KeyBindingStore.clearBinding(from: &src[index])
+                            model.activeItems = src
+                            model.didMutate()
+                        }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                Text(localized("清除", "Clear"))
+                                    .font(.system(size: 10.5, weight: .medium))
+                            }
+                            .foregroundStyle(EditorColors.accentDeepSwift)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(EditorColors.accentDeepSwift.opacity(0.08))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    // No binding yet: offer to add one
+                    Button(action: { showKeyCapture = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(localized("绑定快捷键", "Bind Shortcut"))
+                                .font(.system(size: 11.5, weight: .medium))
+                        }
+                        .foregroundStyle(EditorColors.accentSwift)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill(EditorColors.accentSwift.opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .strokeBorder(EditorColors.accentSwift.opacity(0.25), lineWidth: 0.5)
+                                )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .popover(isPresented: $showKeyCapture, arrowEdge: .bottom) {
+                compactKeyCapture(index: index)
+            }
+        }
+    }
+
+    private func compactKeyCapture(index: Int) -> some View {
+        let captureStore = KeyBindingStore()
+        return VStack(spacing: 10) {
+            Text(localized("按下组合键完成绑定", "Press combo to bind"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(EditorColors.textPrimarySwift)
+
+            VirtualKeyboardView(store: captureStore, onKeyCombo: { keyCode, modifiers in
+                var src = model.activeItems
+                KeyBindingStore.applyBinding(to: &src[index], keyCode: keyCode, modifiers: modifiers)
+                model.activeItems = src
+                model.didMutate()
+                showKeyCapture = false
+            }, compact: true)
+        }
+        .padding(14)
+        .frame(width: 680)
+        .background(EditorColors.bgSwift)
+    }
+
+    private func sectionView(section: (section: String, props: [ItemProperty]), item: [String: Any]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Text(section.section)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                    .textCase(.uppercase)
+                Rectangle()
+                    .fill(EditorColors.hairlineSwift)
+                    .frame(height: 1)
+            }
+            .padding(.top, 4)
+
+            LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 16) {
+                ForEach(section.props) { property in
+                    // Conditional visibility via dependsOn
+                    if shouldShow(property: property, item: item) {
+                        propertyCell(property: property, item: item)
+                    }
+                }
+            }
+        }
+    }
+
+    private func shouldShow(property: ItemProperty, item: [String: Any]) -> Bool {
+        guard let dep = property.dependsOn else { return true }
+        // Show this property only if the dependency key is truthy
+        if let b = item[dep] as? Bool { return b }
+        if let s = item[dep] as? String { return !s.isEmpty && s != "false" && s != "0" }
+        if let n = item[dep] as? Int { return n != 0 }
+        return item[dep] != nil
+    }
+
+    // MARK: - Drill-in button for containers
+
+    private func drillInButton(index: Int, schema: ItemSchema) -> some View {
+        let children = model.activeItems[index]["items"] as? [[String: Any]] ?? []
+        return Button(action: { model.drillInto(index: index) }) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.stack.3d.down.right")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(localized("进入编辑子项", "Edit Children"))
+                    .font(.system(size: 12, weight: .semibold))
+                Text("(\(children.count))")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+            }
+            .foregroundStyle(EditorColors.accentSwift)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(EditorColors.accentSwift.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(EditorColors.accentSwift.opacity(0.25), lineWidth: 0.5)
+                    )
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private func header(type: String, schema: ItemSchema, index: Int) -> some View {
@@ -77,12 +386,30 @@ struct PropertyInspector: View {
                 }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(schema.displayName)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(EditorColors.textPrimarySwift)
-                Text(type)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(EditorColors.textTertiarySwift)
+                HStack(spacing: 6) {
+                    Text(schema.displayName)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(EditorColors.textPrimarySwift)
+                    if schema.requiresAPIKey {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Color(red: 1, green: 0.8, blue: 0.35))
+                            .help(localized("需要 API 密钥", "Requires API key"))
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text(type)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                    if !schema.description.isEmpty {
+                        Text("·")
+                            .foregroundStyle(EditorColors.textTertiarySwift.opacity(0.4))
+                        Text(schema.description)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(EditorColors.textTertiarySwift)
+                            .lineLimit(1)
+                    }
+                }
             }
 
             Spacer()
@@ -93,6 +420,7 @@ struct PropertyInspector: View {
                     .foregroundStyle(EditorColors.textSecondarySwift)
             }
             .buttonStyle(.plain)
+            .disabled(model.editorMode != .edit)
             .help(localized("复制此元素", "Duplicate this item"))
 
             Button(action: { model.deleteSelected() }) {
@@ -101,6 +429,7 @@ struct PropertyInspector: View {
                     .foregroundStyle(EditorColors.accentDeepSwift)
             }
             .buttonStyle(.plain)
+            .disabled(model.editorMode != .edit)
             .help(localized("删除此元素", "Delete this item"))
         }
         .padding(.bottom, 4)
@@ -153,8 +482,14 @@ struct PropertyInspector: View {
                         .font(.system(size: 10))
                         .foregroundStyle(EditorColors.textTertiarySwift.opacity(0.6))
                 }
+                // Info tooltip
+                if let desc = property.description {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(EditorColors.textTertiarySwift.opacity(0.5))
+                        .help(desc)
+                }
             }
-
             control(for: property, item: item)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,20 +502,27 @@ struct PropertyInspector: View {
             TextField(placeholder, text: textBinding(property: property))
                 .textFieldStyle(RibbonTextFieldStyle())
                 .frame(maxWidth: .infinity)
-
         case .integer(let placeholder):
-            TextField(placeholder, text: intBinding(property: property))
-                .textFieldStyle(RibbonTextFieldStyle())
-                .frame(maxWidth: .infinity)
-
+            CommitNumberField(
+                placeholder: placeholder,
+                committedValue: intBinding(property: property)
+            )
+            .frame(maxWidth: .infinity)
         case .boolean:
             Toggle("", isOn: boolBinding(property: property))
                 .toggleStyle(RibbonToggleStyle())
                 .labelsHidden()
-
         case .selection(let options):
             RibbonSegmented(options: options, selection: selectionBinding(property: property))
                 .frame(maxWidth: .infinity)
+        case .stringList(let placeholder):
+            StringListEditor(placeholder: placeholder, binding: stringListBinding(property: property))
+        case .slider(let range, let step, let unit):
+            RibbonSlider(range: range, step: step, unit: unit, binding: doubleBinding(property: property))
+        case .filePicker(let allowedTypes):
+            FilePickerField(allowedTypes: allowedTypes, binding: textBinding(property: property))
+        case .colorPicker:
+            ColorPickerField(binding: textBinding(property: property))
         }
     }
 
@@ -189,7 +531,7 @@ struct PropertyInspector: View {
     private func textBinding(property: ItemProperty) -> Binding<String> {
         Binding(
             get: { [weak model] in (model?.selectedItem?[property.key] as? String) ?? "" },
-            set: { [weak model] in model?.updateProperty(property.key, $0) }
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
         )
     }
 
@@ -201,7 +543,7 @@ struct PropertyInspector: View {
                 if let n = m.selectedItem?[property.key] as? Double { return "\(Int(n))" }
                 return ""
             },
-            set: { [weak model] in model?.updateProperty(property.key, $0) }
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
         )
     }
 
@@ -213,14 +555,246 @@ struct PropertyInspector: View {
                 if let s = m.selectedItem?[property.key] as? String { return s == "true" || s == "1" }
                 return true
             },
-            set: { [weak model] in model?.updateProperty(property.key, $0) }
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
         )
     }
 
     private func selectionBinding(property: ItemProperty) -> Binding<String> {
         Binding(
             get: { [weak model] in (model?.selectedItem?[property.key] as? String) ?? "" },
-            set: { [weak model] in model?.updateProperty(property.key, $0) }
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
+        )
+    }
+
+    private func stringListBinding(property: ItemProperty) -> Binding<[String]> {
+        Binding(
+            get: { [weak model] in
+                guard let m = model else { return [] }
+                if let arr = m.selectedItem?[property.key] as? [String] { return arr }
+                if let s = m.selectedItem?[property.key] as? String { return s.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
+                return []
+            },
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
+        )
+    }
+
+    private func doubleBinding(property: ItemProperty) -> Binding<Double> {
+        Binding(
+            get: { [weak model] in
+                guard let m = model else { return 0 }
+                if let n = m.selectedItem?[property.key] as? Double { return n }
+                if let n = m.selectedItem?[property.key] as? Int { return Double(n) }
+                return 0
+            },
+            set: { [weak model] v in model?.updateProperty(property.key, v) }
+        )
+    }
+}
+
+// MARK: - String List Editor (tag-style, for stock symbols etc.)
+
+struct StringListEditor: View {
+    let placeholder: String
+    @Binding var binding: [String]
+    @State private var inputText: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Tags
+            if !binding.isEmpty {
+                FlowLayout(spacing: 4) {
+                    ForEach(Array(binding.enumerated()), id: \.offset) { index, tag in
+                        HStack(spacing: 3) {
+                            Text(tag)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(EditorColors.textPrimarySwift)
+                            Button(action: { binding.remove(at: index) }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundStyle(EditorColors.textTertiarySwift)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(EditorColors.cardSwift)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                                )
+                        }
+                    }
+                }
+            }
+
+            // Input
+            HStack(spacing: 6) {
+                TextField(placeholder, text: $inputText)
+                    .textFieldStyle(RibbonTextFieldStyle())
+                    .onSubmit { addTag() }
+                Button(action: addTag) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(EditorColors.accentSwift)
+                }
+                .buttonStyle(.plain)
+                .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+
+    private func addTag() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        // Support comma-separated batch add
+        let parts = trimmed.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        for part in parts where !part.isEmpty && !binding.contains(part) {
+            binding.append(part)
+        }
+        inputText = ""
+    }
+}
+
+// MARK: - Flow Layout (simple wrapping HStack)
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            totalWidth = max(totalWidth, x - spacing)
+        }
+
+        return (CGSize(width: totalWidth, height: y + rowHeight), positions)
+    }
+}
+
+// MARK: - Slider control
+
+struct RibbonSlider: View {
+    let range: ClosedRange<Double>
+    let step: Double
+    let unit: String
+    @Binding var binding: Double
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Slider(value: $binding, in: range, step: step)
+                .accentColor(EditorColors.accentSwift)
+            Text("\(Int(binding))\(unit)")
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(EditorColors.textSecondarySwift)
+                .frame(width: 44, alignment: .trailing)
+        }
+    }
+}
+
+// MARK: - File picker field
+
+struct FilePickerField: View {
+    let allowedTypes: [String]
+    @Binding var binding: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField(localized("选择文件...", "Choose file..."), text: $binding)
+                .textFieldStyle(RibbonTextFieldStyle())
+            Button(action: pickFile) {
+                Image(systemName: "folder")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(EditorColors.textSecondarySwift)
+                    .frame(width: 28, height: 28)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(EditorColors.cardSwift)
+                    }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func pickFile() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = allowedTypes.contains("folder")
+        panel.allowsMultipleSelection = false
+        if !allowedTypes.isEmpty && !allowedTypes.contains("folder") {
+            panel.allowedContentTypes = allowedTypes.compactMap { UTType($0) }
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            binding = url.path
+        }
+    }
+}
+
+// MARK: - Color picker field
+
+struct ColorPickerField: View {
+    @Binding var binding: String
+
+    private var color: Color {
+        Color(hex: binding) ?? .white
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(color)
+                .frame(width: 24, height: 24)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                )
+            TextField("#FFFFFF", text: $binding)
+                .textFieldStyle(RibbonTextFieldStyle())
+                .frame(maxWidth: 120)
+        }
+    }
+}
+
+// MARK: - Color hex extension
+
+private extension Color {
+    init?(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        guard hexSanitized.count == 6 else { return nil }
+        var rgb: UInt64 = 0
+        Scanner(string: hexSanitized).scanHexInt64(&rgb)
+        self.init(
+            red: Double((rgb & 0xFF0000) >> 16) / 255.0,
+            green: Double((rgb & 0x00FF00) >> 8) / 255.0,
+            blue: Double(rgb & 0x0000FF) / 255.0
         )
     }
 }
@@ -241,6 +815,7 @@ struct RibbonSegmented: View {
                         .foregroundStyle(isSelected ? Color.white : EditorColors.textSecondarySwift)
                         .padding(.vertical, 7)
                         .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
                         .background {
                             if isSelected {
                                 RoundedRectangle(cornerRadius: 6)
@@ -320,10 +895,10 @@ private func diagnose(_ item: [String: Any]) -> [(String, String)] {
                 localized("宽度过大（\(w)px）", "Width too large (\(w)px)")))
         }
     }
-    if type == "group" {
+    if type == "group" || type == "expandable" || type == "swipe" {
         let children = item["items"] as? [[String: Any]] ?? []
         if children.isEmpty {
-            issues.append(("square.stack", localized("Group 内无子项", "Group has no child items")))
+            issues.append(("square.stack", localized("容器内无子项", "Container has no child items")))
         }
     }
     return issues

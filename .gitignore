@@ -1,4 +1,6 @@
+# ============================================================================
 # Xcode
+# ============================================================================
 *.xcuserdatad
 *.xcuserstate
 *.xcscmblueprint
@@ -27,6 +29,15 @@ Package.resolved
 .DS_Store
 *.swp
 
+# App caches
+coverCache/
+
+# Backup files (extended)
+*.bak2
+
+# Accidental filenames
+LyricsMTMR/MTMR/Preferences/ServicesTabView.swift,
+
 # Sparkle
 Sparkle.framework/
 
@@ -42,3 +53,25 @@ Sparkle.framework/
 # Backup files
 *.bak
 *.backup
+
+# ============================================================================
+# 🔐 Secrets / API Keys — 绝对不要提交 / NEVER COMMIT
+# ============================================================================
+.secrets.env
+.secrets.*.env
+*.secret
+*.key
+.env
+.env.local
+.env.*
+**/secrets/**
+**/credentials/**
+*.pem
+*.p12
+*.cert
+*.keystore
+
+# ============================================================================
+# 🛡️ Git hooks (must be set up by developers)
+# ============================================================================
+.githooks/

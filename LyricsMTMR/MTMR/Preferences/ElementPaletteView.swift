@@ -96,6 +96,8 @@ class EditorPaletteView: NSView {
             ("regexTester", localized("正则", "Regex"), "asterisk"),
             ("timestampConvert", localized("时间戳", "Epoch"), "clock.arrow.circlepath"),
             ("uuidGen", "UUID", "key.horizontal"),
+            ("qrCode", localized("二维码", "QR"), "qrcode"),
+            ("apiTester", "API", "arrow.up.arrow.down.circle"),
         ]),
         (localized("工具箱", "Tools"), [
             ("base64Tool", "Base64", "chevron.left.square"),
@@ -135,6 +137,10 @@ class EditorPaletteView: NSView {
             ("wordLookup", localized("生词", "Word"), "character.book.closed"),
             ("readTimer", localized("计时", "Timer"), "stopwatch"),
             ("noteCapture", localized("笔记", "Note"), "square.and.pencil"),
+            ("latexSymbols", "LaTeX", "function"),
+            ("citationGen", localized("引用", "Cite"), "quote.bubble"),
+            ("paperProgress", localized("论文", "Paper"), "doc.text.magnifyingglass"),
+            ("paperTags", localized("标签", "Tags"), "tag"),
         ]),
         (localized("财务", "Finance"), [
             ("billSplit", "AA", "divide.circle"),
@@ -154,12 +160,14 @@ class EditorPaletteView: NSView {
             ("quickScreenshot", localized("截图", "Shot"), "camera"),
             ("shortcutHints", localized("快捷键", "Keys"), "command"),
             ("screenPicker", localized("取色", "Picker"), "eyedropper"),
+            ("finderTags", localized("标签夹", "Tags"), "folder.badge.gearshape"),
         ]),
         (localized("创意", "Creative"), [
             ("pixelPet", localized("宠物", "Pet"), "pawprint"),
             ("homekitScene", localized("场景", "Scene"), "house"),
             ("aiSelectedText", "AI", "sparkles"),
             ("rssUnread", "RSS", "dot.radiowaves.left.and.right"),
+            ("bilibiliFeed", "B站", "play.tv"),
         ]),
     ]
 
@@ -168,7 +176,7 @@ class EditorPaletteView: NSView {
         setup()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     private func setup() {
         wantsLayer = true
@@ -328,7 +336,7 @@ class PaletteBubble: NSView {
         addTrackingArea(tracking)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func layout() {
         super.layout()

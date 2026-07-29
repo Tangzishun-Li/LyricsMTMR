@@ -108,9 +108,7 @@ class CurrencyBarItem: CustomButtonTouchBarItem {
         updateCurrency()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     @objc func updateCurrency() {
         let urlRequest = URLRequest(url: URL(string: "https://api.coinbase.com/v2/exchange-rates?currency=\(from)")!)

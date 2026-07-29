@@ -14,11 +14,11 @@ class ColorConvertItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("颜色", "Color"), symbol: "paintbrush.pointed.fill", tint: TB.pink)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.86, accent: TB.pink)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.pink)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let sw = NSView(frame: .zero)
         sw.wantsLayer = true

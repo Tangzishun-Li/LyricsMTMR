@@ -13,16 +13,16 @@ class WindowSnapItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("窗口", "Snap"), symbol: "uiwindow.split.2x1", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.6, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let left = TBOverlay.pillButton(title: localized("◧ 左半", "Left"), tag: 0, target: self, action: #selector(snap(_:)), tint: TB.sky)
         let right = TBOverlay.pillButton(title: localized("右半 ◨", "Right"), tag: 1, target: self, action: #selector(snap(_:)), tint: TB.sky)
         let full = TBOverlay.pillButton(title: localized("⛶ 全屏", "Full"), tag: 2, target: self, action: #selector(snap(_:)), tint: TB.mint)
-        TBOverlay.buttonRow(in: card, buttons: [left, right, full], afterClose: close)
+        TBOverlay.buttonRow(in: card, buttons: [left, right, full], afterClose: close, centered: true)
         return root
     }
 

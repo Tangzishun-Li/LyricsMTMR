@@ -21,7 +21,7 @@ class TravelCountdownItem: TBPollItem {
                    label: localized("出行", "Travel"), width: 168)
         TBEvents.requestAccess()
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard TBEvents.authorized else {

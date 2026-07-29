@@ -17,6 +17,8 @@ struct GeneralTab: View {
     @State private var hideStrip = !AppSettings.showControlStripState
     @State private var language = AppSettings.appLanguage
     @State private var blacklist = AppSettings.blacklistedAppIds
+    @State private var freezeOnSwitch = AppSettings.freezeOnAppSwitch
+    @State private var appThemeRules: [String: Int] = AppSettings.appThemeRules
 
     var body: some View {
         ScrollView {
@@ -26,6 +28,7 @@ struct GeneralTab: View {
                 interactionSection
                 languageSection
                 blacklistSection
+                appThemeSection
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -98,6 +101,14 @@ struct GeneralTab: View {
                         .onChange(of: hideStrip) { _, isOn in
                             AppSettings.showControlStripState = !isOn
                             TouchBarController.shared.resetControlStrip()
+                        }
+                    Deck.RowDivider()
+                    Deck.ToggleRow(
+                        title: Localized.freezeOnAppSwitch,
+                        subtitle: Localized.freezeOnAppSwitchSubtitle,
+                        isOn: $freezeOnSwitch)
+                        .onChange(of: freezeOnSwitch) { _, isOn in
+                            AppSettings.freezeOnAppSwitch = isOn
                         }
                 }
             }
@@ -202,6 +213,115 @@ struct GeneralTab: View {
         blacklist.removeAll { $0 == bundleId }
         AppSettings.blacklistedAppIds = blacklist
     }
+
+    // MARK: - App-Specific Themes
+
+    private var appThemeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(
+                title: Localized.appThemes,
+                hint: Localized.appThemesHint)
+            Deck.Card {
+                if appThemeRules.isEmpty {
+                    emptyAppThemes
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(appThemeRules.keys.sorted()), id: \.self) { bundleId in
+                            AppThemeRuleRow(
+                                bundleId: bundleId,
+                                mode: AppThemeMode(rawValue: appThemeRules[bundleId] ?? 1) ?? .disabled,
+                                onChangeMode: { newMode in changeMode(for: bundleId, to: newMode) },
+                                onEdit: { editTheme(bundleId) },
+                                onRemove: { removeRule(bundleId) }
+                            )
+                            if bundleId != appThemeRules.keys.sorted().last {
+                                Deck.RowDivider()
+                            }
+                        }
+                    }
+                }
+                Deck.RowDivider()
+                addRuleButton
+            }
+        }
+    }
+
+    private var emptyAppThemes: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "paintpalette")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Deck.sky.opacity(0.85))
+            Text(Localized.noAppThemes)
+                .font(Deck.bodyFont)
+                .foregroundStyle(Deck.textTertiary)
+            Spacer()
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var addRuleButton: some View {
+        Button(action: addCurrentAppRule) {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                Text(Localized.assignCurrentApp)
+                    .font(Deck.bodyFont)
+            }
+            .foregroundStyle(Deck.accent)
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, 6)
+    }
+
+    private func addCurrentAppRule() {
+        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        guard !appThemeRules.keys.contains(appId) else { return }
+
+        // Create theme file from current preset
+        let controller = TouchBarController.shared
+        let dir = controller.appThemesDir
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let destPath = controller.appThemePath(for: appId)
+
+        if !FileManager.default.fileExists(atPath: destPath) {
+            let srcPath = controller.lastPresetPath
+            if FileManager.default.fileExists(atPath: srcPath) {
+                try? FileManager.default.copyItem(atPath: srcPath, toPath: destPath)
+            } else {
+                try? "[\n\n]".write(toFile: destPath, atomically: true, encoding: .utf8)
+            }
+        }
+
+        appThemeRules[appId] = AppThemeMode.always.rawValue
+        saveRules()
+
+        // Open in editor
+        NSWorkspace.shared.open(URL(fileURLWithPath: destPath))
+    }
+
+    private func changeMode(for bundleId: String, to mode: AppThemeMode) {
+        appThemeRules[bundleId] = mode.rawValue
+        saveRules()
+    }
+
+    private func editTheme(_ bundleId: String) {
+        let path = TouchBarController.shared.appThemePath(for: bundleId)
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+    }
+
+    private func removeRule(_ bundleId: String) {
+        appThemeRules.removeValue(forKey: bundleId)
+        saveRules()
+        // Also remove the theme file
+        let path = TouchBarController.shared.appThemePath(for: bundleId)
+        try? FileManager.default.removeItem(atPath: path)
+    }
+
+    private func saveRules() {
+        AppSettings.appThemeRules = appThemeRules
+        TouchBarController.shared.appThemeRules = appThemeRules
+    }
 }
 
 // MARK: - Blacklist Row
@@ -250,6 +370,94 @@ struct BlacklistRow: View {
 
             Spacer(minLength: 12)
 
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(hovering ? Deck.accent : Deck.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .opacity(hovering ? 1 : 0.55)
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(hovering ? Color.white.opacity(0.035) : Color.clear))
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.13), value: hovering)
+    }
+}
+
+// MARK: - App Theme Rule Row
+
+struct AppThemeRuleRow: View {
+    let bundleId: String
+    let mode: AppThemeMode
+    let onChangeMode: (AppThemeMode) -> Void
+    let onEdit: () -> Void
+    let onRemove: () -> Void
+
+    @State private var hovering = false
+
+    private var appURL: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
+    }
+
+    private var appName: String {
+        guard let url = appURL else { return bundleId }
+        return FileManager.default.displayName(atPath: url.path)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Group {
+                if let url = appURL {
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: "app.dashed")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Deck.textTertiary)
+                        .frame(width: 24, height: 24)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(appName)
+                    .font(Deck.rowFont)
+                    .foregroundStyle(Deck.textPrimary)
+                Text(bundleId)
+                    .font(Deck.monoFont)
+                    .foregroundStyle(Deck.textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 8)
+
+            // Mode picker
+            Picker("", selection: Binding(get: { mode }, set: { onChangeMode($0) })) {
+                ForEach(AppThemeMode.allCases, id: \.rawValue) { m in
+                    Text(m.displayName).tag(m)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(width: 110)
+
+            // Edit button
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 13))
+                    .foregroundStyle(hovering ? Deck.sky : Deck.textTertiary)
+            }
+            .buttonStyle(.plain)
+            .help(Localized.editAppTheme)
+
+            // Remove button
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 15))

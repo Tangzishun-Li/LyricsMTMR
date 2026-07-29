@@ -38,9 +38,7 @@ class AppleScriptTouchBarItem: CustomButtonTouchBarItem {
         }
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     func refreshAndSchedule() {
         let scriptResult = execute()

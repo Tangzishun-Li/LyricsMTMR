@@ -12,11 +12,11 @@ class ScreenLockItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("锁屏", "Lock"), symbol: "lock.fill", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.5, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         _ = TBOverlay.resultLabel(in: card, text: localized("确认锁定屏幕？", "Lock screen?"), tint: TB.textSecondary)
         let lock = TBOverlay.pillButton(title: localized("立即锁定", "Lock now"), tag: 0, target: self, action: #selector(lock(_:)), tint: TB.coral)

@@ -24,7 +24,7 @@ class DdlListItem: TBPollItem {
                    label: "DDL", width: 160)
         TBStore.seed(filename: Self.filename, sample: Self.sample)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let path = dataPath.isEmpty ? appSupportDirectory.appending("/\(Self.filename)") : (dataPath as NSString).expandingTildeInPath

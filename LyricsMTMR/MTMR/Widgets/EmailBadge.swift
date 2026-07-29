@@ -15,7 +15,7 @@ class EmailBadgeItem: TBPollItem {
                    icon: "envelope.badge.fill", tint: TB.sky,
                    label: localized("邮件", "Mail"), width: 130)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let mailRunning = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.apple.mail" }

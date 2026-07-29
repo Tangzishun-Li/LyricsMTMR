@@ -45,7 +45,7 @@ class NetworkSpeedItem: TBPollItem {
                    label: localized("网速", "NET"), width: 150)
         metric.progressTint = TB.sky
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard let totals = TBIfStats.totals() else { return }

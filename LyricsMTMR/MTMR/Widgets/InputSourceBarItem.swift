@@ -24,9 +24,7 @@ class InputSourceBarItem: CustomButtonTouchBarItem {
         })
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     deinit {
         CFNotificationCenterRemoveEveryObserver(notificationCenter, UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque()))
@@ -75,7 +73,9 @@ class InputSourceBarItem: CustomButtonTouchBarItem {
     @objc public func observeIputSourceChangedNotification() {
         let callback: CFNotificationCallback = { _, observer, _, _, _ in
             let mySelf = Unmanaged<InputSourceBarItem>.fromOpaque(observer!).takeUnretainedValue()
-            mySelf.textInputSourceDidChange()
+            DispatchQueue.main.async {
+                mySelf.textInputSourceDidChange()
+            }
         }
 
         CFNotificationCenterAddObserver(notificationCenter,
@@ -95,12 +95,8 @@ extension TISInputSource {
     }
 
     private func getProperty(_ key: CFString) -> AnyObject? {
-        let cfType = TISGetInputSourceProperty(self, key)
-        if cfType != nil {
-            return Unmanaged<AnyObject>.fromOpaque(cfType!).takeUnretainedValue()
-        } else {
-            return nil
-        }
+        guard let ptr = TISGetInputSourceProperty(self, key) else { return nil }
+        return unsafeBitCast(ptr, to: AnyObject.self)
     }
 
     var id: String {

@@ -28,11 +28,11 @@ class BreathingGuideItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("呼吸", "Breathe"), symbol: "wind", tint: TB.mint)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.5, accent: TB.mint)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.mint)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let ring = TBRingView(frame: NSRect(x: close.frame.maxX + 10, y: (card.bounds.height - 24) / 2, width: 24, height: 24))
         ring.tint = TB.mint

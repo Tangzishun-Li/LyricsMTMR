@@ -18,11 +18,11 @@ class UuidGenItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "UUID", symbol: "key.horizontal", tint: TB.mint)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.8, accent: TB.mint)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.mint)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点选生成并复制", "tap to gen"), tint: TB.textSecondary)
         let uuid = TBOverlay.pillButton(title: "UUID", tag: 0, target: self, action: #selector(gen(_:)), tint: TB.mint)

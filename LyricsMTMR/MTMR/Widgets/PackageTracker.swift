@@ -22,11 +22,11 @@ class PackageTrackerItem: TBPollItem {
                    icon: "shippingbox.fill", tint: TB.gold,
                    label: localized("快递", "PKG"), width: 168)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
-        let key = AppSettings.kuaidi100Key
-        let customer = AppSettings.kuaidi100Customer
+        let key = SecretsManager.shared.retrieve(.kuaidi100Key)
+        let customer = SecretsManager.shared.retrieve(.kuaidi100Customer)
         guard !key.isEmpty, !customer.isEmpty, !trackingNumber.isEmpty else {
             statusText = localized("未配置·mock", "no key·mock")
             subText = localized("派件中 [测试]", "out for delivery [mock]")

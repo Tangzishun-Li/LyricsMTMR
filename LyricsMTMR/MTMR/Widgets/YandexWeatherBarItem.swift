@@ -72,9 +72,7 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
         }
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     @objc func updateWeather() {
         var urlRequest = URLRequest(url: URL(string: getWeatherUrl())!)

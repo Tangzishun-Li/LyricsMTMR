@@ -19,7 +19,7 @@ class PostureReminderItem: TBPollItem {
                    label: localized("久坐", "Posture"), width: 150)
         metric.progressTint = TB.mint
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let elapsed = Date().timeIntervalSince(startDate)

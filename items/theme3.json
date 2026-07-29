@@ -1,15 +1,29 @@
+Removing apiKey from theme3.json deepseekBalance item
 [
   {
     "type": "themeSwitch",
     "themes": [
-      { "label": "1", "preset": "theme1.json" },
-      { "label": "2", "preset": "theme2.json" },
-      { "label": "3", "preset": "theme3.json" }
+      {
+        "label": "1",
+        "preset": "theme1.json"
+      },
+      {
+        "label": "2",
+        "preset": "theme2.json"
+      },
+      {
+        "label": "3",
+        "preset": "theme3.json"
+      }
     ],
     "align": "left",
     "width": 44
   },
-  { "type": "dock", "width": 200, "align": "left" },
+  {
+    "type": "dock",
+    "width": 200,
+    "align": "left"
+  },
   {
     "type": "lyrics",
     "width": 200,
@@ -26,7 +40,11 @@
     "title": "⇥",
     "bordered": false,
     "items": [
-      { "type": "close", "bordered": false, "align": "left" },
+      {
+        "type": "close",
+        "bordered": false,
+        "align": "left"
+      },
       {
         "type": "staticButton",
         "title": "←",
@@ -47,17 +65,21 @@
           "inline": "tell application \"System Events\" to key code 124 using {control down}"
         }
       },
-      { "type": "dock", "align": "left", "width": 780 }
+      {
+        "type": "dock",
+        "align": "left",
+        "width": 780
+      }
     ]
   },
   {
-  "type": "deepseekBalance",
-  "apiKey": "sk-d18b1210d70242d093d3a6a464dcbae8",
-  "displayMode": "both",
-  "showRemaining": true,
-  "refreshInterval": 3600,
-  "align": "center",
-  "width": 400,
-  "bordered": false
+    "type": "deepseekBalance",
+    "apiKey": "",
+    "displayMode": "both",
+    "showRemaining": true,
+    "refreshInterval": 3600,
+    "align": "center",
+    "width": 400,
+    "bordered": false
   }
 ]

@@ -15,7 +15,7 @@ class DailyQuoteItem: TBPollItem {
                    icon: "quote.opening", tint: TB.purple,
                    label: localized("一言", "Quote"), width: 220)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard let json = TBNet.json("https://v1.hitokoto.cn/?c=a&c=b&c=d&c=k") as? [String: Any],

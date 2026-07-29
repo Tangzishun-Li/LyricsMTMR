@@ -14,11 +14,11 @@ class ScreenPickerItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("取色", "Pick"), symbol: "eyedropper.halffull", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.78, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点按取当前鼠标位置颜色", "click to pick"), tint: TB.textSecondary)
         let pick = TBOverlay.pillButton(title: localized("取色", "Pick"), tag: 0, target: self, action: #selector(pickColor), tint: TB.purple)

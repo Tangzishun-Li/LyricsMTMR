@@ -16,7 +16,7 @@ class PrinterStatusItem: TBPollItem {
                    icon: "printer.fill", tint: TB.mint,
                    label: localized("打印", "Print"), width: 150)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let output = TBShell.run("lpstat -p 2>/dev/null")

@@ -67,11 +67,6 @@
     "width": 60
   },
   {
-    "type": "escape",
-    "width": 64,
-    "align": "left"
-  },
-  {
     "type": "packageTracker",
     "align": "left",
     "width": 120,
@@ -103,7 +98,7 @@
     "type": "expenseTracker",
     "align": "right",
     "width": 110,
-    "categories": "餐饮,交通,购物,娱乐"
+    "categories": "\u9910\u996e,\u4ea4\u901a,\u8d2d\u7269,\u5a31\u4e50"
   },
   {
     "type": "subscriptionCountdown",

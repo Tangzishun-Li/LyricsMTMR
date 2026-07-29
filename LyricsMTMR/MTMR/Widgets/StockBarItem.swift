@@ -32,7 +32,7 @@ class StockBarItem: CustomButtonTouchBarItem {
     private var timer: Timer?
     private var marqueeTimer: Timer?
 
-    private static let emUT = "fa5fd1943c7b386f172d6893dbfd32bb"
+    private static let emUT = "fa5fd1943c7b386f172d6893dbfd32bb"  // 东方财富公开 UT，非个人密钥
 
     init(identifier: NSTouchBarItem.Identifier, symbols: [String], apiSource: String, interval: TimeInterval, displayMode: String, textWidth: CGFloat, chartWidth: CGFloat, showChart: Bool, chartMode: String) {
         self.stockSymbols = symbols
@@ -62,9 +62,7 @@ class StockBarItem: CustomButtonTouchBarItem {
         scheduleRefresh()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     deinit {
         timer?.invalidate()

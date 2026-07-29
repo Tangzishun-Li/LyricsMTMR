@@ -18,7 +18,7 @@ class PixelPetItem: TBPollItem {
                    icon: "pawprint.fill", tint: TB.pink,
                    label: localized("宠物", "Pet"), width: 138)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         frame = (frame + 1) % 3

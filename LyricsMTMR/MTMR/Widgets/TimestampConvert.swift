@@ -15,12 +15,12 @@ class TimestampConvertItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("时间戳", "Epoch"), symbol: "clock.arrow.circlepath", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
     deinit { timer?.invalidate() }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.82, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: "…", tint: TB.textPrimary)
         tick()

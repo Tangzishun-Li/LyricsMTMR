@@ -10,7 +10,9 @@ final class StatusBarMenuModel: ObservableObject {
     @Published var multitouchOn = AppSettings.multitouchGestures
     @Published var mirrorOn = AppSettings.showMirrorWindow
     @Published var startAtLoginOn = false
+    @Published var freezeOnSwitch = AppSettings.freezeOnAppSwitch
     @Published var isBlacklisted = false
+    @Published var currentAppThemeMode: AppThemeMode?
     @Published var isAccessibilityGranted = AXIsProcessTrusted()
     @Published var slots: [SlotInfo] = []
     @Published var activeSlotId: String?
@@ -27,6 +29,7 @@ final class StatusBarMenuModel: ObservableObject {
         controlStripHidden = AppSettings.showControlStripState
         multitouchOn = AppSettings.multitouchGestures
         mirrorOn = AppSettings.showMirrorWindow
+        freezeOnSwitch = AppSettings.freezeOnAppSwitch
         startAtLoginOn = LaunchAtLoginController().launchAtLogin
         isAccessibilityGranted = AXIsProcessTrusted()
         slots = SlotManager.shared.slots
@@ -35,8 +38,14 @@ final class StatusBarMenuModel: ObservableObject {
         selectedPlayers = Set(AppSettings.selectedPlayerIds)
         if let appId = TouchBarController.shared.frontmostApplicationIdentifier {
             isBlacklisted = AppSettings.blacklistedAppIds.contains(appId)
+            if let raw = AppSettings.appThemeRules[appId] {
+                currentAppThemeMode = AppThemeMode(rawValue: raw)
+            } else {
+                currentAppThemeMode = nil
+            }
         } else {
             isBlacklisted = false
+            currentAppThemeMode = nil
         }
     }
 
@@ -65,6 +74,11 @@ final class StatusBarMenuModel: ObservableObject {
         TouchBarMirrorWindowController.shared.toggle()
     }
 
+    func toggleFreeze() {
+        freezeOnSwitch.toggle()
+        AppSettings.freezeOnAppSwitch = freezeOnSwitch
+    }
+
     func toggleStartAtLogin() {
         let controller = LaunchAtLoginController()
         controller.setLaunchAtLogin(!controller.launchAtLogin, for: NSURL.fileURL(withPath: Bundle.main.bundlePath))
@@ -85,11 +99,86 @@ final class StatusBarMenuModel: ObservableObject {
         isBlacklisted = ids.contains(appId)
     }
 
+    // MARK: App Theme Rules
+
+    func createAppTheme(for appId: String, fromCurrent: Bool) {
+        let controller = TouchBarController.shared
+        let dir = controller.appThemesDir
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+
+        let destPath = controller.appThemePath(for: appId)
+        let srcPath = fromCurrent ? controller.lastPresetPath : nil
+
+        if let src = srcPath, FileManager.default.fileExists(atPath: src) {
+            try? FileManager.default.copyItem(atPath: src, toPath: destPath)
+        } else {
+            // Blank theme
+            try? "[\n\n]".write(toFile: destPath, atomically: true, encoding: .utf8)
+        }
+
+        // Register rule with .always mode
+        var rules = AppSettings.appThemeRules
+        rules[appId] = AppThemeMode.always.rawValue
+        AppSettings.appThemeRules = rules
+        controller.appThemeRules = rules
+        currentAppThemeMode = .always
+
+        // Open in editor
+        NSWorkspace.shared.open(URL(fileURLWithPath: destPath))
+
+        // Trigger the switch immediately
+        controller.updateActiveApp()
+    }
+
+    func setAppThemeMode(_ mode: AppThemeMode) {
+        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        var rules = AppSettings.appThemeRules
+        rules[appId] = mode.rawValue
+        AppSettings.appThemeRules = rules
+        TouchBarController.shared.appThemeRules = rules
+        currentAppThemeMode = mode
+        TouchBarController.shared.updateActiveApp()
+    }
+
+    func editCurrentAppTheme() {
+        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        let path = TouchBarController.shared.appThemePath(for: appId)
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+    }
+
+    func removeCurrentAppTheme() {
+        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        var rules = AppSettings.appThemeRules
+        rules.removeValue(forKey: appId)
+        AppSettings.appThemeRules = rules
+        TouchBarController.shared.appThemeRules = rules
+        currentAppThemeMode = nil
+        // Also remove the theme file
+        let path = TouchBarController.shared.appThemePath(for: appId)
+        try? FileManager.default.removeItem(atPath: path)
+        TouchBarController.shared.updateActiveApp()
+    }
+
     // MARK: Slots
 
     func switchSlot(to id: String) {
         SlotManager.shared.switchTo(slot: id)
+
+        // Sync ThemeSwitchBarItem when switching to a theme slot
+        if let themeIndex = themeIndex(from: id) {
+            AppSettings.selectedThemeIndex = themeIndex
+        }
+
         refresh()
+    }
+
+    /// Extracts the theme index from a slot id (e.g. "theme5" → 4). Returns nil if not a theme slot.
+    private func themeIndex(from slotId: String) -> Int? {
+        guard slotId.hasPrefix("theme") else { return nil }
+        let numberPart = String(slotId.dropFirst(5))
+        guard let num = Int(numberPart), num > 0 else { return nil }
+        return num - 1
     }
 
     // MARK: Language
@@ -183,6 +272,7 @@ struct StatusBarMenuView: View {
                 if !model.slots.isEmpty {
                     MenuSlotCard(model: model)
                 }
+                AppThemeCard(model: model)
                 ToggleCard(model: model)
                 LanguageCard(model: model)
                 MenuFooter(model: model)
@@ -345,6 +435,180 @@ struct SlotPill: View {
     }
 }
 
+// MARK: - App Theme Card
+
+struct AppThemeCard: View {
+    @ObservedObject var model: StatusBarMenuModel
+    @State private var hoveringCreate = false
+    @State private var hoveringEdit = false
+    @State private var hoveringRemove = false
+
+    private var currentAppId: String? {
+        TouchBarController.shared.frontmostApplicationIdentifier
+    }
+
+    private var currentAppName: String {
+        guard let appId = currentAppId else {
+            return localized("未知应用", "Unknown")
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appId) {
+            return FileManager.default.displayName(atPath: url.path)
+        }
+        return appId
+    }
+
+    var body: some View {
+        MenuCardView(title: Localized.appThemes, icon: "paintpalette", iconColor: Deck.gold) {
+            VStack(spacing: 6) {
+                // App identity row
+                HStack(spacing: 8) {
+                    if let appId = currentAppId,
+                       let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appId) {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 18, height: 18)
+                    }
+                    Text(currentAppName)
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(Deck.textPrimary)
+                        .lineLimit(1)
+                    Spacer()
+
+                    // Auto-switch indicator
+                    if TouchBarController.shared.isAutoSwitched {
+                        Circle()
+                            .fill(Deck.gold)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+
+                if let mode = model.currentAppThemeMode {
+                    // Rule exists: show mode picker + actions
+                    HStack(spacing: 6) {
+                        Image(systemName: mode.symbol)
+                            .font(.system(size: 11))
+                            .foregroundColor(mode == .disabled ? Deck.textTertiary : Deck.mint)
+                        Text(mode.displayName)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(mode == .disabled ? Deck.textTertiary : Deck.mint)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(
+                        mode == .disabled ? Color.white.opacity(0.03) : Deck.mint.opacity(0.08)))
+
+                    // Mode selector
+                    HStack(spacing: 5) {
+                        ForEach(AppThemeMode.allCases, id: \.rawValue) { m in
+                            ModePill(mode: m, isActive: model.currentAppThemeMode == m) {
+                                model.setAppThemeMode(m)
+                            }
+                        }
+                    }
+
+                    // Action buttons
+                    HStack(spacing: 6) {
+                        MenuActionButton(icon: "pencil", label: Localized.editAppTheme, color: Deck.sky, hovering: $hoveringEdit) {
+                            model.editCurrentAppTheme()
+                        }
+                        MenuActionButton(icon: "trash", label: Localized.removeAppTheme, color: Deck.accentDeep, hovering: $hoveringRemove) {
+                            model.removeCurrentAppTheme()
+                        }
+                    }
+                } else {
+                    // No rule: offer to create
+                    Button(action: {
+                        guard let appId = currentAppId else { return }
+                        model.createAppTheme(for: appId, fromCurrent: true)
+                    }) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(Localized.assignCurrentApp)
+                                .font(.system(size: 11.5, weight: .medium))
+                        }
+                        .foregroundColor(hoveringCreate ? .white : Deck.gold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(hoveringCreate ? Deck.gold.opacity(0.8) : Deck.gold.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(hoveringCreate ? Deck.gold : Deck.gold.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hoveringCreate = h } }
+                }
+            }
+        }
+    }
+}
+
+struct ModePill: View {
+    let mode: AppThemeMode
+    let isActive: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: mode.symbol)
+                    .font(.system(size: 9))
+                Text(mode.displayName)
+                    .font(.system(size: 10, weight: isActive ? .bold : .medium))
+            }
+            .foregroundColor(isActive ? .white : Deck.textSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(
+                    isActive
+                        ? AnyShapeStyle(Deck.mint.opacity(0.7))
+                        : AnyShapeStyle(hovering ? Color.white.opacity(0.08) : Deck.insetFill)
+                )
+            )
+            .overlay(Capsule().stroke(isActive ? Color.clear : Deck.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
+    }
+}
+
+struct MenuActionButton: View {
+    let icon: String
+    let label: String
+    let color: Color
+    @Binding var hovering: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10.5, weight: .medium))
+                Text(label)
+                    .font(.system(size: 10.5, weight: .medium))
+            }
+            .foregroundColor(hovering ? .white : color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(hovering ? color.opacity(0.8) : color.opacity(0.1))
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
+    }
+}
+
+
 // MARK: - Toggle Card
 
 struct ToggleCard: View {
@@ -359,6 +623,7 @@ struct ToggleCard: View {
                 MenuToggleRow(icon: "hand.draw", color: Deck.accent, label: Localized.multitouchGestures, isOn: model.multitouchOn) { model.toggleMultitouch() }
                 MenuToggleRow(icon: "tv", color: Color(red: 0.72, green: 0.58, blue: 0.96), label: Localized.mirrorWindow, isOn: model.mirrorOn) { model.toggleMirror() }
                 MenuToggleRow(icon: "power", color: Deck.mint, label: Localized.startAtLogin, isOn: model.startAtLoginOn) { model.toggleStartAtLogin() }
+                MenuToggleRow(icon: "lock", color: Color(red: 0.95, green: 0.65, blue: 0.45), label: Localized.freezeOnAppSwitchMenu, isOn: model.freezeOnSwitch) { model.toggleFreeze() }
 
                 // Accessibility row (not a toggle)
                 Button(action: { model.requestAccessibility() }) {
@@ -602,6 +867,8 @@ extension Localized {
     static var refreshPreset: String { AppSettings.appLanguage == .chinese ? "刷新" : "Refresh" }
     static var openPresetShort: String { AppSettings.appLanguage == .chinese ? "打开" : "Open" }
     static var mirrorWindow: String { AppSettings.appLanguage == .chinese ? "镜像窗口" : "Mirror Window" }
+    static var freezeOnAppSwitchMenu: String { AppSettings.appLanguage == .chinese ? "冻结 Touch Bar" : "Freeze Touch Bar" }
+    static var freezeOnAppSwitchMenuSubtitle: String { AppSettings.appLanguage == .chinese ? "切换应用时不刷新" : "Don't refresh on app switch" }
     static var accessibilityShort: String { AppSettings.appLanguage == .chinese ? "辅助功能权限" : "Accessibility" }
     static var musicSource: String { AppSettings.appLanguage == .chinese ? "音乐源" : "Music Source" }
     static var allPlayers: String { AppSettings.appLanguage == .chinese ? "全部" : "All" }

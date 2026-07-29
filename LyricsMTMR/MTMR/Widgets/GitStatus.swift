@@ -19,7 +19,7 @@ class GitStatusItem: TBPollItem {
                    icon: "arrow.triangle.branch", tint: TB.coral,
                    label: localized("仓库", "GIT"), width: 130)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         guard !repoPath.isEmpty else {

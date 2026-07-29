@@ -22,11 +22,11 @@ class RegexReferenceItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("正则表", "Regex"), symbol: "text.magnifyingglass", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.92, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点选复制正则", "tap to copy"), tint: TB.textSecondary)
         let buttons = Self.refs.enumerated().map { index, pair -> NSButton in

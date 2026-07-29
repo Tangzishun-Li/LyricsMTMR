@@ -20,11 +20,11 @@ class StandupTimerItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("站会", "Standup"), symbol: "timer", tint: TB.coral)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.62, accent: TB.coral)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.coral)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let ring = TBRingView(frame: NSRect(x: close.frame.maxX + 10, y: (card.bounds.height - 24) / 2, width: 24, height: 24))
         ring.tint = TB.coral
@@ -44,7 +44,7 @@ class StandupTimerItem: TBPopoverItem {
         let start = TBOverlay.pillButton(title: localized("开始", "Start"), tag: 0, target: self, action: #selector(control(_:)), tint: TB.mint)
         let pause = TBOverlay.pillButton(title: localized("暂停", "Pause"), tag: 1, target: self, action: #selector(control(_:)), tint: TB.gold)
         let reset = TBOverlay.pillButton(title: localized("重置", "Reset"), tag: 2, target: self, action: #selector(control(_:)), tint: TB.sky)
-        TBOverlay.buttonRow(in: card, buttons: [start, pause, reset], afterClose: close)
+        TBOverlay.buttonRow(in: card, buttons: [start, pause, reset], afterClose: close, centered: true)
         return root
     }
 

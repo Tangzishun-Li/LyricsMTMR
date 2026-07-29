@@ -23,7 +23,7 @@ class BirthdayCountdownItem: TBPollItem {
                    label: localized("生日", "Bday"), width: 150)
         TBStore.seed(filename: Self.filename, sample: Self.sample)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let path = dataPath.isEmpty ? appSupportDirectory.appending("/\(Self.filename)") : (dataPath as NSString).expandingTildeInPath

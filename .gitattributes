@@ -1,0 +1,30 @@
+# ============================================================================
+# LyricsMTMR .gitattributes
+# ============================================================================
+#
+# 🔐 API Key Clean Filter
+# JSON files with apiKey/api_key fields will have their values stripped to
+# "" before being added to the git index. This prevents accidentally
+# committing a real key even if it's in your local config.
+#
+# To enable this filter run:
+#   git config filter.strip-api-keys.clean "sed -E 's/(\"apiKey\": \")[^\"]+(\")/\\1\\2/g; s/(\"api_key\": \")[^\"]+(\")/\\1\\2/g'"
+#
+# ============================================================================
+
+# Apply to JSON preset files
+*.json filter=strip-api-keys
+
+# Line endings
+* text=auto
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.dmg binary
+*.zip binary
+*.framework binary

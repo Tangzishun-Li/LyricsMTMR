@@ -30,11 +30,11 @@ class HttpCodesItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "HTTP", symbol: "number.circle", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.95, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点选状态码查看含义", "pick a code"), tint: TB.textSecondary)
         let buttons = Self.codes.map { entry -> NSButton in

@@ -103,7 +103,7 @@ class TBMetricView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -210,7 +210,7 @@ class TBRingView: NSView {
     var subText: String = "" { didSet { needsDisplay = true } }
 
     override init(frame frameRect: NSRect) { super.init(frame: frameRect); wantsLayer = true; layer?.backgroundColor = NSColor.clear.cgColor }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -252,7 +252,7 @@ class TBRingView: NSView {
 /// Helpers to build the full-width dark overlay bar used by popover widgets
 /// (regex tester, clipboard history, http codes, bill split, etc.).
 enum TBOverlay {
-    static let barWidth: CGFloat = 680
+    static let barWidth: CGFloat = 900
     static let barHeight: CGFloat = 30
 
     static func rootView() -> NSView {
@@ -263,7 +263,7 @@ enum TBOverlay {
     }
 
     @discardableResult
-    static func card(in root: NSView, widthRatio: CGFloat = 0.9, accent: NSColor = TB.sky) -> NSView {
+    static func card(in root: NSView, widthRatio: CGFloat = 0.97, accent: NSColor = TB.sky) -> NSView {
         let cardW = barWidth * widthRatio
         let cardH = barHeight - 4
         let card = NSView(frame: NSRect(x: (barWidth - cardW)/2, y: (barHeight - cardH)/2, width: cardW, height: cardH))
@@ -297,7 +297,7 @@ enum TBOverlay {
         btn.isBordered = true
         btn.bezelColor = NSColor(white: 0.22, alpha: 1)
         btn.contentTintColor = tint
-        btn.font = .systemFont(ofSize: 12, weight: .medium)
+        btn.font = .systemFont(ofSize: 11, weight: .medium)
         btn.translatesAutoresizingMaskIntoConstraints = false
         btn.heightAnchor.constraint(equalToConstant: 22).isActive = true
         return btn
@@ -309,7 +309,7 @@ enum TBOverlay {
 enum TBShell {
     /// Runs a command via /bin/zsh -l -c and returns trimmed stdout ("" on failure).
     @discardableResult
-    static func run(_ command: String) -> String {
+    static func run(_ command: String, timeout: TimeInterval = 8.0) -> String {
         let task = Process()
         task.launchPath = "/bin/zsh"
         task.arguments = ["-l", "-c", command]
@@ -322,7 +322,17 @@ enum TBShell {
             return ""
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        // Use a dispatch source to kill the task if it exceeds the timeout,
+        // preventing a hung shell command from blocking its queue forever.
+        let sem = DispatchSemaphore(value: 0)
+        let source = DispatchSource.makeTimerSource()
+        source.setEventHandler { task.terminate(); sem.signal() }
+        source.schedule(deadline: .now() + timeout)
+        source.resume()
+        task.terminationHandler = { _ in source.cancel(); sem.signal() }
         task.waitUntilExit()
+        sem.signal()
+        sem.wait()
         return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 }
@@ -388,7 +398,15 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         HapticFeedback.instance.tap(type: .medium)
         fullViewIdentifier = NSTouchBarItem.Identifier("com.lyricsmtmr.overlay.".appending(UUID().uuidString))
         fullViewItem = NSCustomTouchBarItem(identifier: fullViewIdentifier)
-        fullViewItem!.view = buildOverlay()
+        let error = MTMRTryOrError { [weak self] in
+            guard let self = self else { return }
+            self.fullViewItem!.view = self.buildOverlay()
+        }
+        if let error = error {
+            AppLog.error("buildOverlay crashed: \(error.localizedDescription)")
+            isShowing = false
+            return
+        }
         guard let bar = TouchBarController.shared.touchBar else { return }
         bar.delegate = self
         bar.defaultItemIdentifiers = [fullViewIdentifier]
@@ -439,18 +457,40 @@ class TBPollItem: NSCustomTouchBarItem {
         loop()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-    deinit { queue?.suspend(); queue = nil }
+    required init?(coder: NSCoder) { return nil }
+    private var _isCancelled = false
+
+    deinit {
+        _isCancelled = true
+        queue = nil
+    }
 
     private func loop() {
         queue?.async { [weak self] in
             guard let self = self else { return }
-            self.compute()
+            // Run compute() inside ObjC exception protection — a single bad
+            // cycle (e.g. a crashed shell command, a broken JSON parse) must
+            // not kill the polling loop for this widget.
+            let computeError = MTMRTryOrError {
+                self.compute()
+            }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.apply()
+                if computeError != nil {
+                    self.metric.value = "⚠️"
+                    self.metric.valueColor = TB.coral
+                } else {
+                    let applyError = MTMRTryOrError {
+                        self.apply()
+                    }
+                    if applyError != nil {
+                        self.metric.value = "⚠️"
+                        self.metric.valueColor = TB.coral
+                    }
+                }
                 self.metric.needsDisplay = true
             }
+            guard !self._isCancelled else { return }
             self.queue?.asyncAfter(deadline: .now() + self.interval) { [weak self] in self?.loop() }
         }
     }
@@ -553,40 +593,44 @@ enum TBEvents {
 // MARK: - Overlay content helpers
 
 extension TBOverlay {
-    /// A single-line centered label inside a card (used to show tool results).
+    /// A single-line left-aligned label inside the left zone of a card (used to show tool results).
+    /// Occupies the left ~40 % of the card so it never overlaps the button row on the right.
     static func resultLabel(in card: NSView, text: String, tint: NSColor = TB.textPrimary) -> NSTextField {
         let field = NSTextField(labelWithString: text)
         field.font = .systemFont(ofSize: 12, weight: .semibold)
         field.textColor = tint
-        field.lineBreakMode = .byTruncatingMiddle
-        field.alignment = .center
+        field.lineBreakMode = .byTruncatingTail
+        field.alignment = .left
         field.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(field)
         NSLayoutConstraint.activate([
             field.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            field.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 40),
-            field.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            field.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 36),
+            field.widthAnchor.constraint(equalTo: card.widthAnchor, multiplier: 0.38),
         ])
         return field
     }
 
-    /// Lays out an array of buttons in a centered horizontal stack inside a card,
-    /// to the right of an optional close button.
-    static func buttonRow(in card: NSView, buttons: [NSButton], afterClose close: NSButton? = nil) {
+    /// Lays out an array of buttons in a horizontal stack inside the right zone of a card.
+    /// By default the stack starts at ~45 % of the card width so it never overlaps
+    /// the resultLabel on the left. Pass `centered: true` for widgets that have no
+    /// label (the stack is then centered in the card).
+    static func buttonRow(in card: NSView, buttons: [NSButton], afterClose close: NSButton? = nil, centered: Bool = false) {
         let stack = NSStackView()
         stack.orientation = .horizontal
-        stack.spacing = 6
+        stack.spacing = 5
         stack.alignment = .centerY
         stack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -12),
         ])
-        if let close = close {
-            stack.leadingAnchor.constraint(equalTo: close.trailingAnchor, constant: 10).isActive = true
+        if centered {
+            stack.centerXAnchor.constraint(equalTo: card.centerXAnchor).isActive = true
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 12).isActive = true
         } else {
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12).isActive = true
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: card.bounds.width * 0.45).isActive = true
         }
         for button in buttons { stack.addArrangedSubview(button) }
     }

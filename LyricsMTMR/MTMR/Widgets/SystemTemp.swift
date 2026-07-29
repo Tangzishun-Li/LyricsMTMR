@@ -17,7 +17,7 @@ class SystemTempItem: TBPollItem {
                    icon: "thermometer.medium", tint: TB.coral,
                    label: localized("温度", "Temp"), width: 138)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func compute() {
         let out = TBShell.run("sudo -n powermetrics --samplers smc -i1 -n1 2>/dev/null | grep -i 'CPU die temperature' | head -1")

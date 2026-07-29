@@ -13,11 +13,11 @@ class BluetoothToggleItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("蓝牙", "BT"), symbol: "wave.3.right", tint: TB.sky)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.7, accent: TB.sky)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: Self.stateText(), tint: TB.sky)
         let on = TBOverlay.pillButton(title: localized("开", "On"), tag: 1, target: self, action: #selector(toggle(_:)), tint: TB.mint)

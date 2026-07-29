@@ -15,11 +15,11 @@ class Base64ToolItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: "Base64", symbol: "chevron.left.forwardslash.chevron.right", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.82, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         let hint = mode == "decode" ? localized("剪贴板 → 解码 / 编码", "clip → dec/enc") : localized("剪贴板 → 编码 / 解码", "clip → enc/dec")
         resultLabel = TBOverlay.resultLabel(in: card, text: hint, tint: TB.textSecondary)

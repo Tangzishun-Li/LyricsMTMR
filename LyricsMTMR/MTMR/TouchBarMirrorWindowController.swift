@@ -291,5 +291,5 @@ class TouchBarBackgroundView: NSView {
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor(white: 0.25, alpha: 0.5).cgColor
     }
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder: NSCoder) { return nil }
 }

@@ -48,6 +48,22 @@ extension LyricsClickAction {
     }
 }
 
+extension LyricsMarqueeStyle {
+    var displayName: String {
+        switch self {
+        case .marquee: return localized("跑马灯循环", "Marquee Loop")
+        case .follow: return localized("跟随进度", "Follow Progress")
+        }
+    }
+
+    var blurb: String {
+        switch self {
+        case .marquee: return localized("匀速循环滚动整行歌词", "Scroll the full line at a steady pace")
+        case .follow: return localized("跟随卡拉 OK 进度定位当前字", "Track the current karaoke character")
+        }
+    }
+}
+
 // MARK: - Lyrics Tab
 
 struct LyricsTab: View {
@@ -71,6 +87,7 @@ struct LyricsTab: View {
                 globalToggleSection
                 musicSourceSection
                 modeSection
+                scrollSection
                 colorSection
                 fontSection
                 artworkSection
@@ -296,6 +313,46 @@ struct LyricsTab: View {
                     }
                 }
                 .animation(.spring(response: 0.3, dampingFraction: 0.85), value: config.displayMode)
+            }
+        }
+    }
+
+
+    // MARK: - Long lyrics scrolling
+
+    private var scrollSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(
+                title: localized("长歌词滚动", "Long Lyrics Scrolling"),
+                hint: localized("歌词超出 item 宽度时的显示策略", "What to do when lyrics exceed the item width"))
+            Deck.Card {
+                VStack(spacing: 12) {
+                    Deck.ToggleRow(
+                        title: localized("启用滚动", "Enable Scrolling"),
+                        isOn: $config.marqueeEnabled)
+
+                    if config.marqueeEnabled {
+                        Deck.RowDivider()
+
+                        Deck.LabeledRow(localized("滚动模式", "Scroll Mode")) {
+                            Deck.Segmented(
+                                options: LyricsMarqueeStyle.allCases.map {
+                                    Deck.SegmentOption(id: $0.rawValue, label: $0.displayName)
+                                },
+                                selection: Binding(
+                                    get: { config.marqueeStyle.rawValue },
+                                    set: { raw in
+                                        config.marqueeStyle = LyricsMarqueeStyle(rawValue: raw) ?? .marquee
+                                    }))
+                        }
+
+                        Text(config.marqueeStyle.blurb)
+                            .font(Deck.captionFont)
+                            .foregroundStyle(Deck.textTertiary)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.85), value: config.marqueeEnabled)
             }
         }
     }

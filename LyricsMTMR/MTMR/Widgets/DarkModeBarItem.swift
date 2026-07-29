@@ -18,9 +18,7 @@ class DarkModeBarItem: CustomButtonTouchBarItem, Widget {
         refresh()
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     func DarkModeToggle() {
         DarkMode.isEnabled = !DarkMode.isEnabled

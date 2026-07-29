@@ -149,17 +149,25 @@ enum KugouProvider {
 
             let wordContent = (trimmed as NSString).substring(with: match.range(at: 3))
             var cleanText = ""
-            var timetags: [(TimeInterval, Int)] = []
+            var words: [SimpleLyrics.Word] = []
 
             let wordMatches = wordPattern.matches(in: wordContent, options: [], range: NSRange(wordContent.startIndex..., in: wordContent))
             if !wordMatches.isEmpty {
                 for wm in wordMatches {
                     let wordMsStr = (wordContent as NSString).substring(with: wm.range(at: 1))
+                    let wordDurMsStr = (wordContent as NSString).substring(with: wm.range(at: 2))
                     let wordText = (wordContent as NSString).substring(with: wm.range(at: 4))
-                    guard let wordMs = Double(wordMsStr) else { continue }
-                    let prevCount = cleanText.count
+                    guard let wordMs = Double(wordMsStr),
+                          let wordDurMs = Double(wordDurMsStr) else { continue }
+                    let prevCount = (cleanText as NSString).length
+                    let wordStartUTF16 = prevCount
                     cleanText += wordText
-                    timetags.append((wordMs / 1000.0, prevCount))
+                    words.append(SimpleLyrics.Word(
+                        text: wordText,
+                        startTime: wordMs / 1000.0,
+                        duration: wordDurMs / 1000.0,
+                        charIndex: wordStartUTF16
+                    ))
                 }
             }
 
@@ -170,7 +178,7 @@ enum KugouProvider {
             }
 
             guard !cleanText.isEmpty else { continue }
-            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, timetags: timetags))
+            lines.append(SimpleLyrics.Line(position: lineTime, content: cleanText, words: words))
         }
 
         guard !lines.isEmpty else { throw KugouError.noLyrics }

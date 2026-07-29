@@ -26,7 +26,7 @@ class EditorStripView: NSView {
         setup()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -213,7 +213,7 @@ class StripPillView: NSView {
         setup()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     private func setup() {
         wantsLayer = true

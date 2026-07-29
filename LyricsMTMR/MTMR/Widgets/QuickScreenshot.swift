@@ -15,11 +15,11 @@ class QuickScreenshotItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("截图", "Shot"), symbol: "camera.viewfinder", tint: TB.gold)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.78, accent: TB.gold)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.gold)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("选择截图方式", "pick a mode"), tint: TB.textSecondary)
         let region = TBOverlay.pillButton(title: localized("区域", "Region"), tag: 0, target: self, action: #selector(shoot(_:)), tint: TB.gold)

@@ -21,11 +21,11 @@ class RegexTesterItem: TBPopoverItem {
         super.init(identifier: identifier)
         configureButton(title: localized("正则", "Regex"), symbol: "asterisk", tint: TB.purple)
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
-        let card = TBOverlay.card(in: root, widthRatio: 0.8, accent: TB.purple)
+        let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("剪贴板文本 → 选规则匹配", "clip → match"), tint: TB.textSecondary)
         let buttons = Self.patterns.enumerated().map { index, pair -> NSButton in

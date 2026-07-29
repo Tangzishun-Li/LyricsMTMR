@@ -26,9 +26,7 @@ class BrightnessViewController: NSCustomTouchBarItem {
         RunLoop.current.add(timer, forMode: RunLoop.Mode.common)
     }
 
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder _: NSCoder) { return nil }
 
     deinit {
         sliderItem.unbind(NSBindingName.value)

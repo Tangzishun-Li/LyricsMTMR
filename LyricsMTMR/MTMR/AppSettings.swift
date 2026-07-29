@@ -1,5 +1,36 @@
 import Foundation
 
+extension Notification.Name {
+    static let themeIndexDidChange = Notification.Name("LyricsMTMRThemeIndexDidChangeNotification")
+    static let appThemeAutoSwitchDidChange = Notification.Name("LyricsMTMRAppThemeAutoSwitchDidChange")
+}
+
+/// Activation mode for an app-specific theme rule.
+enum AppThemeMode: Int, Codable, CaseIterable {
+    /// Every time the app becomes frontmost, force the theme.
+    case always = 0
+    /// Rule exists but is inactive.
+    case disabled = 1
+    /// Force on app activation; user can manually override via themeSwitch until next app switch.
+    case onActivation = 2
+
+    var displayName: String {
+        switch self {
+        case .always: return localized("始终使用", "Always")
+        case .disabled: return localized("已停用", "Disabled")
+        case .onActivation: return localized("激活时使用", "On Activation")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .always: return "repeat"
+        case .disabled: return "pause.circle"
+        case .onActivation: return "bolt.circle"
+        }
+    }
+}
+
 enum MusicPlayer: String, CaseIterable {
     case appleMusic = "com.apple.Music"
     case spotify = "com.spotify.client"
@@ -50,6 +81,10 @@ struct AppSettings {
     
     @UserDefault(key: "com.toxblh.mtmr.blackListedApps", defaultValue: [])
     static var blacklistedAppIds: [String]
+
+    /// Maps bundle identifier → AppThemeMode rawValue.
+    @UserDefault(key: "com.lyricsmtmr.appThemeRules.v2", defaultValue: [:])
+    static var appThemeRules: [String: Int]
     
     @UserDefault(key: "com.toxblh.mtmr.dock.persistent", defaultValue: [])
     static var dockPersistentAppIds: [String]
@@ -93,8 +128,17 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
     static var showMirrorWindow: Bool
 
-    @UserDefault(key: "com.lyricsmtmr.theme.selectedIndex", defaultValue: 0)
-    static var selectedThemeIndex: Int
+    @UserDefault(key: "com.lyricsmtmr.settings.freezeOnAppSwitch", defaultValue: false)
+    static var freezeOnAppSwitch: Bool
+
+    static var selectedThemeIndex: Int {
+        get { UserDefaults.standard.integer(forKey: "com.lyricsmtmr.theme.selectedIndex") }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "com.lyricsmtmr.theme.selectedIndex")
+            UserDefaults.standard.synchronize()
+            NotificationCenter.default.post(name: .themeIndexDidChange, object: nil, userInfo: ["index": newValue])
+        }
+    }
 
     // MARK: - Services (API keys configured in Settings → 服务 / Services)
     // Widgets read these lazily; an empty value means "未配置" and falls back to mock data.
@@ -126,6 +170,31 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.services.rssAPIKey", defaultValue: "")
     static var rssAPIKey: String
 
+    /// How the RSS widget obtains items: "provider" (an aggregator API such as
+    /// Feedly / Miniflux) or "direct" (fetch the user's feed URLs ourselves).
+    @UserDefault(key: "com.lyricsmtmr.services.rssMode", defaultValue: "provider")
+    static var rssMode: String
+
+    /// Base URL for self-hosted providers (Miniflux / FreshRSS). Empty for cloud services.
+    @UserDefault(key: "com.lyricsmtmr.services.rssServerURL", defaultValue: "")
+    static var rssServerURL: String
+
+    /// Feed URLs used in "direct" mode.
+    @UserDefault(key: "com.lyricsmtmr.services.rssFeeds", defaultValue: [])
+    static var rssFeeds: [String]
+
+    /// Only items newer than this many hours count as unread in "direct" mode.
+    @UserDefault(key: "com.lyricsmtmr.rss.unreadWindowHours", defaultValue: 24)
+    static var rssUnreadWindowHours: Double
+
+    /// Whether the widget shows a zero state ("0 未读") or hides the label when empty.
+    @UserDefault(key: "com.lyricsmtmr.rss.showBadge", defaultValue: true)
+    static var rssShowBadge: Bool
+
+    /// Base URL of the RSSHub instance used to expand recommended RSSHub routes.
+    @UserDefault(key: "com.lyricsmtmr.rss.rsshubBase", defaultValue: "https://rsshub.app")
+    static var rssRSSHubBase: String
+
     @UserDefault(key: "com.lyricsmtmr.services.mijiaToken", defaultValue: "")
     static var mijiaToken: String
 
@@ -134,6 +203,11 @@ struct AppSettings {
 
     @UserDefault(key: "com.lyricsmtmr.services.sshUser", defaultValue: "")
     static var sshUser: String
+
+    // MARK: - Weather
+
+    @UserDefault(key: "com.lyricsmtmr.services.openWeatherAPIKey", defaultValue: "")
+    static var openWeatherAPIKey: String
 }
 
 @propertyWrapper
@@ -168,6 +242,8 @@ struct Localized {
     static var hideControlStrip: String { isChinese ? "隐藏 Control Strip" : "Hide Control Strip" }
     static var hapticFeedback: String { isChinese ? "触觉反馈" : "Haptic Feedback" }
     static var multitouchGestures: String { isChinese ? "音量/亮度滑动手势" : "Volume/Brightness gestures" }
+    static var freezeOnAppSwitch: String { isChinese ? "切换应用时冻结 Touch Bar" : "Freeze Touch Bar on app switch" }
+    static var freezeOnAppSwitchSubtitle: String { isChinese ? "切换应用时不刷新 Touch Bar 内容" : "Prevent Touch Bar from refreshing when switching apps" }
     static var language: String { isChinese ? "语言" : "Language / 语言" }
     static var languageChanged: String { isChinese ? "语言已更改" : "Language Changed" }
     static var restartPrompt: String {
@@ -190,4 +266,15 @@ struct Localized {
 
     static var slots: String { isChinese ? "槽位" : "Slots" }
     static var noSlots: String { isChinese ? "暂无槽位" : "No slots" }
+
+    static var appThemes: String { isChinese ? "应用专属主题" : "App-Specific Themes" }
+    static var appThemesHint: String { isChinese ? "切换到指定应用时自动使用对应主题" : "Auto-switch theme when a specific app is active" }
+    static var noAppThemes: String { isChinese ? "暂无应用主题规则" : "No app theme rules" }
+    static var assignCurrentApp: String { isChinese ? "为当前应用创建主题" : "Create theme for current app" }
+    static var editAppTheme: String { isChinese ? "编辑主题" : "Edit Theme" }
+    static var removeAppTheme: String { isChinese ? "移除规则" : "Remove Rule" }
+    static var appThemeMode: String { isChinese ? "激活模式" : "Activation Mode" }
+    static var appThemeFileMissing: String { isChinese ? "主题文件已丢失，规则已自动移除" : "Theme file missing, rule auto-removed" }
+    static var createFromCurrent: String { isChinese ? "基于当前主题新建" : "New from current theme" }
+    static var createFromBlank: String { isChinese ? "空白主题" : "Blank theme" }
 }

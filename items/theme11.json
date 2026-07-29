@@ -67,11 +67,6 @@
     "width": 60
   },
   {
-    "type": "escape",
-    "width": 64,
-    "align": "left"
-  },
-  {
     "type": "emailBadge",
     "align": "left",
     "width": 100,
