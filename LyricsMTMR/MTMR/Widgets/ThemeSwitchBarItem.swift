@@ -28,7 +28,6 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
         super.init(identifier: identifier, title: "")
 
         updateTitle(to: AppSettings.selectedThemeIndex)
-        setupIndicator()
 
         isBordered = false
         setWidth(value: 44)
@@ -56,6 +55,14 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
         ) { [weak self] notification in
             let isActive = notification.userInfo?["isAutoSwitched"] as? Bool ?? false
             self?.indicatorDot.isHidden = !isActive
+        }
+
+        // View-hierarchy work (addSubview, constraints) must run on the main
+        // thread. Item creation may happen on a background queue inside
+        // createItemWithTimeout, so defer to avoid a deadlock with the
+        // semaphore the caller is waiting on.
+        DispatchQueue.main.async { [weak self] in
+            self?.setupIndicator()
         }
     }
 

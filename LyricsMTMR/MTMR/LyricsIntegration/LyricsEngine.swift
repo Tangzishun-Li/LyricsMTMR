@@ -787,7 +787,7 @@ class LyricsEngine: NSObject, ObservableObject {
                 Task { [weak self] in
                     guard let self else { return }
                     do {
-                        let subtitles = try await BrowserURLDetector.fetchSubtitles(for: videoURL)
+                        let subtitles = try await BrowserURLDetector.fetchSubtitles(for: videoURL, browser: detection.browser)
                         await MainActor.run {
                             guard self.lastTrackTitle == title else { return }
                             let filtered = subtitles.filtered

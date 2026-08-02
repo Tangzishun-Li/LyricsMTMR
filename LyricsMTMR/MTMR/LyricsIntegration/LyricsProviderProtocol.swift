@@ -115,7 +115,11 @@ protocol SubtitleProviderProtocol: AnyObject {
     var providerID: LyricsProviderID { get }
     var displayName: String { get }
 
-    func fetchSubtitles(videoURL: URL) async throws -> SimpleLyrics
+    /// Fetches subtitles for a video URL.
+    /// - Parameter browser: The browser currently playing the video (if any).
+    ///   YouTube uses this to inject JavaScript into the page, since its
+    ///   caption endpoints now require the browser's session (PO token).
+    func fetchSubtitles(videoURL: URL, browser: BrowserApp?) async throws -> SimpleLyrics
     func canHandle(url: URL) -> Bool
 }
 
@@ -125,7 +129,7 @@ final class LyricsProviderRegistry {
     static let shared = LyricsProviderRegistry()
 
     private var providers: [LyricsProviderID: LyricsProviderProtocol] = [:]
-    private var subtitleProviders: [LyricsProviderID: SubtitleProviderProtocol] = [:]
+    private var subtitleProviders: [SubtitleProviderProtocol] = []
 
     private init() {}
 
@@ -134,7 +138,7 @@ final class LyricsProviderRegistry {
     }
 
     func registerSubtitle(_ provider: SubtitleProviderProtocol) {
-        subtitleProviders[provider.providerID] = provider
+        subtitleProviders.append(provider)
     }
 
     func get(_ id: LyricsProviderID) -> LyricsProviderProtocol? {
@@ -146,7 +150,7 @@ final class LyricsProviderRegistry {
     }
 
     func allSubtitleProviders() -> [SubtitleProviderProtocol] {
-        Array(subtitleProviders.values)
+        subtitleProviders
     }
 
     func availableProviders() -> [LyricsProviderProtocol] {

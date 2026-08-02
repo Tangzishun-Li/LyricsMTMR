@@ -133,12 +133,12 @@ enum BrowserURLDetector {
     }
 
     /// Fetches subtitles for a video URL using the appropriate provider.
-    static func fetchSubtitles(for url: URL) async throws -> SimpleLyrics {
+    static func fetchSubtitles(for url: URL, browser: BrowserApp? = nil) async throws -> SimpleLyrics {
         let providers = LyricsProviderRegistry.shared.allSubtitleProviders()
         guard let provider = providers.first(where: { $0.canHandle(url: url) }) else {
             throw SubtitleError.noSubtitlesAvailable
         }
         AppLog.lyrics("[BrowserURLDetector] fetching subtitles via \(provider.displayName)")
-        return try await provider.fetchSubtitles(videoURL: url)
+        return try await provider.fetchSubtitles(videoURL: url, browser: browser)
     }
 }
