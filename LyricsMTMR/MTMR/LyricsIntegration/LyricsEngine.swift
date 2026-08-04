@@ -480,6 +480,15 @@ class LyricsEngine: NSObject, ObservableObject {
         NotificationCenter.default.removeObserver(self)
     }
 
+    /// Called from AppDelegate.applicationWillTerminate. Singletons never
+    /// deinit during process lifetime, so this is the only reliable point
+    /// to stop the MediaRemote listener subprocess and the playback timer —
+    /// otherwise the perl helper process is orphaned on every quit.
+    func shutdown() {
+        stopPlaybackTimer()
+        mrAdapter.stopListening()
+    }
+
     var activeLyrics: SimpleLyrics? {
         switch clickAction {
         case .original: return currentLyrics
@@ -533,9 +542,11 @@ class LyricsEngine: NSObject, ObservableObject {
 
         // Delay startup slightly to let the Touch Bar system initialize,
         // avoiding the NSFunctionRowDevice mutation-while-enumerated crash.
+        // The playback timer is NOT started here: trackInfo.didSet starts it
+        // on demand when playback actually begins, so an idle app never pays
+        // for a 4 Hz no-op run-loop tick.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.setupMediaRemoteObservers()
-            self?.startPlaybackTimer()
         }
     }
 
