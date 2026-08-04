@@ -2,7 +2,7 @@ import Cocoa
 
 class TimeTouchBarItem: CustomButtonTouchBarItem {
     private let dateFormatter = DateFormatter()
-    private var timer: Timer!
+    private var timer: Timer?
 
     init(identifier: NSTouchBarItem.Identifier, formatTemplate: String, timeZone: String? = nil, locale: String? = nil) {
         dateFormatter.dateFormat = formatTemplate
@@ -13,12 +13,18 @@ class TimeTouchBarItem: CustomButtonTouchBarItem {
             dateFormatter.timeZone = TimeZone(abbreviation: abbr)
         }
         super.init(identifier: identifier, title: " ")
-        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(updateTime), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.updateTime()
+        }
         isBordered = false
         updateTime()
     }
 
     required init?(coder _: NSCoder) { return nil }
+
+    deinit {
+        timer?.invalidate()
+    }
 
     @objc func updateTime() {
         title = dateFormatter.string(from: Date())

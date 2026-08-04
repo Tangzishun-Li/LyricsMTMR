@@ -8,6 +8,18 @@
 import Cocoa
 import SwiftUI
 
+// MARK: - Settings Window Visibility State
+
+/// Observable visibility flag for the unified settings window. Decorative
+/// always-animating views (Touch Bar preview karaoke line, equalizer bars)
+/// observe it so their TimelineView redraws pause while the window is
+/// closed or miniaturized — no frames get rendered that nobody can see.
+final class SettingsWindowState: ObservableObject {
+    static let shared = SettingsWindowState()
+    @Published var isVisible: Bool = false
+    private init() {}
+}
+
 // MARK: - Dock Visibility Manager
 
 /// Manages the app's Dock visibility based on settings window state.
@@ -116,7 +128,20 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         UnifiedSettingsWindowController.current = nil
+        SettingsWindowState.shared.isVisible = false
         DockVisibilityManager.shared.handleSettingsWindowClosed()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        SettingsWindowState.shared.isVisible = true
+    }
+
+    func windowDidMiniaturize(_ notification: Notification) {
+        SettingsWindowState.shared.isVisible = false
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        SettingsWindowState.shared.isVisible = true
     }
 
     /// Installs an invisible title-bar accessory so the window can still be
@@ -795,9 +820,10 @@ extension Deck {
     struct Equalizer: View {
         var tint: Color = Deck.mint
         var barCount: Int = 4
+        var paused: Bool = false
 
         var body: some View {
-            TimelineView(.animation(minimumInterval: 0.09)) { context in
+            TimelineView(.animation(minimumInterval: 0.09, paused: paused)) { context in
                 let t = context.date.timeIntervalSinceReferenceDate
                 HStack(alignment: .bottom, spacing: 2.5) {
                     ForEach(0..<barCount, id: \.self) { index in
@@ -832,6 +858,7 @@ struct SettingsRootView: View {
     @Namespace private var navNamespace
     @State private var refreshToken: UUID = UUID()
     @State private var sidebarVisible: Bool = true
+    @ObservedObject private var windowState = SettingsWindowState.shared
 
     private let sidebarVisibilityKey = "settings.sidebar.visible"
 
@@ -1040,7 +1067,7 @@ struct SettingsRootView: View {
                     .font(Deck.monoFont)
                     .foregroundStyle(Deck.textTertiary)
                 Spacer()
-                Deck.Equalizer(tint: Deck.textTertiary.opacity(0.85), barCount: 3)
+                Deck.Equalizer(tint: Deck.textTertiary.opacity(0.85), barCount: 3, paused: !windowState.isVisible)
             }
         }
     }

@@ -602,6 +602,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func createItems() {
+        discardCurrentItems()
         items = [:]
         swipeItems = []
 
@@ -643,6 +644,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     AppLog.warn("Item \(definition.type) skipped (creation failed)")
                 }
             }
+        }
+    }
+
+    /// Gives items that own live resources (timers, observers, lazily
+    /// created child items) a chance to tear down before the controller
+    /// drops its references during a preset switch. Main thread only.
+    private func discardCurrentItems() {
+        for item in items.values {
+            (item as? BarItemDiscarding)?.barItemWillDiscard()
+        }
+        for item in swipeItems {
+            (item as? BarItemDiscarding)?.barItemWillDiscard()
         }
     }
 
@@ -1140,6 +1153,9 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     AppLog.touchBar("Theme switch superseded — skipping UI update")
                     return
                 }
+                // Tear down the outgoing items (timers/observers/child items)
+                // before swapping in the new set.
+                self.discardCurrentItems()
                 self.jsonItems = itemsToBuild
                 self.itemDefinitions = newDefs
                 self.leftIdentifiers = newLeft

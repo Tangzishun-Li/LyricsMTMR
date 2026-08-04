@@ -956,6 +956,7 @@ struct FontPickerField: View {
 
 struct TouchBarPreview: View {
     @ObservedObject var config: LyricsItemConfig
+    @ObservedObject private var windowState = SettingsWindowState.shared
 
     private var sample: String {
         localized("晚风轻踩着云朵 月亮在追着我", "Moonlight rides the evening breeze")
@@ -969,7 +970,7 @@ struct TouchBarPreview: View {
                     .kerning(1.1)
                     .foregroundStyle(Deck.textTertiary)
                 Spacer()
-                Deck.Equalizer(tint: Color(nsColor: config.progressColor), barCount: 4)
+                Deck.Equalizer(tint: Color(nsColor: config.progressColor), barCount: 4, paused: !windowState.isVisible)
             }
 
             strip
@@ -1052,7 +1053,7 @@ struct TouchBarPreview: View {
     }
 
     private var karaokeLine: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !windowState.isVisible)) { context in
             let progress = karaokeProgress(at: context.date)
             Text(sample)
                 .font(lyricsFont)

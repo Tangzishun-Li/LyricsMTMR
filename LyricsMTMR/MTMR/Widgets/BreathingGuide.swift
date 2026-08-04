@@ -30,6 +30,10 @@ class BreathingGuideItem: TBPopoverItem {
     }
     required init?(coder: NSCoder) { return nil }
 
+    deinit {
+        timer?.invalidate()
+    }
+
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
         let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.mint)

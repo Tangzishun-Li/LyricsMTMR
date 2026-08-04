@@ -21,6 +21,7 @@
 		36300E83209F040900B31C71 /* SupportHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0008E542080286C003AD4DD /* SupportHelpers.swift */; };
 		36300E8F20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */; };
 		36300E9120A2D2B200B31C71 /* BackgroundColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */; };
+		CA8F2B732FC2000000D189D1 /* WidgetLeakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */; };
 		368EDDE720812A1D00E10953 /* ScrollViewItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368EDDE620812A1D00E10953 /* ScrollViewItem.swift */; };
 		36A778BE20A6C27100B38714 /* GeneralExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A778BD20A6C27100B38714 /* GeneralExtensions.swift */; };
 		36C2ECD7207B6DAE003CDA33 /* TimeTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECD6207B6DAE003CDA33 /* TimeTouchBarItem.swift */; };
@@ -227,6 +228,16 @@
 		A88CBE20F8D04BB2A553665A /* KeyBindingTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F48F01FC23F4982AE8C2B17 /* KeyBindingTabView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		CA8F2B702FC2000000D189D1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B082B247205C7D8000BC04DC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B082B24E205C7D8000BC04DC;
+			remoteInfo = LyricsMTMR;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		B00D181E2152F507000806F4 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -255,6 +266,7 @@
 		36300E85209FD16700B31C71 /* .travis.yml */ = {isa = PBXFileReference; lastKnownFileType = text; path = .travis.yml; sourceTree = SOURCE_ROOT; };
 		36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptDefinitionTests.swift; sourceTree = "<group>"; };
 		36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundColorTests.swift; sourceTree = "<group>"; };
+		CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetLeakTests.swift; sourceTree = "<group>"; };
 		368EDDE620812A1D00E10953 /* ScrollViewItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollViewItem.swift; sourceTree = "<group>"; };
 		36A778BD20A6C27100B38714 /* GeneralExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralExtensions.swift; sourceTree = "<group>"; };
 		36BDC22F207CDA8600FCFEBE /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
@@ -576,6 +588,7 @@
 				B082B267205C7D8000BC04DC /* Info.plist */,
 				36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */,
 				36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */,
+				CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -851,6 +864,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				CA8F2B712FC2000000D189D1 /* PBXTargetDependency */,
 			);
 			name = LyricsMTMRTests;
 			productName = MTMRTests;
@@ -1151,19 +1165,20 @@
 			files = (
 				36300E9120A2D2B200B31C71 /* BackgroundColorTests.swift in Sources */,
 				36300E8F20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift in Sources */,
-				CA8F2B5A2FBF862D00D189D1 /* CoreTextExtensions.swift in Sources */,
-				CA8F2B5B2FBF862D00D189D1 /* KaraokeLabel.swift in Sources */,
-				CA8F2B5C2FBF862D00D189D1 /* CoreGraphicsExtensions.swift in Sources */,
-				CA8F2B5D2FBF862D00D189D1 /* LyricsTouchBarItem.swift in Sources */,
-				CA8F2B5E2FBF862D00D189D1 /* Then.swift in Sources */,
-				CA8F2B5F2FBF862D00D189D1 /* CFStringTokenizerExtensions.swift in Sources */,
 				36C2ECDD207C723B003CDA33 /* ParseConfigTests.swift in Sources */,
-				36300E83209F040900B31C71 /* SupportHelpers.swift in Sources */,
-				36C2ECDE207C82DE003CDA33 /* ItemsParsing.swift in Sources */,
+				CA8F2B732FC2000000D189D1 /* WidgetLeakTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CA8F2B712FC2000000D189D1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B082B24E205C7D8000BC04DC /* LyricsMTMR */;
+			targetProxy = CA8F2B702FC2000000D189D1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		B082B258205C7D8000BC04DC /* Main.storyboard */ = {
@@ -1364,6 +1379,7 @@
 		B082B279205C7D8000BC04DC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -1376,16 +1392,19 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Toxblh.MTMRTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LyricsMTMR.app/Contents/MacOS/LyricsMTMR";
 			};
 			name = Debug;
 		};
 		B082B27A205C7D8000BC04DC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
@@ -1396,9 +1415,11 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Toxblh.MTMRTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LyricsMTMR.app/Contents/MacOS/LyricsMTMR";
 			};
 			name = Release;
 		};
