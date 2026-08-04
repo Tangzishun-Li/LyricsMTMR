@@ -201,6 +201,7 @@ class PlaybackProgressBarItem: NSCustomTouchBarItem {
             let info = LyricsEngine.shared.trackInfo
             self.updateProgress(info: info)
         }
+        timer?.tolerance = 0.05
     }
 
     private func updateProgress(info: EngineTrackInfo) {

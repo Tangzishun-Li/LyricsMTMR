@@ -81,8 +81,8 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
     private func start() {
         timeLeft = Int(typeTime == .work ? workTime : restTime)
         let queue: DispatchQueue = DispatchQueue(label: "Timer")
-        timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-        timer?.schedule(deadline: .now(), repeating: .seconds(1), leeway: .never)
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer?.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
         timer?.setEventHandler(handler: tick)
         timer?.resume()
 

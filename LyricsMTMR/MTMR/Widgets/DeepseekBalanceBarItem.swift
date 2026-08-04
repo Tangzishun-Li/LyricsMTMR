@@ -32,6 +32,7 @@ class DeepseekBalanceBarItem: CustomButtonTouchBarItem {
             timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
                 self?.refreshBalance()
             }
+            timer?.tolerance = self.refreshInterval * 0.1
         }
     }
 

@@ -59,6 +59,7 @@ class StandupTimerItem: TBPopoverItem {
             running = true
             timer?.invalidate()
             timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.tick() }
+            timer?.tolerance = 0.05
         case 1:
             running = false
             timer?.invalidate()

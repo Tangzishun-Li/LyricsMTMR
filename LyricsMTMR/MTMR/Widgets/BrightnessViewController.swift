@@ -26,6 +26,7 @@ class BrightnessViewController: NSCustomTouchBarItem {
         let refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             self?.updateBrightnessSlider()
         }
+        refreshTimer.tolerance = refreshInterval * 0.1
         RunLoop.current.add(refreshTimer, forMode: RunLoop.Mode.common)
         timer = refreshTimer
     }

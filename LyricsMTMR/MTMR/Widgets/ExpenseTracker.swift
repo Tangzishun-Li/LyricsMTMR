@@ -49,6 +49,7 @@ class ExpenseTrackerItem: TBPopoverItem {
         syncTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.pollExternalFile()
         }
+        syncTimer?.tolerance = 0.3
     }
 
     private func pollExternalFile() {

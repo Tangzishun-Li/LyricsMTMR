@@ -16,6 +16,7 @@ class TimeTouchBarItem: CustomButtonTouchBarItem {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.updateTime()
         }
+        timer?.tolerance = 0.1
         isBordered = false
         updateTime()
     }

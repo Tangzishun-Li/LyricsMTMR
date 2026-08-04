@@ -57,6 +57,7 @@ class ReadTimerItem: TBPopoverItem {
                 Self.accumulated += 1
                 self?.refresh()
             }
+            timer?.tolerance = 0.1
         }
     }
 

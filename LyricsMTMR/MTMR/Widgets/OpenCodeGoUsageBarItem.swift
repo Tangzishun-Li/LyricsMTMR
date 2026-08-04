@@ -462,6 +462,7 @@ class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
         refreshTimer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
             self?.refreshData()
         }
+        refreshTimer?.tolerance = self.refreshInterval * 0.1
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -754,9 +755,11 @@ class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.renderPopup()
         }
+        tickTimer?.tolerance = 0.1
         popupRefreshTimer = Timer.scheduledTimer(withTimeInterval: OpenCodeGoUsageBarItem.popupRefreshInterval, repeats: true) { [weak self] _ in
             self?.refreshData()
         }
+        popupRefreshTimer?.tolerance = OpenCodeGoUsageBarItem.popupRefreshInterval * 0.1
     }
 
     private func stopPopupTimers() {

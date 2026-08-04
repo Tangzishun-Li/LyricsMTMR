@@ -1,7 +1,13 @@
 import Cocoa
+import ImageIO
 
 class CoverCache {
     static let shared = CoverCache()
+
+    /// Covers are only drawn inside the Touch Bar lyrics item
+    /// (artworkSize <= 88pt). Decoding the CDN originals (typically
+    /// 500-1000px) as thumbnails shrinks each cached bitmap ~10x.
+    private static let maxPixelSize = 256
 
     private let memoryCache = NSCache<NSURL, NSImage>()
     private let session: URLSession = {
@@ -37,18 +43,44 @@ class CoverCache {
 
         do {
             let (data, _) = try await session.data(for: request)
-            if let image = NSImage(data: data) {
-                memoryCache.setObject(image, forKey: url as NSURL)
+            if let image = decodeDownsampled(data) {
+                cache(image, for: url)
                 return image
             }
         } catch {
             if let cached = URLCache.shared.cachedResponse(for: request),
-               let image = NSImage(data: cached.data) {
-                memoryCache.setObject(image, forKey: url as NSURL)
+               let image = decodeDownsampled(cached.data) {
+                cache(image, for: url)
                 return image
             }
         }
         return nil
+    }
+
+    /// Decode straight to display size with ImageIO so the full-resolution
+    /// bitmap is never materialized in memory.
+    private func decodeDownsampled(_ data: Data) -> NSImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+            return NSImage(data: data)
+        }
+        let thumbOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Self.maxPixelSize,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else {
+            return NSImage(data: data)
+        }
+        return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    private func cache(_ image: NSImage, for url: URL) {
+        // NSCache only honors totalCostLimit when a cost is supplied;
+        // approximate the decoded bitmap footprint (w * h * 4 bytes).
+        let cost = Int(image.size.width * image.size.height * 4)
+        memoryCache.setObject(image, forKey: url as NSURL, cost: cost)
     }
 
     func prefetch(url: URL) {

@@ -26,6 +26,7 @@ class TimestampConvertItem: TBPopoverItem {
         tick()
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
+        timer?.tolerance = 0.1
         let now = TBOverlay.pillButton(title: localized("复制现在", "Now"), tag: 0, target: self, action: #selector(act(_:)), tint: TB.gold)
         let toHuman = TBOverlay.pillButton(title: localized("Unix→日期", "→Date"), tag: 1, target: self, action: #selector(act(_:)), tint: TB.sky)
         let toUnix = TBOverlay.pillButton(title: localized("日期→Unix", "→Unix"), tag: 2, target: self, action: #selector(act(_:)), tint: TB.mint)

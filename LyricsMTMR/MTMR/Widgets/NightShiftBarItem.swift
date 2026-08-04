@@ -36,6 +36,7 @@ class NightShiftBarItem: CustomButtonTouchBarItem {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.refresh()
         }
+        timer?.tolerance = 0.1
 
         refresh()
     }
