@@ -209,19 +209,50 @@ class KaraokeLabel: NSTextField {
         }
         lineBounds = lineBounds.applying(transform)
 
+        // `lineBounds` is now in CoreText frame space (y-down). The layer tree
+        // lives in view space (y-up), so mirror it vertically before assigning
+        // the frame. The mask bitmap is anchored with its first row at the
+        // layer's top edge, which means the CT frame itself must be drawn with
+        // a pure translation of its own origin.
+        let maskOrigin = lineBounds.origin
+        if !isVertical {
+            lineBounds = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height))
+        }
+
         progressLayer.anchorPoint = isVertical ? CGPoint(x: 0.5, y: 0) : CGPoint(x: 0, y: 0.5)
         progressLayer.frame = lineBounds
         progressLayer.backgroundColor = color.cgColor
         let mask = CALayer()
         mask.frame = progressLayer.bounds
-        let img = NSImage(size: progressLayer.bounds.size, flipped: false) { [self] _ in
-            let context = NSGraphicsContext.current!.cgContext
-            let ori = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height)).origin
-            context.concatenate(CGAffineTransform(translationX: -ori.x, y: -ori.y))
-            CTFrameDraw(self.ctFrame(), context)
-            return true
+        if isVertical {
+            let img = NSImage(size: progressLayer.bounds.size, flipped: false) { [self] _ in
+                let context = NSGraphicsContext.current!.cgContext
+                let ori = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height)).origin
+                context.concatenate(CGAffineTransform(translationX: -ori.x, y: -ori.y))
+                CTFrameDraw(self.ctFrame(), context)
+                return true
+            }
+            mask.contents = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        } else {
+            // Rasterize the mask at device scale so its glyph edges stay as
+            // sharp as the base text. The rep context maps rep.size onto the
+            // pixel grid exactly, so no padding phase remains.
+            let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+            let maskSize = progressLayer.bounds.size
+            let pw = max(1, Int((maskSize.width * scale).rounded()))
+            let ph = max(1, Int((maskSize.height * scale).rounded()))
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pw, pixelsHigh: ph, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+            // rep.size must be assigned before the context is created: the
+            // context bakes the point→pixel ratio from rep.size at init time
+            rep.size = maskSize
+            guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return }
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = ctx
+            ctx.cgContext.concatenate(CGAffineTransform(translationX: -maskOrigin.x, y: -maskOrigin.y))
+            CTFrameDraw(ctFrame(), ctx.cgContext)
+            NSGraphicsContext.restoreGraphicsState()
+            mask.contents = rep.cgImage
         }
-        mask.contents = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
         progressLayer.mask = mask
 
         guard let index = progress.firstIndex(where: { $0.0 > 0 }) else {

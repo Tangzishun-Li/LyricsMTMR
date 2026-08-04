@@ -24,7 +24,7 @@ final class NetEaseProviderAdapter: LyricsProviderProtocol {
                 album: song.albumName,
                 provider: .netease,
                 sourceId: String(song.id),
-                hasWordTiming: true,  // NetEase supports YRC
+                hasWordTiming: false,  // unknown until fetch(); fetch() refines it
                 coverURL: song.albumPicUrl
             )
         }

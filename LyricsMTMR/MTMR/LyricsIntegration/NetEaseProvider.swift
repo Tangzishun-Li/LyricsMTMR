@@ -312,11 +312,8 @@ enum NetEaseProvider {
 
                    let strippedWord = wordText
                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
-                    let wordStartUTF16 = (cleanText as NSString).length
-                   cleanText += strippedWord
-                   if wm.range(at: 4).location != NSNotFound {
-                       cleanText += " "
-                   }
+                   let wordStartUTF16 = (cleanText as NSString).length
+                  cleanText += strippedWord
                    words.append(SimpleLyrics.Word(
                        text: strippedWord,
                        startTime: wordMs / 1000.0,
@@ -396,7 +393,6 @@ enum NetEaseProvider {
             let wordContent = (trimmed as NSString).substring(with: lineMatch.range(at: 2))
             var cleanText = ""
             var words: [SimpleLyrics.Word] = []
-            var dt: TimeInterval = 0
 
             let hasUnicodeAngle = wordContent.contains("\u{3008}") || wordContent.contains("\u{3009}")
             let hasAsciiAngle = wordContent.contains("<") || wordContent.contains(">")
@@ -415,11 +411,11 @@ enum NetEaseProvider {
                         .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
                     let wordStartUTF16 = prevCount
                     cleanText += strippedWord
-                    if wm.range(at: 4).location != NSNotFound { cleanText += " " }
-                    dt += wordMs / 1000.0
                     words.append(SimpleLyrics.Word(
                         text: strippedWord,
-                        startTime: dt,
+                        // KRC <startMs,durMs> is already line-relative; accumulating
+                        // it drifted every word after the first (karaoke ran late).
+                        startTime: wordMs / 1000.0,
                         duration: wordDurMs / 1000.0,
                         charIndex: wordStartUTF16
                     ))

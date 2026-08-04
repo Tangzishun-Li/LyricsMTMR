@@ -36,7 +36,14 @@ struct LyricsFilter {
             englishName: "Credits",
             description: "作词/作曲/编曲/演唱等制作人员标注",
             englishDescription: "Lyricist, composer, arranger, singer credits",
-            keys: ["作詞", "作词", "作曲", "編曲", "编曲", "演唱", "歌手", "歌曲", "制作", "製作"]
+            keys: [
+                "作詞", "作词", "作曲", "編曲", "编曲", "演唱", "歌手", "歌曲", "制作", "製作",
+                // Line-anchored credit lines observed in real .lrcx corpora, e.g.
+                // 「词：XX」「曲：XX」「混音：XX」「制作人Producer：XX」. Anchoring at
+                // line start + requiring a trailing colon avoids eating real lyric text.
+                "/^\\s*(词曲|和声编写|和声|合声|混音工程师|混音师|混音\\/母带|混音|母带工程师|母带|录音师|录音室|录音棚|录音|制作人|制作统筹|监制|出品人|出品|发行|统筹|企划|吉他|贝斯|键盘|鼓|弦乐|编曲|作词|作曲|演唱|歌手|曲|词)[^：:]{0,20}[：:]",
+                "/^\\s*(lyricist|composer|arranger|producer|engineer|mixing|mastering|vocal|chorus|guitar|bass|drums|piano|strings|lyrics|music|written|performed|arranged|recorded|mixed|produced|executive)[^：:]{0,24}[：:]",
+            ]
         ),
         FilterCategory(
             id: "source",

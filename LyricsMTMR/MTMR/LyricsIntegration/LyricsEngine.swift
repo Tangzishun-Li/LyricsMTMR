@@ -138,9 +138,8 @@ class SimpleLyrics {
             let trimmed = lrcLine.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
 
-            let pattern = try? NSRegularExpression(pattern: #"\[(\d{2}):(\d{2})\.(\d{2,3})\]"#)
             let nsRange = NSRange(trimmed.startIndex..., in: trimmed)
-            let matches = pattern?.matches(in: trimmed, options: [], range: nsRange) ?? []
+            let matches = Self.lineTimeTagPattern.matches(in: trimmed, options: [], range: nsRange)
 
             guard !matches.isEmpty else { continue }
 
@@ -152,12 +151,7 @@ class SimpleLyrics {
             guard !cleanText.isEmpty else { continue }
 
             // Compute the timestamp shared by all [mm:ss.xx] tags on this line.
-            let firstMatch = matches[0]
-            let minStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 1))
-            let secStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 2))
-            let msStr = substring(in: trimmed as NSString, range: firstMatch.range(at: 3))
-            guard let min = Double(minStr), let sec = Double(secStr), let ms = Double(msStr) else { continue }
-            let lineTime = min * 60 + sec + ms / (msStr.count == 3 ? 1000 : 100)
+            guard let lineTime = Self.timestamp(match: matches[0], in: trimmed) else { continue }
 
             // ── Detect [tt] word-timing lines (Kugou .lrcx format) ──
             // Format: [tt]<timeMs,charIdx><timeMs,charIdx>...<endMs>
@@ -167,68 +161,74 @@ class SimpleLyrics {
                 continue
             }
 
-            var inlineWords: [Word] = []
+            // All timestamps this physical line emits. Multi-stamp lines like
+            // [00:10.00][00:40.00]text repeat the same text under each stamp.
+            let stampTimes = matches.compactMap { Self.timestamp(match: $0, in: trimmed) }
 
-            for match in matches {
-                let minStr = substring(in: trimmed as NSString, range: match.range(at: 1))
-                let secStr = substring(in: trimmed as NSString, range: match.range(at: 2))
-                let msStr = substring(in: trimmed as NSString, range: match.range(at: 3))
-                guard let min = Double(minStr), let sec = Double(secStr), let ms = Double(msStr) else { continue }
-                let time = min * 60 + sec + ms / (msStr.count == 3 ? 1000 : 100)
+            // ── Inline word timing: <mm:ss.xx> tags inside the lyric text ──
+            // Each tag starts the word whose text runs until the next tag.
+            let inlineMatches = Self.inlineTimeTagPattern.matches(
+                in: cleanText, options: [],
+                range: NSRange(cleanText.startIndex..., in: cleanText))
 
-                if cleanText.hasPrefix("<") || !cleanText.contains("<") {
-                    let content = cleanText
-                        .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
-                    let line = Line(position: time, content: content)
-                    lines.append(line)
-                } else {
-                    var remaining = cleanText as NSString
-                    while remaining.length > 0 {
-                        remaining = remaining.trimmingCharacters(in: .whitespacesAndNewlines) as NSString
-                        guard remaining.length > 0 else { break }
-
-                        let wPattern = try? NSRegularExpression(pattern: #"<(\d{2}):(\d{2})\.(\d{2,3})>"#)
-                        let wRange = NSRange(location: 0, length: remaining.length)
-                        if let wMatch = wPattern?.firstMatch(in: remaining as String, options: [], range: wRange) {
-                            let wMin = Double(substring(in: remaining, range: wMatch.range(at: 1)))!
-                            let wSec = Double(substring(in: remaining, range: wMatch.range(at: 2)))!
-                            let wMs = Double(substring(in: remaining, range: wMatch.range(at: 3)))!
-                            let wordTime = wMin * 60 + wSec + wMs / (wMs >= 100 ? 1000 : 100)
-                            let wordRange = NSRange(location: 0, length: wMatch.range.location)
-                            let word = remaining.substring(with: wordRange)
-                            let charsBefore = (cleanText as NSString).length - remaining.length + wordRange.location
-                            inlineWords.append(Word(text: word, startTime: wordTime, duration: 0, charIndex: charsBefore))
-                            remaining = remaining.substring(from: wMatch.range.upperBound) as NSString
-                        } else {
-                            break
-                        }
-                    }
-
-                    let content = cleanText
-                        .replacingOccurrences(of: #"<\d{2}:\d{2}\.\d{2,3}>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
-                        .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
-                    // Infer per-word duration from the gap to the next word's start.
-                    var wordsWithDuration = inlineWords
-                    for i in 0..<wordsWithDuration.count {
-                        let nextStart = (i + 1 < wordsWithDuration.count)
-                            ? wordsWithDuration[i + 1].startTime
-                            : wordsWithDuration[i].startTime  // last word: zero duration
-                        let dur = max(nextStart - wordsWithDuration[i].startTime, 0)
-                        wordsWithDuration[i] = Word(
-                            text: wordsWithDuration[i].text,
-                            startTime: wordsWithDuration[i].startTime,
-                            duration: dur,
-                            charIndex: wordsWithDuration[i].charIndex
-                        )
-                    }
-                    let line = Line(position: time, content: content, words: wordsWithDuration)
-                    lines.append(line)
+            if inlineMatches.isEmpty {
+                // Plain line — strip residual markup, emit one Line per stamp.
+                let content = Self.stripWordMarkup(cleanText)
+                    .trimmingCharacters(in: .whitespaces)
+                guard !content.isEmpty else { continue }
+                for time in stampTimes {
+                    lines.append(Line(position: time, content: content))
                 }
+                continue
+            }
+
+            // Segment the text around the inline tags. `absTime == nil` marks
+            // text preceding the first tag, which starts at the stamp itself.
+            let nsText = cleanText as NSString
+            var segments: [(text: String, absTime: TimeInterval?)] = []
+            for (i, im) in inlineMatches.enumerated() {
+                if i == 0 && im.range.location > 0 {
+                    segments.append((nsText.substring(to: im.range.location), nil))
+                }
+                guard let tagTime = Self.timestamp(match: im, in: cleanText) else { continue }
+                let wordStart = im.range.upperBound
+                let wordEnd = (i + 1 < inlineMatches.count) ? inlineMatches[i + 1].range.location : nsText.length
+                segments.append((nsText.substring(with: NSRange(location: wordStart, length: wordEnd - wordStart)), tagTime))
+            }
+
+            for stamp in stampTimes {
+                var content = ""
+                var words: [Word] = []
+                for segment in segments {
+                    let stripped = Self.stripWordMarkup(segment.text)
+                    guard !stripped.isEmpty else { continue }
+                    // Whitespace-only segments join the content but carry no highlight.
+                    if !stripped.trimmingCharacters(in: .whitespaces).isEmpty {
+                        // Word.startTime is relative to the line's position; the
+                        // renderer adds line.position back on top.
+                        let relStart = max((segment.absTime ?? stamp) - stamp, 0)
+                        words.append(Word(
+                            text: stripped,
+                            startTime: relStart,
+                            duration: 0,
+                            charIndex: (content as NSString).length
+                        ))
+                    }
+                    content += stripped
+                }
+                guard !content.isEmpty else { continue }
+
+                // Infer per-word duration from the gap to the next word's start.
+                for i in words.indices {
+                    let nextStart = (i + 1 < words.count) ? words[i + 1].startTime : words[i].startTime
+                    words[i] = Word(
+                        text: words[i].text,
+                        startTime: words[i].startTime,
+                        duration: max(nextStart - words[i].startTime, 0),
+                        charIndex: words[i].charIndex
+                    )
+                }
+                lines.append(Line(position: stamp, content: content, words: words))
             }
         }
 
@@ -247,6 +247,36 @@ class SimpleLyrics {
 
         lines.sort { $0.position < $1.position }
         return lines.isEmpty ? nil : SimpleLyrics(lines: lines)
+    }
+
+    // MARK: - Timestamp helpers
+
+    /// Line-level `[mm:ss.xx]` timestamps.
+    private static let lineTimeTagPattern = try! NSRegularExpression(pattern: #"\[(\d{2}):(\d{2})\.(\d{2,3})\]"#)
+
+    /// Inline word-level `<mm:ss.xx>` timestamps.
+    // Fraction accepts 1-3 digits; timestamp() scales by digit count.
+    private static let inlineTimeTagPattern = try! NSRegularExpression(pattern: #"<(\d{2}):(\d{2})\.(\d{1,3})>"#)
+
+    /// Converts a timestamp regex match (groups: minutes, seconds, fraction)
+    /// into seconds. The fraction scales with its digit count:
+    /// `.2` → 0.2s, `.20` → 0.2s, `.093` → 0.093s.
+    private static func timestamp(match: NSTextCheckingResult, in string: String) -> TimeInterval? {
+        let ns = string as NSString
+        guard match.numberOfRanges >= 4,
+              let min = Double(ns.substring(with: match.range(at: 1))),
+              let sec = Double(ns.substring(with: match.range(at: 2))) else { return nil }
+        let msStr = ns.substring(with: match.range(at: 3))
+        guard let ms = Double(msStr) else { return nil }
+        return min * 60 + sec + ms / pow(10, Double(msStr.count))
+    }
+
+    /// Strips residual word-level markup (`<n,n>`, `<n>`, `(n,n)`) from text.
+    private static func stripWordMarkup(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: #"<\d+,\d+>"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"<\d+>"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\(\d+,\d+\)"#, with: "", options: .regularExpression)
     }
 
     /// Parses Kugou-style `[tt]<timeMs,charIdx>...<endMs>` timing data into Word structs.

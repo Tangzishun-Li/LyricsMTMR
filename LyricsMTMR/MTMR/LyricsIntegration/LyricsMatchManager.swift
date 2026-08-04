@@ -126,6 +126,7 @@ final class LyricsMatchManager: ObservableObject {
         }
         do {
             let result = try await provider.fetch(for: candidate)
+            adoptFetchedCandidate(result.candidate)
             let lines = result.lyrics.lines.prefix(20).map { line in
                 let ts = String(format: "[%02d:%02d.%02d]",
                                 Int(line.position) / 60,
@@ -147,6 +148,7 @@ final class LyricsMatchManager: ObservableObject {
         guard let provider = LyricsProviderRegistry.shared.get(candidate.provider) else { return }
         do {
             let result = try await provider.fetch(for: candidate)
+            adoptFetchedCandidate(result.candidate)
             let lines = result.lyrics.lines.map { line in
                 let ts = String(format: "[%02d:%02d.%02d]",
                                 Int(line.position) / 60,
@@ -162,6 +164,18 @@ final class LyricsMatchManager: ObservableObject {
     }
 
     // MARK: - Persistence
+
+    /// fetch() recomputes the real word-timing state from parsed lyrics.
+    /// Write the refined candidate back so the 逐字 badge reflects reality
+    /// instead of the optimistic search()-time guess.
+    private func adoptFetchedCandidate(_ fetched: LyricsCandidate) {
+        if let idx = candidates.firstIndex(where: { $0.id == fetched.id }) {
+            candidates[idx] = fetched
+        }
+        if selectedCandidate?.id == fetched.id {
+            selectedCandidate = fetched
+        }
+    }
 
     func confirmSelection() {
         guard let candidate = selectedCandidate else { return }

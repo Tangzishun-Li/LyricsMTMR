@@ -24,7 +24,7 @@ final class QQMusicProviderAdapter: LyricsProviderProtocol {
                 album: "",
                 provider: .qqMusic,
                 sourceId: song.mid,
-                hasWordTiming: true,  // QQ supports QRC
+                hasWordTiming: false,  // unknown until fetch(); fetch() refines it
                 coverURL: nil
             )
         }

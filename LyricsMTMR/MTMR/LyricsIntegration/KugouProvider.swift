@@ -208,7 +208,7 @@ final class KugouProviderAdapter: LyricsProviderProtocol {
                 album: song.albumName,
                 provider: .kugou,
                 sourceId: "\(song.hash)|\(song.accessKey)",
-                hasWordTiming: true,
+                hasWordTiming: false,  // unknown until fetch(); fetch() refines it
                 coverURL: nil
             )
         }
