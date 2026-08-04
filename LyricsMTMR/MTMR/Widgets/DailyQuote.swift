@@ -29,8 +29,9 @@ class DailyQuoteItem: TBPollItem {
     }
 
     override func apply() {
-        metric.value = String(quote.prefix(28))
-        metric.subValue = source.isEmpty ? nil : String(source.prefix(8))
+        // 完整文案交给 TBMetricView 按可用宽度自动省略号截断，避免硬截断后仍挤压重叠
+        metric.value = quote
+        metric.subValue = source.isEmpty ? nil : source
         metric.valueColor = TB.textPrimary
     }
 }

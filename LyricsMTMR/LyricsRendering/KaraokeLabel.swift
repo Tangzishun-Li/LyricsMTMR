@@ -28,6 +28,13 @@ private enum RubyMetrics {
     static let defaultFontSize: CGFloat = 24
 }
 
+/// Rendering constants for the karaoke sweep.
+private enum KaraokeMetrics {
+    static let fps: Double = 30.0
+    /// Minimum tail time (s) so the last word visibly finishes coloring.
+    static let minTailHold: TimeInterval = 0.3
+}
+
 class KaraokeLabel: NSTextField {
     @objc dynamic var isVertical = false {
         didSet {
@@ -79,6 +86,7 @@ class KaraokeLabel: NSTextField {
     private func clearCache() {
         _attrString = nil
         _ctFrame = nil
+        _progressCTFrame = nil
         needsLayout = true
         needsDisplay = true
         removeProgressAnimation()
@@ -119,20 +127,30 @@ class KaraokeLabel: NSTextField {
     }
 
     private var _ctFrame: CTFrame?
+    private var _progressCTFrame: CTFrame?
 
-    private func ctFrame(_ dirtyRect: NSRect? = nil) -> CTFrame {
+    private var frameAttributes: [CTFrame.AttributeKey: Any] {
+        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
+        return [.progression: progression.rawValue as NSNumber]
+    }
+
+    /// Builds a CTFrame with unbounded constraints (single line, no wrapping).
+    /// Both the base text and the karaoke overlay go through this one path so
+    /// their layouts are guaranteed to be identical.
+    private func makeCTFrame(attrString: NSAttributedString) -> CTFrame {
+        let framesetter = CTFramesetter.create(attributedString: attrString)
+        let (suggestSize, fitRange) = framesetter.suggestFrameSize(
+            constraints: CGSize(width: CGFloat.infinity, height: .infinity),
+            frameAttributes: frameAttributes)
+        let path = CGPath(rect: CGRect(origin: .zero, size: suggestSize), transform: nil)
+        return framesetter.frame(stringRange: fitRange, path: path, frameAttributes: frameAttributes)
+    }
+
+    private func ctFrame() -> CTFrame {
         if let ctFrame = _ctFrame {
             return ctFrame
         }
-        if dirtyRect == nil {
-            layoutSubtreeIfNeeded()
-        }
-        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
-        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
-        let framesetter = CTFramesetter.create(attributedString: attrString)
-        let (suggestSize, fitRange) = framesetter.suggestFrameSize(constraints: (dirtyRect ?? bounds).size, frameAttributes: frameAttr)
-        let path = CGPath(rect: CGRect(origin: .zero, size: suggestSize), transform: nil)
-        let ctFrame = framesetter.frame(stringRange: fitRange, path: path, frameAttributes: frameAttr)
+        let ctFrame = makeCTFrame(attrString: attrString)
         _ctFrame = ctFrame
         return ctFrame
     }
@@ -166,163 +184,194 @@ class KaraokeLabel: NSTextField {
         cgContext.textMatrix = .identity
         cgContext.translateBy(x: 0, y: bounds.height)
         cgContext.scaleBy(x: 1.0, y: -1.0)
-        CTFrameDraw(ctFrame(dirtyRect), cgContext)
 
-        drawRomajiAnnotations(in: cgContext, frame: ctFrame())
+        let frame = ctFrame()
+        CTFrameDraw(frame, cgContext)
+        drawKaraokeProgress(in: cgContext)
+        drawRomajiAnnotations(in: cgContext, frame: frame)
     }
 
     // MARK: - Progress
 
-    private lazy var progressLayer: CALayer = {
-        let pLayer = CALayer()
-        return pLayer
-    }()
-
-    private func ensureProgressLayer() {
-        guard progressLayer.superlayer == nil else { return }
-        wantsLayer = true
-        layer?.addSublayer(progressLayer)
+    /// One karaoke keyframe: at `time` seconds after the animation starts the
+    /// sweep has advanced `extent` points along the line.
+    private struct KaraokeKeyframe {
+        let time: TimeInterval
+        let extent: CGFloat
     }
 
-    @objc dynamic var progressColor: NSColor? {
-        get {
-            return progressLayer.backgroundColor.flatMap(NSColor.init)
-        }
-        set {
-            progressLayer.backgroundColor = newValue?.cgColor
-        }
-    }
+    private var karaokeKeyframes: [KaraokeKeyframe] = []
+    private var karaokeDuration: TimeInterval = 0
+    private var karaokeFullExtent: CGFloat = 0
+    private var karaokeIsJump = false
+    /// CACurrentMediaTime when the animation was started or resumed.
+    private var karaokeAnchor: CFTimeInterval = 0
+    /// Frozen elapsed time while paused; nil while running.
+    private var karaokePausedElapsed: TimeInterval?
+    private var karaokeTimer: Timer?
+
+    @objc dynamic var progressColor: NSColor?
 
     func setProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle = .progressive) {
         removeProgressAnimation()
-        ensureProgressLayer()
-        guard let line = ctFrame().lines.first,
-              let origin = ctFrame().lineOrigins(range: CFRange(location: 0, length: 1)).first else {
-            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — ctFrame has no lines (bounds=\(bounds))")
+        progressColor = color
+
+        guard !progress.isEmpty, let line = ctFrame().lines.first else {
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — ctFrame has no lines")
             return
         }
-        var lineBounds = line.bounds()
-        var transform = CGAffineTransform(translationX: origin.x, y: origin.y)
-        if isVertical {
-            transform = transform.concatenating(CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0).concatenating(CGAffineTransform(translationX: 0, y: -lineBounds.width)))
-            transform = transform.concatenating(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height))
-        }
-        lineBounds = lineBounds.applying(transform)
 
-        // `lineBounds` is now in CoreText frame space (y-down). The layer tree
-        // lives in view space (y-up), so mirror it vertically before assigning
-        // the frame. The mask bitmap is anchored with its first row at the
-        // layer's top edge, which means the CT frame itself must be drawn with
-        // a pure translation of its own origin.
-        let maskOrigin = lineBounds.origin
-        if !isVertical {
-            lineBounds = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height))
-        }
+        let stringRange = CTLineGetStringRange(line)
+        let fullExtent = max(0, line.offset(charIndex: stringRange.location + stringRange.length).primary)
 
-        progressLayer.anchorPoint = isVertical ? CGPoint(x: 0.5, y: 0) : CGPoint(x: 0, y: 0.5)
-        progressLayer.frame = lineBounds
-        progressLayer.backgroundColor = color.cgColor
-        let mask = CALayer()
-        mask.frame = progressLayer.bounds
-        if isVertical {
-            let img = NSImage(size: progressLayer.bounds.size, flipped: false) { [self] _ in
-                let context = NSGraphicsContext.current!.cgContext
-                let ori = lineBounds.applying(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: bounds.height)).origin
-                context.concatenate(CGAffineTransform(translationX: -ori.x, y: -ori.y))
-                CTFrameDraw(self.ctFrame(), context)
-                return true
-            }
-            mask.contents = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        } else {
-            // Rasterize the mask at device scale so its glyph edges stay as
-            // sharp as the base text. The rep context maps rep.size onto the
-            // pixel grid exactly, so no padding phase remains.
-            let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-            let maskSize = progressLayer.bounds.size
-            let pw = max(1, Int((maskSize.width * scale).rounded()))
-            let ph = max(1, Int((maskSize.height * scale).rounded()))
-            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pw, pixelsHigh: ph, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
-            // rep.size must be assigned before the context is created: the
-            // context bakes the point→pixel ratio from rep.size at init time
-            rep.size = maskSize
-            guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return }
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = ctx
-            ctx.cgContext.concatenate(CGAffineTransform(translationX: -maskOrigin.x, y: -maskOrigin.y))
-            CTFrameDraw(ctFrame(), ctx.cgContext)
-            NSGraphicsContext.restoreGraphicsState()
-            mask.contents = rep.cgImage
-        }
-        progressLayer.mask = mask
+        // Map every time tag to its glyph offset along the sweep axis.
+        var map = progress.map { KaraokeKeyframe(time: $0.0, extent: line.offset(charIndex: $0.1).primary) }
 
-        guard let index = progress.firstIndex(where: { $0.0 > 0 }) else {
-            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — no future progress point (all \(progress.count) are <=0, first=\(progress.first?.0 ?? -999))")
-            return
-        }
-        var map = progress.map { ($0.0, line.offset(charIndex: $0.1).primary) }
-        if index > 0 {
-            let progress = map[index - 1].1 + CGFloat(map[index - 1].0) * (map[index].1 - map[index - 1].1) / CGFloat(map[index].0 - map[index - 1].0)
-            map.replaceSubrange(..<index, with: [(0, progress)])
-        } else {
-            // All words are still in the future — prepend a zero-progress
-            // anchor so keyTimes[0] == 0 as CAKeyframeAnimation requires.
-            map.insert((0, 0), at: 0)
-        }
-
-        let duration = map.last!.0
-        guard duration > 0 else {
-            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — duration=\(duration) <=0")
-            return
-        }
-        AppLog.lyrics("KaraokeLabel.setProgressAnimation: OK — \(map.count) keyframes, duration=\(duration), values=\(map.map { $0.1 })")
-
-        // Set the initial bounds to the first value (initial progress) before animation starts
-        if let initialValue = map.first?.1 {
-            if isVertical {
-                progressLayer.bounds.size.height = initialValue
+        if let index = map.firstIndex(where: { $0.time > 0 }) {
+            if index > 0 {
+                // Some words are already sung: interpolate the sweep position
+                // between the last elapsed tag and the next one so the first
+                // keyframe sits at t=0.
+                let prev = map[index - 1]
+                let next = map[index]
+                let dt = next.time - prev.time
+                let extent = dt > 0
+                    ? prev.extent + (next.extent - prev.extent) * CGFloat(-prev.time / dt)
+                    : prev.extent
+                map.replaceSubrange(..<index, with: [KaraokeKeyframe(time: 0, extent: max(0, extent))])
             } else {
-                progressLayer.bounds.size.width = initialValue
+                // All words are still in the future — prepend a zero-progress
+                // anchor so the sweep starts at t=0.
+                map.insert(KaraokeKeyframe(time: 0, extent: 0), at: 0)
             }
+        } else {
+            // The whole line is already elapsed → light it up entirely.
+            map = [KaraokeKeyframe(time: 0, extent: fullExtent)]
         }
 
-        let animation = CAKeyframeAnimation()
-        animation.keyTimes = map.map { ($0.0 / duration) as NSNumber }
-        animation.values = map.map { $0.1 }
-        animation.keyPath = isVertical ? "bounds.size.height" : "bounds.size.width"
-        animation.duration = duration
-        animation.fillMode = .both
-        animation.isRemovedOnCompletion = false
+        // Give the last word a tail so it visibly finishes after its own
+        // timestamp instead of snapping at the end of the line.
+        let gaps = zip(map.dropFirst(), map).map { $0.time - $1.time }.filter { $0 > 0 }
+        let avgGap = gaps.isEmpty ? 0 : gaps.reduce(0, +) / TimeInterval(gaps.count)
+        let tail = max(KaraokeMetrics.minTailHold, avgGap)
+        map.append(KaraokeKeyframe(time: map.last!.time + tail, extent: fullExtent))
 
-        if style == .jump {
-            animation.calculationMode = .discrete
+        let duration = map.last!.time
+        guard duration > 0 else {
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: BAILOUT — duration=\(duration) <= 0")
+            return
         }
 
-        progressLayer.add(animation, forKey: "inlineProgress")
+        karaokeKeyframes = map
+        karaokeDuration = duration
+        karaokeFullExtent = fullExtent
+        karaokeIsJump = (style == .jump)
+        karaokeAnchor = CACurrentMediaTime()
+        karaokePausedElapsed = nil
+
+        // Build the highlighted frame from the SAME layout pipeline as the
+        // base text — identical glyphs in identical positions — so the sweep
+        // overlays the base text pixel-exactly (no ghosting).
+        let highlighted = NSMutableAttributedString(attributedString: attrString)
+        highlighted.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: highlighted.length))
+        _progressCTFrame = makeCTFrame(attrString: highlighted)
+
+        startKaraokeTimer()
+        needsDisplay = true
+        AppLog.lyrics("KaraokeLabel.setProgressAnimation: OK — \(map.count) keyframes, duration=\(duration), extents=\(map.map { $0.extent })")
     }
 
     func pauseProgressAnimation() {
-        let pausedTime = progressLayer.convertTime(CACurrentMediaTime(), from: nil)
-        progressLayer.speed = 0
-        progressLayer.timeOffset = pausedTime
+        guard !karaokeKeyframes.isEmpty, karaokePausedElapsed == nil else { return }
+        karaokePausedElapsed = CACurrentMediaTime() - karaokeAnchor
+        stopKaraokeTimer()
+        needsDisplay = true
     }
 
     func resumeProgressAnimation() {
-        let pausedTime = progressLayer.timeOffset
-        progressLayer.speed = 1
-        progressLayer.timeOffset = 0
-        progressLayer.beginTime = 0
-        let timeSincePause = progressLayer.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
-        progressLayer.beginTime = timeSincePause
+        guard !karaokeKeyframes.isEmpty, let paused = karaokePausedElapsed else { return }
+        karaokePausedElapsed = nil
+        karaokeAnchor = CACurrentMediaTime() - paused
+        startKaraokeTimer()
+        needsDisplay = true
     }
 
     func removeProgressAnimation() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        progressLayer.speed = 1
-        progressLayer.timeOffset = 0
-        progressLayer.removeAnimation(forKey: "inlineProgress")
-        progressLayer.frame = .zero
-        CATransaction.commit()
+        stopKaraokeTimer()
+        karaokeKeyframes = []
+        karaokeDuration = 0
+        karaokeFullExtent = 0
+        karaokeIsJump = false
+        karaokePausedElapsed = nil
+        _progressCTFrame = nil
+        needsDisplay = true
+    }
+
+    // MARK: - Karaoke Drawing
+
+    /// The sweep extent (in text space) at the current moment.
+    private func currentKaraokeExtent() -> CGFloat {
+        guard let first = karaokeKeyframes.first else { return 0 }
+        let elapsed = karaokePausedElapsed ?? (CACurrentMediaTime() - karaokeAnchor)
+        if elapsed <= first.time { return max(0, first.extent) }
+        if elapsed >= karaokeDuration { return karaokeFullExtent }
+
+        if karaokeIsJump {
+            var extent = first.extent
+            for kf in karaokeKeyframes where kf.time <= elapsed {
+                extent = kf.extent
+            }
+            return extent
+        }
+
+        for i in 1..<karaokeKeyframes.count {
+            let a = karaokeKeyframes[i - 1]
+            let b = karaokeKeyframes[i]
+            if elapsed <= b.time {
+                let dt = b.time - a.time
+                guard dt > 0 else { return b.extent }
+                let t = CGFloat((elapsed - a.time) / dt)
+                return a.extent + (b.extent - a.extent) * t
+            }
+        }
+        return karaokeFullExtent
+    }
+
+    private func drawKaraokeProgress(in cgContext: CGContext) {
+        guard let progressFrame = _progressCTFrame, !karaokeKeyframes.isEmpty else { return }
+        let extent = currentKaraokeExtent()
+        guard extent > 0 else { return }
+        cgContext.saveGState()
+        let clipRect = isVertical
+            ? CGRect(x: 0, y: 0, width: bounds.width, height: extent)
+            : CGRect(x: 0, y: 0, width: extent, height: bounds.height)
+        cgContext.clip(to: clipRect)
+        CTFrameDraw(progressFrame, cgContext)
+        cgContext.restoreGState()
+    }
+
+    private func startKaraokeTimer() {
+        stopKaraokeTimer()
+        let timer = Timer(timeInterval: 1.0 / KaraokeMetrics.fps, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            let elapsed = self.karaokePausedElapsed ?? (CACurrentMediaTime() - self.karaokeAnchor)
+            self.needsDisplay = true
+            // Hold the final frame briefly, then retire the timer.
+            if elapsed > self.karaokeDuration + 0.1 {
+                timer.invalidate()
+                self.karaokeTimer = nil
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        karaokeTimer = timer
+    }
+
+    private func stopKaraokeTimer() {
+        karaokeTimer?.invalidate()
+        karaokeTimer = nil
     }
 
     // MARK: - Romaji Annotations

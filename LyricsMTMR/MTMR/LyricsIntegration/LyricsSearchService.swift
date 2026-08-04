@@ -5,6 +5,15 @@ struct LyricsSearchResult {
     let translationLyrics: SimpleLyrics?
     let romajiLyrics: SimpleLyrics?
     let coverURL: URL?
+
+    static let empty = LyricsSearchResult(lyrics: nil, translationLyrics: nil, romajiLyrics: nil, coverURL: nil)
+}
+
+/// One provider's fetched outcome plus its ranking metadata.
+private struct ProviderOutcome {
+    let order: Int
+    let providerName: String
+    let result: LyricsFetchResult
 }
 
 class LyricsSearchService {
@@ -12,72 +21,108 @@ class LyricsSearchService {
 
     private init() {}
 
-    func searchLyrics(title: String, artist: String) async -> LyricsSearchResult {
-        let keyword = "\(title) \(artist)".trimmingCharacters(in: .whitespaces)
+    /// Tie-break order when quality is equal (mirrors LyricsProviderID case order).
+    private static let providerOrder: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu, .spotify, .subtitle, .custom]
 
-        async let neteaseResult = searchNetEase(title: title, artist: artist, keyword: keyword)
-        async let qqResult = searchQQMusic(title: title, artist: artist, keyword: keyword)
-
-        let results = await [neteaseResult, qqResult].compactMap { $0 }
-
-        if let best = results.first(where: { $0.lyrics != nil }) {
-            return best
-        }
-        return LyricsSearchResult(lyrics: nil, translationLyrics: nil, romajiLyrics: nil, coverURL: nil)
+    /// Maps a playing app's bundle identifier to its own lyrics provider, so
+    /// "listen where you play" results are preferred when available.
+    static func providerID(forPlayerBundleID bundleID: String?) -> LyricsProviderID? {
+        guard let bundleID, !bundleID.isEmpty else { return nil }
+        let id = bundleID.lowercased()
+        if id.contains("netease") || id.contains("163music") { return .netease }
+        if id.contains("qqmusic") { return .qqMusic }
+        if id.contains("kugou") { return .kugou }
+        if id.contains("migu") { return .migu }
+        if id.contains("spotify") { return .spotify }
+        return nil
     }
 
-    private func searchNetEase(title: String, artist: String, keyword: String) async -> LyricsSearchResult? {
-        do {
-            let songs = try await NetEaseProvider.search(keyword: keyword)
-            guard let bestMatch = songs.first else { return nil }
-
-            let lyrics = try await NetEaseProvider.fetchLyrics(songId: bestMatch.id)
-            let filtered = lyrics.filtered
-
-            var translation: SimpleLyrics?
-            var romaji: SimpleLyrics?
-            async let tTask = NetEaseProvider.fetchTranslation(songId: bestMatch.id)
-            async let rTask = NetEaseProvider.fetchRomaji(songId: bestMatch.id)
-            let (tResult, rResult) = await (tTask, rTask)
-            translation = tResult?.filtered
-            romaji = rResult?.filtered
-
-            if let coverURL = bestMatch.albumPicUrl {
-                CoverCache.shared.prefetch(url: coverURL)
-            }
-            return LyricsSearchResult(
-                lyrics: filtered,
-                translationLyrics: translation,
-                romajiLyrics: romaji,
-                coverURL: bestMatch.albumPicUrl
-            )
-        } catch {
-            AppLog.debug("NetEase search failed: \(error)")
-            return nil
-        }
+    private static func orderIndex(of id: LyricsProviderID) -> Int {
+        providerOrder.firstIndex(of: id) ?? providerOrder.count
     }
 
-    private func searchQQMusic(title: String, artist: String, keyword: String) async -> LyricsSearchResult? {
-        do {
-            let songs = try await QQMusicProvider.search(keyword: keyword)
-            guard let bestMatch = songs.first else { return nil }
+    private static func hasWordTiming(_ result: LyricsFetchResult) -> Bool {
+        result.candidate.hasWordTiming || result.lyrics.lines.contains { !$0.timetags.isEmpty }
+    }
 
-            let lyrics = try await QQMusicProvider.fetchLyrics(songMid: bestMatch.mid)
-            let filtered = lyrics.filtered
-            var coverURL: URL?
-            if let url = await QQMusicProvider.fetchAlbumCover(songMid: bestMatch.mid) {
-                coverURL = url
-                CoverCache.shared.prefetch(url: url)
+    /// Searches ALL registered lyrics providers concurrently and picks the
+    /// best result:
+    /// 1. the provider of the currently playing app (if it returned lyrics);
+    /// 2. otherwise any provider with word-level timing;
+    /// 3. otherwise the first provider with lyrics in `providerOrder`.
+    /// Translation/romaji/cover are borrowed from other providers when the
+    /// winner lacks them. Archived players never gate this search — archiving
+    /// only removes a player app from the engine's driver whitelist, it does
+    /// not disable its lyrics service.
+    func searchLyrics(title: String, artist: String, playerBundleID: String? = nil) async -> LyricsSearchResult {
+        let providers = LyricsProviderRegistry.shared.availableProviders()
+        guard !providers.isEmpty else { return .empty }
+
+        let outcomes: [ProviderOutcome] = await withTaskGroup(of: ProviderOutcome?.self) { group in
+            for provider in providers {
+                group.addTask {
+                    do {
+                        let candidates = try await provider.search(title: title, artist: artist, limit: 3)
+                        guard let top = candidates.first else {
+                            AppLog.debug("[\(provider.displayName)] runtime search: no candidates")
+                            return nil
+                        }
+                        let fetched = try await provider.fetch(for: top)
+                        return ProviderOutcome(
+                            order: Self.orderIndex(of: provider.providerID),
+                            providerName: provider.displayName,
+                            result: fetched
+                        )
+                    } catch {
+                        AppLog.debug("[\(provider.displayName)] runtime search failed: \(error)")
+                        return nil
+                    }
+                }
             }
-            return LyricsSearchResult(
-                lyrics: filtered,
-                translationLyrics: nil,
-                romajiLyrics: nil,
-                coverURL: coverURL
-            )
-        } catch {
-            AppLog.debug("QQMusic search failed: \(error)")
-            return nil
+            var items: [ProviderOutcome] = []
+            for await item in group {
+                if let item { items.append(item) }
+            }
+            return items.sorted { $0.order < $1.order }
         }
+
+        guard !outcomes.isEmpty else {
+            AppLog.lyrics("LyricsSearchService: all \(providers.count) providers came back empty")
+            return .empty
+        }
+
+        let chosen: ProviderOutcome
+        let reason: String
+        if let playerProvider = Self.providerID(forPlayerBundleID: playerBundleID),
+           let match = outcomes.first(where: { $0.result.candidate.provider == playerProvider }) {
+            chosen = match
+            reason = "matches playing app (\(playerBundleID ?? "?"))"
+        } else if let wordTimed = outcomes.first(where: { Self.hasWordTiming($0.result) }) {
+            chosen = wordTimed
+            reason = "word-level timing"
+        } else {
+            chosen = outcomes[0]
+            reason = "first with lyrics"
+        }
+
+        // Borrow what the winner lacks (translation/romaji are usually NetEase-only).
+        let translation = chosen.result.translationLyrics
+            ?? outcomes.first { $0.result.translationLyrics != nil }?.result.translationLyrics
+        let romaji = chosen.result.romajiLyrics
+            ?? outcomes.first { $0.result.romajiLyrics != nil }?.result.romajiLyrics
+        let coverURL = chosen.result.coverURL
+            ?? outcomes.first { $0.result.coverURL != nil }?.result.coverURL
+        if let coverURL {
+            CoverCache.shared.prefetch(url: coverURL)
+        }
+
+        AppLog.lyrics("LyricsSearchService: \(outcomes.count)/\(providers.count) providers returned lyrics → chose \(chosen.providerName) (\(reason)), wordTiming=\(Self.hasWordTiming(chosen.result)), lines=\(chosen.result.lyrics.lines.count)")
+
+        return LyricsSearchResult(
+            lyrics: chosen.result.lyrics,
+            translationLyrics: translation,
+            romajiLyrics: romaji,
+            coverURL: coverURL
+        )
     }
 }

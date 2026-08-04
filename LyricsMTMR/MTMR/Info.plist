@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>AppleEvents needed for correct work AppleScript</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>麦克风仅用于「音量律动」组件在无法读取系统音频时，用环境音量驱动频谱动画。</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>

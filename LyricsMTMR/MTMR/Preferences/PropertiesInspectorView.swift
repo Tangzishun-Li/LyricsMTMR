@@ -151,6 +151,19 @@ private func schemaFor(type: String) -> [FieldDef] {
             FieldDef(key: "showRemaining", label: localized("显示剩余", "Show Remaining"), kind: .toggle),
             FieldDef(key: "bordered", label: localized("显示边框", "Bordered"), kind: .toggle),
         ]
+    case "opencodeGoUsage":
+        fields += [
+            FieldDef(key: "displayMode", label: localized("显示模式", "Display Mode"), kind: .segment(options: [
+                ("worst", localized("瓶颈", "Worst"), nil),
+                ("rolling", localized("5小时", "5h"), nil),
+                ("weekly", localized("本周", "Week"), nil),
+                ("monthly", localized("本月", "Month"), nil),
+                ("all", localized("全部", "All"), nil),
+            ])),
+            FieldDef(key: "refreshInterval", label: localized("刷新间隔(秒)", "Refresh (sec)"), kind: .number(placeholder: "300")),
+            FieldDef(key: "workspaceID", label: "Workspace ID", kind: .text(placeholder: localized("留空自动发现", "auto-detect"), mono: true)),
+            FieldDef(key: "cookie", label: localized("Cookie（可选）", "Cookie (optional)"), kind: .text(placeholder: localized("留空使用 设置→服务", "empty = Settings → Services"), mono: true)),
+        ]
     case "themeSwitch":
         fields += [
             FieldDef(key: "themes", label: localized("主题列表", "Themes"), kind: .stringList(placeholder: "theme1, theme2")),

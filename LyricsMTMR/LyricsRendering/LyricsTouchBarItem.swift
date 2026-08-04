@@ -56,7 +56,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private var marqueeTimeBudget: TimeInterval = MarqueeMetrics.defaultTimeBudget
 
     /// Tracks which line/mode the karaoke animation was last built for,
-    /// so we only create the (expensive) CAKeyframeAnimation once per
+    /// so we only rebuild the (expensive) karaoke keyframes once per
     /// line change instead of every 0.25 s playback tick.
     private var lastAnimatedLineIndex: Int?
     private var lastAnimatedClickAction: LyricsClickAction?
@@ -243,9 +243,8 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             lastAnimatedClickAction = clickAction
             lastAnimatedLyricsId = ObjectIdentifier(active)
 
-            // Build the karaoke CAKeyframeAnimation ONCE per line.
-            // The animation runs on the render server and advances
-            // autonomously — no per-tick teardown/recreate needed.
+            // Build the karaoke keyframes ONCE per line; KaraokeLabel
+            // advances the sweep itself in draw() at 30 fps.
             AppLog.lyrics("onLyricsUpdate: lineChanged idx=\(idx) content=「\(line.content.prefix(30))」words=\(line.words.count) timetags=\(line.timetags.count)")
             if !line.timetags.isEmpty {
                 let position = track.playbackTime
@@ -266,8 +265,8 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         handleTextScroll(line: line, lineIndex: idx, active: active, track: track)
 
         // Only pause/resume on STATE TRANSITIONS. Calling resume every
-        // 0.25 s tick resets the CAKeyframeAnimation beginTime and the
-        // progress bar never advances past the first fraction of a second.
+        // 0.25 s tick would reset the sweep anchor and the progress
+        // would never advance past the first fraction of a second.
         let wasPlaying = lastPlaybackState == .playing
         let nowPlaying = track.playbackState == .playing
 
@@ -339,9 +338,10 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         let clipWidth = stackView.bounds.width
 
         let targetVisibleX = clipWidth * MarqueeMetrics.followVisibleRatio
-        let maxOffset: CGFloat = 0
-        let minOffset = -overflowWidth
-        let desiredOffset = max(minOffset, min(maxOffset, targetVisibleX - charX))
+        // bounds.origin.x is the content coordinate shown at the view's LEFT
+        // edge (screenX = contentX - origin.x), so revealing content further
+        // right requires a POSITIVE origin.
+        let desiredOffset = max(0, min(overflowWidth, charX - targetVisibleX))
 
         if abs(lyricsLabel.bounds.origin.x - desiredOffset) > 2 {
             NSAnimationContext.runAnimationGroup { ctx in
@@ -372,7 +372,8 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             guard let self, let startTime = self.marqueeStartTime else { return }
             let elapsed = Date().timeIntervalSince(startTime)
             let t = elapsed.truncatingRemainder(dividingBy: self.marqueeTimeBudget) / self.marqueeTimeBudget
-            let offset = -t * self.marqueeOverflowWidth
+            // Positive origin scrolls the text leftward (see updateAutoScroll).
+            let offset = t * self.marqueeOverflowWidth
             if self.lyricsLabel.bounds.origin.x != offset {
                 self.lyricsLabel.bounds.origin.x = offset
             }

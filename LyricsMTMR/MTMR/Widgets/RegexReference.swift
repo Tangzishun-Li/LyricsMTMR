@@ -2,12 +2,15 @@
 //  RegexReference.swift  ·  item type: regexReference
 //  常用正则速查表：浮层列出高频正则（邮箱/手机/URL/中文/身份证/IP/日期），
 //  点选即复制该 pattern 到剪贴板并展示。静态数据，无属性、无网络。
+//  设置 → 工具 里自定义的正则规则会追加在速查表之后。
 //
 
 import Cocoa
 
 class RegexReferenceItem: TBPopoverItem {
     private weak var resultLabel: NSTextField?
+    /// 内置速查 + 用户自定义规则（设置 → 工具），打开浮层时合并。
+    private var merged: [(String, String)] = []
     private static let refs: [(String, String)] = [
         (localized("邮箱", "Mail"), "[\\w.-]+@[\\w.-]+\\.\\w+"),
         (localized("手机", "Phone"), "1[3-9]\\d{9}"),
@@ -25,11 +28,12 @@ class RegexReferenceItem: TBPopoverItem {
     required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
+        merged = Self.refs + TBRegexRules.load().prefix(3).map { ($0.name, $0.pattern) }
         let root = TBOverlay.rootView()
         let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: localized("点选复制正则", "tap to copy"), tint: TB.textSecondary)
-        let buttons = Self.refs.enumerated().map { index, pair -> NSButton in
+        let buttons = merged.enumerated().map { index, pair -> NSButton in
             TBOverlay.pillButton(title: pair.0, tag: index, target: self, action: #selector(pick(_:)), tint: TB.purple)
         }
         TBOverlay.buttonRow(in: card, buttons: buttons, afterClose: close)
@@ -37,9 +41,9 @@ class RegexReferenceItem: TBPopoverItem {
     }
 
     @objc private func pick(_ sender: NSButton) {
-        guard sender.tag < Self.refs.count else { return }
+        guard sender.tag < merged.count else { return }
         HapticFeedback.instance.tap(type: .medium)
-        let pattern = Self.refs[sender.tag].1
+        let pattern = merged[sender.tag].1
         TBClip.write(pattern)
         resultLabel?.stringValue = pattern
         resultLabel?.textColor = TB.mint

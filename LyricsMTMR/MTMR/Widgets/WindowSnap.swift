@@ -2,6 +2,7 @@
 //  WindowSnap.swift  ·  item type: windowSnap
 //  窗口管理：展开一个浮层，提供「左半屏 / 右半屏 / 全屏」三个按钮，
 //  通过 AppleScript 调整最前应用窗口的位置与大小（需要辅助功能权限）。
+//  全屏 = 铺满当前桌面整块屏幕（含菜单栏区域），不新建 Space、不进系统全屏。
 //  无权限时静默失败，不会崩溃。
 //
 
@@ -28,15 +29,20 @@ class WindowSnapItem: TBPopoverItem {
 
     @objc private func snap(_ sender: NSButton) {
         HapticFeedback.instance.tap(type: .strong)
-        let frame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let x = Int(frame.minX), y = Int(frame.minY)
-        let w = Int(frame.width), h = Int(frame.height)
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+        let visible = screen.visibleFrame
+        let full = screen.frame
+        let x = Int(visible.minX), y = Int(visible.minY)
+        let w = Int(visible.width), h = Int(visible.height)
         let position: String
         let size: String
         switch sender.tag {
         case 0: position = "{\(x), \(y)}"; size = "{\(w / 2), \(h)}"
         case 1: position = "{\(x + w / 2), \(y)}"; size = "{\(w - w / 2), \(h)}"
-        default: position = "{\(x), \(y)}"; size = "{\(w), \(h)}"
+        default:
+            // 铺满整块屏幕（含菜单栏区域），留在当前桌面
+            position = "{\(Int(full.minX)), \(Int(full.minY))}"
+            size = "{\(Int(full.width)), \(Int(full.height))}"
         }
         let script = """
         tell application "System Events"

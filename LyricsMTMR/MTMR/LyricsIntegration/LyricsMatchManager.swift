@@ -95,17 +95,28 @@ final class LyricsMatchManager: ObservableObject {
     }
 
     private func performSearch(title: String, artist: String) async -> [LyricsCandidate] {
-        var all: [LyricsCandidate] = []
         let providers = LyricsProviderRegistry.shared.availableProviders()
-        for provider in providers {
-            do {
-                let results = try await provider.search(title: title, artist: artist, limit: 10)
-                all.append(contentsOf: results)
-            } catch {
-                AppLog.debug("[\(provider.displayName)] search failed: \(error)")
+        // Query all providers concurrently (a slow one can't hold the others
+        // up), then restore the deterministic provider order for display.
+        let buckets: [(index: Int, candidates: [LyricsCandidate])] = await withTaskGroup(of: (Int, [LyricsCandidate]).self) { group in
+            for (index, provider) in providers.enumerated() {
+                group.addTask {
+                    do {
+                        let results = try await provider.search(title: title, artist: artist, limit: 10)
+                        return (index, results)
+                    } catch {
+                        AppLog.debug("[\(provider.displayName)] search failed: \(error)")
+                        return (index, [])
+                    }
+                }
             }
+            var collected: [(Int, [LyricsCandidate])] = []
+            for await item in group {
+                collected.append(item)
+            }
+            return collected.sorted { $0.0 < $1.0 }.map { (index: $0.0, candidates: $0.1) }
         }
-        return all
+        return buckets.flatMap { $0.candidates }
     }
 
     // MARK: - Selection

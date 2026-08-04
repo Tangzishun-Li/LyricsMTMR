@@ -25,6 +25,8 @@ private class NativeProgressSliderView: NSView {
 
     private(set) var isScrubbing = false
     private var scrubProgress: CGFloat = 0
+    /// Track geometry from the last draw pass, reused by the scrub handlers.
+    private var trackRect: CGRect = .zero
 
     // MARK: Layout constants (matching native Touch Bar Now Playing)
 
@@ -53,33 +55,37 @@ private class NativeProgressSliderView: NSView {
         let activeProgress = isScrubbing ? scrubProgress : progress
         let clamped = max(0, min(1, activeProgress))
 
-        // Vertical layout: time labels at top, track centered below
-        let showLabels = isScrubbing
-        let trackAreaTop: CGFloat = showLabels ? timeLabelHeight + 2 : 0
-        let trackMidY = trackAreaTop + (bounds.height - trackAreaTop) / 2
-
-        // Time labels (visible while scrubbing)
-        if showLabels, duration > 0 {
+        // Native Now Playing layout: elapsed / -remaining labels pinned to
+        // both edges, thin track stretched between them.
+        var labelLeftWidth: CGFloat = 0
+        var labelRightWidth: CGFloat = 0
+        let showLabels = duration > 0
+        if showLabels {
             let elapsed = clamped * duration
             let remaining = duration - elapsed
-
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: timeLabelFont,
-                .foregroundColor: timeLabelActiveColor
+                .foregroundColor: isScrubbing ? timeLabelActiveColor : timeLabelColor
             ]
-
             let elapsedStr = formatTime(elapsed) as NSString
-            elapsedStr.draw(at: NSPoint(x: 0, y: 0), withAttributes: attrs)
-
+            let es = elapsedStr.size(withAttributes: attrs)
+            labelLeftWidth = es.width
+            elapsedStr.draw(at: NSPoint(x: 0, y: bounds.midY - es.height / 2), withAttributes: attrs)
             let remainStr = "-\(formatTime(remaining))" as NSString
-            let remainSize = remainStr.size(withAttributes: attrs)
-            remainStr.draw(at: NSPoint(x: width - remainSize.width, y: 0), withAttributes: attrs)
+            let rs = remainStr.size(withAttributes: attrs)
+            labelRightWidth = rs.width
+            remainStr.draw(at: NSPoint(x: width - rs.width, y: bounds.midY - rs.height / 2), withAttributes: attrs)
         }
+
+        let trackX = showLabels ? labelLeftWidth + 8 : 0
+        let trackW = max(10, width - trackX - (showLabels ? labelRightWidth + 8 : 0))
+        trackRect = CGRect(x: trackX, y: 0, width: trackW, height: bounds.height)
+        let trackMidY = bounds.midY
 
         // Background track
         let trackY = trackMidY - trackHeight / 2
-        let trackRect = CGRect(x: 0, y: trackY, width: width, height: trackHeight)
-        let trackPath = CGPath(roundedRect: trackRect, cornerWidth: trackHeight / 2, cornerHeight: trackHeight / 2, transform: nil)
+        let trackPath = CGPath(roundedRect: CGRect(x: trackX, y: trackY, width: trackW, height: trackHeight),
+                               cornerWidth: trackHeight / 2, cornerHeight: trackHeight / 2, transform: nil)
         ctx.addPath(trackPath)
         ctx.setFillColor(trackColor.cgColor)
         ctx.fillPath()
@@ -87,8 +93,8 @@ private class NativeProgressSliderView: NSView {
         guard clamped > 0.003 else { return }
 
         // Filled portion (solid white, no gradient)
-        let fillWidth = width * clamped
-        let fillRect = CGRect(x: 0, y: trackY, width: fillWidth, height: trackHeight)
+        let fillWidth = trackW * clamped
+        let fillRect = CGRect(x: trackX, y: trackY, width: fillWidth, height: trackHeight)
         let fillPath = CGPath(roundedRect: fillRect, cornerWidth: trackHeight / 2, cornerHeight: trackHeight / 2, transform: nil)
         ctx.addPath(fillPath)
         ctx.setFillColor(fillColor.cgColor)
@@ -96,7 +102,7 @@ private class NativeProgressSliderView: NSView {
 
         // Thumb
         let r = isScrubbing ? thumbRadiusActive : thumbRadius
-        let thumbX = fillWidth
+        let thumbX = trackX + fillWidth
 
         ctx.saveGState()
         ctx.setShadow(offset: CGSize(width: 0, height: -0.5), blur: 2, color: thumbShadowColor.cgColor)
@@ -129,7 +135,8 @@ private class NativeProgressSliderView: NSView {
 
     private func updateScrub(at event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
-        let ratio = max(0, min(1, loc.x / bounds.width))
+        let rect = trackRect.width > 0 ? trackRect : bounds
+        let ratio = max(0, min(1, (loc.x - rect.minX) / rect.width))
         scrubProgress = ratio
         needsDisplay = true
 

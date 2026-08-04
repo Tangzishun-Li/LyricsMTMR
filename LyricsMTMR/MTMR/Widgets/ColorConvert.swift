@@ -33,7 +33,20 @@ class ColorConvertItem: TBPopoverItem {
             sw.heightAnchor.constraint(equalToConstant: 18),
         ])
         swatch = sw
-        resultLabel = TBOverlay.resultLabel(in: card, text: localized("剪贴板 #HEX 或 R,G,B → 转换", "clip #HEX or R,G,B"), tint: TB.textSecondary)
+        // 结果文案放在色块右侧，避免和「剪贴板」提示/色块互相压叠
+        let label = NSTextField(labelWithString: localized("剪贴板 #HEX 或 R,G,B → 转换", "clip #HEX or R,G,B"))
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.textColor = TB.textSecondary
+        label.lineBreakMode = .byTruncatingTail
+        label.alignment = .left
+        label.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            label.leadingAnchor.constraint(equalTo: sw.trailingAnchor, constant: 8),
+            label.widthAnchor.constraint(equalTo: card.widthAnchor, multiplier: 0.36),
+        ])
+        resultLabel = label
         let go = TBOverlay.pillButton(title: localized("转换", "Convert"), tag: 0, target: self, action: #selector(run(_:)), tint: TB.pink)
         TBOverlay.buttonRow(in: card, buttons: [go], afterClose: close)
         return root

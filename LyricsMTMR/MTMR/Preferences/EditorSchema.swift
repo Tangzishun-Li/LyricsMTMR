@@ -146,7 +146,7 @@ enum EditorSchema {
         (localized("媒体", "Media"),    ["music", "play", "next", "previous"]),
         (localized("系统", "System"),   ["dock", "darkMode", "dnd", "nightShift", "inputsource", "pomodoro"]),
         (localized("信息", "Info"),     ["weather", "currency", "stock", "upnext"]),
-        (localized("增强", "Extra"),    ["lyrics", "themeSwitch", "deepseekBalance"]),
+        (localized("增强", "Extra"),    ["lyrics", "themeSwitch", "deepseekBalance", "opencodeGoUsage"]),
         (localized("音乐", "Music+"),   ["audioSpectrum", "playbackProgress", "lyricsTranslate", "quickReply"]),
         (localized("特殊", "Misc"),     ["group", "swipe", "expandable"]),
         (localized("开发者", "Dev"),      ["networkSpeed", "gitStatus", "apiLatency", "windowSnap", "sshStatus"]),
@@ -293,6 +293,13 @@ enum EditorSchema {
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
         ItemSchema(type: "deepseekBalance", displayName: "DS", symbol: "brain", properties: [
+            ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
+        ]),
+        ItemSchema(type: "opencodeGoUsage", displayName: "Go", symbol: "chart.bar.fill", properties: [
+            ItemProperty(key: "displayMode", displayName: localized("显示模式", "Mode"), type: .selection(["worst", "rolling", "weekly", "monthly", "all"]), isRequired: false, note: nil, defaultValue: "worst"),
+            ItemProperty(key: "refreshInterval", displayName: localized("刷新间隔", "Refresh"), type: .integer(placeholder: "300"), isRequired: false, note: localized("秒，最小 60", "sec, min 60"), defaultValue: 300),
+            ItemProperty(key: "workspaceID", displayName: "Workspace ID", type: .text(placeholder: localized("留空自动发现", "auto")), isRequired: false, note: localized("留空自动发现", "auto-detect")),
+            ItemProperty(key: "cookie", displayName: "Cookie", type: .text(placeholder: "Fe26.2..."), isRequired: false, note: localized("留空则使用 设置→服务 中的配置", "empty = use Settings → Services")),
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
 
@@ -670,6 +677,7 @@ enum EditorSchema {
         "lyrics": Meta(description: localized("显示当前播放歌词（卡拉OK模式）", "Shows lyrics in karaoke mode"), category: "Extra"),
         "themeSwitch": Meta(description: localized("快速切换 Touch Bar 主题", "Quick-switch Touch Bar themes"), category: "Extra", hasPopup: true),
         "deepseekBalance": Meta(description: localized("显示 DeepSeek API 余额", "Shows DeepSeek API balance"), category: "Extra", requiresAPIKey: true),
+        "opencodeGoUsage": Meta(description: localized("显示 OpenCode Go 订阅用量（5小时/周/月限额）", "Shows OpenCode Go subscription usage (5h/weekly/monthly limits)"), category: "Extra", requiresAPIKey: true, hasPopup: true),
         // Music+
         "audioSpectrum": Meta(description: localized("音频频谱可视化", "Audio spectrum visualizer"), category: "Media"),
         "playbackProgress": Meta(description: localized("播放进度条", "Playback progress bar"), category: "Media"),

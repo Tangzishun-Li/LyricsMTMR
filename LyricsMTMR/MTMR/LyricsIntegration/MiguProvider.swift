@@ -39,8 +39,12 @@ enum MiguProvider {
         guard let url = URL(string: urlString) else { return [] }
 
         let (data, _) = try await session.data(from: url)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        // The endpoint occasionally answers with non-JSON (anti-bot HTML or an
+        // empty body). Treat that as "no results" instead of throwing, so one
+        // flaky provider can't poison the whole search.
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let songs = json["musics"] as? [[String: Any]] else {
+            AppLog.debug("[Migu] search returned a non-JSON payload (\(data.count) bytes) — treating as no results")
             return []
         }
 

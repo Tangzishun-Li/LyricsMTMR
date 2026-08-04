@@ -57,13 +57,9 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
             self?.indicatorDot.isHidden = !isActive
         }
 
-        // View-hierarchy work (addSubview, constraints) must run on the main
-        // thread. Item creation may happen on a background queue inside
-        // createItemWithTimeout, so defer to avoid a deadlock with the
-        // semaphore the caller is waiting on.
-        DispatchQueue.main.async { [weak self] in
-            self?.setupIndicator()
-        }
+        // Item creation is guaranteed to run on the main thread (see
+        // TouchBarController), so view-hierarchy work can happen inline.
+        setupIndicator()
     }
 
     deinit {

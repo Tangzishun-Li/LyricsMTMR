@@ -534,23 +534,32 @@ class LyricsEngine: NSObject, ObservableObject {
 
     private func setupMediaRemoteObservers() {
         mrAdapter.onTrackInfoReceived = { [weak self] rawInfo in
-            guard !rawInfo.isEmpty else {
-                AppLog.info("MR: received empty info — clearing trackInfo")
-                self?.trackInfo = .empty
-                self?.currentLyrics = nil
-                self?.currentLineIndex = nil
-                return
+            // The pipe readability handler fires on a background queue, but
+            // everything downstream mutates @Published state observed by the
+            // Touch Bar items and the SwiftUI settings window — hop to main.
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                guard !rawInfo.isEmpty else {
+                    AppLog.info("MR: received empty info — clearing trackInfo")
+                    self.trackInfo = .empty
+                    self.currentLyrics = nil
+                    self.currentLineIndex = nil
+                    return
+                }
+                self.handleMRInfo(rawInfo)
             }
-            self?.handleMRInfo(rawInfo)
         }
         mrAdapter.onPlaybackStateReceived = { [weak self] rawState in
-            let state: PlaybackState
-            switch rawState {
-            case 0: state = .playing
-            case 1: state = .paused
-            default: state = .stopped
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let state: PlaybackState
+                switch rawState {
+                case 0: state = .playing
+                case 1: state = .paused
+                default: state = .stopped
+                }
+                self.handlePlaybackState(state)
             }
-            self?.handlePlaybackState(state)
         }
         mrAdapter.startListening()
     }
@@ -907,7 +916,7 @@ class LyricsEngine: NSObject, ObservableObject {
 
             var lastResult: LyricsSearchResult?
             for attempt in 0..<maxAttempts {
-                lastResult = await LyricsSearchService.shared.searchLyrics(title: title, artist: artist)
+                lastResult = await LyricsSearchService.shared.searchLyrics(title: title, artist: artist, playerBundleID: self.trackInfo.bundleIdentifier)
                 if lastResult?.lyrics != nil || attempt == maxAttempts - 1 {
                     break
                 }

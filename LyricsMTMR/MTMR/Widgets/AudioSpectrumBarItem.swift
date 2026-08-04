@@ -3,7 +3,12 @@
 //  LyricsMTMR
 //
 //  Real-time audio spectrum visualizer for the Touch Bar.
-//  Uses CoreAudio process tap + vDSP FFT to render animated frequency bars.
+//  Two sources feed the bars:
+//   1. Mic capture (AVAudioEngine tap + vDSP FFT) for ambient sound.
+//   2. A music-driven synthesis: whenever LyricsEngine reports playback,
+//      bass-weighted animated bars are generated (seeded by playback time),
+//      because macOS cannot tap system audio without a loopback device.
+//  The synth takes priority while music plays so the bars always dance.
 //
 
 import Cocoa
@@ -73,6 +78,9 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
 
     private var fftSetup: FFTSetup?
     private var smoothedLevels: [CGFloat] = []
+    private var displayTimer: Timer?
+    private var micActive = false
+    private var lastMicUpdate: TimeInterval = 0
 
     init(identifier: NSTouchBarItem.Identifier, barCount: Int = 16) {
         self.barCount = barCount
@@ -86,6 +94,7 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
         fftSetup = vDSP_create_fftsetup(vDSP_Length(log2(Float(fftSize))), FFTRadix(kFFTRadix2))
 
         startCapture()
+        startDisplayTimer()
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -101,31 +110,35 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
     // MARK: - Audio Capture
 
     private func startCapture() {
-        let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-
-        guard format.sampleRate > 0, format.channelCount > 0 else {
-            startFallbackAnimation()
-            return
+        // The mic path is optional — a missing device or denied permission
+        // must never break the widget; the synth timer covers the display.
+        let error = MTMRTryOrError { [weak self] in
+            guard let self = self else { return }
+            let engine = AVAudioEngine()
+            let inputNode = engine.inputNode
+            let format = inputNode.outputFormat(forBus: 0)
+            guard format.sampleRate > 0, format.channelCount > 0 else { return }
+            inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(self.fftSize), format: format) { [weak self] buffer, _ in
+                self?.processAudioBuffer(buffer)
+            }
+            engine.prepare()
+            do {
+                try engine.start()
+                self.audioEngine = engine
+                self.tapInstalled = true
+                self.micActive = true
+            } catch {
+                AppLog.error("AudioSpectrum: cannot start engine: \(error)")
+            }
         }
-
-        inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(fftSize), format: format) { [weak self] buffer, _ in
-            self?.processAudioBuffer(buffer)
-        }
-
-        engine.prepare()
-        do {
-            try engine.start()
-            audioEngine = engine
-            tapInstalled = true
-        } catch {
-            AppLog.error("AudioSpectrum: cannot start engine: \(error)")
-            startFallbackAnimation()
+        if let error = error {
+            AppLog.error("AudioSpectrum: capture setup threw: \(error.localizedDescription)")
         }
     }
 
     private func stopCapture() {
+        displayTimer?.invalidate()
+        displayTimer = nil
         timer?.invalidate()
         timer = nil
         if tapInstalled, let engine = audioEngine {
@@ -134,6 +147,7 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
         }
         audioEngine = nil
         tapInstalled = false
+        micActive = false
     }
 
     // MARK: - FFT Processing
@@ -142,6 +156,7 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
         guard let channelData = buffer.floatChannelData?[0] else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount >= fftSize else { return }
+        lastMicUpdate = Date().timeIntervalSince1970
 
         var realPart = [Float](repeating: 0, count: fftSize / 2)
         var imagPart = [Float](repeating: 0, count: fftSize / 2)
@@ -218,23 +233,52 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
 
     // MARK: - Fallback (animated idle bars when no mic access)
 
-    private func startFallbackAnimation() {
+    // MARK: - Display timer (music-driven synthesis)
+
+    private func startDisplayTimer() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            self.displayTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
-                let isPlaying = LyricsEngine.shared.trackInfo.playbackState == .playing
-                var levels = [CGFloat](repeating: 0, count: self.barCount)
-                for i in 0..<self.barCount {
-                    if isPlaying {
-                        let phase = Date().timeIntervalSince1970 * 3.0 + Double(i) * 0.5
-                        levels[i] = CGFloat(0.3 + 0.25 * sin(phase) + 0.15 * sin(phase * 2.3))
-                    } else {
-                        levels[i] = 0.05
-                    }
+                let info = LyricsEngine.shared.trackInfo
+                if info.playbackState == .playing {
+                    // Music playing → synth bars always win (the mic cannot
+                    // hear system audio, so real FFT would sit still).
+                    self.updateLevels(self.syntheticLevels(seed: info.playbackTime))
+                    return
                 }
-                self.updateLevels(levels)
+                if self.micActive, Date().timeIntervalSince1970 - self.lastMicUpdate < 0.3 {
+                    return // mic tap is actively feeding levels
+                }
+                self.updateLevels(Array(repeating: 0.03, count: self.barCount))
             }
         }
+    }
+
+    /// Bass-weighted pseudo-spectrum, seeded by playback position so the
+    /// motion tracks the song instead of the wall clock.
+    private func syntheticLevels(seed: TimeInterval) -> [CGFloat] {
+        let t = seed > 0 ? seed : Date().timeIntervalSince1970
+        var levels = [CGFloat](repeating: 0, count: barCount)
+        let frame = Int(t * 25)
+        for i in 0..<barCount {
+            let f = Double(i) / Double(barCount)
+            let bassWeight = max(0.35, 1.0 - f * 1.4)
+            let w1 = 0.5 + 0.5 * sin(t * 2.2 + Double(i) * 0.55)
+            let w2 = 0.5 + 0.5 * sin(t * 3.7 + Double(i) * 1.35)
+            let n = Self.pseudoRandom(frame: frame, salt: i)
+            let v = (0.18 + 0.66 * (0.45 * w1 + 0.30 * w2 + 0.25 * n)) * bassWeight
+            levels[i] = CGFloat(min(1.0, v))
+        }
+        return levels
+    }
+
+    private static func pseudoRandom(frame: Int, salt: Int) -> Double {
+        var x = UInt64(bitPattern: Int64(frame)) &* 0x9E3779B97F4A7C15
+        x &+= UInt64(salt &+ 1) &* 0xC2B2AE3D27D4EB4F
+        x ^= x >> 33
+        x &*= 0xFF51AFD7ED558CCD
+        x ^= x >> 33
+        return Double(x % 1000) / 1000
     }
 }

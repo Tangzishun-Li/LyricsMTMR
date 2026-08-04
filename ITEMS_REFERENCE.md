@@ -601,6 +601,31 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 ---
 
+#### 3.15 `opencodeGoUsage` — OpenCode Go 用量
+
+```json
+{
+  "type": "opencodeGoUsage",
+  "displayMode": "worst",
+  "refreshInterval": 300
+}
+```
+
+**作用**：显示 OpenCode Go（opencode.ai）订阅用量：5 小时滚动窗口 / 周 / 月三个限额。
+**操作**：单击弹出全宽卡片，三列并排显示用量、重置倒计时与「更新于 HH:mm」（精确到分钟）；弹窗打开期间每 25 秒自动刷新，也可点 ↻ 手动刷新。
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `displayMode` | `"worst"` | 折叠态内容：`worst`（三窗口中用量最高者）/ `rolling` / `weekly` / `monthly` / `all` |
+| `refreshInterval` | `300` | 后台刷新间隔（秒），最小 60 |
+| `workspaceID` | `""` | 可选。留空时自动发现并缓存 |
+| `cookie` | `""` | 可选。建议改在「设置 → 服务」填写；内联时优先生效 |
+
+> 🔑 **凭证配置**：浏览器登录 opencode.ai → 开发者工具 → Cookies，复制 `auth` 的值（`Fe26.2` 开头），粘贴到「设置 → 服务 → OpenCode Go auth Cookie」。服务器刷新 Cookie 时组件会自动回写。
+> ⚠️ 组件依赖 opencode.ai 的内部接口（server function ID），若对方重新部署可能失效，届时会优雅降级为错误提示。
+
+---
+
 ### 4. 布局容器类
 
 #### 4.1 `group` — 分组
@@ -1557,7 +1582,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 |:---|:---|
 | **系统控制** | `escape`, `delete`, `brightnessUp`, `brightnessDown`, `illuminationUp`, `illuminationDown`, `volumeUp`, `volumeDown`, `mute`, `volume`, `brightness`, `sleep`, `displaySleep`, `screenLock`, `bluetoothToggle`, `nightShift`, `darkMode`, `dnd` |
 | **媒体播放** | `play`, `pause`, `next`, `previous`, `music`, `lyrics`, `lyricsTranslate`, `playbackProgress`, `audioSpectrum` |
-| **信息展示** | `battery`, `cpu`, `timeButton`, `weather`, `yandexWeather`, `currency`, `inputsource`, `stock`, `network`, `networkSpeed`, `usage`, `deepseekBalance`, `systemTemp`, `diskIO` |
+| **信息展示** | `battery`, `cpu`, `timeButton`, `weather`, `yandexWeather`, `currency`, `inputsource`, `stock`, `network`, `networkSpeed`, `usage`, `deepseekBalance`, `opencodeGoUsage`, `systemTemp`, `diskIO` |
 | **布局容器** | `group`, `expandable`, `close`, `exitTouchbar` |
 | **计时/提醒** | `pomodoro`, `standupTimer`, `readTimer`, `postureReminder`, `breathingGuide`, `travelCountdown`, `birthdayCountdown`, `meetingCountdown`, `classCountdown`, `ddlList`, `subscriptionCountdown`, `creditCardDue` |
 | **网络/开发** | `gitStatus`, `apiLatency`, `sshStatus`, `serverMonitor`, `portChecker`, `httpCodes`, `dockerStatus`, `ciPipeline`, `regexTester`, `regexReference`, `rssUnread`, `emailBadge`, `slackUnread`, `printerStatus` |

@@ -30,6 +30,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         HapticFeedback.instance.scanAllDeviceIDs()
         TouchBarController.shared.setupControlStripPresence()
+        // `shared` is fully initialized now, so the first preset load is safe
+        // (TouchBarController.init must not load it — see comment there).
+        TouchBarController.shared.reloadStandardConfig()
 
         if let button = statusItem.button {
             button.image = #imageLiteral(resourceName: "StatusImage")

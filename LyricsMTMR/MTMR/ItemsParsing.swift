@@ -305,7 +305,7 @@ enum ItemType: Decodable {
     case gitStatus(repoPath: String, refreshInterval: Double)
     case apiLatency(endpoint: String, refreshInterval: Double)
     case windowSnap
-    case sshStatus(host: String, refreshInterval: Double)
+    case sshStatus(host: String, hosts: String, refreshInterval: Double)
     case portChecker(defaultPort: Int)
     case httpCodes
     case regexTester
@@ -365,6 +365,7 @@ enum ItemType: Decodable {
     case qrCode
     case apiTester(defaultUrl: String)
     case finderTags
+    case opencodeGoUsage(workspaceID: String, cookie: String, displayMode: String, refreshInterval: Double)
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -422,6 +423,7 @@ enum ItemType: Decodable {
         case repoPath
         case endpoint
         case host
+        case hosts
         case defaultPort
         case length
         case includeSymbols
@@ -451,6 +453,8 @@ enum ItemType: Decodable {
         case greenFolder
         case blueFolder
         case defaultUrl
+        case workspaceID
+        case cookie
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -550,6 +554,7 @@ enum ItemType: Decodable {
         case qrCode
         case apiTester
         case finderTags
+        case opencodeGoUsage
     }
 
     init(from decoder: Decoder) throws {
@@ -736,8 +741,9 @@ enum ItemType: Decodable {
             self = .windowSnap
         case .sshStatus:
             let host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+            let hosts = try container.decodeIfPresent(String.self, forKey: .hosts) ?? ""
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 20.0
-            self = .sshStatus(host: host, refreshInterval: refreshInterval)
+            self = .sshStatus(host: host, hosts: hosts, refreshInterval: refreshInterval)
         case .portChecker:
             let defaultPort = try container.decodeIfPresent(Int.self, forKey: .defaultPort) ?? 8080
             self = .portChecker(defaultPort: defaultPort)
@@ -923,6 +929,12 @@ enum ItemType: Decodable {
             self = .apiTester(defaultUrl: defaultUrl)
         case .finderTags:
             self = .finderTags
+        case .opencodeGoUsage:
+            let workspaceID = try container.decodeIfPresent(String.self, forKey: .workspaceID) ?? ""
+            let cookie = try container.decodeIfPresent(String.self, forKey: .cookie) ?? ""
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "worst"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            self = .opencodeGoUsage(workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
         }
     }
 }

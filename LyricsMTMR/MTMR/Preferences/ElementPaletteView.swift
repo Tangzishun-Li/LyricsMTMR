@@ -72,6 +72,7 @@ class EditorPaletteView: NSView {
             ("lyrics", localized("歌词", "Lyrics"), "music.note.list"),
             ("themeSwitch", localized("主题", "Theme"), "paintpalette"),
             ("deepseekBalance", "DS", "brain"),
+            ("opencodeGoUsage", "Go", "chart.bar.fill"),
         ]),
         (localized("音乐", "Music+"), [
             ("audioSpectrum", localized("频谱", "Spectrum"), "waveform"),

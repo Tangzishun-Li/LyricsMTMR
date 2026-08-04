@@ -64,23 +64,23 @@
       }
     ],
     "align": "left",
-    "width": 44
+    "width": 60
   },
   {
     "type": "audioSpectrum",
-    "barCount": 16,
     "align": "left",
-    "width": 130
+    "width": 130,
+    "barCount": 16
   },
   {
     "type": "playbackProgress",
     "align": "center",
-    "width": 200
+    "width": 260
   },
   {
     "type": "lyrics",
-    "width": 240,
     "align": "center",
+    "width": 240,
     "displayMode": "karaoke",
     "karaokeStyle": "progressive",
     "showArtwork": true,
@@ -98,8 +98,8 @@
   },
   {
     "type": "dock",
-    "width": 180,
-    "align": "left"
+    "align": "left",
+    "width": 180
   },
   {
     "type": "timeButton",

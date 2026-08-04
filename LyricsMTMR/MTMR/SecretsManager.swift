@@ -41,6 +41,8 @@ enum APIService: String, CaseIterable, Identifiable {
     case sshHost
     case sshUser
     case bilibiliCookie
+    case opencodeGoCookie
+    case opencodeGoWorkspaceID
 
     var id: String { rawValue }
 
@@ -61,6 +63,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .sshHost:          return "SSH Host"
         case .sshUser:          return "SSH User"
         case .bilibiliCookie:   return "Bilibili Cookie"
+        case .opencodeGoCookie:   return "OpenCode Go auth Cookie"
+        case .opencodeGoWorkspaceID: return "OpenCode Go Workspace ID"
         }
     }
 
@@ -81,6 +85,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .sshHost:          return "com.lyricsmtmr.services.sshHost"
         case .sshUser:          return "com.lyricsmtmr.services.sshUser"
         case .bilibiliCookie:   return "com.lyricsmtmr.services.bilibiliCookie"
+        case .opencodeGoCookie:   return "com.lyricsmtmr.services.opencodeGoCookie"
+        case .opencodeGoWorkspaceID: return "com.lyricsmtmr.services.opencodeGoWorkspaceID"
         }
     }
 
@@ -93,6 +99,10 @@ enum APIService: String, CaseIterable, Identifiable {
             return true
         case .deepseekModel, .deepseekBaseURL, .rssProvider,
                 .sshHost, .sshUser:
+            return false
+        case .opencodeGoCookie:
+            return true
+        case .opencodeGoWorkspaceID:
             return false
         }
     }

@@ -67,44 +67,28 @@
     "width": 60
   },
   {
-    "type": "escape",
-    "width": 64,
-    "align": "left"
-  },
-  {
-    "type": "serverMonitor",
+    "type": "dock",
     "align": "left",
-    "width": 120,
-    "host": "user@host",
-    "refreshInterval": 30
+    "width": 175
   },
   {
-    "type": "systemTemp",
-    "align": "left",
-    "width": 100,
-    "refreshInterval": 5
-  },
-  {
-    "type": "diskIO",
+    "type": "lyrics",
     "align": "center",
-    "width": 168,
-    "refreshInterval": 2
+    "width": 400,
+    "displayMode": "karaoke",
+    "karaokeStyle": "progressive",
+    "showArtwork": true,
+    "clickAction": "original"
   },
   {
-    "type": "bluetoothToggle",
-    "align": "center",
-    "width": 84
-  },
-  {
-    "type": "quickScreenshot",
+    "type": "lyricsTranslate",
     "align": "right",
-    "width": 84,
-    "mode": "region"
+    "width": 44
   },
   {
-    "type": "shortcutHints",
+    "type": "quickReply",
     "align": "right",
-    "width": 92
+    "width": 44
   },
   {
     "type": "timeButton",

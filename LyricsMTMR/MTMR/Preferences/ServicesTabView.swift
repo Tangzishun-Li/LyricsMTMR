@@ -36,6 +36,7 @@ struct ServicesTab: View {
                 rssSection
                 mijiaSection
                 sshSection
+                opencodeGoSection
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -254,6 +255,30 @@ struct ServicesTab: View {
             }
         }
     }
+
+    // MARK: - OpenCode Go
+
+    private var opencodeGoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: "OpenCode Go",
+                               hint: localized("用于：OpenCode Go 订阅用量小组件", "Used by: OpenCode Go subscription usage widget"))
+            Deck.Card {
+                VStack(spacing: 0) {
+                    ServiceSecureRow(service: .opencodeGoCookie,
+                                     placeholder: "Fe26.2...",
+                                     text: $model.opencodeGoCookie) {
+                        model.save(.opencodeGoCookie, value: $0)
+                    }
+                    Deck.RowDivider()
+                    ServiceTextRow(label: "Workspace ID",
+                                   placeholder: localized("留空则自动发现", "Leave empty to auto-discover"),
+                                   text: $model.opencodeGoWorkspaceID) {
+                        model.save(.opencodeGoWorkspaceID, value: $0)
+                    }
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Service State Model
@@ -289,6 +314,10 @@ final class ServiceStateModel: ObservableObject {
     // Bilibili
     @Published var bilibiliCookie: String
 
+    // OpenCode Go
+    @Published var opencodeGoCookie: String
+    @Published var opencodeGoWorkspaceID: String
+
     var configuredCount: Int {
         SecretsManager.shared.configuredServices.count
     }
@@ -310,6 +339,8 @@ final class ServiceStateModel: ObservableObject {
         sshHost            = SecretsManager.shared.retrieve(.sshHost)
         sshUser            = SecretsManager.shared.retrieve(.sshUser)
         bilibiliCookie     = SecretsManager.shared.retrieve(.bilibiliCookie)
+        opencodeGoCookie   = SecretsManager.shared.retrieve(.opencodeGoCookie)
+        opencodeGoWorkspaceID = SecretsManager.shared.retrieve(.opencodeGoWorkspaceID)
     }
 
     func save(_ service: APIService, value: String) {
@@ -334,6 +365,8 @@ final class ServiceStateModel: ObservableObject {
         case .sshHost:          sshHost = ""
         case .sshUser:          sshUser = ""
         case .bilibiliCookie:   bilibiliCookie = ""
+        case .opencodeGoCookie: opencodeGoCookie = ""
+        case .opencodeGoWorkspaceID: opencodeGoWorkspaceID = ""
         }
     }
 }
@@ -644,4 +677,3 @@ struct ServicePickerRow: View {
         }
     }
 }
-

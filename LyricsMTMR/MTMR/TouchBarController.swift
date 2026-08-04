@@ -95,7 +95,7 @@ extension ItemType {
             return "com.lyricsmtmr.apiLatency."
         case .windowSnap:
             return "com.lyricsmtmr.windowSnap."
-        case .sshStatus(host: _, refreshInterval: _):
+        case .sshStatus(host: _, hosts: _, refreshInterval: _):
             return "com.lyricsmtmr.sshStatus."
         case .portChecker(defaultPort: _):
             return "com.lyricsmtmr.portChecker."
@@ -215,6 +215,8 @@ extension ItemType {
             return "com.lyricsmtmr.apiTester."
         case .finderTags:
             return "com.lyricsmtmr.finderTags."
+        case .opencodeGoUsage(workspaceID: _, cookie: _, displayMode: _, refreshInterval: _):
+            return "com.lyricsmtmr.opencodeGoUsage."
         }
     }
 }
@@ -277,11 +279,13 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     /// Items that failed to create — tracked so we can log and surface errors
     private(set) var failedItemIds: [NSTouchBarItem.Identifier] = []
 
-    /// Maximum seconds allowed for a single item's construction.
-    /// Items exceeding this are replaced with an error indicator.
-    private let itemCreationTimeout: TimeInterval = 5.0
+    /// Items whose main-thread construction takes longer than this are logged
+    /// as slow (diagnostic only — construction is never interrupted).
+    private let slowItemCreationThreshold: TimeInterval = 1.0
 
-    /// Serial queue for item creation to prevent race conditions during rapid theme switches
+    /// Serial queue for preset parsing during rapid theme switches.
+    /// Item *construction* itself always happens on the main thread —
+    /// AppKit views cannot be created safely from background queues.
     private let creationQueue = DispatchQueue(label: "com.lyricsmtmr.itemCreation", qos: .userInitiated)
 
     /// Tracks the path of the preset currently being loaded, to debounce rapid theme switches.
@@ -334,7 +338,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged), name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
-        reloadStandardConfig()
+        // The initial preset load deliberately happens in AppDelegate *after* this
+        // singleton finishes initializing. Widget initializers (e.g. ThemeSwitchBarItem
+        // → setupIndicator) read TouchBarController.shared; loading the preset here
+        // would re-enter the dispatch_once for `shared` and trap at launch.
     }
 
     func createAndUpdatePreset(newJsonItems: [BarItemDefinition]) {
@@ -612,7 +619,19 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             }
             
             if show {
-                let item = createItemWithTimeout(forIdentifier: identifier, definition: definition)
+                // Items are constructed synchronously on the calling (main)
+                // thread. AppKit requires view creation on the main thread;
+                // the previous design built items on a background queue while
+                // blocking main on a semaphore, which deadlocked whenever an
+                // item needed the main thread and wrongly "isolated" items
+                // (e.g. the lyrics item) after the 5 s timeout. Fault
+                // isolation for crashes is still provided by createItemSafely.
+                let started = Date()
+                let item = createItemSafely(forIdentifier: identifier, definition: definition)
+                let elapsed = Date().timeIntervalSince(started)
+                if elapsed > slowItemCreationThreshold {
+                    AppLog.warn("Item \(definition.type) was slow to create: \(String(format: "%.2f", elapsed))s")
+                }
                 if let item = item {
                     if item is SwipeItem {
                         swipeItems.append(item as! SwipeItem)
@@ -621,37 +640,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     }
                 } else {
                     failedItemIds.append(identifier)
-                    AppLog.warn("Item \(definition.type) skipped (timeout or fatal error)")
+                    AppLog.warn("Item \(definition.type) skipped (creation failed)")
                 }
             }
         }
-    }
-
-    /// Creates an item on a background queue with a timeout guard.
-    /// If the item init hangs or crashes (ObjC exception / Swift error),
-    /// the calling thread is unblocked after `itemCreationTimeout` seconds
-    /// and an error-indicator item is returned instead. This prevents a
-    /// single misbehaving widget from freezing the entire Touch Bar.
-    private func createItemWithTimeout(forIdentifier identifier: NSTouchBarItem.Identifier,
-                                       definition: BarItemDefinition) -> NSTouchBarItem? {
-        let semaphore = DispatchSemaphore(value: 0)
-        var result: NSTouchBarItem?
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { semaphore.signal(); return }
-            result = self.createItemSafely(forIdentifier: identifier, definition: definition)
-            semaphore.signal()
-        }
-
-        let waitResult = semaphore.wait(timeout: .now() + itemCreationTimeout)
-        if waitResult == .timedOut {
-            let typeLabel = String(describing: definition.type).prefix(40)
-            AppLog.error("Item \(typeLabel) timed out after \(itemCreationTimeout)s — isolating")
-            return createErrorItem(forIdentifier: identifier,
-                                  reason: "Timed out after \(itemCreationTimeout)s",
-                                  originalType: String(describing: definition.type))
-        }
-        return result
     }
 
     @objc func setupControlStripPresence() {
@@ -879,8 +871,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = ApiLatencyItem(identifier: identifier, endpoint: endpoint, refreshInterval: refreshInterval)
         case .windowSnap:
             barItem = WindowSnapItem(identifier: identifier)
-        case let .sshStatus(host: host, refreshInterval: refreshInterval):
-            barItem = SshStatusItem(identifier: identifier, host: host, refreshInterval: refreshInterval)
+        case let .sshStatus(host: host, hosts: hosts, refreshInterval: refreshInterval):
+            barItem = SshStatusItem(identifier: identifier, host: host, hosts: hosts, refreshInterval: refreshInterval)
         case let .portChecker(defaultPort: defaultPort):
             barItem = PortCheckerItem(identifier: identifier, defaultPort: defaultPort)
         case .httpCodes:
@@ -999,6 +991,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = ApiTesterItem(identifier: identifier, defaultUrl: defaultUrl)
         case .finderTags:
             barItem = FinderTagsItem(identifier: identifier)
+        case let .opencodeGoUsage(workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval):
+            let ocgItem = OpenCodeGoUsageBarItem(identifier: identifier, workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
+            ocgItem.actions.append(ItemAction(trigger: .singleTap) { [weak ocgItem] in ocgItem?.showPopup() })
+            barItem = ocgItem
         default:
             break        }
 
@@ -1089,6 +1085,17 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 return
             }
 
+            // Debouncing may have redirected us to a newer preset — parse
+            // that one, not the stale `path` captured when we were queued.
+            var itemsToBuild = newItems
+            if actualPath != path {
+                guard let reparsed = actualPath.fileData?.barItemDefinitions() else {
+                    AppLog.error("Failed to parse preset: \(actualPath)")
+                    return
+                }
+                itemsToBuild = reparsed
+            }
+
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "HH-mm-ss"
             let time = dateFormatter.string(from: Date())
@@ -1096,7 +1103,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             var newLeft: [NSTouchBarItem.Identifier] = []
             var newCenter: [NSTouchBarItem.Identifier] = []
             var newRight: [NSTouchBarItem.Identifier] = []
-            for it in newItems {
+            for it in itemsToBuild {
                 let idStr = it.type.identifierBase + time + "--" + UUID().uuidString
                 let id = NSTouchBarItem.Identifier(idStr)
                 newDefs[id] = it
@@ -1106,19 +1113,20 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 case .right: newRight.append(id)
                 }
             }
-            let totalTimeout: TimeInterval = 15.0
-            let batchGroup = DispatchGroup()
-            let syncLock = NSLock()
-            var newItemsDict: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
-            var newSwipeItems: [SwipeItem] = []
-            var newFailed: [NSTouchBarItem.Identifier] = []
-            for (theId, def) in newDefs {
-                batchGroup.enter()
-                // Use global concurrent queue for parallel item creation (NOT self.creationQueue which is serial)
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let item = self.createItemSafely(forIdentifier: theId, definition: def)
-                    syncLock.lock()
-                    if let item = item {
+
+            // Item construction is AppKit work and must run on the main
+            // thread (the old parallel background creation caused Main
+            // Thread Checker violations and deadlock-driven timeouts).
+            DispatchQueue.main.async {
+                guard self.lastPresetPath == actualPath else {
+                    AppLog.touchBar("Theme switch superseded — skipping UI update")
+                    return
+                }
+                var newItemsDict: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
+                var newSwipeItems: [SwipeItem] = []
+                var newFailed: [NSTouchBarItem.Identifier] = []
+                for (theId, def) in newDefs {
+                    if let item = self.createItemSafely(forIdentifier: theId, definition: def) {
                         if let swipe = item as? SwipeItem {
                             newSwipeItems.append(swipe)
                         } else {
@@ -1127,17 +1135,12 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     } else {
                         newFailed.append(theId)
                     }
-                    syncLock.unlock()
-                    batchGroup.leave()
                 }
-            }
-            // Use notify instead of wait to avoid serial-queue deadlock
-            batchGroup.notify(queue: .main) {
-                guard self.lastPresetPath == path else {
+                guard self.lastPresetPath == actualPath else {
                     AppLog.touchBar("Theme switch superseded — skipping UI update")
                     return
                 }
-                self.jsonItems = newItems
+                self.jsonItems = itemsToBuild
                 self.itemDefinitions = newDefs
                 self.leftIdentifiers = newLeft
                 self.centerIdentifiers = newCenter

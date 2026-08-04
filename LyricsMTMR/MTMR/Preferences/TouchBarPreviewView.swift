@@ -357,6 +357,7 @@ class StripPillView: NSView {
         case "lyrics": return "music.note.list"
         case "themeSwitch": return "paintpalette"
         case "deepseekBalance": return "brain"
+        case "opencodeGoUsage": return "chart.bar.fill"
         case "escape": return "xmark.circle"
         case "group": return "square.stack"
         case "swipe": return "hand.draw"
@@ -384,6 +385,7 @@ class StripPillView: NSView {
         case "pomodoro": return "25:00"
         case "themeSwitch": return "Theme"
         case "deepseekBalance": return "DS ¥0.00"
+        case "opencodeGoUsage": return "Go 23%"
         case "escape": return "esc"
         case "group":
             let children = item["items"] as? [[String: Any]] ?? []

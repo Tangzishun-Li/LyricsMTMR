@@ -2,6 +2,7 @@
 //  ApiLatency.swift  ·  item type: apiLatency
 //  API 延迟监控：对自定义端点发起请求并测量往返耗时（毫秒），
 //  按延迟高低以绿/黄/红配色提示健康度。
+//  顶栏标签显示目标域名（如 github.com），一眼看清测的是哪条链路。
 //  属性：endpoint（目标 URL，留空用默认）、refreshInterval。
 //
 
@@ -14,9 +15,15 @@ class ApiLatencyItem: TBPollItem {
 
     init(identifier: NSTouchBarItem.Identifier, endpoint: String, refreshInterval: Double) {
         self.endpoint = endpoint.isEmpty ? "https://www.apple.com/library/test/success.html" : endpoint
+        // Label = endpoint host so the pill says *what* is being pinged.
+        var label = localized("延迟", "PING")
+        if let host = URL(string: self.endpoint)?.host, !host.isEmpty {
+            label = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+            label = label.hasPrefix("api.") ? String(label.dropFirst(4)) : label
+        }
         super.init(identifier: identifier, refreshInterval: refreshInterval,
                    icon: "gauge.with.needle", tint: TB.mint,
-                   label: localized("延迟", "PING"), width: 120)
+                   label: label, width: 120)
     }
     required init?(coder: NSCoder) { return nil }
 

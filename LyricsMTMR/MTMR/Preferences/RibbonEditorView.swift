@@ -1682,6 +1682,7 @@ struct BubblePill: View {
         case "pomodoro": return "25:00"
         case "themeSwitch": return "Theme"
         case "deepseekBalance": return "DS"
+        case "opencodeGoUsage": return "Go"
         case "escape": return "esc"
         case "group":
             let children = item["items"] as? [[String: Any]] ?? []

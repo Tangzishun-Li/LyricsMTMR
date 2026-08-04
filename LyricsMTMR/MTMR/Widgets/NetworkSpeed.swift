@@ -63,22 +63,20 @@ class NetworkSpeedItem: TBPollItem {
     }
 
     override func apply() {
-        metric.value = "↓\(Self.fmt(downRate))"
-        metric.subValue = "↑\(Self.fmt(upRate))"
+        metric.value = "↓\(Self.fmt(downRate))/s"
+        metric.subValue = "↑\(Self.fmt(upRate))/s"
         metric.valueColor = TB.textPrimary
         metric.spark = history
     }
 
+    /// Compact units (K/M) so ↓/↑ plus the sparkline fit narrow cells.
     private static func fmt(_ bytesPerSecond: Double) -> String {
-        let value: Double
-        let suffix: String
-        if bytesPerSecond >= 1_048_576 {
-            value = bytesPerSecond / 1_048_576; suffix = "MB/s"
-        } else if bytesPerSecond >= 1024 {
-            value = bytesPerSecond / 1024; suffix = "KB/s"
-        } else {
-            value = bytesPerSecond; suffix = "B/s"
-        }
-        return String(format: value >= 100 ? "%.0f%@" : "%.1f%@", value, suffix)
+        if bytesPerSecond >= 1_048_576 { return Self.trim(bytesPerSecond / 1_048_576) + "M" }
+        if bytesPerSecond >= 1024 { return Self.trim(bytesPerSecond / 1024) + "K" }
+        return "\(Int(bytesPerSecond))B"
+    }
+
+    private static func trim(_ value: Double) -> String {
+        value >= 100 ? String(format: "%.0f", value) : String(format: "%.1f", value)
     }
 }

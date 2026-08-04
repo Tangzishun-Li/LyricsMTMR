@@ -2,8 +2,9 @@
 //  LyricsTranslateBarItem.swift
 //  LyricsMTMR
 //
-//  Long-press to translate the current lyrics line via a free translation API.
-//  Displays the result in an NSPopoverTouchBarItem overlay.
+//  Tap/long-press to translate the current lyrics line via a free translation
+//  API. When no lyric line is available it falls back to whatever text is
+//  currently on the clipboard (CJK → English, otherwise → Chinese).
 //
 
 import Cocoa
@@ -45,28 +46,40 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         guard !isShowing else { return }
 
         let engine = LyricsEngine.shared
-        guard let lyrics = engine.currentLyrics,
-              let lineIndex = engine.currentLineIndex,
-              lineIndex < lyrics.lines.count else {
-            showOverlay(text: localized("暂无歌词", "No lyrics"), isTranslation: false)
+        if let lyrics = engine.currentLyrics,
+           let lineIndex = engine.currentLineIndex,
+           lineIndex < lyrics.lines.count,
+           !lyrics.lines[lineIndex].content.isEmpty {
+            showOverlay(text: localized("翻译中…", "Translating…"), isTranslation: false)
+            fetchTranslation(text: lyrics.lines[lineIndex].content, target: "zh-CN")
             return
         }
 
-        let sourceText = lyrics.lines[lineIndex].content
-        guard !sourceText.isEmpty else {
-            showOverlay(text: localized("暂无歌词", "No lyrics"), isTranslation: false)
+        // No active lyric line → translate the clipboard contents instead.
+        let clip = TBClip.read().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clip.isEmpty else {
+            showOverlay(text: localized("暂无歌词 · 剪贴板为空", "No lyrics · clipboard empty"), isTranslation: false)
             return
         }
-
+        let text = String(clip.prefix(400))
+        let target = Self.containsCJK(text) ? "en" : "zh-CN"
         showOverlay(text: localized("翻译中…", "Translating…"), isTranslation: false)
-        fetchTranslation(text: sourceText)
+        fetchTranslation(text: text, target: target)
+    }
+
+    private static func containsCJK(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            (0x4E00...0x9FFF).contains(scalar.value)
+                || (0x3400...0x4DBF).contains(scalar.value)
+                || (0xF900...0xFAFF).contains(scalar.value)
+        }
     }
 
     // MARK: - Translation API
 
-    private func fetchTranslation(text: String) {
+    private func fetchTranslation(text: String, target: String) {
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-        let urlString = "\(translateAPIBase)?q=\(encoded)&langpair=auto|zh-CN"
+        let urlString = "\(translateAPIBase)?q=\(encoded)&langpair=auto|\(target)"
 
         guard let url = URL(string: urlString) else {
             showOverlay(text: localized("翻译失败", "Translation failed"), isTranslation: false)

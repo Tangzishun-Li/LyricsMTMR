@@ -77,6 +77,21 @@ enum TB {
             .foregroundColor: color,
         ])
     }
+
+    /// Truncates `string` with an ellipsis so it renders within `maxWidth`
+    /// at the given font. Protects metric pills from overflowing into
+    /// sparkline / subValue zones at narrow widths.
+    static func fit(_ string: String, size: CGFloat, weight: NSFont.Weight, color: NSColor, maxWidth: CGFloat) -> NSAttributedString {
+        var attr = attributed(string, size: size, weight: weight, color: color)
+        guard maxWidth > 10, attr.size().width > maxWidth else { return attr }
+        var text = string
+        while !text.isEmpty {
+            text.removeLast()
+            attr = attributed(text + "…", size: size, weight: weight, color: color)
+            if attr.size().width <= maxWidth { return attr }
+        }
+        return attributed("…", size: size, weight: weight, color: color)
+    }
 }
 
 // MARK: - Metric Pill View
@@ -114,37 +129,77 @@ class TBMetricView: NSView {
         TB.drawCard(ctx, in: cardRect, radius: 7, accent: iconTint)
 
         let hasProgress = progress != nil
+        let hasLabel = !label.isEmpty
+        let hasValue = !value.isEmpty
+        let hasSub = !(subValue ?? "").isEmpty
+        // Three-row stack: label on top, value in the middle, progress bar at
+        // the bottom. Without this mode the bottom value text and the progress
+        // bar fight over the same pixels (e.g. 外卖 widget).
+        let stacked = hasProgress && hasLabel && hasValue
         let iconSize: CGFloat = 15
         let iconX = cardRect.minX + 8
-        let iconY = cardRect.midY - iconSize / 2 + (hasProgress ? 2 : 0)
+        let iconY = cardRect.midY - iconSize / 2 + (hasProgress && !stacked ? 2 : 0)
         if let img = TB.symbol(iconName, size: iconSize, weight: .semibold, tint: iconTint).cgImage(forProposedRect: nil, context: nil, hints: nil) {
             ctx.draw(img, in: CGRect(x: iconX, y: iconY, width: iconSize, height: iconSize))
         }
 
         let textX = iconX + iconSize + 7
         let hasSpark = (spark?.count ?? 0) > 1
-        let rightReserve: CGFloat = hasSpark ? 46 : 0
+        let rightReserve: CGFloat = hasSpark ? (hasSub ? 52 : 46) : 0
+        // Text must never enter the sparkline zone on the right, and the
+        // top-row label must stop before the top-right subValue starts.
+        let textRightLimit = cardRect.maxX - 8 - rightReserve
+
+        // Top-row baseline: with progress the row sits flush at the top,
+        // otherwise it drops 3pt for optical centering. In stacked mode the
+        // label shrinks to leave room for the middle value row.
+        let topTextY = stacked
+            ? cardRect.maxY - 9.5
+            : cardRect.maxY - 11 - (hasProgress ? 0 : 3)
+        let topTextSize: CGFloat = stacked ? 8 : 9
+
+        var subAttr: NSAttributedString?
+        var subLeft = cardRect.maxX
+        if let subValue = subValue, !subValue.isEmpty {
+            let fitted = TB.fit(subValue, size: topTextSize, weight: .medium, color: TB.textTertiary,
+                                maxWidth: max(10, cardRect.maxX - 8 - textX - 4))
+            subAttr = fitted
+            subLeft = cardRect.maxX - 8 - fitted.size().width
+        }
 
         if !label.isEmpty {
-            let labelAttr = TB.attributed(label, size: 9, weight: .semibold, color: TB.textSecondary)
-            labelAttr.draw(at: CGPoint(x: textX, y: cardRect.maxY - 11 - (hasProgress ? 0 : 3)))
+            let labelAttr = TB.fit(label, size: topTextSize, weight: .semibold, color: TB.textSecondary,
+                                   maxWidth: max(10, min(textRightLimit, subLeft) - 6 - textX))
+            labelAttr.draw(at: CGPoint(x: textX, y: topTextY))
         }
 
         if !value.isEmpty {
-            let valueAttr = TB.attributed(value, size: label.isEmpty ? 14 : 12, weight: .bold, color: valueColor)
+            let valueAttr = TB.fit(value, size: stacked ? 9.5 : (label.isEmpty ? 14 : 12), weight: .bold, color: valueColor,
+                                   maxWidth: max(10, textRightLimit - 4 - textX))
             let vs = valueAttr.size()
-            let vy = label.isEmpty ? cardRect.midY - vs.height / 2 + (hasProgress ? 2 : 0) : cardRect.minY + 3
+            let vy: CGFloat
+            if stacked {
+                vy = cardRect.minY + 7
+            } else if label.isEmpty {
+                vy = cardRect.midY - vs.height / 2 + (hasProgress ? 2 : 0)
+            } else {
+                vy = cardRect.minY + 3
+            }
             valueAttr.draw(at: CGPoint(x: textX, y: vy))
         }
 
-        if let subValue = subValue, !subValue.isEmpty {
-            let subAttr = TB.attributed(subValue, size: 9, weight: .medium, color: TB.textTertiary)
+        if let subAttr = subAttr {
             let ss = subAttr.size()
-            subAttr.draw(at: CGPoint(x: cardRect.maxX - 8 - ss.width, y: cardRect.maxY - 11 - (hasProgress ? 0 : 3)))
+            subAttr.draw(at: CGPoint(x: cardRect.maxX - 8 - ss.width, y: topTextY))
         }
 
         if let spark = spark, spark.count > 1 {
-            drawSpark(ctx, spark, in: CGRect(x: cardRect.maxX - 8 - rightReserve + 6, y: cardRect.minY + 5, width: rightReserve - 12, height: cardRect.height - 14), tint: iconTint)
+            // The sparkline must stay below the top-right subValue: when a
+            // subValue exists its bottom edge caps the spark zone (fixes the
+            // 网速 widget where ↑ text and the sparkline merged into noise).
+            let sparkTop = hasSub ? topTextY - 1.5 : cardRect.maxY - 8
+            let sparkBottom = cardRect.minY + (hasProgress ? 8 : 4)
+            drawSpark(ctx, spark, in: CGRect(x: cardRect.maxX - 8 - rightReserve + 6, y: sparkBottom, width: rightReserve - 12, height: max(4, sparkTop - sparkBottom)), tint: iconTint)
         }
 
         if let progress = progress {
@@ -501,6 +556,79 @@ class TBPollItem: NSCustomTouchBarItem {
     func apply() {}
 }
 
+// MARK: - Polling metric + overlay hybrid base
+
+/// Combines `TBPollItem` behavior (background `compute()` → main `apply()`
+/// into a `TBMetricView`) with `TBPopoverItem` behavior (tapping opens the
+/// full-width overlay). The collapsed representation is the metric view
+/// itself, covered by an invisible button that triggers `showOverlay`.
+class TBMetricPopoverItem: TBPopoverItem {
+    let metric = TBMetricView(frame: NSRect(x: 0, y: 0, width: 150, height: 30))
+    private let interval: TimeInterval
+    private var queue: DispatchQueue?
+    private var cancelled = false
+
+    init(identifier: NSTouchBarItem.Identifier, refreshInterval: TimeInterval,
+         icon: String, tint: NSColor, label: String, width: CGFloat = 150) {
+        interval = max(0.4, refreshInterval)
+        super.init(identifier: identifier)
+        metric.frame.size.width = width
+        metric.iconName = icon
+        metric.iconTint = tint
+        metric.label = label
+        metric.value = "…"
+        let tap = NSButton(frame: metric.bounds)
+        tap.autoresizingMask = [.width, .height]
+        tap.isBordered = false
+        tap.title = ""
+        tap.target = self
+        tap.action = #selector(TBPopoverItem.showOverlay)
+        metric.addSubview(tap)
+        collapsedRepresentation = metric
+        popoverTouchBar.delegate = self
+        queue = DispatchQueue(label: "com.lyricsmtmr.metricpoll." + identifier.rawValue)
+        loop()
+    }
+    required init?(coder: NSCoder) { return nil }
+
+    deinit {
+        cancelled = true
+        queue = nil
+    }
+
+    private func loop() {
+        queue?.async { [weak self] in
+            guard let self = self else { return }
+            let computeError = MTMRTryOrError {
+                self.compute()
+            }
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if computeError != nil {
+                    self.metric.value = "⚠️"
+                    self.metric.valueColor = TB.coral
+                } else {
+                    let applyError = MTMRTryOrError {
+                        self.apply()
+                    }
+                    if applyError != nil {
+                        self.metric.value = "⚠️"
+                        self.metric.valueColor = TB.coral
+                    }
+                }
+                self.metric.needsDisplay = true
+            }
+            guard !self.cancelled else { return }
+            self.queue?.asyncAfter(deadline: .now() + self.interval) { [weak self] in self?.loop() }
+        }
+    }
+
+    /// Override: heavy work, runs on a background queue.
+    func compute() {}
+    /// Override: push stored results into `metric`, runs on the main queue.
+    func apply() {}
+}
+
 // MARK: - Networking helper
 
 enum TBNet {
@@ -559,6 +687,31 @@ enum TBClip {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(string, forType: .string)
+    }
+}
+
+// MARK: - Custom regex rules
+
+/// User-defined regex rules, editable in Settings → Tools and merged into
+/// the regexTester / regexReference overlays. Persisted in App Support.
+struct TBRegexRule: Codable, Equatable {
+    var name: String
+    var pattern: String
+}
+
+enum TBRegexRules {
+    static let filename = "regexRules.json"
+
+    static func load() -> [TBRegexRule] {
+        TBStore.load([TBRegexRule].self, filename: filename) ?? []
+    }
+
+    static func save(_ rules: [TBRegexRule]) {
+        try? FileManager.default.createDirectory(atPath: appSupportDirectory, withIntermediateDirectories: true)
+        let path = appSupportDirectory.appending("/\(filename)")
+        if let data = try? JSONEncoder().encode(rules) {
+            try? data.write(to: URL(fileURLWithPath: path))
+        }
     }
 }
 

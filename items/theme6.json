@@ -67,9 +67,14 @@
     "width": 60
   },
   {
+    "type": "escape",
+    "width": 64,
+    "align": "left"
+  },
+  {
     "type": "networkSpeed",
     "align": "left",
-    "width": 100,
+    "width": 140,
     "refreshInterval": 2,
     "units": "auto"
   },
@@ -83,7 +88,7 @@
   {
     "type": "apiLatency",
     "align": "center",
-    "width": 100,
+    "width": 150,
     "endpoint": "https://api.github.com",
     "refreshInterval": 15
   },
@@ -96,8 +101,8 @@
     "type": "sshStatus",
     "align": "right",
     "width": 100,
-    "host": "user@host",
-    "refreshInterval": 20
+    "refreshInterval": 20,
+    "hosts": ""
   },
   {
     "type": "timeButton",

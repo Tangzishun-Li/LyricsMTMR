@@ -50,7 +50,11 @@ final class BilibiliSubtitleProvider: SubtitleProviderProtocol {
     }
 
     func canHandle(url: URL) -> Bool {
-        url.host?.contains("bilibili.com") == true || url.host?.contains("b23.tv") == true
+        let isBiliHost = url.host?.contains("bilibili.com") == true || url.host?.contains("b23.tv") == true
+        guard isBiliHost else { return false }
+        // Require an actual video path (BV id); rejects the homepage, live,
+        // dynamic and other non-video pages that would fail extraction later.
+        return (try? extractBVID(from: url)) != nil
     }
 
     // MARK: - Extract BV ID
@@ -332,7 +336,12 @@ final class YouTubeSubtitleProvider: SubtitleProviderProtocol {
     }
 
     func canHandle(url: URL) -> Bool {
-        url.host?.contains("youtube.com") == true || url.host?.contains("youtu.be") == true
+        let isYTHost = url.host?.contains("youtube.com") == true || url.host?.contains("youtu.be") == true
+        guard isYTHost else { return false }
+        // Require an extractable video id; rejects the homepage, search results,
+        // channel and feed pages that previously triggered doomed invalidURL
+        // subtitle fetches.
+        return (try? extractVideoID(from: url)) != nil
     }
 
     // MARK: - Extract Video ID

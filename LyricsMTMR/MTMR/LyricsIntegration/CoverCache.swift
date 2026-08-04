@@ -16,7 +16,18 @@ class CoverCache {
         memoryCache.totalCostLimit = 20 * 1024 * 1024
     }
 
+    /// ATS in Info.plist only whitelists https hosts; some providers (NetEase)
+    /// hand out http:// cover URLs. The CDN serves https fine, so upgrade the
+    /// scheme instead of letting the fetch die with -1022.
+    private func secureURL(_ url: URL) -> URL {
+        guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              comps.scheme == "http" else { return url }
+        comps.scheme = "https"
+        return comps.url ?? url
+    }
+
     func image(for url: URL) async -> NSImage? {
+        let url = secureURL(url)
         if let cached = memoryCache.object(forKey: url as NSURL) {
             return cached
         }
@@ -41,6 +52,7 @@ class CoverCache {
     }
 
     func prefetch(url: URL) {
+        let url = secureURL(url)
         Task {
             _ = await image(for: url)
         }

@@ -274,6 +274,13 @@
     ]
   },
   {
+    "type": "opencodeGoUsage",
+    "align": "right",
+    "bordered": false,
+    "refreshInterval": 300,
+    "displayMode": "worst"
+  },
+  {
     "type": "battery",
     "action": "openUrl",
     "background": "#666666",
