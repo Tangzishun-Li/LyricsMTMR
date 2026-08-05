@@ -79,9 +79,9 @@ extension ItemType {
             return "com.lyricsmtmr.deepseekBalance."
         case .expandable(items: _, closePosition: _, cardWidthRatio: _):
             return "com.lyricsmtmr.expandable."
-        case .audioSpectrum(barCount: _):
+        case .audioSpectrum(barCount: _, source: _):
             return "com.lyricsmtmr.audioSpectrum."
-        case .playbackProgress:
+        case .playbackProgress(width: _):
             return "com.lyricsmtmr.playbackProgress."
         case .lyricsTranslate:
             return "com.lyricsmtmr.lyricsTranslate."
@@ -127,7 +127,7 @@ extension ItemType {
             return "com.lyricsmtmr.noiseMeter."
         case .expenseTracker(dataPath: _, categories: _):
             return "com.lyricsmtmr.expenseTracker."
-        case .subscriptionCountdown(refreshInterval: _, dataPath: _):
+        case .subscriptionCountdown(refreshInterval: _, dataPath: _, index: _, tint: _):
             return "com.lyricsmtmr.subscriptionCountdown."
         case .breathingGuide(pattern: _):
             return "com.lyricsmtmr.breathingGuide."
@@ -868,10 +868,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         case let .expandable(items: items, closePosition: closePos, cardWidthRatio: ratio):
             let pos = ExpandableCardItem.ClosePosition(rawValue: closePos) ?? .left
             barItem = ExpandableCardItem(identifier: identifier, items: items, closePosition: pos, cardWidthRatio: ratio)
-        case let .audioSpectrum(barCount: barCount):
-            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount)
-        case .playbackProgress:
-            barItem = PlaybackProgressBarItem(identifier: identifier)
+        case let .audioSpectrum(barCount: barCount, source: source):
+            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount, source: source)
+        case let .playbackProgress(width: width):
+            barItem = PlaybackProgressBarItem(identifier: identifier, width: width)
         case .lyricsTranslate:
             barItem = LyricsTranslateBarItem(identifier: identifier)
         case let .quickReply(configPath: configPath):
@@ -916,8 +916,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = NoiseMeterItem(identifier: identifier, refreshInterval: refreshInterval)
         case let .expenseTracker(dataPath: dataPath, categories: categories):
             barItem = ExpenseTrackerItem(identifier: identifier, dataPath: dataPath, categories: categories)
-        case let .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
-            barItem = SubscriptionCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint):
+            barItem = SubscriptionCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint)
         case let .breathingGuide(pattern: pattern):
             barItem = BreathingGuideItem(identifier: identifier, pattern: pattern)
         case let .postureReminder(refreshInterval: refreshInterval, intervalMin: intervalMin):

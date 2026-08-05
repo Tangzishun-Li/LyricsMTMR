@@ -63,8 +63,9 @@ class NetworkSpeedItem: TBPollItem {
     }
 
     override func apply() {
-        metric.value = "↓\(Self.fmt(downRate))/s"
-        metric.subValue = "↑\(Self.fmt(upRate))/s"
+        // 不带 "/s" 后缀：窄单元格里 ↓/↑ 数值、标签和火花线才能各得其所
+        metric.value = "↓\(Self.fmt(downRate))"
+        metric.subValue = "↑\(Self.fmt(upRate))"
         metric.valueColor = TB.textPrimary
         metric.spark = history
     }

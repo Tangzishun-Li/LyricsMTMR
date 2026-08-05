@@ -22,7 +22,13 @@ class ClipboardHistoryItem: TBPopoverItem {
         super.init(identifier: identifier)
         Self.seedCurrentPasteboard()
         configureButton(title: localized("剪贴板", "Clipboard"), symbol: "doc.on.clipboard.fill", tint: TB.sky)
-        watcher = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in Self.poll() }
+        // .common keeps the watcher firing while touch-bar tracking modes
+        // are active; a .default-mode timer can stall during interactions,
+        // which reads as "history never collects anything".
+        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in Self.poll() }
+        timer.tolerance = 0.1
+        RunLoop.main.add(timer, forMode: .common)
+        watcher = timer
     }
     required init?(coder: NSCoder) { return nil }
     deinit { watcher?.invalidate() }
@@ -31,16 +37,37 @@ class ClipboardHistoryItem: TBPopoverItem {
     private static func seedCurrentPasteboard() {
         guard !didSeedCurrent else { return }
         didSeedCurrent = true
-        guard let text = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else { return }
+        _ = appendCurrentPasteboardIfAny()
+    }
+
+    /// 读取剪贴板内容：优先文本；没有文本时退化为文件 URL 的文件名，
+    /// 这样「复制了一个文件」也会被记录，而不是无声丢弃。
+    private static func currentPasteboardText() -> String? {
+        let pasteboard = NSPasteboard.general
+        if let text = pasteboard.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !text.isEmpty {
+            return text
+        }
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+           let name = urls.first?.lastPathComponent, !name.isEmpty {
+            return name
+        }
+        return nil
+    }
+
+    /// 收录当前剪贴板文本（非空时）。返回是否真的加入了内容。
+    @discardableResult
+    private static func appendCurrentPasteboardIfAny() -> Bool {
+        guard let text = currentPasteboardText() else { return false }
         append(text)
+        return true
     }
 
     private static func poll() {
         let pasteboard = NSPasteboard.general
         guard pasteboard.changeCount != lastCount else { return }
         lastCount = pasteboard.changeCount
-        guard let text = pasteboard.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return }
+        guard let text = currentPasteboardText() else { return }
         append(text)
     }
 
@@ -63,6 +90,12 @@ class ClipboardHistoryItem: TBPopoverItem {
     }
 
     override func buildOverlay() -> NSView {
+        // 兜底中的兜底：静态历史为空时先从磁盘重新加载持久化记录，
+        // 再尝试收录一次当前剪贴板——保证浮层不会因为时序问题显示空白。
+        if Self.history.isEmpty { Self.history = Self.loadHistory() }
+        // 兜底：历史为空时再尝试收录一次当前剪贴板——初始化时剪贴板可能
+        // 是空的，之后复制的内容不应让浮层继续空白。
+        if Self.history.isEmpty { Self.appendCurrentPasteboardIfAny() }
         let root = TBOverlay.rootView()
         let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.sky)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))

@@ -85,8 +85,14 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
                 indicatorDot.heightAnchor.constraint(equalToConstant: 5),
             ])
         }
-        // Show immediately if already auto-switched
-        indicatorDot.isHidden = !TouchBarController.shared.isAutoSwitched
+        // Show immediately if already auto-switched. The read is deferred to
+        // the next runloop tick: touching TouchBarController.shared
+        // synchronously during item creation can re-enter the singleton's
+        // dispatch_once (item creation may run inside its initializer) and
+        // trap with "trying to lock recursively" at launch.
+        DispatchQueue.main.async { [weak self] in
+            self?.indicatorDot.isHidden = !TouchBarController.shared.isAutoSwitched
+        }
     }
 
     private func cycleTheme() {

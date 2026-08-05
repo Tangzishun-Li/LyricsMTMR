@@ -33,7 +33,8 @@ class ColorConvertItem: TBPopoverItem {
             sw.heightAnchor.constraint(equalToConstant: 18),
         ])
         swatch = sw
-        // 结果文案放在色块右侧，避免和「剪贴板」提示/色块互相压叠
+        // 结果文案放在色块右侧，避免和「剪贴板」提示/色块互相压叠；
+        // 间距给足 12pt，色块和文字视觉上彻底分开。
         let label = NSTextField(labelWithString: localized("剪贴板 #HEX 或 R,G,B → 转换", "clip #HEX or R,G,B"))
         label.font = .systemFont(ofSize: 12, weight: .semibold)
         label.textColor = TB.textSecondary
@@ -43,7 +44,7 @@ class ColorConvertItem: TBPopoverItem {
         card.addSubview(label)
         NSLayoutConstraint.activate([
             label.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            label.leadingAnchor.constraint(equalTo: sw.trailingAnchor, constant: 8),
+            label.leadingAnchor.constraint(equalTo: sw.trailingAnchor, constant: 12),
             label.widthAnchor.constraint(equalTo: card.widthAnchor, multiplier: 0.36),
         ])
         resultLabel = label

@@ -2,31 +2,75 @@
   {
     "type": "themeSwitch",
     "themes": [
-      { "label": "1", "preset": "theme1.json" },
-      { "label": "2", "preset": "theme2.json" },
-      { "label": "3", "preset": "theme3.json" }
+      {
+        "label": "1",
+        "preset": "theme1.json"
+      },
+      {
+        "label": "2",
+        "preset": "theme2.json"
+      },
+      {
+        "label": "3",
+        "preset": "theme3.json"
+      },
+      {
+        "label": "4",
+        "preset": "theme4.json"
+      },
+      {
+        "label": "5",
+        "preset": "theme5.json"
+      },
+      {
+        "label": "6",
+        "preset": "theme6.json"
+      },
+      {
+        "label": "7",
+        "preset": "theme7.json"
+      },
+      {
+        "label": "8",
+        "preset": "theme8.json"
+      },
+      {
+        "label": "9",
+        "preset": "theme9.json"
+      },
+      {
+        "label": "10",
+        "preset": "theme10.json"
+      },
+      {
+        "label": "11",
+        "preset": "theme11.json"
+      },
+      {
+        "label": "12",
+        "preset": "theme12.json"
+      },
+      {
+        "label": "13",
+        "preset": "theme13.json"
+      },
+      {
+        "label": "14",
+        "preset": "theme14.json"
+      },
+      {
+        "label": "15",
+        "preset": "theme15.json"
+      }
     ],
     "align": "left",
-    "width": 44
+    "width": 60
   },
-
   {
     "type": "stock",
-    "stocks": ["sh000001"],
-    "displayMode": "compact",
-    "refreshInterval": 10,
-    "textWidth": 70,
-    "chartWidth": 130,
-    "showChart": true,
-    "chartMode": "fenzhong",
-    "align": "center",
-    "width": 200,
-    "bordered": false
-  },
-
-  {
-    "type": "stock",
-    "stocks": ["sh605117"],
+    "stocks": [
+      "sh000001"
+    ],
     "displayMode": "compact",
     "refreshInterval": 10,
     "textWidth": 70,
@@ -39,7 +83,24 @@
   },
   {
     "type": "stock",
-    "stocks": ["BK1320"],
+    "stocks": [
+      "sh605117"
+    ],
+    "displayMode": "compact",
+    "refreshInterval": 10,
+    "textWidth": 70,
+    "chartWidth": 130,
+    "showChart": true,
+    "chartMode": "fenzhong",
+    "align": "center",
+    "width": 200,
+    "bordered": false
+  },
+  {
+    "type": "stock",
+    "stocks": [
+      "BK1320"
+    ],
     "apiSource": "eastmoney",
     "displayMode": "compact",
     "refreshInterval": 10,
@@ -51,10 +112,11 @@
     "width": 200,
     "bordered": false
   },
-
   {
     "type": "stock",
-    "stocks": ["sz002150"],
+    "stocks": [
+      "sz002150"
+    ],
     "displayMode": "compact",
     "refreshInterval": 10,
     "textWidth": 70,
@@ -65,8 +127,4 @@
     "width": 200,
     "bordered": false
   }
-
-
-
-
 ]

@@ -297,8 +297,8 @@ enum ItemType: Decodable {
     case usage(providers: [ProviderConfig], refreshInterval: Double, displayMode: String, widgetWidth: CGFloat)
     case deepseekBalance(apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double)
     case expandable(items: [BarItemDefinition], closePosition: String, cardWidthRatio: CGFloat)
-    case audioSpectrum(barCount: Int)
-    case playbackProgress
+    case audioSpectrum(barCount: Int, source: String)
+    case playbackProgress(width: CGFloat)
     case lyricsTranslate
     case quickReply(configPath: String?)
     case networkSpeed(refreshInterval: Double, units: String)
@@ -321,7 +321,7 @@ enum ItemType: Decodable {
     case weatherOutfit(refreshInterval: Double, lat: Double, lon: Double)
     case noiseMeter(refreshInterval: Double)
     case expenseTracker(dataPath: String, categories: String)
-    case subscriptionCountdown(refreshInterval: Double, dataPath: String)
+    case subscriptionCountdown(refreshInterval: Double, dataPath: String, index: Int, tint: String)
     case breathingGuide(pattern: String)
     case postureReminder(refreshInterval: Double, intervalMin: Double)
     case travelCountdown(refreshInterval: Double, calendarFilter: String)
@@ -436,6 +436,8 @@ enum ItemType: Decodable {
         case dataPath
         case categories
         case pattern
+        case index
+        case tint
         case intervalMin
         case calendarFilter
         case channels
@@ -455,6 +457,7 @@ enum ItemType: Decodable {
         case defaultUrl
         case workspaceID
         case cookie
+        case width
     }
 
     enum ItemTypeRaw: String, Decodable {
@@ -712,11 +715,18 @@ enum ItemType: Decodable {
             self = .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: refreshInterval)
 
         case .audioSpectrum:
-            let barCount = try container.decodeIfPresent(Int.self, forKey: .barCount) ?? 16
-            self = .audioSpectrum(barCount: barCount)
+            // Bar density follows the widget width unless barCount is pinned
+            // explicitly: ~1 bar per 8pt keeps narrow cells readable.
+            let width = try container.decodeIfPresent(CGFloat.self, forKey: .width) ?? 0
+            let explicitBars = try container.decodeIfPresent(Int.self, forKey: .barCount)
+            let densityBars = width > 0 ? max(8, min(48, Int(width / 8))) : 16
+            let barCount = explicitBars ?? densityBars
+            let source = try container.decodeIfPresent(String.self, forKey: .source) ?? ""
+            self = .audioSpectrum(barCount: barCount, source: source)
 
         case .playbackProgress:
-            self = .playbackProgress
+            let width = try container.decodeIfPresent(CGFloat.self, forKey: .width) ?? 0
+            self = .playbackProgress(width: width)
 
         case .lyricsTranslate:
             self = .lyricsTranslate
@@ -792,7 +802,9 @@ enum ItemType: Decodable {
         case .subscriptionCountdown:
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
             let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
-            self = .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+            let index = try container.decodeIfPresent(Int.self, forKey: .index) ?? 0
+            let tint = try container.decodeIfPresent(String.self, forKey: .tint) ?? ""
+            self = .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint)
         case .breathingGuide:
             let pattern = try container.decodeIfPresent(String.self, forKey: .pattern) ?? "4-7-8"
             self = .breathingGuide(pattern: pattern)

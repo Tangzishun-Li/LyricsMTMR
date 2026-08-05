@@ -23,7 +23,11 @@ class SshStatusItem: TBMetricPopoverItem {
     init(identifier: NSTouchBarItem.Identifier, host: String, hosts: String, refreshInterval: Double) {
         var list = hosts.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         if list.isEmpty, !host.isEmpty { list = [host] }
-        if list.isEmpty, let secret = SecretsManager.shared.retrieve(.sshHost) as String?, !secret.isEmpty { list = [secret] }
+        if list.isEmpty, let secret = SecretsManager.shared.retrieve(.sshHost) as String?, !secret.isEmpty {
+            // 「服务」里配置的主机可能是逗号分隔的多个——同样拆开，
+            // 否则会把 "a,b,c" 当成一个主机名去 ping，永远离线。
+            list = secret.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
         self.hosts = list
         super.init(identifier: identifier, refreshInterval: refreshInterval,
                    icon: "network.badge.shield.half.filled", tint: TB.purple,

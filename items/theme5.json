@@ -69,8 +69,7 @@
   {
     "type": "audioSpectrum",
     "align": "left",
-    "width": 130,
-    "barCount": 16
+    "width": 176
   },
   {
     "type": "playbackProgress",

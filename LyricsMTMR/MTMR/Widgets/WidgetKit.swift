@@ -30,6 +30,20 @@ enum TB {
     static let cardFill = NSColor(srgbRed: 0.145, green: 0.126, blue: 0.180, alpha: 1)
     static let insetFill = NSColor.black.withAlphaComponent(0.26)
 
+    /// Named tint lookup for JSON-configurable widgets (e.g. `tint: "sky"`).
+    /// Unknown names fall back to the caller's default.
+    static func tint(named name: String, fallback: NSColor) -> NSColor {
+        switch name.lowercased() {
+        case "mint": return mint
+        case "coral": return coral
+        case "sky": return sky
+        case "gold": return gold
+        case "purple": return purple
+        case "pink": return pink
+        default: return fallback
+        }
+    }
+
     /// Tinted SF Symbol image ready for the Touch Bar.
     static func symbol(_ name: String, size: CGFloat = 15, weight: NSFont.Weight = .semibold, tint: NSColor = .white) -> NSImage {
         guard let base = NSImage(systemSymbolName: name, accessibilityDescription: nil) else {
@@ -161,8 +175,12 @@ class TBMetricView: NSView {
         var subAttr: NSAttributedString?
         var subLeft = cardRect.maxX
         if let subValue = subValue, !subValue.isEmpty {
+            // With a sparkline the right zone belongs to the graph: cap the
+            // subValue (e.g. ↑网速) to that zone so it can never slide over
+            // the line and merge into noise.
+            let cap = hasSpark ? rightReserve - 12 : cardRect.maxX - 8 - textX - 4
             let fitted = TB.fit(subValue, size: topTextSize, weight: .medium, color: TB.textTertiary,
-                                maxWidth: max(10, cardRect.maxX - 8 - textX - 4))
+                                maxWidth: max(10, cap))
             subAttr = fitted
             subLeft = cardRect.maxX - 8 - fitted.size().width
         }
@@ -194,10 +212,10 @@ class TBMetricView: NSView {
         }
 
         if let spark = spark, spark.count > 1 {
-            // The sparkline must stay below the top-right subValue: when a
-            // subValue exists its bottom edge caps the spark zone (fixes the
-            // 网速 widget where ↑ text and the sparkline merged into noise).
-            let sparkTop = hasSub ? topTextY - 1.5 : cardRect.maxY - 8
+            // The sparkline must stay clear of the top-right subValue: leave
+            // 3.5pt under the text baseline (covers descenders) so peaks of
+            // the 网速 graph never touch the ↑ text again.
+            let sparkTop = hasSub ? topTextY - 3.5 : cardRect.maxY - 8
             let sparkBottom = cardRect.minY + (hasProgress ? 8 : 4)
             drawSpark(ctx, spark, in: CGRect(x: cardRect.maxX - 8 - rightReserve + 6, y: sparkBottom, width: rightReserve - 12, height: max(4, sparkTop - sparkBottom)), tint: iconTint)
         }
@@ -363,6 +381,9 @@ enum TBOverlay {
 
 enum TBShell {
     /// Runs a command via /bin/zsh -l -c and returns trimmed stdout ("" on failure).
+    /// stdout is drained on a background queue and a child exceeding `timeout`
+    /// is terminated (escalating to SIGKILL), so a hung command can never
+    /// block the caller forever.
     @discardableResult
     static func run(_ command: String, timeout: TimeInterval = 8.0) -> String {
         let task = Process()
@@ -376,19 +397,48 @@ enum TBShell {
         } catch {
             return ""
         }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        // Use a dispatch source to kill the task if it exceeds the timeout,
-        // preventing a hung shell command from blocking its queue forever.
-        let sem = DispatchSemaphore(value: 0)
-        let source = DispatchSource.makeTimerSource()
-        source.setEventHandler { task.terminate(); sem.signal() }
-        source.schedule(deadline: .now() + timeout)
-        source.resume()
-        task.terminationHandler = { _ in source.cancel(); sem.signal() }
+        // Drain stdout asynchronously — a child that never closes its output
+        // must not wedge the caller.
+        let box = OutputBox()
+        let reader = pipe.fileHandleForReading
+        DispatchQueue.global(qos: .utility).async {
+            box.finish(reader.readDataToEndOfFile())
+        }
+        // Enforce the timeout: SIGTERM, a short grace period, then SIGKILL.
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        while task.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        if task.isRunning {
+            task.terminate()
+            let grace = Date(timeIntervalSinceNow: 1.0)
+            while task.isRunning && Date() < grace {
+                Thread.sleep(forTimeInterval: 0.02)
+            }
+            if task.isRunning {
+                kill(task.processIdentifier, SIGKILL)
+            }
+        }
         task.waitUntilExit()
-        sem.signal()
-        sem.wait()
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // Brief grace for the reader to hit EOF after the child dies, then
+        // return whatever arrived.
+        if !box.isDone {
+            let flush = Date(timeIntervalSinceNow: 0.5)
+            while !box.isDone && Date() < flush {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+        }
+        return String(data: box.data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    /// Thread-safe one-shot box for the background reader's output.
+    private final class OutputBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _data = Data()
+        private var _done = false
+        func finish(_ d: Data) { lock.lock(); _data = d; _done = true; lock.unlock() }
+        var isDone: Bool { lock.lock(); defer { lock.unlock() }; return _done }
+        var data: Data { lock.lock(); defer { lock.unlock() }; return _data }
     }
 }
 
