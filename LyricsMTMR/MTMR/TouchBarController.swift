@@ -467,7 +467,12 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             if isAutoSwitched {
                 revertAutoSwitch()
             }
-            if touchBarContainsAnyItems() {
+            // Freeze-on-app-switch only applies to a bar that has already
+            // been built. An explicit preset reload (refresh / slot switch /
+            // editor apply) replaces `touchBar` with a fresh, unconfigured
+            // instance; presenting it as-is has no delegate or default item
+            // identifiers yet, which blanks the Touch Bar until restart.
+            if touchBarIsBuilt() {
                 presentTouchBar()
             } else {
                 prepareTouchBar()
@@ -562,6 +567,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     
     func touchBarContainsAnyItems() -> Bool {
         return items.count != 0 || swipeItems.count != 0
+    }
+
+    /// True when the current `touchBar` has already been configured by
+    /// `prepareTouchBar()` (delegate + default item identifiers + items).
+    /// A bar created by an explicit preset reload stays unbuilt until
+    /// `prepareTouchBar()` runs, so it must never be presented as-is.
+    private func touchBarIsBuilt() -> Bool {
+        guard let bar = touchBar else { return false }
+        return bar.delegate != nil && !bar.defaultItemIdentifiers.isEmpty && touchBarContainsAnyItems()
     }
 
     func reloadStandardConfig() {
