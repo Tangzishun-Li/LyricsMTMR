@@ -99,7 +99,9 @@ struct ItemSchema {
             case .integer:
                 dict[prop.key] = 64
             case .selection(let opts):
-                dict[prop.key] = opts.first ?? ""
+                // New items land in the Touch Bar's center zone by default;
+                // "left" is opt-in via explicit per-type overrides.
+                dict[prop.key] = (prop.key == "align") ? "center" : (opts.first ?? "")
             case .text:
                 dict[prop.key] = ""
             case .stringList:

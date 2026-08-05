@@ -24,7 +24,7 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
     }()
 
     init(identifier: NSTouchBarItem.Identifier, themes: [ThemeDefinition]) {
-        self.themes = themes
+        self.themes = Self.mergedThemes(configured: themes)
         super.init(identifier: identifier, title: "")
 
         updateTitle(to: AppSettings.selectedThemeIndex)
@@ -95,7 +95,38 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
         }
     }
 
+    /// Merges configured themes with every theme*.json found on disk so the
+    /// switcher always cycles through all installed themes, even when an old
+    /// preset's themeSwitch item only lists a subset.
+    private static func mergedThemes(configured: [ThemeDefinition]) -> [ThemeDefinition] {
+        var merged: [ThemeDefinition] = []
+        var seen = Set<String>()
+        for theme in configured {
+            let key = resolveKey(theme.preset)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            merged.append(theme)
+        }
+        for entry in ThemeSupport.discoverThemeFiles() {
+            let key = resolveKey(entry.path)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            merged.append(ThemeDefinition(
+                label: entry.name,
+                preset: (entry.path as NSString).lastPathComponent,
+                matchAppIds: nil
+            ))
+        }
+        return merged
+    }
+
+    private static func resolveKey(_ preset: String) -> String {
+        let last = (preset as NSString).lastPathComponent
+        return last.hasPrefix("theme") ? last : preset
+    }
+
     private func cycleTheme() {
+        guard !themes.isEmpty else { return }
         // Notify the controller that the user is manually overriding
         TouchBarController.shared.markUserOverrideAppTheme()
 

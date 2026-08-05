@@ -697,7 +697,7 @@ enum ItemType: Decodable {
             self = .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
 
         case .themeSwitch:
-            let themes = try container.decode([ThemeDefinition].self, forKey: .themes)
+            let themes = try container.decodeIfPresent([ThemeDefinition].self, forKey: .themes) ?? []
             self = .themeSwitch(themes: themes)
 
         case .usage:
@@ -960,6 +960,12 @@ struct ThemeDefinition: Decodable {
         case label
         case preset
         case matchAppIds
+    }
+
+    init(label: String, preset: String, matchAppIds: [String]?) {
+        self.label = label
+        self.preset = preset
+        self.matchAppIds = matchAppIds
     }
 
     init(from decoder: Decoder) throws {

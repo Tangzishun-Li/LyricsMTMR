@@ -8,6 +8,99 @@
 
 import Foundation
 
+// MARK: - Theme support helpers
+
+/// Shared helpers for discovering, sorting, and syncing theme files.
+enum ThemeSupport {
+    static var appSupportDir: String {
+        NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
+            .first!.appending("/LyricsMTMR")
+    }
+
+    static func itemsJSONPath() -> String {
+        appSupportDir + "/items.json"
+    }
+
+    /// "theme5.json"/"theme5" → 4 (0-based index), nil otherwise.
+    static func themeIndex(fromFileName name: String) -> Int? {
+        let stem = (name as NSString).deletingPathExtension
+        guard stem.hasPrefix("theme") else { return nil }
+        let numberPart = String(stem.dropFirst(5))
+        guard let num = Int(numberPart), num > 0 else { return nil }
+        return num - 1
+    }
+
+    /// Numeric-aware sort: theme2 < theme10 < theme15.
+    static func numericThemeSort(_ names: [String]) -> [String] {
+        names.sorted { a, b in
+            switch (themeIndex(fromFileName: a), themeIndex(fromFileName: b)) {
+            case let (x?, y?): return x < y
+            case (nil, _): return false
+            case (_, nil): return true
+            }
+        }
+    }
+
+    /// All theme files on disk, numeric sorted, as (name, path) pairs.
+    static func discoverThemeFiles() -> [(name: String, path: String)] {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: appSupportDir) else { return [] }
+        return numericThemeSort(files.filter { $0.hasPrefix("theme") && $0.hasSuffix(".json") })
+            .map { (name: ($0 as NSString).deletingPathExtension, path: appSupportDir + "/" + $0) }
+    }
+
+    @discardableResult
+    static func write(items: [[String: Any]], to path: String) -> Bool {
+        guard let data = try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted]) else { return false }
+        let dir = (path as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        do {
+            try data.write(to: URL(fileURLWithPath: path))
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Every themeSwitch item gets a themes list that merges its configured
+    /// entries with every theme file on disk, so switching always covers all
+    /// themes and saving never silently drops themes.
+    static func ensureThemeSwitchLists(in items: [[String: Any]]) -> [[String: Any]] {
+        let disk = discoverThemeFiles()
+        return items.map { item in
+            guard (item["type"] as? String) == "themeSwitch" else { return item }
+            var merged: [[String: Any]] = []
+            var seen = Set<String>()
+            if let configured = item["themes"] as? [[String: Any]] {
+                for theme in configured {
+                    let preset = theme["preset"] as? String ?? ""
+                    let key = resolveThemeKey(preset)
+                    guard !seen.contains(key) else { continue }
+                    seen.insert(key)
+                    merged.append(theme)
+                }
+            }
+            for entry in disk {
+                let key = resolveThemeKey(entry.path)
+                guard !seen.contains(key) else { continue }
+                seen.insert(key)
+                merged.append([
+                    "label": entry.name,
+                    "preset": (entry.path as NSString).lastPathComponent,
+                ])
+            }
+            var updated = item
+            updated["themes"] = merged
+            return updated
+        }
+    }
+
+    private static func resolveThemeKey(_ preset: String) -> String {
+        let last = (preset as NSString).lastPathComponent
+        return last.hasPrefix("theme") ? last : preset
+    }
+}
+
 // MARK: - Draft model
 
 struct Draft: Identifiable {
@@ -179,11 +272,7 @@ final class DraftManager {
     // MARK: - Theme helpers
 
     func availableThemes() -> [(name: String, path: String)] {
-        guard let files = try? fileManager.contentsOfDirectory(atPath: themesDir) else { return [] }
-        return files
-            .filter { $0.hasPrefix("theme") && $0.hasSuffix(".json") }
-            .sorted()
-            .map { (name: $0.replacingOccurrences(of: ".json", with: ""), path: themesDir + "/\($0)") }
+        ThemeSupport.discoverThemeFiles().map { (name: $0.name, path: $0.path) }
     }
 
     // MARK: - JSON I/O
