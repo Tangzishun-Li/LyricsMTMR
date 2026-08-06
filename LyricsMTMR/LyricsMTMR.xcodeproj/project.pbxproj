@@ -456,7 +456,6 @@
 		CA8F2B6C2FBF862D00D189D1 /* LyricsItemConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsItemConfig.swift; sourceTree = "<group>"; };
 		CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
 		CA8F2B902FBF862D00D189D1 /* LyricsFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsFilter.swift; sourceTree = "<group>"; };
-		CAA5C42F2FC10F170012D749 /* LyricsMTMR.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LyricsMTMR.entitlements; sourceTree = "<group>"; };
 		CE8064090E6592DF0B794D49 /* FinderTags.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FinderTags.swift; sourceTree = "<group>"; };
 		CF27D34B066477FF913D5ADA /* NotificationTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationTabView.swift; sourceTree = "<group>"; };
 		D4F8C6B3CC07457AABDC461B /* SubtitleProviderPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleProviderPlaceholder.swift; sourceTree = "<group>"; };
@@ -521,7 +520,6 @@
 		B082B246205C7D8000BC04DC = {
 			isa = PBXGroup;
 			children = (
-				CAA5C42F2FC10F170012D749 /* LyricsMTMR.entitlements */,
 				36C2ECD2207B3B1D003CDA33 /* README.md */,
 				CA8F2B532FBF862D00D189D1 /* LyricsRendering */,
 				36BDC22F207CDA8600FCFEBE /* TECHNICAL_DEBT.md */,
@@ -1045,6 +1043,8 @@
 			);
 			name = "Compile MediaRemote dylib";
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(PRODUCT_NAME).app/Contents/Frameworks/MediaRemoteMRBridge.dylib",
+				"$(TARGET_BUILD_DIR)/$(PRODUCT_NAME).app/Contents/Resources/run.pl",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1402,7 +1402,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = LyricsMTMR.entitlements;
+				CODE_SIGN_ENTITLEMENTS = MTMR/MTMR.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;

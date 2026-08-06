@@ -17,10 +17,14 @@
 
 | 目录 | 说明 |
 |------|------|
-| `LyricsMTMR/` | 基于 MTMR 修改的版本，新增了歌词渲染模块（LyricsRendering）和 `lyrics` widget 类型 |
-| `LyricsX/` | LyricsX 歌词应用，提供歌词搜索与数据源 |
-| `MTMR/` | MTMR 原始代码（My TouchBar My Rules） |
-| `mtmr-designer/` | **MTMR Designer** — 可视化拖放式 GUI 编辑器，不用手写 JSON 即可设计 Touch Bar 配置（React + Vite 实现） |
+| `LyricsMTMR/` | Xcode 工程（`LyricsMTMR.xcodeproj`），源码按 App / Core / Support / Widgets / Preferences / LyricsIntegration 分层 |
+| `LyricsMTMR/Scripts/` | 构建与开发脚本：`build.sh`、`test.sh`、`archive.sh`、主题/工程生成工具 |
+| `LyricsMTMR/docs/` | 用户/开发者文档、API 参考、文件结构说明 |
+| `examples/presets/` | 主题预设示例（theme1-15、items.json） |
+| `tools/` | 调试工具（`mr-dump`、虚拟键盘原型） |
+| `.github/workflows/` | CI：push/PR 自动构建与测试，tag 触发通用架构归档 |
+
+常用命令：`make build` / `make test` / `make archive`
 
 ## TODO
 - [x] 完成歌词和封面的显示

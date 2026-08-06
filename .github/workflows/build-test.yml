@@ -1,0 +1,37 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          cd LyricsMTMR
+          xcodebuild test \
+            -project LyricsMTMR.xcodeproj \
+            -scheme UnitTests \
+            -configuration Debug \
+            -derivedDataPath /tmp/LyricsMTMR-dd \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty -c && exit ${PIPESTATUS[0]}
+
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (Debug)
+        run: |
+          cd LyricsMTMR
+          xcodebuild build \
+            -project LyricsMTMR.xcodeproj \
+            -scheme MTMR \
+            -configuration Debug \
+            -derivedDataPath /tmp/LyricsMTMR-dd \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty -c && exit ${PIPESTATUS[0]}
