@@ -32,9 +32,9 @@ enum KugouProvider {
 
     // MARK: - Search
 
-    static func search(keyword: String) async throws -> [KugouSong] {
+    static func search(keyword: String, limit: Int = 10) async throws -> [KugouSong] {
         let encoded = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
-        let urlString = "https://mobileservice.kugou.com/api/v3/search/song?version=9108&plat=0&pagesize=10&page=1&keyword=\(encoded)"
+        let urlString = "https://mobileservice.kugou.com/api/v3/search/song?version=9108&plat=0&pagesize=\(limit)&page=1&keyword=\(encoded)"
         guard let url = URL(string: urlString) else { return [] }
 
         let (data, _) = try await session.data(from: url)
@@ -46,9 +46,12 @@ enum KugouProvider {
         }
 
         return infoArray.compactMap { item in
+            // The v3 search API no longer returns `accesskey`; it's optional.
+            // krcs.kugou.com/search resolves the current accesskey from the
+            // hash alone, so an empty value here is fine.
             guard let hash = item["hash"] as? String,
-                  let accessKey = item["accesskey"] as? String,
                   let songName = item["songname"] as? String else { return nil }
+            let accessKey = item["accesskey"] as? String ?? ""
             let singer = item["singername"] as? String ?? ""
             let albumName = item["album_name"] as? String ?? ""
             let duration = item["duration"] as? Int ?? 0
@@ -58,7 +61,7 @@ enum KugouProvider {
 
     // MARK: - Fetch Lyrics
 
-    static func fetchLyrics(hash: String, accessKey: String) async throws -> SimpleLyrics {
+    static func fetchLyrics(hash: String, accessKey: String = "") async throws -> SimpleLyrics {
         let urlString = "https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&hash=\(hash)&accesskey=\(accessKey)"
         guard let url = URL(string: urlString) else { throw KugouError.parseFailed }
 
@@ -200,7 +203,7 @@ final class KugouProviderAdapter: LyricsProviderProtocol {
 
     func search(title: String, artist: String, limit: Int) async throws -> [LyricsCandidate] {
         let keyword = "\(title) \(artist)".trimmingCharacters(in: .whitespaces)
-        let songs = try await KugouProvider.search(keyword: keyword)
+        let songs = try await KugouProvider.search(keyword: keyword, limit: limit)
         return songs.prefix(limit).map { song in
             LyricsCandidate(
                 title: song.name,
@@ -216,11 +219,11 @@ final class KugouProviderAdapter: LyricsProviderProtocol {
 
     func fetch(for candidate: LyricsCandidate) async throws -> LyricsFetchResult {
         let parts = candidate.sourceId.split(separator: "|", maxSplits: 1)
-        guard parts.count == 2 else {
+        guard let hashPart = parts.first, !hashPart.isEmpty else {
             throw NSError(domain: "KugouProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid sourceId"])
         }
-        let hash = String(parts[0])
-        let accessKey = String(parts[1])
+        let hash = String(hashPart)
+        let accessKey = parts.count == 2 ? String(parts[1]) : ""
 
         let lyrics = try await KugouProvider.fetchLyrics(hash: hash, accessKey: accessKey)
         let filtered = lyrics.filtered

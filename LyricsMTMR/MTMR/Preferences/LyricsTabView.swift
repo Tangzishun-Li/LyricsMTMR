@@ -970,7 +970,8 @@ struct TouchBarPreview: View {
                     .kerning(1.1)
                     .foregroundStyle(Deck.textTertiary)
                 Spacer()
-                Deck.Equalizer(tint: Color(nsColor: config.progressColor), barCount: 4, paused: !windowState.isVisible)
+                Deck.Equalizer(tint: Color(nsColor: config.progressColor), barCount: 4,
+                               paused: !windowState.isVisible || windowState.activeTab != .lyrics)
             }
 
             strip
@@ -1053,7 +1054,8 @@ struct TouchBarPreview: View {
     }
 
     private var karaokeLine: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !windowState.isVisible)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                paused: !windowState.isVisible || windowState.activeTab != .lyrics)) { context in
             let progress = karaokeProgress(at: context.date)
             Text(sample)
                 .font(lyricsFont)

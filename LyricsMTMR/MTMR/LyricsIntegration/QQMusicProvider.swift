@@ -18,9 +18,9 @@ enum QQMusicProvider {
 
     // MARK: - Search
 
-    static func search(keyword: String) async throws -> [QQMusicSong] {
+    static func search(keyword: String, limit: Int = 10) async throws -> [QQMusicSong] {
         async let api1 = searchApi1(keyword: keyword)
-        async let api2 = searchApi2(keyword: keyword)
+        async let api2 = searchApi2(keyword: keyword, limit: limit)
         let results = await (api1 ?? []) + (api2 ?? [])
         return results
     }
@@ -41,13 +41,13 @@ enum QQMusicProvider {
         }
     }
 
-    private static func searchApi2(keyword: String) async -> [QQMusicSong]? {
+    private static func searchApi2(keyword: String, limit: Int) async -> [QQMusicSong]? {
         let body: [String: Any] = [
             "req_1": [
                 "method": "DoSearchForQQMusicDesktop",
                 "module": "music.search.SearchCgiService",
                 "param": [
-                    "num_per_page": 20,
+                    "num_per_page": limit,
                     "page_num": 1,
                     "query": keyword,
                     "search_type": 0,

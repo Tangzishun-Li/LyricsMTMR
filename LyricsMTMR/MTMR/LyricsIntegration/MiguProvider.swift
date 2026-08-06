@@ -33,9 +33,9 @@ enum MiguProvider {
 
     // MARK: - Search
 
-    static func search(keyword: String) async throws -> [MiguSong] {
+    static func search(keyword: String, limit: Int = 10) async throws -> [MiguSong] {
         let encoded = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword
-        let urlString = "https://m.music.migu.cn/migu/remoting/scr_search_tag?rows=10&type=2&keyword=\(encoded)&pgc=1"
+        let urlString = "https://m.music.migu.cn/migu/remoting/scr_search_tag?rows=\(limit)&type=2&keyword=\(encoded)&pgc=1"
         guard let url = URL(string: urlString) else { return [] }
 
         let (data, _) = try await session.data(from: url)
@@ -115,7 +115,7 @@ final class MiguProviderAdapter: LyricsProviderProtocol {
 
     func search(title: String, artist: String, limit: Int) async throws -> [LyricsCandidate] {
         let keyword = "\(title) \(artist)".trimmingCharacters(in: .whitespaces)
-        let songs = try await MiguProvider.search(keyword: keyword)
+        let songs = try await MiguProvider.search(keyword: keyword, limit: limit)
         return songs.prefix(limit).map { song in
             LyricsCandidate(
                 title: song.name,

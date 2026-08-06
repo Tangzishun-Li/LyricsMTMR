@@ -17,6 +17,10 @@ import SwiftUI
 final class SettingsWindowState: ObservableObject {
     static let shared = SettingsWindowState()
     @Published var isVisible: Bool = false
+    /// The tab currently shown in the settings window. Always-animating
+    /// previews (e.g. the karaoke line) observe it so their TimelineView
+    /// redraws pause while their own tab is hidden.
+    @Published var activeTab: SettingsTab? = nil
     private init() {}
 }
 
@@ -420,7 +424,7 @@ extension Deck {
                         center: .center, startRadius: 0, endRadius: 360)
                         .frame(width: 700, height: 700)
                         .offset(x: 170, y: -230)
-                        .blur(radius: 8)
+                        .blur(radius: 5)
                 }
                 .overlay(alignment: .bottomLeading) {
                     RadialGradient(
@@ -428,7 +432,7 @@ extension Deck {
                         center: .center, startRadius: 0, endRadius: 320)
                         .frame(width: 620, height: 620)
                         .offset(x: -170, y: 210)
-                        .blur(radius: 8)
+                        .blur(radius: 5)
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
@@ -934,8 +938,12 @@ struct SettingsRootView: View {
             refreshToken = UUID()
         }
         .onAppear {
+            SettingsWindowState.shared.activeTab = selection
             let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool
             sidebarVisible = saved ?? true
+        }
+        .onChange(of: selection) { _, newValue in
+            SettingsWindowState.shared.activeTab = newValue
         }
         .onReceive(NotificationCenter.default.publisher(for: .editorFocusModeRequested)) { _ in
             // Hide sidebar

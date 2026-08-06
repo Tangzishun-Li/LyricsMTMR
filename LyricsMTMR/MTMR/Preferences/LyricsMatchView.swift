@@ -15,6 +15,7 @@ import SwiftUI
 struct LyricsMatchSection: View {
     @StateObject private var manager = LyricsMatchManager()
     @ObservedObject private var engine = LyricsEngine.shared
+    @State private var candidateCount = AppSettings.lyricsCandidateCount
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -23,6 +24,7 @@ struct LyricsMatchSection: View {
                 hint: localized("搜索、预览、记忆正确的歌词来源", "Search, preview & remember the right lyrics source")
             )
 
+            candidateCountCard
             currentTrackCard
             searchResultsCard
             if manager.selectedCandidate != nil {
@@ -33,6 +35,46 @@ struct LyricsMatchSection: View {
         .onAppear { reloadIfNeeded() }
         .onChange(of: engine.trackTitle) { _ in reloadIfNeeded() }
         .onChange(of: engine.trackArtist) { _ in reloadIfNeeded() }
+    }
+
+    // MARK: - Candidate Count
+
+    private var candidateCountCard: some View {
+        Deck.Card {
+            HStack(spacing: 12) {
+                Image(systemName: "list.number")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Deck.accent)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Deck.accent.opacity(0.14))
+                    )
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(localized("每源候选数量", "Candidates Per Source"))
+                        .font(Deck.rowFont)
+                        .foregroundStyle(Deck.textPrimary)
+                    Text(localized(
+                        "每个歌词源最多列出 3-5 个候选，减少无关结果",
+                        "Each source lists 3-5 candidates max, cutting out irrelevant hits"))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                }
+                Spacer(minLength: 12)
+                Picker("", selection: $candidateCount) {
+                    ForEach([3, 4, 5], id: \.self) { n in
+                        Text("\(n)").tag(n)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 76)
+            }
+            .padding(.vertical, 5)
+        }
+        .onChange(of: candidateCount) { _, newValue in
+            AppSettings.lyricsCandidateCount = newValue
+        }
     }
 
     private func reloadIfNeeded() {

@@ -23,13 +23,13 @@ enum NetEaseProvider {
 
     // MARK: - Search
 
-    static func search(keyword: String) async throws -> [NetEaseSong] {
+    static func search(keyword: String, limit: Int = 10) async throws -> [NetEaseSong] {
         var request = URLRequest(url: URL(string: "http://music.163.com/api/search/pc")!)
         request.httpMethod = "POST"
         request.setValue("http://music.163.com/", forHTTPHeaderField: "Referer")
         request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
 
-        let body = "s=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)&offset=0&limit=10&type=1"
+        let body = "s=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)&offset=0&limit=\(limit)&type=1"
         request.httpBody = body.data(using: .utf8)
 
         let (_, response) = try await session.data(for: request)
