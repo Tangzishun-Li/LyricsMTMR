@@ -132,6 +132,28 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         DockVisibilityManager.shared.handleSettingsWindowClosed()
     }
 
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard RibbonModel.editorHasUnsavedChanges else { return true }
+        let alert = NSAlert()
+        alert.messageText = localized("有未保存的编辑器修改", "Unsaved editor changes")
+        alert.informativeText = localized("关闭前先保存到当前主题？", "Save to the current theme before closing?")
+        alert.addButton(withTitle: localized("保存", "Save"))
+        alert.addButton(withTitle: localized("不保存", "Don't Save"))
+        alert.addButton(withTitle: localized("取消", "Cancel"))
+        alert.alertStyle = .warning
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            RibbonModel.editorHasUnsavedChanges = false
+            NotificationCenter.default.post(name: RibbonModel.editorSaveRequested, object: nil)
+            return true
+        case .alertSecondButtonReturn:
+            RibbonModel.editorHasUnsavedChanges = false
+            return true
+        default:
+            return false
+        }
+    }
+
     func windowDidBecomeKey(_ notification: Notification) {
         SettingsWindowState.shared.isVisible = true
     }
@@ -851,12 +873,27 @@ extension Deck {
     }
 }
 
+// MARK: - Tab View Cache
+
+/// Keeps already-built settings tabs alive so switching never rebuilds a
+/// visited tab: revisits become an instant opacity swap instead of a full
+/// teardown + re-layout (and re-load) on the main thread. Built lazily on
+/// first visit; cleared wholesale when a profile is imported.
+private final class SettingsTabCache {
+    private var views: [SettingsTab: AnyView] = [:]
+
+    func view(for tab: SettingsTab) -> AnyView? { views[tab] }
+    func insert(_ view: AnyView, for tab: SettingsTab) { views[tab] = view }
+    func removeAll() { views.removeAll() }
+}
+
 // MARK: - Root View
 
 struct SettingsRootView: View {
     @State private var selection: SettingsTab = .general
     @Namespace private var navNamespace
     @State private var refreshToken: UUID = UUID()
+    @State private var tabCache = SettingsTabCache()
     @State private var sidebarVisible: Bool = true
     @ObservedObject private var windowState = SettingsWindowState.shared
 
@@ -891,12 +928,10 @@ struct SettingsRootView: View {
         // window top — same coordinate space as the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
         .onReceive(NotificationCenter.default.publisher(for: .settingsProfileImported)) { _ in
-            // Force all tabs to reload by toggling away and back
-            let current = selection
-            selection = .general
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                selection = current
-            }
+            // Invalidate cached tabs so every tab reloads from the imported
+            // profile; the active tab rebuilds immediately on next layout.
+            tabCache.removeAll()
+            refreshToken = UUID()
         }
         .onAppear {
             let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool
@@ -1074,20 +1109,46 @@ struct SettingsRootView: View {
 
     private var content: some View {
         ZStack {
-            tabView
-                .id(selection)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)))
+            ForEach(SettingsTab.allCases) { tab in
+                tabContainer(for: tab)
+                    .opacity(selection == tab ? 1 : 0)
+                    .allowsHitTesting(selection == tab)
+                    .accessibilityHidden(selection != tab)
+                    .zIndex(selection == tab ? 1 : 0)
+            }
         }
+        .id(refreshToken)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: selection)
+        // Fast crossfade — the old 0.34 s spring + move transition made
+        // switches feel laggy; a 0.12 s fade reads as instant and polished.
+        .animation(.easeOut(duration: 0.12), value: selection)
         .clipped()
     }
 
+    /// Returns the cached tab view, building it on first visit only. Tabs
+    /// stay mounted once visited, so state (scroll positions, edits, loaded
+    /// data) survives switching and revisits cost no rebuild at all.
     @ViewBuilder
-    private var tabView: some View {
-        switch selection {
+    private func tabContainer(for tab: SettingsTab) -> some View {
+        if let cached = tabCache.view(for: tab) {
+            cached
+        } else if tab == selection {
+            buildAndCacheTab(tab)
+        } else {
+            Color.clear
+        }
+    }
+
+    /// Builds the tab once and stores it in the cache so revisits are free.
+    private func buildAndCacheTab(_ tab: SettingsTab) -> some View {
+        let built = AnyView(buildTab(tab))
+        tabCache.insert(built, for: tab)
+        return built
+    }
+
+    @ViewBuilder
+    private func buildTab(_ tab: SettingsTab) -> some View {
+        switch tab {
         case .general: GeneralTab()
         case .lyrics: LyricsTab()
         case .slots: SlotsTab()

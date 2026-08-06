@@ -103,6 +103,27 @@ final class RibbonModel: ObservableObject {
     private var redoStack: [[[String: Any]]] = []
     private let maxUndoDepth = 40
 
+    /// Mirrors `isDirty` so the settings window can guard against closing
+    /// with unsaved edits without coupling to a specific view instance.
+    static var editorHasUnsavedChanges: Bool = false
+
+    /// Posted by the settings window when the user picks "Save" in the
+    /// close-with-unsaved-changes prompt.
+    static let editorSaveRequested = Notification.Name("LyricsMTMREditorSaveRequestedNotification")
+
+    /// Live preview writes are debounced so typing/dragging does not rebuild
+    /// the whole Touch Bar on every single mutation.
+    private var liveSyncWorkItem: DispatchWorkItem?
+
+    /// Coalesces rapid property edits (typing, slider drags) into one undo step.
+    private var lastPropertyEditAt: DispatchTime?
+
+    // ── UI feedback ──
+    @Published var errorMessage: String?
+    @Published var lastSavedAt: Date?
+    /// After an insert, the simulator scrolls to this item index.
+    @Published var scrollAnchor: Int?
+
     var onSave: (([[String: Any]], String) -> Void)?
     var onSelectionChange: (([String: Any]?) -> Void)?
 
@@ -275,7 +296,7 @@ final class RibbonModel: ObservableObject {
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
         activate(synced, themePath: path)
         syncDraft(items: synced, sourceTheme: path)
-        isDirty = false
+        finishSave()
     }
 
     @discardableResult
@@ -286,10 +307,11 @@ final class RibbonModel: ObservableObject {
         if !safe.hasSuffix(".json") { safe += ".json" }
         let path = ThemeSupport.appSupportDir + "/" + safe
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        ThemeSupport.write(items: synced, to: path)
+        let written = ThemeSupport.write(items: synced, to: path)
+        if !written { errorMessage = localized("写入新主题失败", "Failed to write new theme") }
         syncDraft(items: synced, sourceTheme: path)
         activate(synced, themePath: path)
-        isDirty = false
+        finishSave()
         return path
     }
 
@@ -307,15 +329,27 @@ final class RibbonModel: ObservableObject {
     /// then hot-reload the Touch Bar.
     private func activate(_ synced: [[String: Any]], themePath: String) {
         let isItems = (themePath as NSString).lastPathComponent == "items.json"
-        ThemeSupport.write(items: synced, to: themePath)
+        var ok = ThemeSupport.write(items: synced, to: themePath)
         if !isItems {
-            ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath())
+            ok = ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath()) && ok
+        }
+        if !ok {
+            errorMessage = localized("保存失败，无法写入配置文件", "Save failed — could not write config")
         }
         currentThemePath = themePath
         if let idx = ThemeSupport.themeIndex(fromFileName: themePath) {
             AppSettings.selectedThemeIndex = idx
         }
         TouchBarController.shared.reloadStandardConfig()
+    }
+
+    /// Common tail for save/apply paths.
+    private func finishSave() {
+        isDirty = false
+        Self.editorHasUnsavedChanges = false
+        lastSavedAt = Date()
+        lastPropertyEditAt = nil
+        liveSyncWorkItem?.cancel()
     }
 
     /// Global insertion index (in `activeItems`) that appends an item to the
@@ -356,10 +390,12 @@ final class RibbonModel: ObservableObject {
         selectionAnchor = nil
         currentThemePath = path
         isDirty = false
+        Self.editorHasUnsavedChanges = false
         navigationPath = []
         undoStack.removeAll()
         redoStack.removeAll()
         updateUndoFlags()
+        liveSyncWorkItem?.cancel()
         notifySelection()
     }
 
@@ -458,7 +494,9 @@ final class RibbonModel: ObservableObject {
 
     // MARK: Mutations (all snapshot first, mark dirty, NO auto-save)
 
-    func add(type: String) {
+    /// Adds a new component. Without explicit placement it goes right after the
+    /// current selection; a drag from the palette supplies `destination`/`zone`.
+    func add(type: String, at destination: Int? = nil, aligningTo zone: TouchBarZone? = nil) {
         guard editorMode == .edit else { return }
         snapshot()
         let schema = EditorSchema.schema(for: type)
@@ -476,11 +514,14 @@ final class RibbonModel: ObservableObject {
             item["themes"] = ThemeSupport.ensureThemeSwitchLists(in: [item]).first?["themes"] ?? []
         default: break
         }
+        if let zone = zone { item["align"] = zone.rawValue }
         var source = activeItems
-        // Insert right after the current selection so components land where the
-        // user is working; append at the end when nothing is selected.
         let insertAt: Int
-        if let anchor = selectionAnchor, anchor >= 0, anchor < source.count {
+        if let destination = destination {
+            insertAt = min(max(destination, 0), source.count)
+        } else if let anchor = selectionAnchor, anchor >= 0, anchor < source.count {
+            // Insert right after the current selection so components land where
+            // the user is working; append at the end when nothing is selected.
             insertAt = min(anchor + 1, source.count)
         } else if let last = selectedIndices.sorted().last, last >= 0, last < source.count {
             insertAt = min(last + 1, source.count)
@@ -491,6 +532,44 @@ final class RibbonModel: ObservableObject {
         activeItems = source
         selectedIndices = [insertAt]
         selectionAnchor = insertAt
+        scrollAnchor = insertAt
+        didMutate()
+        notifySelection()
+    }
+
+    /// Moves the whole selection when the dragged pill is part of a multi-select,
+    /// otherwise just the dragged item.
+    func moveSelected(from source: Int, to destination: Int, aligningTo zone: TouchBarZone? = nil) {
+        guard editorMode == .edit else { return }
+        let moving = selectedIndices.contains(source) ? selectedIndices.sorted() : [source]
+        guard let first = moving.first, first >= 0, first < activeItems.count else { return }
+        if moving.count == 1 {
+            move(from: source, to: destination, aligningTo: zone)
+            return
+        }
+        guard destination >= 0, destination <= activeItems.count else { return }
+        // Dropping the block back onto its own position is a no-op.
+        if destination >= moving.first! && destination <= moving.last! + 1 { return }
+        snapshot()
+        var arr = activeItems
+        let items = moving.map { arr[$0] }
+        for i in moving.reversed() { arr.remove(at: i) }
+        let removedBefore = moving.filter { $0 < destination }.count
+        var insertIdx = min(max(destination - removedBefore, 0), arr.count)
+        var movedItems = items
+        if let zone = zone {
+            movedItems = movedItems.map { item in
+                var it = item
+                it["align"] = zone.rawValue
+                return it
+            }
+        }
+        arr.insert(contentsOf: movedItems, at: insertIdx)
+        activeItems = arr
+        let newIndices = Set(insertIdx..<(insertIdx + moving.count))
+        selectedIndices = newIndices
+        selectionAnchor = insertIdx
+        scrollAnchor = insertIdx
         didMutate()
         notifySelection()
     }
@@ -580,7 +659,13 @@ final class RibbonModel: ObservableObject {
 
     func updateProperty(_ key: String, _ value: Any) {
         guard selectedIndices.count == 1, let i = selectedIndex, i >= 0, i < activeItems.count else { return }
-        if !isDirty { snapshot() }
+        // Rapid consecutive property edits (typing, slider drags) share one
+        // undo step, but a pause or any other operation starts a new one.
+        let now = DispatchTime.now()
+        let isCoalesced = isDirty && lastPropertyEditAt != nil
+            && now.uptimeNanoseconds - lastPropertyEditAt!.uptimeNanoseconds < 500_000_000
+        if !isCoalesced { snapshot() }
+        lastPropertyEditAt = now
         var source = activeItems
         if let existing = source[i][key] {
             if existing is Int, let s = value as? String, let n = Int(s) {
@@ -651,6 +736,7 @@ final class RibbonModel: ObservableObject {
         let pastedCount = slot.items.count
         selectedIndices = Set(insertAt..<(insertAt + pastedCount))
         selectionAnchor = insertAt
+        scrollAnchor = insertAt + pastedCount - 1
         didMutate()
         notifySelection()
     }
@@ -665,12 +751,13 @@ final class RibbonModel: ObservableObject {
         // Persistence is no longer gated behind live preview.
         let target = currentDraft?.sourceTheme ?? currentThemePath
         activate(synced, themePath: target.isEmpty ? ThemeSupport.itemsJSONPath() : target)
-        isDirty = false
+        finishSave()
     }
 
-    /// Called after every mutation. Auto-saves draft and syncs live preview.
+    /// Called after every mutation. Auto-saves draft and debounces live preview.
     func didMutate() {
         isDirty = true
+        Self.editorHasUnsavedChanges = true
         // Auto-save to draft
         if var draft = currentDraft {
             draft.items = items
@@ -678,16 +765,29 @@ final class RibbonModel: ObservableObject {
             DraftManager.shared.save(draft)
             currentDraft = draft
         }
-        // Live preview: write items.json + reload Touch Bar immediately
+        // Live preview: write items.json + reload the Touch Bar, debounced so
+        // rapid edits don't rebuild the whole bar on every keystroke.
         if isLivePreview {
-            syncToTouchBar()
+            scheduleLiveSync()
         }
+    }
+
+    private func scheduleLiveSync() {
+        liveSyncWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.syncToTouchBar()
+        }
+        liveSyncWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     /// Write current items to items.json and hot-reload the Touch Bar.
     private func syncToTouchBar() {
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath())
+        let ok = ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath())
+        if !ok {
+            errorMessage = localized("实时预览同步失败", "Live preview sync failed")
+        }
         TouchBarController.shared.reloadStandardConfig()
     }
 
@@ -701,15 +801,15 @@ final class RibbonModel: ObservableObject {
     func toggleLivePreview() {
         isLivePreview.toggle()
         if isLivePreview {
-            // Turning on: sync current state to Touch Bar immediately
+            // Turning on: push current state to the Touch Bar right away.
+            liveSyncWorkItem?.cancel()
             syncToTouchBar()
         } else {
-            // Turning off: exit draft, reload the active theme (items.json)
+            // Turning off: exit draft, reload the active theme (items.json).
+            liveSyncWorkItem?.cancel()
             currentDraft = nil
             navigationPath = []
-            let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
-                .first!.appending("/LyricsMTMR")
-            let itemsPath = appSupport + "/items.json"
+            let itemsPath = ThemeSupport.itemsJSONPath()
             if let data = FileManager.default.contents(atPath: itemsPath),
                let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 load(json, from: itemsPath)
@@ -767,7 +867,7 @@ struct RibbonEditorView: View {
                 onAdd: { type in model.add(type: type) },
                 isEnabled: model.editorMode == .edit
             )
-            .frame(height: 54)
+            .frame(height: 96)
             .background(EditorColors.sidebarSwift)
 
             Hairline()
@@ -797,6 +897,9 @@ struct RibbonEditorView: View {
                     .background(EditorColors.sidebarSwift)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            // ── Status bar: always-visible save affordance ──
+            editorStatusBar
         }
         .onAppear {
             model.onSave = { items, path in
@@ -874,6 +977,148 @@ struct RibbonEditorView: View {
         .sheet(isPresented: $showNewThemeSheet) {
             newThemeSheet
         }
+        .alert(
+            localized("提示", "Notice"),
+            isPresented: Binding(
+                get: { model.errorMessage != nil },
+                set: { if !$0 { model.errorMessage = nil } }
+            )
+        ) {
+            Button("OK") { model.errorMessage = nil }
+        } message: {
+            Text(model.errorMessage ?? "")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RibbonModel.editorSaveRequested)) { _ in
+            model.save()
+        }
+    }
+
+    // MARK: - Status bar
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
+
+    private var currentFileName: String {
+        let name = (model.currentThemePath as NSString).lastPathComponent
+        return name.isEmpty ? localized("未命名", "Untitled") : name
+    }
+
+    private func toggleLivePreviewWithGuard() {
+        if model.isLivePreview && model.isDirty {
+            pendingLiveOff = true
+            showDiscardConfirm = true
+        } else {
+            model.toggleLivePreview()
+        }
+    }
+
+    private var editorStatusBar: some View {
+        HStack(spacing: 10) {
+            if model.isDirty {
+                Circle()
+                    .fill(EditorColors.accentSwift)
+                    .frame(width: 7, height: 7)
+                Text(localized("已修改", "Modified"))
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(EditorColors.accentSwift)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(EditorColors.mintSwift)
+                Text(localized("已保存", "Saved"))
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(EditorColors.mintSwift)
+            }
+
+            Text(localized("编辑中:", "Editing:"))
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(EditorColors.textTertiarySwift)
+            Text(currentFileName)
+                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                .foregroundStyle(EditorColors.textPrimarySwift)
+                .lineLimit(1)
+
+            if let savedAt = model.lastSavedAt {
+                Text(localized("最后保存", "Saved at") + " \(Self.timeFormatter.string(from: savedAt))")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+            }
+
+            Spacer()
+
+            // Live preview toggle
+            Button(action: { toggleLivePreviewWithGuard() }) {
+                HStack(spacing: 4) {
+                    Image(systemName: model.isLivePreview ? "eye.fill" : "eye.slash")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(localized("实时", "Live"))
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(model.isLivePreview ? EditorColors.mintSwift : EditorColors.textSecondarySwift)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(model.isLivePreview ? EditorColors.mintSwift.opacity(0.12) : EditorColors.hoverFillSwift)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(model.isLivePreview ? EditorColors.mintSwift.opacity(0.4) : EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                        )
+                }
+            }
+            .buttonStyle(.plain)
+            .help(localized("开启后编辑实时同步到 Touch Bar", "When on, edits sync to Touch Bar in real-time"))
+
+            // Save As
+            Button(action: { showNewThemeSheet = true }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(localized("另存", "Save As"))
+                        .font(.system(size: 10.5, weight: .semibold))
+                }
+                .foregroundStyle(EditorColors.textSecondarySwift)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(EditorColors.hoverFillSwift)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                        )
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(model.items.isEmpty)
+            .help(localized("另存为新主题", "Save as a new theme"))
+
+            // Save — the primary action, always visible
+            Button(action: { model.save() }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.down.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(localized("保存", "Save"))
+                        .font(.system(size: 10.5, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background {
+                    Capsule()
+                        .fill(model.isDirty ? EditorColors.accentSwift : Color.gray.opacity(0.35))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!model.isDirty)
+            .help(localized("保存到当前主题 (⌘S)", "Save to current theme (⌘S)"))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .background(EditorColors.sidebarSwift)
     }
 
 
@@ -993,7 +1238,11 @@ struct RibbonEditorView: View {
 
     private var ribbonToolbar: some View {
         HStack(spacing: 0) {
-            // ━━ Group: Theme ━━
+            // Groups scroll horizontally so every action (incl. 保存) is
+            // reachable even in a narrow settings window.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    // ━━ Group: Theme ━━
             RibbonGroup(label: localized("主题", "Theme")) {
                 HStack(spacing: 8) {
                     Image(systemName: "paintpalette.fill")
@@ -1152,14 +1401,7 @@ struct RibbonEditorView: View {
                     }
 
                     // Live preview toggle
-                    Button(action: {
-                        if model.isLivePreview && model.isDirty {
-                            pendingLiveOff = true
-                            showDiscardConfirm = true
-                        } else {
-                            model.toggleLivePreview()
-                        }
-                    }) {
+                    Button(action: { toggleLivePreviewWithGuard() }) {
                         HStack(spacing: 3) {
                             Image(systemName: model.isLivePreview ? "eye.fill" : "eye.slash")
                                 .font(.system(size: 10, weight: .semibold))
@@ -1240,12 +1482,14 @@ struct RibbonEditorView: View {
                     RibbonButton(
                         symbol: "chevron.left",
                         label: localized("左移", "Left"),
+                        shortcut: "←",
                         isEnabled: model.editorMode == .edit && (model.selectedIndex ?? -1) > 0
                     ) { model.moveLeft() }
 
                     RibbonButton(
                         symbol: "chevron.right",
                         label: localized("右移", "Right"),
+                        shortcut: "→",
                         isEnabled: model.editorMode == .edit && (model.selectedIndex ?? -1) >= 0 && (model.selectedIndex ?? -1) < model.activeItems.count - 1
                     ) { model.moveRight() }
                 }
@@ -1332,9 +1576,12 @@ struct RibbonEditorView: View {
                 }
             }
 
+                }
+            }
+
             Spacer(minLength: 12)
 
-            // ━━ Right: badges ━━
+            // ━━ Right: badges (pinned) ━━
             HStack(spacing: 8) {
                 // Selection badge
                 if !model.selectedIndices.isEmpty {
@@ -1440,11 +1687,20 @@ struct RibbonEditorView: View {
     }
 
     private func loadTheme(at path: String) {
-        guard let data = FileManager.default.contents(atPath: path),
-              let raw = String(data: data, encoding: .utf8) else { return }
+        guard let data = FileManager.default.contents(atPath: path) else {
+            model.errorMessage = localized("无法读取文件", "Could not read file") + " \(path)"
+            return
+        }
+        guard let raw = String(data: data, encoding: .utf8) else {
+            model.errorMessage = localized("文件编码不支持", "Unsupported file encoding")
+            return
+        }
         let cleaned = stripJSONComments(raw)
         guard let jsonData = cleaned.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else { return }
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
+            model.errorMessage = localized("配置解析失败，文件可能已损坏", "Config parse failed — file may be corrupted")
+            return
+        }
         model.load(json, from: path)
     }
 
@@ -1666,28 +1922,64 @@ struct PaletteRibbon: View {
     let onAdd: (String) -> Void
     var isEnabled: Bool = true
 
+    @State private var searchText = ""
+
+    private var filteredCategories: [(label: String, types: [String])] {
+        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !query.isEmpty else { return EditorSchema.paletteCategories }
+        return EditorSchema.paletteCategories.compactMap { category in
+            let types = category.types.filter { type in
+                let schema = EditorSchema.schema(for: type)
+                return schema.displayName.lowercased().contains(query) || type.lowercased().contains(query)
+            }
+            return types.isEmpty ? nil : (category.label, types)
+        }
+    }
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(Array(EditorSchema.paletteCategories.enumerated()), id: \.offset) { _, category in
-                    HStack(spacing: 4) {
-                        ForEach(category.types, id: \.self) { type in
-                            let schema = EditorSchema.schema(for: type)
-                            PaletteChip(schema: schema, isEnabled: isEnabled) {
-                                onAdd(type)
+        VStack(spacing: 4) {
+            // Search row
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                TextField(localized("搜索组件…", "Search elements…"), text: $searchText)
+                    .textFieldStyle(RibbonTextFieldStyle())
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(EditorColors.textTertiarySwift)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 22)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
+                        HStack(spacing: 4) {
+                            ForEach(category.types, id: \.self) { type in
+                                let schema = EditorSchema.schema(for: type)
+                                PaletteChip(schema: schema, isEnabled: isEnabled) {
+                                    onAdd(type)
+                                }
                             }
                         }
+                        .padding(.leading, 8)
+                        Divider()
+                            .frame(height: 24)
+                            .background(EditorColors.hairlineSwift)
                     }
-                    .padding(.leading, 8)
-                    Divider()
-                        .frame(height: 24)
-                        .background(EditorColors.hairlineSwift)
+                    Spacer()
                 }
-                Spacer()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -1699,31 +1991,36 @@ struct PaletteChip: View {
     @State private var hovering = false
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: schema.symbol)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(isEnabled ? (hovering ? EditorColors.accentSwift : EditorColors.textSecondarySwift) : EditorColors.textTertiarySwift.opacity(0.3))
-                    if schema.requiresAPIKey {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 6, weight: .bold))
-                            .foregroundStyle(EditorColors.accentSwift.opacity(0.7))
-                            .offset(x: 6, y: -2)
-                    }
+        VStack(spacing: 2) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: schema.symbol)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isEnabled ? (hovering ? EditorColors.accentSwift : EditorColors.textSecondarySwift) : EditorColors.textTertiarySwift.opacity(0.3))
+                if schema.requiresAPIKey {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundStyle(EditorColors.accentSwift.opacity(0.7))
+                        .offset(x: 6, y: -2)
                 }
-                Text(schema.displayName)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(isEnabled ? EditorColors.textTertiarySwift : EditorColors.textTertiarySwift.opacity(0.3))
             }
-            .frame(width: 50, height: 38)
-            .background {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(hovering && isEnabled ? EditorColors.hoverFillSwift : Color.clear)
-            }
+            Text(schema.displayName)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(isEnabled ? EditorColors.textTertiarySwift : EditorColors.textTertiarySwift.opacity(0.3))
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
+        .frame(width: 50, height: 38)
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(hovering && isEnabled ? EditorColors.hoverFillSwift : Color.clear)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isEnabled { action() }
+        }
+        .onDrag {
+            guard isEnabled else { return NSItemProvider() }
+            // "palette:<type>" payload — the simulator inserts it at the drop point.
+            return NSItemProvider(object: "palette:\(schema.type)" as NSString)
+        }
         .help(schema.description.isEmpty ? schema.displayName : schema.description)
         .onHover { hovering = isEnabled ? $0 : false }
         .animation(.easeOut(duration: 0.1), value: hovering)

@@ -49,6 +49,27 @@ enum ThemeSupport {
             .map { (name: ($0 as NSString).deletingPathExtension, path: appSupportDir + "/" + $0) }
     }
 
+    /// Resolves a preset reference to an absolute path (absolute presets pass
+    /// through; bare names resolve inside the app support directory).
+    static func resolvedPath(for preset: String) -> String {
+        if preset.hasPrefix("/") { return preset }
+        return appSupportDir + "/" + preset
+    }
+
+    /// True when the preset's file exists on disk.
+    static func presetExists(_ preset: String) -> Bool {
+        FileManager.default.fileExists(atPath: resolvedPath(for: preset))
+    }
+
+    /// Normalizes a theme label: pure numbers like "3" become "theme3".
+    static func normalizedLabel(_ label: String, preset: String) -> String {
+        let stem = (preset as NSString).deletingPathExtension
+        if stem.hasPrefix("theme"), Int(label) != nil {
+            return stem
+        }
+        return label
+    }
+
     @discardableResult
     static func write(items: [[String: Any]], to path: String) -> Bool {
         guard let data = try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted]) else { return false }
@@ -76,8 +97,14 @@ enum ThemeSupport {
                     let preset = theme["preset"] as? String ?? ""
                     let key = resolveThemeKey(preset)
                     guard !seen.contains(key) else { continue }
+                    // Never keep a switcher entry pointing at a missing file.
+                    guard presetExists(preset) else { continue }
                     seen.insert(key)
-                    merged.append(theme)
+                    var entry = theme
+                    if let label = entry["label"] as? String {
+                        entry["label"] = normalizedLabel(label, preset: preset)
+                    }
+                    merged.append(entry)
                 }
             }
             for entry in disk {

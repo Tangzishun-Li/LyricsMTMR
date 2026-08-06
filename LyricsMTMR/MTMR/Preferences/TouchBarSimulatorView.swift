@@ -184,8 +184,29 @@ struct TouchBarSimulatorView: View {
             }
 
             // Items
-            ScrollView(.horizontal, showsIndicators: false) {
-                itemsHStack(items, zone: zone, scale: scale)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    itemsHStack(items, zone: zone, scale: scale)
+                }
+                .onChange(of: model.scrollAnchor) { anchor in
+                    guard let anchor else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(anchor, anchor: .center)
+                    }
+                }
+            }
+
+            // Drop hint when hovering over the zone background
+            if zoneDropHover == zone {
+                Text(localized("松开插入本区", "Drop to append here"))
+                    .font(.system(size: 8 * max(scale, 0.7), weight: .semibold))
+                    .foregroundStyle(EditorColors.accentSwift)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background {
+                        Capsule().fill(EditorColors.accentSwift.opacity(0.15))
+                    }
+                    .allowsHitTesting(false)
             }
         }
         .onHover { hovering in
@@ -240,12 +261,15 @@ struct TouchBarSimulatorView: View {
                         onMoveToZone: { newZone in moveToZone(entry.index, zone: newZone) },
                         onDrillIn: { model.drillInto(index: entry.index) }
                     )
+                    .id(entry.index)
                     .onDrag {
-                        if model.editorMode == .edit {
+                        guard model.editorMode == .edit else { return NSItemProvider() }
+                        // Keep multi-selection: dragging one selected pill moves
+                        // the whole selection.
+                        if !model.isSelected(entry.index) {
                             model.select(entry.index)
-                            return NSItemProvider(object: "\(entry.index)" as NSString)
                         }
-                        return NSItemProvider()
+                        return NSItemProvider(object: "\(entry.index)" as NSString)
                     }
                     .onDrop(of: [.text], delegate: SimDropDelegate(
                         targetIndex: entry.index,
@@ -520,17 +544,11 @@ struct SimPill: View {
             let fmt = item["formatTemplate"] as? String ?? "HH:mm"
             let df = DateFormatter(); df.dateFormat = fmt
             return df.string(from: Date())
-        case "battery": return "87%"
-        case "cpu": return "12%"
-        case "volume": return "▮▮▯"
-        case "brightness": return "☀▮▮"
-        case "weather": return "26°"
         case "stock":
             let stocks = item["stocks"] as? [String] ?? []
-            return stocks.first ?? "AAPL"
+            return stocks.first ?? "Stock"
         case "lyrics": return "♫"
         case "dock": return "Dock"
-        case "pomodoro": return "25:00"
         case "themeSwitch": return "⚙"
         case "deepseekBalance": return "DS"
         case "opencodeGoUsage": return "Go"
@@ -573,10 +591,15 @@ struct SimDropDelegate: DropDelegate {
         onHover(false)
         guard let provider = info.itemProviders(for: [.text]).first else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let str = reading as? String, let from = Int(str) else { return }
+            guard let str = reading as? String else { return }
             let dest = info.location.x < width / 2 ? targetIndex : targetIndex + 1
             DispatchQueue.main.async {
-                model.move(from: from, to: dest, aligningTo: zone)
+                if str.hasPrefix("palette:") {
+                    let type = String(str.dropFirst("palette:".count))
+                    model.add(type: type, at: dest, aligningTo: zone)
+                } else if let from = Int(str) {
+                    model.moveSelected(from: from, to: dest, aligningTo: zone)
+                }
             }
         }
         return true
@@ -598,10 +621,15 @@ struct ZoneDropDelegate: DropDelegate {
         onHover(false)
         guard let provider = info.itemProviders(for: [.text]).first else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let str = reading as? String, let from = Int(str) else { return }
+            guard let str = reading as? String else { return }
             DispatchQueue.main.async {
                 guard let dest = model.insertPosition(forZone: zone) else { return }
-                model.move(from: from, to: dest, aligningTo: zone)
+                if str.hasPrefix("palette:") {
+                    let type = String(str.dropFirst("palette:".count))
+                    model.add(type: type, at: dest, aligningTo: zone)
+                } else if let from = Int(str) {
+                    model.moveSelected(from: from, to: dest, aligningTo: zone)
+                }
             }
         }
         return true

@@ -104,8 +104,11 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
         for theme in configured {
             let key = resolveKey(theme.preset)
             guard !seen.contains(key) else { continue }
+            // A switcher entry whose file is gone would render "bad preset".
+            guard ThemeSupport.presetExists(theme.preset) else { continue }
             seen.insert(key)
-            merged.append(theme)
+            let label = ThemeSupport.normalizedLabel(theme.label, preset: theme.preset)
+            merged.append(ThemeDefinition(label: label, preset: theme.preset, matchAppIds: theme.matchAppIds))
         }
         for entry in ThemeSupport.discoverThemeFiles() {
             let key = resolveKey(entry.path)
