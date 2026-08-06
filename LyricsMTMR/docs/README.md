@@ -21,6 +21,7 @@ mindmap
     已有文档
       Items 完整参考手册 ITEMS_REFERENCE.md
       第三方接入 第三方接入.md
+      文件存放说明 file-structure.zh.md
 ```
 
 | 文档 | 中文 | English | 面向读者 |
@@ -32,6 +33,7 @@ mindmap
 | **内部协议与扩展 API** | [internal-apis.zh.md](developer-guide/internal-apis.zh.md) | [internal-apis.en.md](developer-guide/internal-apis.en.md) | 开发者：Widget / Provider 扩展、私有桥接层 |
 | **Items 完整参考手册** | [ITEMS_REFERENCE.md](ITEMS_REFERENCE.md) | — | 全部组件 type 的配置参考 |
 | **第三方接入** | [第三方接入.md](第三方接入.md) | — | 本地 JSON 数据文件接口（expenses.json 等） |
+| **文件存放说明** | [file-structure.zh.md](file-structure.zh.md) | — | 仓库目录职责、新增文件归属、构建命令 |
 
 ---
 
@@ -46,6 +48,7 @@ mindmap
 | 新增一个 Widget / 歌词源 | [开发者册 · 内部协议](developer-guide/internal-apis.zh.md) |
 | 查看全部组件 type 与 JSON 示例 | [ITEMS_REFERENCE.md](ITEMS_REFERENCE.md) |
 | 外部程序写入本地 JSON 数据 | [第三方接入.md](第三方接入.md) |
+| 新增/移动文件前先查归属 | [file-structure.zh.md](file-structure.zh.md) |
 
 ---
 
