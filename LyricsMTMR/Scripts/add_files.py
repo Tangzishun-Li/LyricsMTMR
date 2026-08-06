@@ -7,7 +7,7 @@ UUIDs are deterministic per-filename so re-runs are stable and idempotent.
 """
 import sys, re, hashlib, os
 
-PBX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "LyricsMTMR.xcodeproj", "project.pbxproj")
+PBX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LyricsMTMR.xcodeproj", "project.pbxproj")
 
 def uuids_for(name):
     h = hashlib.sha1(name.encode()).hexdigest().upper()

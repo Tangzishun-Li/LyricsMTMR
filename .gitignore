@@ -46,10 +46,16 @@ Sparkle.framework/
 *.dmg
 *.tar.gz
 
+# Release packaging (upstream MTMR layout)
+Release/
+DerivedData/
+App.xcarchive/
+
 # IDE
 .idea/
 *.swp
 *.swo
+.vscode/
 # Backup files
 *.bak
 *.backup

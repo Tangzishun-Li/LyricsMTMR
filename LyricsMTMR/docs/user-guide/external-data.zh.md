@@ -297,5 +297,5 @@ Touch Bar 播放歌曲时自动搜索歌词，无需任何 Key。可在「设置
 
 - [脚本与自动化指南](scripting.zh.md) — 用 AppleScript / Shell 脚本自定义组件内容
 - [开发者册 · 外部 API 参考](../developer-guide/external-apis.zh.md) — 请求参数与响应结构
-- [Items 完整参考手册](../../../ITEMS_REFERENCE.md) — 全部组件类型
+- [Items 完整参考手册](../ITEMS_REFERENCE.md) — 全部组件类型
 - [第三方接入](../第三方接入.md) — 本地 JSON 数据文件接口

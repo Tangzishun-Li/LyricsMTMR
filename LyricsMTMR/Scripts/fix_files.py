@@ -6,7 +6,7 @@ Idempotent: skips files already present in each list.
 """
 import sys, hashlib, os
 
-PBX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "LyricsMTMR.xcodeproj", "project.pbxproj")
+PBX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LyricsMTMR.xcodeproj", "project.pbxproj")
 
 def uuids_for(name):
     h = hashlib.sha1(name.encode()).hexdigest().upper()

@@ -185,4 +185,4 @@ curl -s "https://api.bilibili.com/x/relation/stat?vmid=你的UID" \
 
 - [外部数据 API 使用指南](external-data.zh.md) — 常见数据组件配置
 - [开发者册 · 脚本 API 参考](../developer-guide/scripting-api.zh.md) — 协议与源码
-- [Items 完整参考手册](../../../ITEMS_REFERENCE.md) — 全部组件类型
+- [Items 完整参考手册](../ITEMS_REFERENCE.md) — 全部组件类型

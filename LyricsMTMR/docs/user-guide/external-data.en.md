@@ -297,5 +297,5 @@ All third-party credentials are managed in **Settings → Services**:
 
 - [Scripting & Automation Guide](scripting.en.md) — custom item content with AppleScript / Shell
 - [Developer Guide · External API Reference](../developer-guide/external-apis.en.md) — request params & responses
-- [ITEMS Reference](../../../ITEMS_REFERENCE.md) — all item types
+- [ITEMS Reference](../ITEMS_REFERENCE.md) — all item types
 - [Third-party data files](../第三方接入.md) — local JSON file interfaces

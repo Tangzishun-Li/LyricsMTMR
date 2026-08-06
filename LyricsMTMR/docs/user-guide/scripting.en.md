@@ -185,4 +185,4 @@ curl -s "https://api.bilibili.com/x/relation/stat?vmid=YOUR_UID" \
 
 - [External Data API Guide](external-data.en.md) — common data item configuration
 - [Developer Guide · Scripting API Reference](../developer-guide/scripting-api.en.md) — protocols & source
-- [ITEMS Reference](../../../ITEMS_REFERENCE.md) — all item types
+- [ITEMS Reference](../ITEMS_REFERENCE.md) — all item types

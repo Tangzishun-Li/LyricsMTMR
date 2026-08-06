@@ -30,7 +30,7 @@ mindmap
 | **外部 API 参考** | [external-apis.zh.md](developer-guide/external-apis.zh.md) | [external-apis.en.md](developer-guide/external-apis.en.md) | 开发者：端点、参数、响应、加密与降级策略 |
 | **脚本 API 参考** | [scripting-api.zh.md](developer-guide/scripting-api.zh.md) | [scripting-api.en.md](developer-guide/scripting-api.en.md) | 开发者：`appleScript` / `shellScript` 返回协议 |
 | **内部协议与扩展 API** | [internal-apis.zh.md](developer-guide/internal-apis.zh.md) | [internal-apis.en.md](developer-guide/internal-apis.en.md) | 开发者：Widget / Provider 扩展、私有桥接层 |
-| **Items 完整参考手册** | [../../ITEMS_REFERENCE.md](../../ITEMS_REFERENCE.md) | — | 全部组件 type 的配置参考 |
+| **Items 完整参考手册** | [ITEMS_REFERENCE.md](ITEMS_REFERENCE.md) | — | 全部组件 type 的配置参考 |
 | **第三方接入** | [第三方接入.md](第三方接入.md) | — | 本地 JSON 数据文件接口（expenses.json 等） |
 
 ---
@@ -44,7 +44,7 @@ mindmap
 | 了解歌词源接口与加密 | [开发者册 · 外部 API](developer-guide/external-apis.zh.md) |
 | 搞懂 shellScript 返回协议 | [开发者册 · 脚本 API](developer-guide/scripting-api.zh.md) |
 | 新增一个 Widget / 歌词源 | [开发者册 · 内部协议](developer-guide/internal-apis.zh.md) |
-| 查看全部组件 type 与 JSON 示例 | [ITEMS_REFERENCE.md](../../ITEMS_REFERENCE.md) |
+| 查看全部组件 type 与 JSON 示例 | [ITEMS_REFERENCE.md](ITEMS_REFERENCE.md) |
 | 外部程序写入本地 JSON 数据 | [第三方接入.md](第三方接入.md) |
 
 ---

@@ -5,7 +5,7 @@ and fell through to `default: break`, so new items never rendered. Idempotent.
 """
 import os
 
-PATH = "/Users/litz/codespace/MTMR with LyricsX /LyricsMTMR/MTMR/TouchBarController.swift"
+PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "MTMR", "TouchBarController.swift")
 
 ITEMS = [
     ("networkSpeed", "NetworkSpeed", ["refreshInterval", "units"]),
