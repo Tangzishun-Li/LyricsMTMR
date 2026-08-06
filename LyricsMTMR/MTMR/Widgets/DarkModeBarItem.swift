@@ -4,7 +4,7 @@ class DarkModeBarItem: CustomButtonTouchBarItem, Widget {
     static var name: String = "darkmode"
     static var identifier: String = "com.toxblh.mtmr.darkmode"
 
-    private var timer: Timer!
+    private var timer: Timer?
 
     init(identifier: NSTouchBarItem.Identifier) {
         super.init(identifier: identifier, title: "")
@@ -13,12 +13,19 @@ class DarkModeBarItem: CustomButtonTouchBarItem, Widget {
 
         actions.append(ItemAction(trigger: .singleTap) { [weak self] in self?.DarkModeToggle() })
 
-        timer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
+        timer?.tolerance = 0.3
 
         refresh()
     }
 
     required init?(coder _: NSCoder) { return nil }
+
+    deinit {
+        timer?.invalidate()
+    }
 
     func DarkModeToggle() {
         DarkMode.isEnabled = !DarkMode.isEnabled
@@ -52,4 +59,3 @@ struct DarkMode {
 func runAppleScript(_ source: String) -> String? {
     return NSAppleScript(source: source)?.executeAndReturnError(nil).stringValue
 }
-

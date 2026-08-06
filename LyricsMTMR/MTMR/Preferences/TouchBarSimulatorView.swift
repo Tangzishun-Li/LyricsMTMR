@@ -45,6 +45,12 @@ enum TouchBarZone: String, CaseIterable {
     }
 }
 
+/// Where a dragged pill will be inserted relative to the drop target.
+enum DropPosition: Equatable {
+    case before
+    case after
+}
+
 // MARK: - Simulator View
 
 struct TouchBarSimulatorView: View {
@@ -53,7 +59,9 @@ struct TouchBarSimulatorView: View {
     /// Fraction of total width allocated to center (0.2...0.8). Dragging handles adjusts this.
     @State private var centerFraction: CGFloat = 0.55
     @State private var dragOverIndex: Int?
+    @State private var dragOverPosition: DropPosition = .before
     @State private var hoveredZone: TouchBarZone?
+    @State private var zoneDropHover: TouchBarZone?
     @State private var scrollOffset: CGFloat = 0
     @State private var trashHovering = false
 
@@ -154,6 +162,13 @@ struct TouchBarSimulatorView: View {
             // Zone background
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(isCenter ? Color(white: 0.10) : Color(white: 0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .strokeBorder(
+                            zoneDropHover == zone ? EditorColors.accentSwift.opacity(0.7) : Color.clear,
+                            lineWidth: 1.5
+                        )
+                )
 
             // Zone label (top-left, subtle)
             VStack {
@@ -169,13 +184,51 @@ struct TouchBarSimulatorView: View {
             }
 
             // Items
-            ScrollView(.horizontal, showsIndicators: false) {
-                itemsHStack(items, zone: zone, scale: scale)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    itemsHStack(items, zone: zone, scale: scale)
+                }
+                .onChange(of: model.scrollAnchor) { anchor in
+                    guard let anchor else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(anchor, anchor: .center)
+                    }
+                }
+            }
+
+            // Drop hint when hovering over the zone background
+            if zoneDropHover == zone {
+                Text(localized("松开插入本区", "Drop to append here"))
+                    .font(.system(size: 8 * max(scale, 0.7), weight: .semibold))
+                    .foregroundStyle(EditorColors.accentSwift)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background {
+                        Capsule().fill(EditorColors.accentSwift.opacity(0.15))
+                    }
+                    .allowsHitTesting(false)
             }
         }
         .onHover { hovering in
             hoveredZone = hovering ? zone : nil
         }
+        .onDrop(of: [.text], delegate: ZoneDropDelegate(
+            zone: zone,
+            model: model,
+            onHover: { hovering in zoneDropHover = hovering ? zone : nil }
+        ))
+    }
+
+    /// Rough rendered width of a pill used to decide before/after insertion
+    /// from the drop location.
+    private func estimatedPillWidth(_ item: [String: Any], scale: CGFloat) -> CGFloat {
+        let text: CGFloat
+        if let title = item["title"] as? String, !title.isEmpty {
+            text = CGFloat(title.count) * 5.5
+        } else {
+            text = 24
+        }
+        return (32 + text + 18) * max(scale, 0.7)
     }
 
     private func itemsHStack(_ items: [(index: Int, item: [String: Any])], zone: TouchBarZone, scale: CGFloat) -> some View {
@@ -191,26 +244,45 @@ struct TouchBarSimulatorView: View {
                         index: entry.index,
                         isSelected: model.isSelected(entry.index),
                         isMultiMode: model.selectedIndices.count > 1,
-                        isDropTarget: dragOverIndex == entry.index,
+                        dropPosition: dragOverIndex == entry.index ? dragOverPosition : nil,
                         isEditMode: model.editorMode == .edit,
                         isCenterZone: zone == .center,
                         scale: scale,
                         onDelete: { model.delete(at: entry.index) },
                         onTap: { handleTap(entry.index) },
+                        onCopy: {
+                            model.select(entry.index)
+                            model.copySelected()
+                        },
+                        onCut: {
+                            model.select(entry.index)
+                            model.cutSelected()
+                        },
                         onMoveToZone: { newZone in moveToZone(entry.index, zone: newZone) },
                         onDrillIn: { model.drillInto(index: entry.index) }
                     )
+                    .id(entry.index)
                     .onDrag {
-                        if model.editorMode == .edit {
+                        guard model.editorMode == .edit else { return NSItemProvider() }
+                        // Keep multi-selection: dragging one selected pill moves
+                        // the whole selection.
+                        if !model.isSelected(entry.index) {
                             model.select(entry.index)
-                            return NSItemProvider(object: "\(entry.index)" as NSString)
                         }
-                        return NSItemProvider()
+                        return NSItemProvider(object: "\(entry.index)" as NSString)
                     }
                     .onDrop(of: [.text], delegate: SimDropDelegate(
                         targetIndex: entry.index,
+                        zone: zone,
                         model: model,
-                        onHover: { hovering in dragOverIndex = hovering ? entry.index : nil }
+                        width: estimatedPillWidth(entry.item, scale: scale),
+                        onHover: { hovering in
+                            dragOverIndex = hovering ? entry.index : nil
+                            if !hovering { dragOverPosition = .before }
+                        },
+                        onInsertion: { position in
+                            if dragOverIndex == entry.index { dragOverPosition = position }
+                        }
                     ))
                 }
             }
@@ -331,12 +403,14 @@ struct SimPill: View {
     let index: Int
     let isSelected: Bool
     let isMultiMode: Bool
-    let isDropTarget: Bool
+    let dropPosition: DropPosition?
     let isEditMode: Bool
     let isCenterZone: Bool
     let scale: CGFloat
     let onDelete: () -> Void
     let onTap: () -> Void
+    let onCopy: () -> Void
+    let onCut: () -> Void
     let onMoveToZone: (TouchBarZone) -> Void
     let onDrillIn: () -> Void
 
@@ -396,11 +470,19 @@ struct SimPill: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .strokeBorder(
-                            isDropTarget ? EditorColors.accentSwift
+                            dropPosition != nil ? EditorColors.accentSwift
                                 : (isSelected ? EditorColors.accentSwift.opacity(0.8) : Color(white: 0.22)),
-                            lineWidth: isDropTarget ? 1.5 : (isSelected ? 1 : 0.5)
+                            lineWidth: dropPosition != nil ? 1.5 : (isSelected ? 1 : 0.5)
                         )
                 )
+                .overlay(alignment: dropPosition == .before ? .leading : .trailing) {
+                    if dropPosition != nil {
+                        RoundedRectangle(cornerRadius: 1, style: .continuous)
+                            .fill(EditorColors.accentSwift)
+                            .frame(width: 2.5, height: 14 * max(scale, 0.7))
+                            .padding(.horizontal, -1.5)
+                    }
+                }
         }
         .onTapGesture(count: 2) {
             if hasChildren { onDrillIn() }
@@ -412,6 +494,16 @@ struct SimPill: View {
 
     @ViewBuilder
     private var contextMenuItems: some View {
+        if isEditMode {
+            Button(action: onCopy) {
+                Label(localized("复制", "Copy"), systemImage: "doc.on.doc")
+            }
+            Button(action: onCut) {
+                Label(localized("剪切", "Cut"), systemImage: "scissors")
+            }
+            Divider()
+        }
+
         if hasChildren {
             Button(action: onDrillIn) {
                 Label(localized("编辑子项", "Edit Children"), systemImage: "square.stack.3d.down.right")
@@ -452,17 +544,11 @@ struct SimPill: View {
             let fmt = item["formatTemplate"] as? String ?? "HH:mm"
             let df = DateFormatter(); df.dateFormat = fmt
             return df.string(from: Date())
-        case "battery": return "87%"
-        case "cpu": return "12%"
-        case "volume": return "▮▮▯"
-        case "brightness": return "☀▮▮"
-        case "weather": return "26°"
         case "stock":
             let stocks = item["stocks"] as? [String] ?? []
-            return stocks.first ?? "AAPL"
+            return stocks.first ?? "Stock"
         case "lyrics": return "♫"
         case "dock": return "Dock"
-        case "pomodoro": return "25:00"
         case "themeSwitch": return "⚙"
         case "deepseekBalance": return "DS"
         case "opencodeGoUsage": return "Go"
@@ -488,23 +574,66 @@ struct SimPill: View {
 
 struct SimDropDelegate: DropDelegate {
     let targetIndex: Int
+    let zone: TouchBarZone
+    let model: RibbonModel
+    let width: CGFloat
+    let onHover: (Bool) -> Void
+    let onInsertion: (DropPosition) -> Void
+
+    func dropEntered(info: DropInfo) { onHover(true) }
+    func dropExited(info: DropInfo) { onHover(false) }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        onHover(true)
+        onInsertion(info.location.x < width / 2 ? .before : .after)
+        return DropProposal(operation: .move)
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        onHover(false)
+        guard let provider = info.itemProviders(for: [.text]).first else { return false }
+        provider.loadObject(ofClass: NSString.self) { reading, _ in
+            guard let str = reading as? String else { return }
+            let dest = info.location.x < width / 2 ? targetIndex : targetIndex + 1
+            DispatchQueue.main.async {
+                if str.hasPrefix("palette:") {
+                    let type = String(str.dropFirst("palette:".count))
+                    model.add(type: type, at: dest, aligningTo: zone)
+                } else if let from = Int(str) {
+                    model.moveSelected(from: from, to: dest, aligningTo: zone)
+                }
+            }
+        }
+        return true
+    }
+}
+
+// MARK: - Zone drop delegate
+
+/// Drop target for a whole zone: appends the dragged item to the zone.
+struct ZoneDropDelegate: DropDelegate {
+    let zone: TouchBarZone
     let model: RibbonModel
     let onHover: (Bool) -> Void
 
     func dropEntered(info: DropInfo) { onHover(true) }
     func dropExited(info: DropInfo) { onHover(false) }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
     func performDrop(info: DropInfo) -> Bool {
         onHover(false)
         guard let provider = info.itemProviders(for: [.text]).first else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let str = reading as? String, let from = Int(str) else { return }
+            guard let str = reading as? String else { return }
             DispatchQueue.main.async {
-                model.move(from: from, to: targetIndex)
+                guard let dest = model.insertPosition(forZone: zone) else { return }
+                if str.hasPrefix("palette:") {
+                    let type = String(str.dropFirst("palette:".count))
+                    model.add(type: type, at: dest, aligningTo: zone)
+                } else if let from = Int(str) {
+                    model.moveSelected(from: from, to: dest, aligningTo: zone)
+                }
             }
         }
         return true
     }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
 }
 
 // MARK: - Trash drop delegate

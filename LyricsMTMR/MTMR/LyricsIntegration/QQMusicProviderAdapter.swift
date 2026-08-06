@@ -16,7 +16,7 @@ final class QQMusicProviderAdapter: LyricsProviderProtocol {
 
     func search(title: String, artist: String, limit: Int) async throws -> [LyricsCandidate] {
         let keyword = "\(title) \(artist)".trimmingCharacters(in: .whitespaces)
-        let songs = try await QQMusicProvider.search(keyword: keyword)
+        let songs = try await QQMusicProvider.search(keyword: keyword, limit: limit)
         return songs.prefix(limit).map { song in
             LyricsCandidate(
                 title: song.name,

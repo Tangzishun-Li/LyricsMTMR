@@ -10,7 +10,7 @@
 
 import Cocoa
 
-class ExpandableCardItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
+class ExpandableCardItem: NSPopoverTouchBarItem, NSTouchBarDelegate, BarItemDiscarding {
 
     // MARK: - Configuration
 
@@ -54,13 +54,33 @@ class ExpandableCardItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
     required init?(coder: NSCoder) { return nil }
 
 
+    deinit {
+        discardCreatedItems()
+    }
+
+    // MARK: - Teardown
+
+    /// Recursively tears down lazily created child items and drops the
+    /// references. Idempotent — shared by barItemWillDiscard(), the ✕
+    /// close path and deinit.
+    private func discardCreatedItems() {
+        for item in createdItems.values {
+            (item as? BarItemDiscarding)?.barItemWillDiscard()
+        }
+        createdItems = [:]
+    }
+
+    func barItemWillDiscard() {
+        discardCreatedItems()
+    }
+
     // MARK: - Expand
 
     @objc override func showPopover(_ sender: Any?) {
         HapticFeedback.instance.tap(type: .medium)
 
+        discardCreatedItems()
         itemDefinitions = [:]
-        createdItems = [:]
         contentIdentifiers = []
         dividerBefore = []
 
@@ -94,6 +114,7 @@ class ExpandableCardItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         HapticFeedback.instance.tap(type: .back)
         animateExit { [weak self] in
             guard self != nil else { return }
+            self?.discardCreatedItems()
             TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
         }
     }

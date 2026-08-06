@@ -35,6 +35,7 @@ struct ServicesTab: View {
                 collabSection
                 rssSection
                 mijiaSection
+                homeAssistantSection
                 sshSection
                 opencodeGoSection
             }
@@ -235,6 +236,29 @@ struct ServicesTab: View {
         }
     }
 
+    // MARK: - Home Assistant
+
+    private var homeAssistantSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("智能家居 · Home Assistant", "Smart Home · Home Assistant"),
+                               hint: localized("用于：家居场景触发（优先于米家）", "Used by: scene trigger (preferred over MiJia)"))
+            Deck.Card {
+                VStack(spacing: 0) {
+                    ServiceTextRow(label: "URL", placeholder: "http://homeassistant.local:8123",
+                                   text: $model.homeAssistantURL) {
+                        model.save(.homeAssistantURL, value: $0)
+                    }
+                    Deck.RowDivider()
+                    ServiceSecureRow(service: .homeAssistantToken,
+                                     placeholder: localized("长期访问令牌", "Long-lived access token"),
+                                     text: $model.homeAssistantToken) {
+                        model.save(.homeAssistantToken, value: $0)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - SSH
 
     private var sshSection: some View {
@@ -307,6 +331,10 @@ final class ServiceStateModel: ObservableObject {
     // 米家
     @Published var mijiaToken: String
 
+    // Home Assistant
+    @Published var homeAssistantURL: String
+    @Published var homeAssistantToken: String
+
     // SSH
     @Published var sshHost: String
     @Published var sshUser: String
@@ -336,6 +364,8 @@ final class ServiceStateModel: ObservableObject {
         rssProvider        = SecretsManager.shared.retrieve(.rssProvider)
         rssAPIKey          = SecretsManager.shared.retrieve(.rssAPIKey)
         mijiaToken         = SecretsManager.shared.retrieve(.mijiaToken)
+        homeAssistantURL   = SecretsManager.shared.retrieve(.homeAssistantURL)
+        homeAssistantToken = SecretsManager.shared.retrieve(.homeAssistantToken)
         sshHost            = SecretsManager.shared.retrieve(.sshHost)
         sshUser            = SecretsManager.shared.retrieve(.sshUser)
         bilibiliCookie     = SecretsManager.shared.retrieve(.bilibiliCookie)
@@ -362,6 +392,8 @@ final class ServiceStateModel: ObservableObject {
         case .rssProvider:      rssProvider = ""
         case .rssAPIKey:        rssAPIKey = ""
         case .mijiaToken:       mijiaToken = ""
+        case .homeAssistantURL: homeAssistantURL = ""
+        case .homeAssistantToken: homeAssistantToken = ""
         case .sshHost:          sshHost = ""
         case .sshUser:          sshUser = ""
         case .bilibiliCookie:   bilibiliCookie = ""

@@ -101,7 +101,7 @@
     "type": "clipboardHistory",
     "align": "right",
     "width": 92,
-    "maxItems": 5
+    "maxItems": 8
   },
   {
     "type": "timeButton",

@@ -95,6 +95,11 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.lyrics.enabled", defaultValue: true)
     static var lyricsEnabled: Bool
 
+    /// How many candidates each provider should return for lyrics search
+    /// (runtime auto-search and the manual match panel).
+    @UserDefault(key: "com.toxblh.mtmr.lyrics.candidateCount", defaultValue: 3)
+    static var lyricsCandidateCount: Int
+
     @UserDefault(key: "com.toxblh.mtmr.lyrics.archivedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.tencent.QQMusicMac"])
     static var archivedPlayerIds: [String]
     

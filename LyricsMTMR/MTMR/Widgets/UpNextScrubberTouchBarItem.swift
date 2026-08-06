@@ -48,13 +48,13 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
         view = scrollView
         // Add event sources
         // Can optionally pass an update view callback to an event source to redraw element
-        self.eventSources.append(UpNextCalenderSource(updateCallback: self.updateView))
+        self.eventSources.append(UpNextCalenderSource(updateCallback: { [weak self] in self?.updateView() }))
         // Fallback interactivity via interval
         activity.interval = interval
         activity.repeats = true
         activity.qualityOfService = .utility
-        activity.schedule { (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self.updateView()
+        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
+            self?.updateView()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateView()
@@ -62,6 +62,10 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
     
     required init?(coder _: NSCoder) { return nil }
     
+    deinit {
+        activity.invalidate()
+    }
+
     private func updateView() -> Void {
         items = []
         var upcomingEvents = self.getUpcomingEvents()
@@ -212,11 +216,12 @@ class UpNextCalenderSource : IUpNextSource {
     public var hasPermission: Bool = false
     private var eventStore : EKEventStore
     internal var updateCallback: () -> Void
+    private var storeObserver: NSObjectProtocol?
     
     required init(updateCallback: @escaping () -> Void = {}) {
         self.updateCallback = updateCallback
         eventStore = EKEventStore()
-        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: eventStore, queue: nil, using: handleUpdate)
+        storeObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: eventStore, queue: nil, using: handleUpdate)
         let authStatus = EKEventStore.authorizationStatus(for: .event)
         if (authStatus != .authorized) {
             eventStore.requestAccess(to: .event){ granted, error in
@@ -232,6 +237,13 @@ class UpNextCalenderSource : IUpNextSource {
         }
 
     }
+
+    deinit {
+        if let storeObserver = storeObserver {
+            NotificationCenter.default.removeObserver(storeObserver)
+        }
+    }
+
     public func handleUpdate() {
         self.handleUpdate(note: Notification(name: Notification.Name("refresh view")))
     }

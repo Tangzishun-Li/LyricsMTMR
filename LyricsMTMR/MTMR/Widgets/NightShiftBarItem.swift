@@ -10,7 +10,7 @@ import Foundation
 
 class NightShiftBarItem: CustomButtonTouchBarItem {
     private let nsclient = CBBlueLightClient()
-    private var timer: Timer!
+    private var timer: Timer?
 
     private var blueLightStatus: Status {
         var status: Status = Status()
@@ -33,12 +33,19 @@ class NightShiftBarItem: CustomButtonTouchBarItem {
         
         actions.append(ItemAction(trigger: .singleTap) { [weak self] in self?.nightShiftAction() })
 
-        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(refresh), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
+        timer?.tolerance = 0.1
 
         refresh()
     }
 
     required init?(coder _: NSCoder) { return nil }
+
+    deinit {
+        timer?.invalidate()
+    }
 
     func nightShiftAction() {
         setNightShift(state: !isNightShiftEnabled)

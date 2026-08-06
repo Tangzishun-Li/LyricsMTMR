@@ -38,6 +38,8 @@ enum APIService: String, CaseIterable, Identifiable {
     case rssProvider
     case rssAPIKey
     case mijiaToken
+    case homeAssistantURL
+    case homeAssistantToken
     case sshHost
     case sshUser
     case bilibiliCookie
@@ -60,6 +62,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .rssProvider:      return "RSS Provider"
         case .rssAPIKey:        return "RSS API Key"
         case .mijiaToken:       return "MiJia Token"
+        case .homeAssistantURL: return "Home Assistant URL"
+        case .homeAssistantToken: return "Home Assistant Token"
         case .sshHost:          return "SSH Host"
         case .sshUser:          return "SSH User"
         case .bilibiliCookie:   return "Bilibili Cookie"
@@ -82,6 +86,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .rssProvider:      return "com.lyricsmtmr.services.rssProvider"
         case .rssAPIKey:        return "com.lyricsmtmr.services.rssAPIKey"
         case .mijiaToken:       return "com.lyricsmtmr.services.mijiaToken"
+        case .homeAssistantURL: return "com.lyricsmtmr.services.homeAssistantURL"
+        case .homeAssistantToken: return "com.lyricsmtmr.services.homeAssistantToken"
         case .sshHost:          return "com.lyricsmtmr.services.sshHost"
         case .sshUser:          return "com.lyricsmtmr.services.sshUser"
         case .bilibiliCookie:   return "com.lyricsmtmr.services.bilibiliCookie"
@@ -100,6 +106,10 @@ enum APIService: String, CaseIterable, Identifiable {
         case .deepseekModel, .deepseekBaseURL, .rssProvider,
                 .sshHost, .sshUser:
             return false
+        case .homeAssistantURL:
+            return false
+        case .homeAssistantToken:
+            return true
         case .opencodeGoCookie:
             return true
         case .opencodeGoWorkspaceID:
@@ -241,6 +251,8 @@ final class SecretsManager {
             testKuaidi100(completion: completion)
         case .mijiaToken:
             testMiJia(completion: completion)
+        case .homeAssistantURL, .homeAssistantToken:
+            testHomeAssistant(completion: completion)
         case .sshHost:
             testSSH(completion: completion)
         default:
@@ -551,6 +563,50 @@ final class SecretsManager {
         } else {
             completion(.fail("Token 太短，可能无效"))
         }
+    }
+
+    // MARK: - Home Assistant Test
+
+    private func testHomeAssistant(completion: @escaping (APITestResult) -> Void) {
+        var base = retrieve(.homeAssistantURL).trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = retrieve(.homeAssistantToken)
+        guard !base.isEmpty else {
+            completion(.fail("未配置 Home Assistant URL"))
+            return
+        }
+        guard !token.isEmpty else {
+            completion(.fail("未配置长期访问令牌（Long-Lived Access Token）"))
+            return
+        }
+        while base.hasSuffix("/") { base.removeLast() }
+        guard let url = URL(string: "\(base)/api/") else {
+            completion(.fail("URL 无效"))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 10
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.fail("网络错误", detail: error.localizedDescription))
+                    return
+                }
+                guard let http = response as? HTTPURLResponse else {
+                    completion(.fail("无响应"))
+                    return
+                }
+                let body = String(data: data ?? Data(), encoding: .utf8) ?? ""
+                if http.statusCode == 200 && body.contains("message") {
+                    completion(.ok("连接成功", detail: String(body.prefix(80))))
+                } else if http.statusCode == 401 {
+                    completion(.fail("HTTP 401 — 令牌无效"))
+                } else {
+                    completion(.fail("HTTP \(http.statusCode)", detail: String(body.prefix(200))))
+                }
+            }
+        }.resume()
     }
 
     // MARK: - SSH Test

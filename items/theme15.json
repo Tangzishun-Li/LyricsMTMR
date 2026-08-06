@@ -82,14 +82,14 @@
     "type": "homekitScene",
     "align": "center",
     "width": 100,
-    "scenes": "\u56de\u5bb6,\u79bb\u5bb6"
+    "scenes": "回家,离家"
   },
   {
     "type": "aiSelectedText",
     "align": "center",
     "width": 84,
     "model": "deepseek-v4-flash",
-    "prompt": "\u89e3\u91ca\u8fd9\u6bb5\u6587\u5b57"
+    "prompt": "解释这段文字"
   },
   {
     "type": "rssUnread",

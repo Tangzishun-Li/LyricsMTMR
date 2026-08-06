@@ -27,7 +27,7 @@ class RegexTesterItem: TBPopoverItem {
     required init?(coder: NSCoder) { return nil }
 
     override func buildOverlay() -> NSView {
-        merged = Self.patterns + TBRegexRules.load().prefix(4).map { ($0.name, $0.pattern) }
+        merged = Self.patterns + TBRegexRules.load().prefix(6).map { ($0.name, $0.pattern) }
         let root = TBOverlay.rootView()
         let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))

@@ -268,6 +268,7 @@ struct StatusBarMenuView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 10) {
                 MenuHeader()
+                SettingsButton(model: model)
                 QuickActionRow(model: model)
                 if !model.slots.isEmpty {
                     MenuSlotCard(model: model)
@@ -754,74 +755,80 @@ struct LanguagePill: View {
 
 // MARK: - Footer
 
-struct MenuFooter: View {
+struct SettingsButton: View {
     @ObservedObject var model: StatusBarMenuModel
     @State private var settingsHover = false
+
+    var body: some View {
+        Button(action: { model.openSettings() }) {
+            HStack(spacing: 7) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(Localized.settingsTitle)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        settingsHover
+                            ? AnyShapeStyle(LinearGradient(colors: [Deck.accent, Deck.accentDeep], startPoint: .leading, endPoint: .trailing))
+                            : AnyShapeStyle(LinearGradient(colors: [Deck.accent.opacity(0.8), Deck.accentDeep.opacity(0.8)], startPoint: .leading, endPoint: .trailing))
+                    )
+            )
+            .scaleEffect(settingsHover ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.easeOut(duration: 0.15)) { settingsHover = h } }
+    }
+}
+
+// MARK: - Footer
+
+struct MenuFooter: View {
+    @ObservedObject var model: StatusBarMenuModel
     @State private var updateHover = false
     @State private var quitHover = false
 
     var body: some View {
-        VStack(spacing: 8) {
-            Button(action: { model.openSettings() }) {
-                HStack(spacing: 7) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(Localized.settingsTitle)
-                        .font(.system(size: 13, weight: .semibold))
+        HStack(spacing: 8) {
+            Button(action: { model.checkForUpdates() }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 11))
+                    Text(Localized.checkForUpdatesShort)
+                        .font(.system(size: 11.5, weight: .medium))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(updateHover ? Deck.textPrimary : Deck.textSecondary)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(
-                            settingsHover
-                                ? AnyShapeStyle(LinearGradient(colors: [Deck.accent, Deck.accentDeep], startPoint: .leading, endPoint: .trailing))
-                                : AnyShapeStyle(LinearGradient(colors: [Deck.accent.opacity(0.8), Deck.accentDeep.opacity(0.8)], startPoint: .leading, endPoint: .trailing))
-                        )
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(updateHover ? Color.white.opacity(0.08) : Deck.cardFill)
                 )
-                .scaleEffect(settingsHover ? 1.02 : 1.0)
             }
             .buttonStyle(.plain)
-            .onHover { h in withAnimation(.easeOut(duration: 0.15)) { settingsHover = h } }
+            .onHover { h in withAnimation(.easeOut(duration: 0.12)) { updateHover = h } }
 
-            HStack(spacing: 8) {
-                Button(action: { model.checkForUpdates() }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11))
-                        Text(Localized.checkForUpdatesShort)
-                            .font(.system(size: 11.5, weight: .medium))
-                    }
-                    .foregroundColor(updateHover ? Deck.textPrimary : Deck.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(updateHover ? Color.white.opacity(0.08) : Deck.cardFill)
-                    )
+            Button(action: { model.quit() }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 11))
+                    Text(Localized.quit)
+                        .font(.system(size: 11.5, weight: .medium))
                 }
-                .buttonStyle(.plain)
-                .onHover { h in withAnimation(.easeOut(duration: 0.12)) { updateHover = h } }
-
-                Button(action: { model.quit() }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "xmark.circle")
-                            .font(.system(size: 11))
-                        Text(Localized.quit)
-                            .font(.system(size: 11.5, weight: .medium))
-                    }
-                    .foregroundColor(quitHover ? Deck.accentDeep : Deck.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(quitHover ? Deck.accentDeep.opacity(0.15) : Deck.cardFill)
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { h in withAnimation(.easeOut(duration: 0.12)) { quitHover = h } }
+                .foregroundColor(quitHover ? Deck.accentDeep : Deck.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(quitHover ? Deck.accentDeep.opacity(0.15) : Deck.cardFill)
+                )
             }
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeOut(duration: 0.12)) { quitHover = h } }
         }
         .padding(.top, 2)
     }

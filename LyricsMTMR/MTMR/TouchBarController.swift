@@ -79,9 +79,9 @@ extension ItemType {
             return "com.lyricsmtmr.deepseekBalance."
         case .expandable(items: _, closePosition: _, cardWidthRatio: _):
             return "com.lyricsmtmr.expandable."
-        case .audioSpectrum(barCount: _):
+        case .audioSpectrum(barCount: _, source: _):
             return "com.lyricsmtmr.audioSpectrum."
-        case .playbackProgress:
+        case .playbackProgress(width: _):
             return "com.lyricsmtmr.playbackProgress."
         case .lyricsTranslate:
             return "com.lyricsmtmr.lyricsTranslate."
@@ -127,7 +127,7 @@ extension ItemType {
             return "com.lyricsmtmr.noiseMeter."
         case .expenseTracker(dataPath: _, categories: _):
             return "com.lyricsmtmr.expenseTracker."
-        case .subscriptionCountdown(refreshInterval: _, dataPath: _):
+        case .subscriptionCountdown(refreshInterval: _, dataPath: _, index: _, tint: _):
             return "com.lyricsmtmr.subscriptionCountdown."
         case .breathingGuide(pattern: _):
             return "com.lyricsmtmr.breathingGuide."
@@ -467,7 +467,12 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             if isAutoSwitched {
                 revertAutoSwitch()
             }
-            if touchBarContainsAnyItems() {
+            // Freeze-on-app-switch only applies to a bar that has already
+            // been built. An explicit preset reload (refresh / slot switch /
+            // editor apply) replaces `touchBar` with a fresh, unconfigured
+            // instance; presenting it as-is has no delegate or default item
+            // identifiers yet, which blanks the Touch Bar until restart.
+            if touchBarIsBuilt() {
                 presentTouchBar()
             } else {
                 prepareTouchBar()
@@ -564,6 +569,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return items.count != 0 || swipeItems.count != 0
     }
 
+    /// True when the current `touchBar` has already been configured by
+    /// `prepareTouchBar()` (delegate + default item identifiers + items).
+    /// A bar created by an explicit preset reload stays unbuilt until
+    /// `prepareTouchBar()` runs, so it must never be presented as-is.
+    private func touchBarIsBuilt() -> Bool {
+        guard let bar = touchBar else { return false }
+        return bar.delegate != nil && !bar.defaultItemIdentifiers.isEmpty && touchBarContainsAnyItems()
+    }
+
     func reloadStandardConfig() {
         let presetPath = standardConfigPath
         if !FileManager.default.fileExists(atPath: presetPath),
@@ -602,6 +616,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func createItems() {
+        discardCurrentItems()
         items = [:]
         swipeItems = []
 
@@ -643,6 +658,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     AppLog.warn("Item \(definition.type) skipped (creation failed)")
                 }
             }
+        }
+    }
+
+    /// Gives items that own live resources (timers, observers, lazily
+    /// created child items) a chance to tear down before the controller
+    /// drops its references during a preset switch. Main thread only.
+    private func discardCurrentItems() {
+        for item in items.values {
+            (item as? BarItemDiscarding)?.barItemWillDiscard()
+        }
+        for item in swipeItems {
+            (item as? BarItemDiscarding)?.barItemWillDiscard()
         }
     }
 
@@ -855,10 +882,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         case let .expandable(items: items, closePosition: closePos, cardWidthRatio: ratio):
             let pos = ExpandableCardItem.ClosePosition(rawValue: closePos) ?? .left
             barItem = ExpandableCardItem(identifier: identifier, items: items, closePosition: pos, cardWidthRatio: ratio)
-        case let .audioSpectrum(barCount: barCount):
-            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount)
-        case .playbackProgress:
-            barItem = PlaybackProgressBarItem(identifier: identifier)
+        case let .audioSpectrum(barCount: barCount, source: source):
+            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount, source: source)
+        case let .playbackProgress(width: width):
+            barItem = PlaybackProgressBarItem(identifier: identifier, width: width)
         case .lyricsTranslate:
             barItem = LyricsTranslateBarItem(identifier: identifier)
         case let .quickReply(configPath: configPath):
@@ -903,8 +930,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = NoiseMeterItem(identifier: identifier, refreshInterval: refreshInterval)
         case let .expenseTracker(dataPath: dataPath, categories: categories):
             barItem = ExpenseTrackerItem(identifier: identifier, dataPath: dataPath, categories: categories)
-        case let .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
-            barItem = SubscriptionCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint):
+            barItem = SubscriptionCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint)
         case let .breathingGuide(pattern: pattern):
             barItem = BreathingGuideItem(identifier: identifier, pattern: pattern)
         case let .postureReminder(refreshInterval: refreshInterval, intervalMin: intervalMin):
@@ -1140,6 +1167,9 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                     AppLog.touchBar("Theme switch superseded — skipping UI update")
                     return
                 }
+                // Tear down the outgoing items (timers/observers/child items)
+                // before swapping in the new set.
+                self.discardCurrentItems()
                 self.jsonItems = itemsToBuild
                 self.itemDefinitions = newDefs
                 self.leftIdentifiers = newLeft

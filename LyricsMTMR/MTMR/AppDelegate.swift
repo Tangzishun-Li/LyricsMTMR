@@ -53,7 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     }
 
-    func applicationWillTerminate(_: Notification) {}
+    func applicationWillTerminate(_: Notification) {
+        LyricsEngine.shared.shutdown()
+    }
 
     // MARK: - Popover
 

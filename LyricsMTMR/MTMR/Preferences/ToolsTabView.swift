@@ -15,12 +15,26 @@ struct ToolsTab: View {
     @State private var regexRules: [TBRegexRule] = TBRegexRules.load()
     @State private var regexImportNote: String? = nil
 
+    // 音量律动 / 延迟测试 persist straight into UserDefaults so the Touch
+    // Bar widgets pick them up on next launch without an extra store.
+    @State private var spectrumSource: String = TBSpectrumSettings.source
+    @State private var spectrumLowGain: Double = TBSpectrumSettings.lowGain * 100
+    @State private var spectrumMidGain: Double = TBSpectrumSettings.midGain * 100
+    @State private var spectrumHighGain: Double = TBSpectrumSettings.highGain * 100
+    @State private var spectrumLowDamping: Double = (1 - TBSpectrumSettings.lowRelease) * 100
+    @State private var spectrumMidDamping: Double = (1 - TBSpectrumSettings.midRelease) * 100
+    @State private var spectrumHighDamping: Double = (1 - TBSpectrumSettings.highRelease) * 100
+    @State private var latencyEndpoint: String = UserDefaults.standard.string(forKey: ApiLatencyItem.endpointOverrideKey) ?? ""
+    @State private var latencyBypassProxy: Bool = UserDefaults.standard.bool(forKey: ApiLatencyItem.bypassProxyKey)
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.tools.title, subtitle: SettingsTab.tools.subtitle)
                 clipboardSection
                 windowSection
+                spectrumSection
+                latencySection
                 regexSection
                 replySection
             }
@@ -86,6 +100,120 @@ struct ToolsTab: View {
     }
 
     // MARK: - Regex rules
+
+    // MARK: - Audio spectrum (theme 5 音量律动)
+
+    private var spectrumSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("音量律动", "Audio Spectrum"),
+                               hint: localized("Touch Bar 频谱条的音源与灵敏度", "Source & response of the spectrum bars"))
+            Deck.Card {
+                VStack(spacing: 0) {
+                    Deck.LabeledRow(localized("音源", "Source")) {
+                        Deck.Segmented(
+                            options: [
+                                Deck.SegmentOption(id: "auto", label: localized("自动", "Auto")),
+                                Deck.SegmentOption(id: "system", label: localized("系统", "System")),
+                                Deck.SegmentOption(id: "mic", label: localized("麦克风", "Mic")),
+                            ], selection: Binding(
+                                get: { spectrumSource },
+                                set: { spectrumSource = $0
+                                       UserDefaults.standard.set($0, forKey: TBSpectrumSettings.sourceKey) }
+                            ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("低频增益", "Low Gain")) {
+                        Deck.ValueSlider(range: 0...200, step: 5, unit: "%", value: Binding(
+                            get: { spectrumLowGain },
+                            set: { spectrumLowGain = $0
+                                   UserDefaults.standard.set($0 / 100, forKey: TBSpectrumSettings.lowGainKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("中频增益", "Mid Gain")) {
+                        Deck.ValueSlider(range: 0...200, step: 5, unit: "%", value: Binding(
+                            get: { spectrumMidGain },
+                            set: { spectrumMidGain = $0
+                                   UserDefaults.standard.set($0 / 100, forKey: TBSpectrumSettings.midGainKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("高频增益", "High Gain")) {
+                        Deck.ValueSlider(range: 0...200, step: 5, unit: "%", value: Binding(
+                            get: { spectrumHighGain },
+                            set: { spectrumHighGain = $0
+                                   UserDefaults.standard.set($0 / 100, forKey: TBSpectrumSettings.highGainKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("低频阻尼", "Low Damping")) {
+                        Deck.ValueSlider(range: 5...90, step: 5, unit: "%", value: Binding(
+                            get: { spectrumLowDamping },
+                            set: { spectrumLowDamping = $0
+                                   UserDefaults.standard.set(1 - $0 / 100, forKey: TBSpectrumSettings.lowReleaseKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("中频阻尼", "Mid Damping")) {
+                        Deck.ValueSlider(range: 5...90, step: 5, unit: "%", value: Binding(
+                            get: { spectrumMidDamping },
+                            set: { spectrumMidDamping = $0
+                                   UserDefaults.standard.set(1 - $0 / 100, forKey: TBSpectrumSettings.midReleaseKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("高频阻尼", "High Damping")) {
+                        Deck.ValueSlider(range: 5...90, step: 5, unit: "%", value: Binding(
+                            get: { spectrumHighDamping },
+                            set: { spectrumHighDamping = $0
+                                   UserDefaults.standard.set(1 - $0 / 100, forKey: TBSpectrumSettings.highReleaseKey) }
+                        ))
+                    }
+                    Deck.RowDivider()
+                    Text(localized("「自动 / 系统」捕捉系统正在播放的真实音频，需要授予屏幕录制权限；缺权限时不会悄悄换麦克风，播放中用模拟律动兜底，点按条上的提示可跳去授权。「麦克风」只采环境声，不会被自动选中。增益决定各频段的灵敏度，阻尼越大柱条回落越慢越稳、越小越脉冲。音源改动即时生效。",
+                                    "\"Auto/System\" captures real playback audio and needs the Screen Recording permission; without it the synth covers playback and the on-bar hint opens the permission pane. \"Mic\" only hears the room and is never auto-selected. Higher damping makes bars fall slower and steadier; lower makes them punchier."))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                        .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    // MARK: - Latency probe (theme 6 延迟)
+
+    private var latencySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("延迟测试", "Latency Probe"),
+                               hint: localized("覆盖主题里延迟组件的默认目标", "Overrides the latency widget target"))
+            Deck.Card {
+                VStack(spacing: 0) {
+                    TextField(localized("目标 URL（留空用主题自带地址）", "Endpoint URL"), text: Binding(
+                        get: { latencyEndpoint },
+                        set: { latencyEndpoint = $0
+                               UserDefaults.standard.set($0, forKey: ApiLatencyItem.endpointOverrideKey) }
+                    ))
+                    .textFieldStyle(.plain)
+                    .font(Deck.monoFont)
+                    .foregroundStyle(Deck.textPrimary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background {
+                        RoundedRectangle(cornerRadius: 7).fill(Deck.insetFill)
+                            .overlay { RoundedRectangle(cornerRadius: 7).strokeBorder(Deck.hairline) }
+                    }
+                    Deck.RowDivider()
+                    Deck.ToggleRow(title: localized("绕过系统代理", "Bypass Proxy"),
+                                   subtitle: localized("直连测速，排除代理加速通道的影响", "Time a direct connection instead of the proxy"),
+                                   isOn: Binding(
+                                       get: { latencyBypassProxy },
+                                       set: { latencyBypassProxy = $0
+                                              UserDefaults.standard.set($0, forKey: ApiLatencyItem.bypassProxyKey) }
+                                   ))
+                }
+            }
+        }
+    }
 
     private var regexSection: some View {
         VStack(alignment: .leading, spacing: 8) {

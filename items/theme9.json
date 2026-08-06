@@ -98,13 +98,31 @@
     "type": "expenseTracker",
     "align": "right",
     "width": 110,
-    "categories": "\u9910\u996e,\u4ea4\u901a,\u8d2d\u7269,\u5a31\u4e50"
+    "categories": "餐饮,交通,购物,娱乐"
   },
   {
     "type": "subscriptionCountdown",
     "align": "right",
-    "width": 120,
-    "refreshInterval": 3600
+    "width": 100,
+    "refreshInterval": 3600,
+    "index": 0,
+    "tint": "pink"
+  },
+  {
+    "type": "subscriptionCountdown",
+    "align": "right",
+    "width": 100,
+    "refreshInterval": 3600,
+    "index": 1,
+    "tint": "sky"
+  },
+  {
+    "type": "subscriptionCountdown",
+    "align": "right",
+    "width": 100,
+    "refreshInterval": 3600,
+    "index": 2,
+    "tint": "gold"
   },
   {
     "type": "timeButton",

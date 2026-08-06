@@ -1,4 +1,5 @@
 import XCTest
+@testable import LyricsMTMR
 
 class ParseConfig: XCTestCase {
     func testButtonNoAction() {

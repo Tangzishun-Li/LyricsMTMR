@@ -23,14 +23,18 @@ class DiskIOItem: TBPollItem {
         let cols = out.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
         var mbps = 0.0
         if let last = cols.last, let value = Double(last) { mbps = value }
-        if mbps == 0 { mbps = Double.random(in: 0...12) }   // 兜底 mock，保证曲线在动
+        // 空闲时保持真实的 0 基线：不再伪造随机数据（假数字会误导，
+        // 还会把文字撑进右侧迷你曲线区域造成重叠）。
         current = mbps
         history.append(CGFloat(mbps))
         if history.count > 24 { history.removeFirst(history.count - 24) }
     }
 
     override func apply() {
-        metric.value = String(format: "%.1f", current) + " MB/s"
+        // 数字压缩成短格式（≥100 时省去小数位），避免和右侧迷你曲线重叠
+        metric.value = current >= 100
+            ? String(format: "%.0fM/s", current)
+            : String(format: "%.1fM/s", current)
         metric.subValue = nil
         metric.spark = history.count > 1 ? history : [0, 0.1]
         metric.valueColor = TB.textPrimary

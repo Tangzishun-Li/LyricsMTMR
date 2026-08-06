@@ -49,6 +49,7 @@ class ExpenseTrackerItem: TBPopoverItem {
         syncTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.pollExternalFile()
         }
+        syncTimer?.tolerance = 0.3
     }
 
     private func pollExternalFile() {
@@ -77,11 +78,21 @@ class ExpenseTrackerItem: TBPopoverItem {
         let buttons = categories.enumerated().map { index, name -> NSButton in
             TBOverlay.pillButton(title: name, tag: index, target: self, action: #selector(add(_:)), tint: tints[index % tints.count])
         }
-        TBOverlay.buttonRow(in: card, buttons: buttons, afterClose: close)
+        // 「同步路径」把外部接入用的数据文件路径复制到剪贴板，方便外部软件指向它
+        let sync = TBOverlay.pillButton(title: localized("同步路径", "Data path"), tag: 99, target: self, action: #selector(add(_:)), tint: TB.purple)
+        TBOverlay.buttonRow(in: card, buttons: buttons + [sync], afterClose: close)
         return root
     }
 
     @objc private func add(_ sender: NSButton) {
+        if sender.tag == 99 {
+            HapticFeedback.instance.tap(type: .medium)
+            let path = Self.resolve(dataPath)
+            TBClip.write(path)
+            resultLabel?.stringValue = localized("路径已复制：\(path)", "path copied")
+            resultLabel?.textColor = TB.purple
+            return
+        }
         guard sender.tag < categories.count else { return }
         HapticFeedback.instance.tap(type: .medium)
         let amount = Double(TBClip.read().trimmingCharacters(in: .whitespaces)) ?? 10

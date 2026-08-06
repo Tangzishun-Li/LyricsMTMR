@@ -433,7 +433,13 @@ private func parseMRInfo(_ info: [String: Any]) -> (title: String, artist: Strin
 class LyricsEngine: NSObject, ObservableObject {
     static let shared = LyricsEngine()
 
-    @Published var trackInfo: EngineTrackInfo = .empty
+    @Published var trackInfo: EngineTrackInfo = .empty {
+        didSet {
+            // Keep the 0.25s precision timer alive only while something is
+            // actually playing — avoids a permanent idle run-loop tick.
+            syncPlaybackTimer(with: trackInfo.playbackState)
+        }
+    }
     @Published var currentLineIndex: Int?
     @Published var currentLyrics: SimpleLyrics?
     @Published var translationLyrics: SimpleLyrics?
@@ -470,7 +476,17 @@ class LyricsEngine: NSObject, ObservableObject {
     }
 
     deinit {
+        playbackTimer?.invalidate()
         NotificationCenter.default.removeObserver(self)
+    }
+
+    /// Called from AppDelegate.applicationWillTerminate. Singletons never
+    /// deinit during process lifetime, so this is the only reliable point
+    /// to stop the MediaRemote listener subprocess and the playback timer —
+    /// otherwise the perl helper process is orphaned on every quit.
+    func shutdown() {
+        stopPlaybackTimer()
+        mrAdapter.stopListening()
     }
 
     var activeLyrics: SimpleLyrics? {
@@ -526,9 +542,11 @@ class LyricsEngine: NSObject, ObservableObject {
 
         // Delay startup slightly to let the Touch Bar system initialize,
         // avoiding the NSFunctionRowDevice mutation-while-enumerated crash.
+        // The playback timer is NOT started here: trackInfo.didSet starts it
+        // on demand when playback actually begins, so an idle app never pays
+        // for a 4 Hz no-op run-loop tick.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.setupMediaRemoteObservers()
-            self?.startPlaybackTimer()
         }
     }
 
@@ -687,6 +705,7 @@ class LyricsEngine: NSObject, ObservableObject {
     // MARK: - Playback Timer
 
     private func startPlaybackTimer() {
+        guard playbackTimer == nil else { return }
         AppLog.info("playbackTimer: scheduling 0.25s Date-based precision timer on main runloop")
         // timeBase starts nil; first calibration comes from handleMRInfo
         playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
@@ -704,6 +723,19 @@ class LyricsEngine: NSObject, ObservableObject {
                 bundleIdentifier: self.trackInfo.bundleIdentifier
             )
             self.updateKaraokeProgress()
+        }
+    }
+
+    private func stopPlaybackTimer() {
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+    }
+
+    private func syncPlaybackTimer(with state: PlaybackState) {
+        if state == .playing {
+            startPlaybackTimer()
+        } else {
+            stopPlaybackTimer()
         }
     }
 

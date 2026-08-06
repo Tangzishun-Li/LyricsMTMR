@@ -62,6 +62,10 @@ class MusicBarItem: CustomButtonTouchBarItem {
 
     required init?(coder _: NSCoder) { return nil }
 
+    deinit {
+        timer?.invalidate()
+    }
+
     @objc func playPause() {
         for ident in playerBundleIdentifiers {
             if let musicPlayer = SBApplication(bundleIdentifier: ident.rawValue) {
@@ -285,7 +289,9 @@ class MusicBarItem: CustomButtonTouchBarItem {
                             self.title = " " + songTitle
                         } else {
                             self.title = " " + songTitle + "     "
-                            self.timer = Timer.scheduledTimer(timeInterval: 0.25, target: self, selector: #selector(self.marquee), userInfo: nil, repeats: true)
+                            self.timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+                                self?.marquee()
+                            }
                         }
                         
                         titleUpdated = true

@@ -88,6 +88,7 @@ class UsageBarItem: CustomButtonTouchBarItem {
             self?.refreshTimer = Timer.scheduledTimer(withTimeInterval: self?.refreshInterval ?? 300, repeats: true) { [weak self] _ in
                 self?.refreshData()
             }
+            self?.refreshTimer?.tolerance = (self?.refreshInterval ?? 300) * 0.1
         }
     }
 

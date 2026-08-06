@@ -73,7 +73,11 @@ struct KeyBindingTabView: View {
             AddBindingSheet(store: store)
         }
         .onAppear {
-            loadCurrentItems()
+            // items.json read + scan is filesystem/CPU work; run it off the
+            // first frame so the tab appears immediately.
+            DispatchQueue.main.async {
+                loadCurrentItems()
+            }
         }
     }
 

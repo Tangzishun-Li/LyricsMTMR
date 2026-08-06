@@ -99,7 +99,9 @@ struct ItemSchema {
             case .integer:
                 dict[prop.key] = 64
             case .selection(let opts):
-                dict[prop.key] = opts.first ?? ""
+                // New items land in the Touch Bar's center zone by default;
+                // "left" is opt-in via explicit per-type overrides.
+                dict[prop.key] = (prop.key == "align") ? "center" : (opts.first ?? "")
             case .text:
                 dict[prop.key] = ""
             case .stringList:
@@ -306,7 +308,7 @@ enum EditorSchema {
         // Music+
         ItemSchema(type: "audioSpectrum", displayName: localized("频谱", "Spectrum"), symbol: "waveform", properties: [
             ItemProperty(key: "barCount", displayName: localized("柱数", "Bars"), type: .integer(placeholder: "16"), isRequired: false, note: nil),
-            ItemProperty(key: "width", displayName: localized("宽度", "Width"), type: .integer(placeholder: "120"), isRequired: false, note: "pt"),
+            ItemProperty(key: "width", displayName: localized("宽度", "Width"), type: .integer(placeholder: "120"), isRequired: false, note: localized("pt · 越宽柱越多越细", "pt · wider = more, finer bars")),
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
         ItemSchema(type: "playbackProgress", displayName: localized("进度", "Progress"), symbol: "play.circle", properties: [

@@ -113,6 +113,11 @@ private class NativeProgressSliderView: NSView {
 
     // MARK: Mouse interaction (drag to seek)
 
+    /// The Touch Bar treats the first touch like a "first mouse" event; without
+    /// this override the initial tap is swallowed by window activation and the
+    /// drag never starts.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         beginScrub(at: event)
     }
@@ -164,11 +169,15 @@ private class NativeProgressSliderView: NSView {
 
 class PlaybackProgressBarItem: NSCustomTouchBarItem {
 
-    private let sliderView = NativeProgressSliderView(frame: NSRect(x: 0, y: 0, width: 220, height: 30))
+    private let sliderView: NativeProgressSliderView
     private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
 
-    override init(identifier: NSTouchBarItem.Identifier) {
+    init(identifier: NSTouchBarItem.Identifier, width: CGFloat = 0) {
+        // 支持主题 JSON 里用 width 指定滑条宽度（原生 Now Playing 风格），
+        // 未指定时用默认 220；下限 120 防止时间标签挤不下。
+        let w = width > 0 ? max(120, width) : 220
+        sliderView = NativeProgressSliderView(frame: NSRect(x: 0, y: 0, width: w, height: 30))
         super.init(identifier: identifier)
 
         sliderView.wantsLayer = true
@@ -201,6 +210,7 @@ class PlaybackProgressBarItem: NSCustomTouchBarItem {
             let info = LyricsEngine.shared.trackInfo
             self.updateProgress(info: info)
         }
+        timer?.tolerance = 0.05
     }
 
     private func updateProgress(info: EngineTrackInfo) {

@@ -24,6 +24,11 @@ class LyricsSearchService {
     /// Tie-break order when quality is equal (mirrors LyricsProviderID case order).
     private static let providerOrder: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu, .spotify, .subtitle, .custom]
 
+    /// Candidate count per provider, user-configurable (default 3).
+    private static var candidateLimit: Int {
+        min(max(AppSettings.lyricsCandidateCount, 1), 10)
+    }
+
     /// Maps a playing app's bundle identifier to its own lyrics provider, so
     /// "listen where you play" results are preferred when available.
     static func providerID(forPlayerBundleID bundleID: String?) -> LyricsProviderID? {
@@ -46,9 +51,9 @@ class LyricsSearchService {
     }
 
     /// Searches ALL registered lyrics providers concurrently and picks the
-    /// best result:
-    /// 1. the provider of the currently playing app (if it returned lyrics);
-    /// 2. otherwise any provider with word-level timing;
+    /// best result when the user has not pinned a manual match:
+    /// 1. any provider with word-level timing (best karaoke experience);
+    /// 2. otherwise the provider of the currently playing app (line timing);
     /// 3. otherwise the first provider with lyrics in `providerOrder`.
     /// Translation/romaji/cover are borrowed from other providers when the
     /// winner lacks them. Archived players never gate this search — archiving
@@ -62,7 +67,7 @@ class LyricsSearchService {
             for provider in providers {
                 group.addTask {
                     do {
-                        let candidates = try await provider.search(title: title, artist: artist, limit: 3)
+                        let candidates = try await provider.search(title: title, artist: artist, limit: Self.candidateLimit)
                         guard let top = candidates.first else {
                             AppLog.debug("[\(provider.displayName)] runtime search: no candidates")
                             return nil
@@ -93,13 +98,13 @@ class LyricsSearchService {
 
         let chosen: ProviderOutcome
         let reason: String
-        if let playerProvider = Self.providerID(forPlayerBundleID: playerBundleID),
-           let match = outcomes.first(where: { $0.result.candidate.provider == playerProvider }) {
-            chosen = match
-            reason = "matches playing app (\(playerBundleID ?? "?"))"
-        } else if let wordTimed = outcomes.first(where: { Self.hasWordTiming($0.result) }) {
+        if let wordTimed = outcomes.first(where: { Self.hasWordTiming($0.result) }) {
             chosen = wordTimed
             reason = "word-level timing"
+        } else if let playerProvider = Self.providerID(forPlayerBundleID: playerBundleID),
+                  let match = outcomes.first(where: { $0.result.candidate.provider == playerProvider }) {
+            chosen = match
+            reason = "matches playing app (\(playerBundleID ?? "?"))"
         } else {
             chosen = outcomes[0]
             reason = "first with lyrics"

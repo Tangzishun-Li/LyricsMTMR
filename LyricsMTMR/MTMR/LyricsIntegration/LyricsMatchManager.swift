@@ -96,13 +96,14 @@ final class LyricsMatchManager: ObservableObject {
 
     private func performSearch(title: String, artist: String) async -> [LyricsCandidate] {
         let providers = LyricsProviderRegistry.shared.availableProviders()
+        let limit = min(max(AppSettings.lyricsCandidateCount, 1), 10)
         // Query all providers concurrently (a slow one can't hold the others
         // up), then restore the deterministic provider order for display.
         let buckets: [(index: Int, candidates: [LyricsCandidate])] = await withTaskGroup(of: (Int, [LyricsCandidate]).self) { group in
             for (index, provider) in providers.enumerated() {
                 group.addTask {
                     do {
-                        let results = try await provider.search(title: title, artist: artist, limit: 10)
+                        let results = try await provider.search(title: title, artist: artist, limit: limit)
                         return (index, results)
                     } catch {
                         AppLog.debug("[\(provider.displayName)] search failed: \(error)")

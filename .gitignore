@@ -75,3 +75,6 @@ Sparkle.framework/
 # 🛡️ Git hooks (must be set up by developers)
 # ============================================================================
 .githooks/
+
+# LLVM coverage artifacts
+*.profraw
