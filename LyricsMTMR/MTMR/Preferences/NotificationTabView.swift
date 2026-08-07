@@ -28,6 +28,7 @@ struct NotificationTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
+        .onAppear(perform: loadFromSettings)
     }
 
     private var globalSection: some View {
@@ -39,8 +40,10 @@ struct NotificationTab: View {
                         title: localized("启用通知", "Enable Notifications"),
                         subtitle: localized("总开关，关闭后所有提醒静音", "Master switch — mute all alerts when off"),
                         isOn: $globalEnabled)
+                        .onChange(of: globalEnabled) { saveToSettings() }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("通知声音", "Notification Sound"), isOn: $soundEnabled)
+                        .onChange(of: soundEnabled) { saveToSettings() }
                 }
             }
         }
@@ -52,14 +55,38 @@ struct NotificationTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     Deck.ToggleRow(title: localized("快递更新", "Package Updates"), isOn: $packageNotify)
+                        .onChange(of: packageNotify) { saveToSettings() }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("番茄钟结束", "Pomodoro End"), isOn: $pomodoroNotify)
+                        .onChange(of: pomodoroNotify) { saveToSettings() }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("DDL 提醒", "DDL Alerts"), isOn: $ddlNotify)
+                        .onChange(of: ddlNotify) { saveToSettings() }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("生日提醒", "Birthday Alerts"), isOn: $birthdayNotify)
+                        .onChange(of: birthdayNotify) { saveToSettings() }
                 }
             }
         }
+    }
+
+    // MARK: - Persistence (UserDefaults, consumed by widgets)
+
+    private func loadFromSettings() {
+        globalEnabled = AppSettings.notificationsGlobalEnabled
+        soundEnabled = AppSettings.notificationsSound
+        packageNotify = AppSettings.notificationsPackage
+        pomodoroNotify = AppSettings.notificationsPomodoro
+        ddlNotify = AppSettings.notificationsDDL
+        birthdayNotify = AppSettings.notificationsBirthday
+    }
+
+    private func saveToSettings() {
+        AppSettings.notificationsGlobalEnabled = globalEnabled
+        AppSettings.notificationsSound = soundEnabled
+        AppSettings.notificationsPackage = packageNotify
+        AppSettings.notificationsPomodoro = pomodoroNotify
+        AppSettings.notificationsDDL = ddlNotify
+        AppSettings.notificationsBirthday = birthdayNotify
     }
 }

@@ -27,6 +27,7 @@ struct LifestyleTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
+        .onAppear(perform: loadFromJSON)
     }
 
     private var foodSection: some View {
@@ -76,11 +77,38 @@ struct LifestyleTab: View {
                                 Deck.SegmentOption(id: "dog", label: localized("狗", "Dog")),
                                 Deck.SegmentOption(id: "bunny", label: localized("兔", "Bunny")),
                             ], selection: $petType)
+                            .onChange(of: petType) { saveDebounced() }
                     }
                 }
             }
         }
     }
+
+    // MARK: - Sync with pixelPet widget
+
+    private func loadFromJSON() {
+        if let item = SettingsSync.readItem(type: "pixelPet") {
+            if let pt = item["petType"] as? String { petType = pt }
+        }
+    }
+
+    private func saveToJSON() {
+        if SettingsSync.readItem(type: "pixelPet") != nil {
+            SettingsSync.writeBack(type: "pixelPet", settings: ["petType": petType])
+        }
+        SettingsSync.postGlobalConfigChanged(domain: "lifestyle", key: "petType", newValue: petType)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }
 
 struct DeckToggleStyle: ToggleStyle {

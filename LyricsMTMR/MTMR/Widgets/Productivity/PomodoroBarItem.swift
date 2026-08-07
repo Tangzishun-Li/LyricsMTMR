@@ -118,6 +118,7 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
     }
 
     private func sendNotification() {
+        guard AppSettings.notificationsGlobalEnabled, AppSettings.notificationsPomodoro else { return }
         let content = UNMutableNotificationContent()
         content.title = "Pomodoro"
         content.body = typeTime == .work ? "it's time to rest your mind!" : "It's time to work!"

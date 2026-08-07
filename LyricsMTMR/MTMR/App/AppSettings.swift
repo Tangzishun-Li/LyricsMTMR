@@ -111,6 +111,26 @@ struct AppSettings {
         set { appLanguageRaw = newValue.rawValue }
     }
 
+    // MARK: - Notifications (Settings → 通知)
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.globalEnabled", defaultValue: true)
+    static var notificationsGlobalEnabled: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.sound", defaultValue: true)
+    static var notificationsSound: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.package", defaultValue: true)
+    static var notificationsPackage: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.pomodoro", defaultValue: true)
+    static var notificationsPomodoro: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.ddl", defaultValue: true)
+    static var notificationsDDL: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.notifications.birthday", defaultValue: true)
+    static var notificationsBirthday: Bool
+
     // MARK: - Lyrics Filter
 
     @UserDefault(key: "com.toxblh.mtmr.lyrics.filterEnabled", defaultValue: true)
