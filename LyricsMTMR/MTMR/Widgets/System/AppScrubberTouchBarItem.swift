@@ -1,6 +1,6 @@
 import Cocoa
 
-class AppScrubberTouchBarItem: NSCustomTouchBarItem {
+class AppScrubberTouchBarItem: NSCustomTouchBarItem, BarItemDiscarding {
     private var scrollView = NSScrollView()
     private var autoResize: Bool = false
     private var showRunning: Bool = true
@@ -19,6 +19,9 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     private var applications: [DockItem] = []
     private var items: [DockBarItem] = []
 
+    /// Set once observers are registered; idempotent cleanup on discard/deinit.
+    private var observersRegistered = false
+
     init(identifier: NSTouchBarItem.Identifier, autoResize: Bool = false, filter: NSRegularExpression? = nil, showRunning: Bool = true, maxApps: Int = 0, iconSize: CGFloat = 32) {
         self.filter = filter
         super.init(identifier: identifier)
@@ -31,12 +34,29 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(hardReloadItems), name: NSWorkspace.didLaunchApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(hardReloadItems), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(softReloadItems), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        observersRegistered = true
 
         persistentAppIdentifiers = AppSettings.dockPersistentAppIds
         hardReloadItems()
     }
 
     required init?(coder _: NSCoder) { return nil }
+
+    deinit {
+        unregisterObservers()
+    }
+
+    func barItemWillDiscard() {
+        unregisterObservers()
+    }
+
+    private func unregisterObservers() {
+        guard observersRegistered else { return }
+        observersRegistered = false
+        NSWorkspace.shared.notificationCenter.removeObserver(self, name: NSWorkspace.didLaunchApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.removeObserver(self, name: NSWorkspace.didTerminateApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.removeObserver(self, name: NSWorkspace.didActivateApplicationNotification, object: nil)
+    }
 
     @objc func hardReloadItems() {
         applications = launchedApplications()
