@@ -46,6 +46,7 @@ struct StockTab: View {
                     validate: { $0.isEmpty || #"^[shsz]\d{6}$"#.matches($0) },
                     hint: localized("上海 sh / 深圳 sz + 6 位数字", "sh for Shanghai / sz for Shenzhen + 6 digits")
                 )
+                .onChange(of: symbols) { saveDebounced() }
             }
         }
     }
@@ -59,6 +60,7 @@ struct StockTab: View {
                 VStack(spacing: 0) {
                     Deck.LabeledRow(localized("刷新间隔", "Refresh")) {
                         Deck.ValueSlider(range: 5...60, step: 5, unit: localized("秒", "s"), value: $refreshInterval)
+                            .onChange(of: refreshInterval) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("显示模式", "Mode")) {
@@ -68,6 +70,7 @@ struct StockTab: View {
                                 Deck.SegmentOption(id: "full", label: localized("完整", "Full")),
                             ],
                             selection: $displayMode)
+                            .onChange(of: displayMode) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("图表模式", "Chart")) {
@@ -77,6 +80,7 @@ struct StockTab: View {
                                 Deck.SegmentOption(id: "daily", label: localized("日K", "Daily")),
                             ],
                             selection: $chartMode)
+                            .onChange(of: chartMode) { saveDebounced() }
                     }
                 }
             }
@@ -94,13 +98,16 @@ struct StockTab: View {
                         title: localized("显示图表", "Show Chart"),
                         subtitle: localized("在 Touch Bar 上显示迷你走势图", "Show mini chart on Touch Bar"),
                         isOn: $showChart)
+                        .onChange(of: showChart) { saveDebounced() }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("图表宽度", "Chart W")) {
                         Deck.ValueSlider(range: 80...200, step: 10, unit: "px", value: $chartWidth)
+                            .onChange(of: chartWidth) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("文本宽度", "Text W")) {
                         Deck.ValueSlider(range: 40...120, step: 10, unit: "px", value: $textWidth)
+                            .onChange(of: textWidth) { saveDebounced() }
                     }
                 }
             }
@@ -120,6 +127,31 @@ struct StockTab: View {
             if let sc = item["showChart"] as? Bool { showChart = sc }
         }
     }
+
+    private func saveToJSON() {
+        let settings: [String: Any] = [
+            "stocks": symbols,
+            "refreshInterval": refreshInterval,
+            "displayMode": displayMode,
+            "chartMode": chartMode,
+            "chartWidth": chartWidth,
+            "textWidth": textWidth,
+            "showChart": showChart,
+        ]
+        SettingsSync.writeBack(type: "stock", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "stock", key: "config", newValue: settings)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }
 
 private extension String {

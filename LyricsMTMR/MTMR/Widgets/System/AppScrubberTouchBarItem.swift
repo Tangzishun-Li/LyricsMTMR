@@ -3,6 +3,9 @@ import Cocoa
 class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     private var scrollView = NSScrollView()
     private var autoResize: Bool = false
+    private var showRunning: Bool = true
+    private var maxApps: Int = 0 // 0 = 不限
+    private var iconSize: CGFloat = 32
     private var widthConstraint: NSLayoutConstraint?
     private let filter: NSRegularExpression?
 
@@ -16,10 +19,13 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     private var applications: [DockItem] = []
     private var items: [DockBarItem] = []
 
-    init(identifier: NSTouchBarItem.Identifier, autoResize: Bool = false, filter: NSRegularExpression? = nil) {
+    init(identifier: NSTouchBarItem.Identifier, autoResize: Bool = false, filter: NSRegularExpression? = nil, showRunning: Bool = true, maxApps: Int = 0, iconSize: CGFloat = 32) {
         self.filter = filter
         super.init(identifier: identifier)
         self.autoResize = autoResize
+        self.showRunning = showRunning
+        self.maxApps = maxApps
+        self.iconSize = iconSize
         view = scrollView
 
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(hardReloadItems), name: NSWorkspace.didLaunchApplicationNotification, object: nil)
@@ -35,6 +41,9 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     @objc func hardReloadItems() {
         applications = launchedApplications()
         applications += getDockPersistentAppsList()
+        if maxApps > 0, applications.count > maxApps {
+            applications = Array(applications.prefix(maxApps))
+        }
         reloadData()
         softReloadItems()
         updateSize()
@@ -80,7 +89,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     }
 
     public func createAppButton(for app: DockItem) -> DockBarItem {
-        let item = DockBarItem(app)
+        let item = DockBarItem(app, iconSize: iconSize)
         item.isBordered = false
         item.actions.append(contentsOf: [
             ItemAction(trigger: .singleTap) { [weak self] in
@@ -129,6 +138,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
 
     private func launchedApplications() -> [DockItem] {
         runningAppsIdentifiers = []
+        guard showRunning else { return [] }
         var returnable: [DockItem] = []
         for app in NSWorkspace.shared.runningApplications {
             guard app.activationPolicy == NSApplication.ActivationPolicy.regular else { continue }
@@ -189,6 +199,7 @@ private let iconWidth = 32.0
 class DockBarItem: CustomButtonTouchBarItem {
     let dotView = NSView(frame: .zero)
     let dockItem: DockItem
+    private let iconSize: CGFloat
     fileprivate var killGestureRecognizer: LongPressGestureRecognizer!
     var killAppClosure: () -> Void = { }
 
@@ -204,13 +215,14 @@ class DockBarItem: CustomButtonTouchBarItem {
         }
     }
 
-    init(_ app: DockItem) {
+    init(_ app: DockItem, iconSize: CGFloat = 32) {
         self.dockItem = app
+        self.iconSize = iconSize
         super.init(identifier: .init(app.bundleIdentifier), title: "")
         dotView.wantsLayer = true
 
         image = app.icon
-        image?.size = NSSize(width: iconWidth, height: iconWidth)
+        image?.size = NSSize(width: iconSize, height: iconSize)
 
         killGestureRecognizer = LongPressGestureRecognizer(target: self, action: #selector(firePanGestureRecognizer))
         killGestureRecognizer.allowedTouchTypes = .direct

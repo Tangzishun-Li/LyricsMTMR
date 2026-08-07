@@ -40,6 +40,10 @@ struct AITab: View {
                             Deck.SegmentOption(id: "deepseek-v4-flash", label: "Flash"),
                             Deck.SegmentOption(id: "deepseek-v4-plus", label: "Plus"),
                         ], selection: $model)
+                        .onChange(of: model) {
+                            AppSettings.deepseekModel = model
+                            SettingsSync.postGlobalConfigChanged(domain: "ai", key: "model", newValue: model)
+                        }
                 }
             }
         }

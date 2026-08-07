@@ -48,6 +48,7 @@ struct WeatherTab: View {
                                 .fill(Deck.insetFill)
                                 .overlay { RoundedRectangle(cornerRadius: 7).strokeBorder(Deck.hairline) }
                         }
+                        .onChange(of: city) { saveDebounced() }
                 }
             }
         }
@@ -64,6 +65,7 @@ struct WeatherTab: View {
                                 Deck.SegmentOption(id: "metric", label: "°C"),
                                 Deck.SegmentOption(id: "imperial", label: "°F"),
                             ], selection: $units)
+                            .onChange(of: units) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("图标样式", "Icon")) {
@@ -73,6 +75,7 @@ struct WeatherTab: View {
                                 Deck.SegmentOption(id: "images", label: localized("拟物", "Image")),
                                 Deck.SegmentOption(id: "emoji", label: localized("表情", "Emoji")),
                             ], selection: $iconType)
+                            .onChange(of: iconType) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("显示湿度", "Show Humidity"), isOn: $showHumidity)
@@ -98,6 +101,31 @@ struct WeatherTab: View {
         if let item = SettingsSync.readItem(type: "weather") {
             if let u = item["units"] as? String { units = u }
             if let it = item["icon_type"] as? String { iconType = it }
+            if let c = item["city"] as? String { city = c }
         }
     }
+
+    private func saveToJSON() {
+        var settings: [String: Any] = [
+            "units": units,
+            "icon_type": iconType,
+        ]
+        // 城市保存到最后一个 weather item（widget 用 openWeatherAPIKey + city 查询）
+        if !city.isEmpty {
+            settings["city"] = city
+        }
+        SettingsSync.writeBack(type: "weather", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "weather", key: "config", newValue: settings)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }

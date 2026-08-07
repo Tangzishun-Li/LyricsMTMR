@@ -38,6 +38,7 @@ struct HomekitTab: View {
                     placeholder: localized("场景名", "Scene name"),
                     validate: { !$0.isEmpty }
                 )
+                .onChange(of: scenes) { saveDebounced() }
             }
         }
     }
@@ -62,4 +63,21 @@ struct HomekitTab: View {
             }
         }
     }
+
+    private func saveToJSON() {
+        let settings: [String: Any] = ["scenes": scenes.joined(separator: ",")]
+        SettingsSync.writeBack(type: "homekitScene", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "homekitScene", key: "scenes", newValue: settings)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }

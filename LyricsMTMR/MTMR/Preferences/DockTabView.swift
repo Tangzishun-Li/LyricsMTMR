@@ -16,6 +16,7 @@ struct DockTab: View {
     @State private var iconSize: Double = 32
     @State private var showRunning: Bool = true
     @State private var maxApps: Double = 8
+    @State private var displayDebounce: DispatchWorkItem?
 
     var body: some View {
         ScrollView {
@@ -85,15 +86,19 @@ struct DockTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     Deck.ToggleRow(title: localized("自动缩放", "Auto Resize"), isOn: $autoResize)
+                        .onChange(of: autoResize) { persistDisplay() }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("图标大小", "Icon Size")) {
                         Deck.ValueSlider(range: 16...48, step: 4, unit: "px", value: $iconSize)
+                            .onChange(of: iconSize) { persistDisplay() }
                     }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("显示运行中应用", "Show Running"), isOn: $showRunning)
+                        .onChange(of: showRunning) { persistDisplay() }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("最大数量", "Max Apps")) {
                         Deck.ValueSlider(range: 3...15, step: 1, unit: "", value: $maxApps)
+                            .onChange(of: maxApps) { persistDisplay() }
                     }
                 }
             }
@@ -106,7 +111,7 @@ struct DockTab: View {
         // Pinned apps: bundle identifiers live in AppSettings (read by AppScrubberTouchBarItem).
         pinnedAppIds = AppSettings.dockPersistentAppIds
 
-        // Legacy: display options were stored on the dock item in items.json.
+        // Display options live on the dock item in items.json.
         if let item = SettingsSync.readItem(type: "dock") {
             if let ar = item["autoResize"] as? Bool { autoResize = ar }
             if let size = item["iconSize"] as? Double { iconSize = size }
@@ -128,16 +133,32 @@ struct DockTab: View {
         persist()
     }
 
+    /// Persist pinned apps to AppSettings (the runtime source of truth).
     private func persist() {
         AppSettings.dockPersistentAppIds = pinnedAppIds
-        // Keep the legacy items.json dock item in sync as well.
-        var settings: [String: Any] = ["apps": pinnedAppIds]
-        if let item = SettingsSync.readItem(type: "dock") {
-            if let ar = item["autoResize"] as? Bool { autoResize = ar }
-            settings["autoResize"] = autoResize
-        }
+        let settings: [String: Any] = ["apps": pinnedAppIds]
         SettingsSync.writeBack(type: "dock", settings: settings)
         SettingsSync.postGlobalConfigChanged(domain: "dock", key: "apps", newValue: pinnedAppIds)
+    }
+
+    /// Persist display options to the dock item in items.json and reload the bar.
+    /// Debounced: slider drags fire many intermediate values, but a full preset
+    /// reload on each tick would be wasteful and visually disruptive.
+    private func persistDisplay() {
+        displayDebounce?.cancel()
+        let work = DispatchWorkItem {
+            let settings: [String: Any] = [
+                "autoResize": autoResize,
+                "iconSize": iconSize,
+                "showRunning": showRunning,
+                "maxApps": Int(maxApps),
+            ]
+            SettingsSync.writeBack(type: "dock", settings: settings)
+            SettingsSync.postGlobalConfigChanged(domain: "dock", key: "display", newValue: settings)
+            TouchBarController.shared.reloadStandardConfig()
+        }
+        displayDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
     }
 
     private func displayName(for bundleId: String) -> String? {

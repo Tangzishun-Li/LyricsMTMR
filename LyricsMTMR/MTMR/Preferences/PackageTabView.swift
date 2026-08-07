@@ -41,6 +41,7 @@ struct PackageTab: View {
                     validate: { !$0.isEmpty },
                     hint: localized("每行一个快递单号", "One tracking number per line")
                 )
+                .onChange(of: trackingNumbers) { saveDebounced() }
             }
         }
     }
@@ -54,6 +55,7 @@ struct PackageTab: View {
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("刷新间隔", "Refresh")) {
                         Deck.ValueSlider(range: 10...120, step: 10, unit: localized("分", "min"), value: $refreshMinutes)
+                            .onChange(of: refreshMinutes) { saveDebounced() }
                     }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("签收后自动移除", "Auto Remove on Delivery"), isOn: $removeOnDelivery)
@@ -70,4 +72,24 @@ struct PackageTab: View {
             if let interval = item["refreshInterval"] as? Double { refreshMinutes = interval / 60 }
         }
     }
+
+    private func saveToJSON() {
+        let settings: [String: Any] = [
+            "refreshInterval": refreshMinutes * 60,
+            "trackingNumber": trackingNumbers.first ?? "",
+        ]
+        SettingsSync.writeBack(type: "packageTracker", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "packageTracker", key: "config", newValue: settings)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }

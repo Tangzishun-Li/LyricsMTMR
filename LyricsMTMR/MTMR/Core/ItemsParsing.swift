@@ -275,7 +275,7 @@ enum ItemType: Decodable {
     case timeButton(formatTemplate: String, timeZone: String?, locale: String?)
     case battery
     case cpu(refreshInterval: Double)
-    case dock(autoResize: Bool, filter: String?)
+    case dock(autoResize: Bool, filter: String?, showRunning: Bool, maxApps: Int, iconSize: Double)
     case volume
     case brightness(refreshInterval: Double)
     case weather(interval: Double, units: String, api_key: String, icon_type: String)
@@ -390,6 +390,9 @@ enum ItemType: Decodable {
         case flip
         case autoResize
         case filter
+        case showRunning
+        case maxApps
+        case iconSize
         case disableMarquee
         case alternativeImages
         case sourceApple
@@ -595,7 +598,10 @@ enum ItemType: Decodable {
         case .dock:
             let autoResize = try container.decodeIfPresent(Bool.self, forKey: .autoResize) ?? false
             let filterRegexString = try container.decodeIfPresent(String.self, forKey: .filter)
-            self = .dock(autoResize: autoResize, filter: filterRegexString)
+            let showRunning = try container.decodeIfPresent(Bool.self, forKey: .showRunning) ?? true
+            let maxApps = try container.decodeIfPresent(Int.self, forKey: .maxApps) ?? 0
+            let iconSize = try container.decodeIfPresent(Double.self, forKey: .iconSize) ?? 32
+            self = .dock(autoResize: autoResize, filter: filterRegexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize)
 
         case .volume:
             self = .volume

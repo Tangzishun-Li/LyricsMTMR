@@ -38,8 +38,10 @@ struct PomodoroTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     TimePickerField(label: localized("工作", "Work"), range: 5...60, step: 5, minutes: $workMinutes)
+                        .onChange(of: workMinutes) { saveDebounced() }
                     Deck.RowDivider()
                     TimePickerField(label: localized("短休息", "Short Break"), range: 1...30, step: 1, minutes: $restMinutes)
+                        .onChange(of: restMinutes) { saveDebounced() }
                     Deck.RowDivider()
                     TimePickerField(label: localized("长休息", "Long Break"), range: 5...60, step: 5, minutes: $longRestMinutes)
                     Deck.RowDivider()
@@ -98,4 +100,24 @@ struct PomodoroTab: View {
             if let rest = item["restTime"] as? Double { restMinutes = Int(rest) / 60 }
         }
     }
+
+    private func saveToJSON() {
+        let settings: [String: Any] = [
+            "workTime": workMinutes * 60,
+            "restTime": restMinutes * 60,
+        ]
+        SettingsSync.writeBack(type: "pomodoro", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "pomodoro", key: "durations", newValue: settings)
+        TouchBarController.shared.reloadStandardConfig()
+    }
+
+    private func saveDebounced() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.saveToJSON() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// Static scratch so the value-type View can debounce without @State churn.
+    private static var saveWork: DispatchWorkItem?
 }

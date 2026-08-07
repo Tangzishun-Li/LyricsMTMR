@@ -35,7 +35,7 @@ extension ItemType {
             return "com.toxblh.mtmr.battery."
         case .cpu(refreshInterval: _):
             return "com.toxblh.mtmr.cpu."
-        case .dock(autoResize: _, filter: _):
+        case .dock:
             return "com.toxblh.mtmr.dock"
         case .volume:
             return "com.toxblh.mtmr.volume"
@@ -811,15 +811,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = BatteryBarItem(identifier: identifier)
         case let .cpu(refreshInterval: refreshInterval):
             barItem = CPUBarItem(identifier: identifier, refreshInterval: refreshInterval)
-        case let .dock(autoResize: autoResize, filter: regexString):
+        case let .dock(autoResize: autoResize, filter: regexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize):
             if let regexString = regexString {
                 guard let regex = try? NSRegularExpression(pattern: regexString, options: []) else {
                     barItem = CustomButtonTouchBarItem(identifier: identifier, title: "Bad regex")
                     break
                 }
-                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, filter: regex)
+                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, filter: regex, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize))
             } else {
-                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize)
+                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize))
             }
         case .volume:
             if case let .image(source)? = item.additionalParameters[.image] {
