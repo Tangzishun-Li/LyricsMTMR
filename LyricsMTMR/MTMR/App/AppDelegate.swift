@@ -27,13 +27,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var eventMonitor: Any?
 
     func applicationDidFinishLaunching(_: Notification) {
-        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary)
+        // Running under `xcodebuild test` (TEST_HOST hosting)? The CI runner is a
+        // Mac mini without a Touch Bar — the private Touch Bar / haptics APIs
+        // below would hang or crash there. Skip hardware init in that case.
+        let isUnderTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        if !isUnderTest {
+            AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary)
 
-        HapticFeedback.instance.scanAllDeviceIDs()
-        TouchBarController.shared.setupControlStripPresence()
-        // `shared` is fully initialized now, so the first preset load is safe
-        // (TouchBarController.init must not load it — see comment there).
-        TouchBarController.shared.reloadStandardConfig()
+            HapticFeedback.instance.scanAllDeviceIDs()
+            TouchBarController.shared.setupControlStripPresence()
+            // `shared` is fully initialized now, so the first preset load is safe
+            // (TouchBarController.init must not load it — see comment there).
+            TouchBarController.shared.reloadStandardConfig()
+        }
 
         if let button = statusItem.button {
             button.image = #imageLiteral(resourceName: "StatusImage")
@@ -49,9 +55,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
-        LyricsEngine.shared.start()
-        SlotManager.shared.ensureSlotsDirectory()
-
+        if !isUnderTest {
+            LyricsEngine.shared.start()
+            SlotManager.shared.ensureSlotsDirectory()
+        }
     }
 
     func applicationWillTerminate(_: Notification) {
