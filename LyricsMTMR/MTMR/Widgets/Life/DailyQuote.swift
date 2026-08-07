@@ -51,7 +51,7 @@ class DailyQuoteItem: TBMetricPopoverItem {
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
         let card = TBOverlay.card(in: root, widthRatio: 0.97, accent: TB.purple)
-        let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
+        _ = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
 
         // 完整句子允许折两行显示（11pt），按钮钉在卡片右缘，文字可用宽度最大化
         let label = NSTextField(labelWithString: overlayText())

@@ -184,7 +184,7 @@ class PlaybackProgressBarItem: NSCustomTouchBarItem {
         sliderView.layer?.backgroundColor = NSColor.clear.cgColor
         view = sliderView
 
-        sliderView.onScrub = { [weak self] time in
+        sliderView.onScrub = { time in
             LyricsEngine.shared.seek(to: time)
         }
 

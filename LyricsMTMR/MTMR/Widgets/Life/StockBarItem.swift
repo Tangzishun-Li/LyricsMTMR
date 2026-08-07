@@ -156,9 +156,9 @@ class StockBarItem: CustomButtonTouchBarItem {
                 }
 
                 let name = (qtArray[1] as? String) ?? symbol
-                let price = Double("\(qtArray[3] ?? "0")") ?? 0
-                let prevClose = Double("\(qtArray[4] ?? "0")") ?? 0
-                let changePct = Double("\(qtArray[32] ?? "0")") ?? 0
+                let price = Double((qtArray[3] as? String) ?? "0") ?? 0
+                let prevClose = Double((qtArray[4] as? String) ?? "0") ?? 0
+                let changePct = Double((qtArray[32] as? String) ?? "0") ?? 0
 
                 // 解析分钟数据（过滤掉 9:30 之前的数据，避免集合竞价干扰折线）
                 var prices: [(time: String, price: Double)] = []
@@ -435,7 +435,6 @@ class StockBarItem: CustomButtonTouchBarItem {
                 .foregroundColor: color,
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .bold)
             ]
-            let pctSize = displayPct.size(withAttributes: boardPctAttrs)
             displayPct.draw(at: NSPoint(x: 5, y: 2), withAttributes: boardPctAttrs)
         } else {
             // ---- 个股模式：左侧价格，右侧涨跌幅 ----

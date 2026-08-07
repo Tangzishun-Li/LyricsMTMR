@@ -773,9 +773,10 @@ enum TBEvents {
     static var authorized: Bool {
         let status = EKEventStore.authorizationStatus(for: .event)
         if #available(macOS 14.0, *) {
-            return status == .authorized || status == .fullAccess
+            return status == .fullAccess || status == .writeOnly
+        } else {
+            return status == .authorized // macOS 13 及更早仅此一种授权态
         }
-        return status == .authorized
     }
 
     static func requestAccess() {

@@ -38,8 +38,6 @@ class InputSourceBarItem: CustomButtonTouchBarItem {
         if let imageURL = currentSource.iconImageURL,
             let image = NSImage(contentsOf: imageURL) {
             iconImage = image
-        } else if let iconRef = currentSource.iconRef {
-            iconImage = NSImage(iconRef: iconRef)
         }
 
         if let iconImage = iconImage {

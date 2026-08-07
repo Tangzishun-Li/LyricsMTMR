@@ -12,6 +12,7 @@
 //
 
 import Cocoa
+import UniformTypeIdentifiers
 import Sparkle
 import SwiftUI
 
@@ -112,12 +113,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openPreset(_: Any?) {
         let dialog = NSOpenPanel()
         dialog.title = "Choose a items.json file"
-        dialog.showsResizeIndicator = true
         dialog.showsHiddenFiles = true
         dialog.canChooseDirectories = false
         dialog.canCreateDirectories = false
         dialog.allowsMultipleSelection = false
-        dialog.allowedFileTypes = ["json"]
+        dialog.allowedContentTypes = [.json]
         dialog.directoryURL = NSURL.fileURL(withPath: NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR"), isDirectory: true)
         if dialog.runModal() == .OK, let path = dialog.url?.path {
             TouchBarController.shared.reloadPreset(path: path)
@@ -134,6 +134,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var unifiedSettingsController: UnifiedSettingsWindowController?
+
+    /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
+    private lazy var updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
+
+    func checkForUpdates() {
+        updaterController.checkForUpdates(nil)
+    }
 
     @objc func openSettings(_: Any?) {
         if unifiedSettingsController == nil || unifiedSettingsController?.window == nil {

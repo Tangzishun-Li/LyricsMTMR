@@ -138,7 +138,9 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
             bundleIdentifier = UpNextCalenderSource.bundleIdentifier
         }
         
-        NSWorkspace.shared.launchApplication(withBundleIdentifier: bundleIdentifier, options: [.default], additionalEventParamDescriptor: nil, launchIdentifier: nil)
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
 
         // NB: if you can't open app which on another space, try to check mark
         // "When switching to an application, switch to a Space with open windows for the application"
@@ -223,17 +225,34 @@ class UpNextCalenderSource : IUpNextSource {
         eventStore = EKEventStore()
         storeObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: eventStore, queue: nil, using: handleUpdate)
         let authStatus = EKEventStore.authorizationStatus(for: .event)
-        if (authStatus != .authorized) {
-            eventStore.requestAccess(to: .event){ granted, error in
-                self.hasPermission = granted;
+        if #available(macOS 14.0, *) {
+            // macOS 14+: .fullAccess / .writeOnly 取代了 .authorized
+            guard authStatus != .fullAccess, authStatus != .writeOnly else {
                 self.handleUpdate()
-                if(!granted) {
-                     NSLog("Error: MTMR UpNextBarWidget not given calendar access.")
-                     return
-                 }
+                return
+            }
+            eventStore.requestFullAccessToEvents { granted, error in
+                self.hasPermission = granted
+                self.handleUpdate()
+                if !granted {
+                    NSLog("Error: MTMR UpNextBarWidget not given calendar access.")
+                    return
+                }
             }
         } else {
-            self.handleUpdate()
+            // macOS 13 及更早
+            guard authStatus != .authorized else {
+                self.handleUpdate()
+                return
+            }
+            eventStore.requestAccess(to: .event) { granted, error in
+                self.hasPermission = granted
+                self.handleUpdate()
+                if !granted {
+                    NSLog("Error: MTMR UpNextBarWidget not given calendar access.")
+                    return
+                }
+            }
         }
 
     }

@@ -672,7 +672,7 @@ enum ItemType: Decodable {
             let to = try container.decodeIfPresent(Double.self, forKey: .to) ?? 12 // Upper bounds of period of time in hours to search for events
             let maxToShow = try container.decodeIfPresent(Int.self, forKey: .maxToShow) ?? 3 // 1 indexed array.  Get the 1st, 2nd, 3rd event to display multiple notifications
             let autoResize = try container.decodeIfPresent(Bool.self, forKey: .autoResize) ?? false
-            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            _ = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) // .upnext 无 interval 字段，保留解析兼容旧配置
             self = .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
 
         case .lyrics:

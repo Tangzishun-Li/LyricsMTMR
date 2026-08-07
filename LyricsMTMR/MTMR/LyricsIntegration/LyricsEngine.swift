@@ -957,13 +957,14 @@ class LyricsEngine: NSObject, ObservableObject {
                 try? await Task.sleep(nanoseconds: delay)
             }
 
+            let result = lastResult
             await MainActor.run {
                 guard self.lastTrackTitle == title else {
                     AppLog.lyrics("searchLyricsViaMusic: stale online result — user switched tracks")
                     return
                 }
 
-                guard let result = lastResult, let lyrics = result.lyrics else {
+                guard let result = result, let lyrics = result.lyrics else {
                     AppLog.lyrics("searchLyricsViaMusic: online no lyrics found for: \(title.prefix(30)) — giving up after \(maxAttempts) attempts")
                     self.currentLyrics = nil
                     self.translationLyrics = nil
@@ -975,7 +976,7 @@ class LyricsEngine: NSObject, ObservableObject {
                 AppLog.lyrics("searchLyricsViaMusic: ONLINE found \(lyrics.lines.count) lines for: \(title.prefix(30))")
                 let filtered = lyrics.filtered
                 AppLog.lyrics("searchLyricsViaMusic: filtered to \(filtered.lines.count) lines")
-                self.currentLyrics = injectTitleLineIfNeeded(filtered, title: title, artist: artist)
+                self.currentLyrics = self.injectTitleLineIfNeeded(filtered, title: title, artist: artist)
                 self.translationLyrics = result.translationLyrics
                 self.romajiLyrics = result.romajiLyrics
                 if let t = result.translationLyrics {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ToolsTab: View {
     @State private var clipboardHistorySize: Double = 8
@@ -325,7 +326,7 @@ struct ToolsTab: View {
 
     private func importRegexRules() {
         let panel = NSOpenPanel()
-        panel.allowedFileTypes = ["json"]
+        panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url,
               let data = try? Data(contentsOf: url) else { return }

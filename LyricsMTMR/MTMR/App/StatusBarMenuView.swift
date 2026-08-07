@@ -245,7 +245,7 @@ final class StatusBarMenuModel: ObservableObject {
     }
 
     func checkForUpdates() {
-        SUUpdater.shared()?.checkForUpdates(nil)
+        appDelegate?.checkForUpdates()
         onDismiss?()
     }
 

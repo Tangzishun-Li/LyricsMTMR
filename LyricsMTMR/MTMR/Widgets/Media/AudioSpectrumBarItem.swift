@@ -176,7 +176,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
     func stop() {
         if let stream = stream {
             try? stream.removeStreamOutput(self, type: .audio)
-            try? stream.stopCapture()
+            stream.stopCapture()
         }
         stream = nil
     }

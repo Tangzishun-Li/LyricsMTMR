@@ -16,7 +16,7 @@ extension String {
         var inBlockComment = false
 
         for line in lines {
-            var lineStr = String(line)
+            let lineStr = String(line)
             var i = lineStr.startIndex
             var out = ""
 
@@ -71,8 +71,7 @@ extension String {
 
     var hexColor: NSColor? {
         let hex = trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int = UInt32()
-        Scanner(string: hex).scanHexInt32(&int)
+        guard let int = UInt32(hex, radix: 16) else { return nil }
         let a, r, g, b: UInt32
         switch hex.count {
         case 3: // RGB (12-bit)

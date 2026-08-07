@@ -107,7 +107,7 @@ class BreathingGuideItem: TBPopoverItem {
         lane.autoresizingMask = [.width, .height]
         card.addSubview(lane)
         self.lane = lane
-        let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
+        _ = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         elapsed = 0
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }

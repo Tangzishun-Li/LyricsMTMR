@@ -24,7 +24,7 @@ struct SlotInfo: Codable, Identifiable, Equatable {
 private struct SlotIndex: Codable {
     var activeSlotId: String?
     var slots: [SlotInfo]
-    var archivedSlotIds: [String] = []
+    var archivedSlotIds: [String]? = nil
 }
 
 class SlotManager {
@@ -547,7 +547,6 @@ class SlotManager {
                 if let type = json[i]["type"] as? String, type == "themeSwitch" {
                     json[i]["themes"] = themesArray
                     // Update width based on number of themes
-                    let themeCount = themesArray.count
                     json[i]["width"] = min(60, 44)
                     found = true
                     break

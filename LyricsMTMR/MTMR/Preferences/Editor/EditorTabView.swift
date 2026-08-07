@@ -174,7 +174,7 @@ class EditorTabView: NSView {
     private func selectGroupChild(at index: Int) {
         guard let parentIdx = selectedItemIndex,
               parentIdx < items.count,
-              var children = items[parentIdx]["items"] as? [[String: Any]],
+              let children = items[parentIdx]["items"] as? [[String: Any]],
               index < children.count else { return }
         groupStripView.setSelectedIndex(index)
         inspectorView.setItem(children[index])

@@ -33,8 +33,7 @@ struct LyricsMatchSection: View {
             associationListCard
         }
         .onAppear { reloadIfNeeded() }
-        .onChange(of: engine.trackTitle) { _ in reloadIfNeeded() }
-        .onChange(of: engine.trackArtist) { _ in reloadIfNeeded() }
+        .onReceive(engine.$trackInfo) { _ in reloadIfNeeded() }
     }
 
     // MARK: - Candidate Count

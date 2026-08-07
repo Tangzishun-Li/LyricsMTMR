@@ -837,7 +837,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: api_key, icon_type: icon_type)
         case let .yandexWeather(interval: interval):
             barItem = YandexWeatherBarItem(identifier: identifier, interval: interval)
-        case let .currency(interval: _, from: _, to: _, full: _):
+        case .currency:
             // FIXME: Coinbase SSL error, temporarily disabled
             break
         case .inputsource:
@@ -860,7 +860,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = SwipeItem(identifier: identifier, direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
-        case let .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle):
+        case let .lyrics(style: _, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle):
             let lyricsItem = LyricsTouchBarItem(identifier: identifier)
             let config = LyricsItemConfig.shared
             config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
@@ -1022,8 +1022,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             let ocgItem = OpenCodeGoUsageBarItem(identifier: identifier, workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
             ocgItem.actions.append(ItemAction(trigger: .singleTap) { [weak ocgItem] in ocgItem?.showPopup() })
             barItem = ocgItem
-        default:
-            break        }
+        }
 
         if let action = self.action(forItem: item), let item = barItem as? CustomButtonTouchBarItem {
             item.actions.append(ItemAction(trigger: .singleTap, action))
@@ -1197,7 +1196,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         let raw = self.rawClosure(for: action)
         guard let raw = raw else { return nil }
         return { [weak self] in
-            guard let self = self else { return }
+            guard self != nil else { return }
             let error = MTMRTryOrError {
                 raw()
             }

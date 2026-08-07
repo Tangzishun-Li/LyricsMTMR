@@ -7,6 +7,7 @@
 //
 
 import Cocoa
+import UserNotifications
 
 class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
     static let identifier = "com.toxblh.mtmr.pomodoro."
@@ -117,10 +118,11 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
     }
 
     private func sendNotification() {
-        let notification: NSUserNotification = NSUserNotification()
-        notification.title = "Pomodoro"
-        notification.informativeText = typeTime == .work ? "it's time to rest your mind!" : "It's time to work!"
-        notification.soundName = "Submarine"
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = "Pomodoro"
+        content.body = typeTime == .work ? "it's time to rest your mind!" : "It's time to work!"
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 }

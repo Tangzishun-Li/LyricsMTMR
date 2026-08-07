@@ -100,9 +100,9 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     public func switchToApp(app: DockItem) {
         let bundleIdentifier = app.bundleIdentifier
         if bundleIdentifier!.contains("file://") {
-            NSWorkspace.shared.openFile(bundleIdentifier!.replacingOccurrences(of: "file://", with: ""))
-        } else {
-            NSWorkspace.shared.launchApplication(withBundleIdentifier: bundleIdentifier!, options: [.default], additionalEventParamDescriptor: nil, launchIdentifier: nil)
+            NSWorkspace.shared.open(URL(fileURLWithPath: bundleIdentifier!.replacingOccurrences(of: "file://", with: "")))
+        } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier!) {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
         }
         softReloadItems()
     }
@@ -148,8 +148,8 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem {
     }
 
     public func getIcon(forBundleIdentifier bundleIdentifier: String? = nil, orPath path: String? = nil) -> NSImage {
-        if let bundleIdentifier = bundleIdentifier, let appPath = NSWorkspace.shared.absolutePathForApplication(withBundleIdentifier: bundleIdentifier) {
-            return NSWorkspace.shared.icon(forFile: appPath)
+        if let bundleIdentifier = bundleIdentifier, let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            return NSWorkspace.shared.icon(forFile: appURL.path)
         }
 
         if let path = path {

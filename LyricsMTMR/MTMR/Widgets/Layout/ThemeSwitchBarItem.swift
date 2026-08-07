@@ -75,16 +75,15 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
 
     private func setupIndicator() {
         // Add the dot as a subview of the button, positioned at top-right
-        if let buttonView = view.subviews.first ?? view as? NSView {
-            buttonView.addSubview(indicatorDot)
-            indicatorDot.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                indicatorDot.topAnchor.constraint(equalTo: buttonView.topAnchor, constant: 3),
-                indicatorDot.trailingAnchor.constraint(equalTo: buttonView.trailingAnchor, constant: -3),
-                indicatorDot.widthAnchor.constraint(equalToConstant: 5),
-                indicatorDot.heightAnchor.constraint(equalToConstant: 5),
-            ])
-        }
+        let buttonView = view.subviews.first ?? view
+        buttonView.addSubview(indicatorDot)
+        indicatorDot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            indicatorDot.topAnchor.constraint(equalTo: buttonView.topAnchor, constant: 3),
+            indicatorDot.trailingAnchor.constraint(equalTo: buttonView.trailingAnchor, constant: -3),
+            indicatorDot.widthAnchor.constraint(equalToConstant: 5),
+            indicatorDot.heightAnchor.constraint(equalToConstant: 5),
+        ])
         // Show immediately if already auto-switched. The read is deferred to
         // the next runloop tick: touching TouchBarController.shared
         // synchronously during item creation can re-enter the singleton's

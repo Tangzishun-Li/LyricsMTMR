@@ -297,8 +297,8 @@ class MusicBarItem: CustomButtonTouchBarItem {
                         titleUpdated = true
                     }
                     if let _ = tempTitle.ifNotEmpty,
-                        let appPath = NSWorkspace.shared.absolutePathForApplication(withBundleIdentifier: ident.rawValue) {
-                        let image = NSWorkspace.shared.icon(forFile: appPath)
+                        let appPath = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ident.rawValue) {
+                        let image = NSWorkspace.shared.icon(forFile: appPath.path)
                         image.size = self.iconSize
                         self.image = image
                         iconUpdated = true

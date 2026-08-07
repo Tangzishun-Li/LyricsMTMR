@@ -555,7 +555,7 @@ final class RibbonModel: ObservableObject {
         let items = moving.map { arr[$0] }
         for i in moving.reversed() { arr.remove(at: i) }
         let removedBefore = moving.filter { $0 < destination }.count
-        var insertIdx = min(max(destination - removedBefore, 0), arr.count)
+        let insertIdx = min(max(destination - removedBefore, 0), arr.count)
         var movedItems = items
         if let zone = zone {
             movedItems = movedItems.map { item in

@@ -6,9 +6,12 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DockTab: View {
-    @State private var pinnedApps: [String] = []
+    /// Bundle identifiers of pinned apps — the single source of truth is
+    /// `AppSettings.dockPersistentAppIds` (used by AppScrubberTouchBarItem).
+    @State private var pinnedAppIds: [String] = []
     @State private var autoResize: Bool = false
     @State private var iconSize: Double = 32
     @State private var showRunning: Bool = true
@@ -27,25 +30,28 @@ struct DockTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: loadFromJSON)
+        .onAppear(perform: load)
     }
+
+    // MARK: - Pinned Apps
 
     private var appsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Deck.SectionHeader(title: localized("固定应用", "Pinned Apps"))
             Deck.Card {
                 VStack(alignment: .leading, spacing: 8) {
-                    if pinnedApps.isEmpty {
+                    if pinnedAppIds.isEmpty {
                         Text(localized("暂无固定应用", "No pinned apps"))
                             .font(Deck.bodyFont).foregroundStyle(Deck.textTertiary)
                     } else {
-                        ForEach(pinnedApps, id: \.self) { app in
+                        ForEach(pinnedAppIds, id: \.self) { bundleId in
                             HStack(spacing: 10) {
                                 Image(systemName: "app.fill").foregroundStyle(Deck.accent)
-                                Text(app).font(Deck.bodyFont).foregroundStyle(Deck.textPrimary)
+                                Text(displayName(for: bundleId) ?? bundleId)
+                                    .font(Deck.bodyFont).foregroundStyle(Deck.textPrimary)
                                 Spacer()
                                 Button {
-                                    pinnedApps.removeAll { $0 == app }
+                                    remove(bundleId)
                                 } label: {
                                     Image(systemName: "minus.circle.fill").foregroundStyle(Deck.textTertiary)
                                 }.buttonStyle(.plain)
@@ -54,13 +60,12 @@ struct DockTab: View {
                     }
                     Button {
                         let panel = NSOpenPanel()
-                        panel.allowedFileTypes = ["app"]
+                        panel.allowedContentTypes = [UTType.applicationBundle]
                         panel.directoryURL = URL(fileURLWithPath: "/Applications")
                         panel.allowsMultipleSelection = true
                         if panel.runModal() == .OK {
                             for url in panel.urls {
-                                let name = url.deletingPathExtension().lastPathComponent
-                                if !pinnedApps.contains(name) { pinnedApps.append(name) }
+                                add(url)
                             }
                         }
                     } label: {
@@ -95,9 +100,50 @@ struct DockTab: View {
         }
     }
 
-    private func loadFromJSON() {
+    // MARK: - Persistence
+
+    private func load() {
+        // Pinned apps: bundle identifiers live in AppSettings (read by AppScrubberTouchBarItem).
+        pinnedAppIds = AppSettings.dockPersistentAppIds
+
+        // Legacy: display options were stored on the dock item in items.json.
         if let item = SettingsSync.readItem(type: "dock") {
             if let ar = item["autoResize"] as? Bool { autoResize = ar }
+            if let size = item["iconSize"] as? Double { iconSize = size }
+            if let running = item["showRunning"] as? Bool { showRunning = running }
+            if let max = item["maxApps"] as? Double { maxApps = max }
         }
+    }
+
+    private func add(_ url: URL) {
+        let bundleId = Bundle(url: url)?.bundleIdentifier
+            ?? NSWorkspace.shared.urlForApplication(toOpen: url)?.lastPathComponent
+        guard let id = bundleId, !pinnedAppIds.contains(id) else { return }
+        pinnedAppIds.append(id)
+        persist()
+    }
+
+    private func remove(_ bundleId: String) {
+        pinnedAppIds.removeAll { $0 == bundleId }
+        persist()
+    }
+
+    private func persist() {
+        AppSettings.dockPersistentAppIds = pinnedAppIds
+        // Keep the legacy items.json dock item in sync as well.
+        var settings: [String: Any] = ["apps": pinnedAppIds]
+        if let item = SettingsSync.readItem(type: "dock") {
+            if let ar = item["autoResize"] as? Bool { autoResize = ar }
+            settings["autoResize"] = autoResize
+        }
+        SettingsSync.writeBack(type: "dock", settings: settings)
+        SettingsSync.postGlobalConfigChanged(domain: "dock", key: "apps", newValue: pinnedAppIds)
+    }
+
+    private func displayName(for bundleId: String) -> String? {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            return url.deletingPathExtension().lastPathComponent
+        }
+        return nil
     }
 }

@@ -856,7 +856,7 @@ AMR_HSB getHSBFromColor(NSColor *color)
     CGFloat hue = 0.0;
     CGFloat saturation = 0.0;
     CGFloat brightness = 0.0;
-    [[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace]
+    [[color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]]
         getHue:&hue
         saturation:&saturation
         brightness:&brightness

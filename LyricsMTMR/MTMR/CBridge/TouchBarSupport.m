@@ -7,6 +7,11 @@
 //
 
 #import "TouchBarSupport.h"
+
+// IOHIDPostEvent / IOMasterPort are deliberately used here (no public
+// replacement for posting system-defined HID events); silence deprecation.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #import <IOKit/hidsystem/ev_keymap.h>
 
 @implementation MediaKeys
@@ -57,3 +62,4 @@ static void HIDReleaseAuxKey( const UInt8 auxKeyCode )
 }
 
 @end
+#pragma clang diagnostic pop

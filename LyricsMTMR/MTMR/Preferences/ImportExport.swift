@@ -6,6 +6,7 @@
 //
 
 import Cocoa
+import UniformTypeIdentifiers
 import SwiftUI
 
 enum ImportExport {
@@ -22,7 +23,7 @@ enum ImportExport {
         }
 
         let panel = NSSavePanel()
-        panel.allowedFileTypes = ["json"]
+        panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "lyricsmtmr-profile.json"
         panel.title = localized("导出配置", "Export Profile")
         panel.message = localized("选择保存位置", "Choose a location to save")
@@ -48,7 +49,7 @@ enum ImportExport {
         NSApp.activate(ignoringOtherApps: true)
 
         let panel = NSOpenPanel()
-        panel.allowedFileTypes = ["json"]
+        panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         panel.title = localized("导入配置", "Import Profile")
         panel.message = localized("选择配置文件", "Choose a profile file")

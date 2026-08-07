@@ -67,11 +67,9 @@ class HapticFeedback {
         // Try to find our Haptic device
         for deviceID in possibleDeviceIDs {
             let actuator = MTActuatorCreateFromDeviceID(deviceID).takeRetainedValue()
-            if actuator != nil {
-                self.actuatorRef = actuator
-                print("[Haptic] ✅ Found actuator with device ID: 0x\(String(format: "%llX", deviceID))")
-                return
-            }
+            self.actuatorRef = actuator
+            print("[Haptic] ✅ Found actuator with device ID: 0x\(String(format: "%llX", deviceID))")
+            return
         }
 
         // No device found — disable haptic entirely for this session.
@@ -128,10 +126,8 @@ class HapticFeedback {
         var found: [UInt64] = []
         for deviceID in testRange {
             let actuator = MTActuatorCreateFromDeviceID(deviceID).takeRetainedValue()
-            if actuator != nil {
-                found.append(deviceID)
-                MTActuatorClose(actuator)
-            }
+            found.append(deviceID)
+            MTActuatorClose(actuator)
         }
 
         if !found.isEmpty && self.actuatorRef == nil {

@@ -70,25 +70,20 @@ final class LyricsMatchManager: ObservableObject {
 
         searchTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                let results = await self.performSearch(title: trackTitle, artist: trackArtist)
-                if Task.isCancelled { return }
-                self.candidates = results
-                // Auto-select first if no cached match.
-                if self.selectedCandidate == nil {
-                    if let cached = self.cachedAssociation {
-                        self.selectedCandidate = results.first { $0.id == cached.selectedCandidate.id }
-                    }
-                    if self.selectedCandidate == nil {
-                        self.selectedCandidate = results.first
-                    }
-                    if let sel = self.selectedCandidate {
-                        await self.loadPreview(for: sel)
-                    }
+            let results = await self.performSearch(title: trackTitle, artist: trackArtist)
+            if Task.isCancelled { return }
+            self.candidates = results
+            // Auto-select first if no cached match.
+            if self.selectedCandidate == nil {
+                if let cached = self.cachedAssociation {
+                    self.selectedCandidate = results.first { $0.id == cached.selectedCandidate.id }
                 }
-            } catch {
-                if Task.isCancelled { return }
-                self.errorMessage = error.localizedDescription
+                if self.selectedCandidate == nil {
+                    self.selectedCandidate = results.first
+                }
+                if let sel = self.selectedCandidate {
+                    await self.loadPreview(for: sel)
+                }
             }
             self.isSearching = false
         }
