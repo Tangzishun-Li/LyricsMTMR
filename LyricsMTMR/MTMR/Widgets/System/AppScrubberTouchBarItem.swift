@@ -22,7 +22,7 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem, BarItemDiscarding {
     /// Set once observers are registered; idempotent cleanup on discard/deinit.
     private var observersRegistered = false
 
-    init(identifier: NSTouchBarItem.Identifier, autoResize: Bool = false, filter: NSRegularExpression? = nil, showRunning: Bool = true, maxApps: Int = 0, iconSize: CGFloat = 32) {
+    init(identifier: NSTouchBarItem.Identifier, autoResize: Bool = false, filter: NSRegularExpression? = nil, showRunning: Bool = true, maxApps: Int = 0, iconSize: CGFloat = 32, apps: [String] = []) {
         self.filter = filter
         super.init(identifier: identifier)
         self.autoResize = autoResize
@@ -36,7 +36,9 @@ class AppScrubberTouchBarItem: NSCustomTouchBarItem, BarItemDiscarding {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(softReloadItems), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         observersRegistered = true
 
-        persistentAppIdentifiers = AppSettings.dockPersistentAppIds
+        // Per-theme pinned apps (from the item's `apps` key) win over the
+        // global list when present — lets each theme have its own Dock.
+        persistentAppIdentifiers = apps.isEmpty ? AppSettings.dockPersistentAppIds : apps
         hardReloadItems()
     }
 

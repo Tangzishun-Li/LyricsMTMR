@@ -275,10 +275,10 @@ enum ItemType: Decodable {
     case timeButton(formatTemplate: String, timeZone: String?, locale: String?)
     case battery
     case cpu(refreshInterval: Double)
-    case dock(autoResize: Bool, filter: String?, showRunning: Bool, maxApps: Int, iconSize: Double)
+    case dock(autoResize: Bool, filter: String?, showRunning: Bool, maxApps: Int, iconSize: Double, apps: [String])
     case volume
     case brightness(refreshInterval: Double)
-    case weather(interval: Double, units: String, api_key: String, icon_type: String)
+    case weather(interval: Double, units: String, api_key: String, icon_type: String, apiSource: String, cities: [String], showHumidity: Bool, showWind: Bool)
     case yandexWeather(interval: Double)
     case currency(interval: Double, from: String, to: String, full: Bool)
     case inputsource
@@ -393,6 +393,10 @@ enum ItemType: Decodable {
         case showRunning
         case maxApps
         case iconSize
+        case apps
+        case cities
+        case showHumidity
+        case showWind
         case disableMarquee
         case alternativeImages
         case sourceApple
@@ -601,7 +605,9 @@ enum ItemType: Decodable {
             let showRunning = try container.decodeIfPresent(Bool.self, forKey: .showRunning) ?? true
             let maxApps = try container.decodeIfPresent(Int.self, forKey: .maxApps) ?? 0
             let iconSize = try container.decodeIfPresent(Double.self, forKey: .iconSize) ?? 32
-            self = .dock(autoResize: autoResize, filter: filterRegexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize)
+            // Per-theme pinned apps; when present they win over the global list.
+            let apps = try container.decodeIfPresent([String].self, forKey: .apps) ?? []
+            self = .dock(autoResize: autoResize, filter: filterRegexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps)
 
         case .volume:
             self = .volume
@@ -615,7 +621,13 @@ enum ItemType: Decodable {
             let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "metric"
             let api_key = try container.decodeIfPresent(String.self, forKey: .api_key) ?? ""
             let icon_type = try container.decodeIfPresent(String.self, forKey: .icon_type) ?? "text"
-            self = .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type)
+            // Domestic source ("china" = 中国天气网, no key) vs OpenWeatherMap.
+            let apiSource = try container.decodeIfPresent(String.self, forKey: .apiSource) ?? "openweather"
+            // City list for china mode; tap the widget to cycle. Empty = use location.
+            let cities = try container.decodeIfPresent([String].self, forKey: .cities) ?? []
+            let showHumidity = try container.decodeIfPresent(Bool.self, forKey: .showHumidity) ?? false
+            let showWind = try container.decodeIfPresent(Bool.self, forKey: .showWind) ?? false
+            self = .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
             
         case .yandexWeather:
             let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0

@@ -41,7 +41,7 @@ extension ItemType {
             return "com.toxblh.mtmr.volume"
         case .brightness(refreshInterval: _):
             return "com.toxblh.mtmr.brightness"
-        case .weather(interval: _, units: _, api_key: _, icon_type: _):
+        case .weather(interval: _, units: _, api_key: _, icon_type: _, apiSource: _, cities: _, showHumidity: _, showWind: _):
             return "com.toxblh.mtmr.weather"
         case .yandexWeather(interval: _):
             return "com.toxblh.mtmr.yandexWeather"
@@ -811,15 +811,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = BatteryBarItem(identifier: identifier)
         case let .cpu(refreshInterval: refreshInterval):
             barItem = CPUBarItem(identifier: identifier, refreshInterval: refreshInterval)
-        case let .dock(autoResize: autoResize, filter: regexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize):
+        case let .dock(autoResize: autoResize, filter: regexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps):
             if let regexString = regexString {
                 guard let regex = try? NSRegularExpression(pattern: regexString, options: []) else {
                     barItem = CustomButtonTouchBarItem(identifier: identifier, title: "Bad regex")
                     break
                 }
-                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, filter: regex, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize))
+                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, filter: regex, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize), apps: apps)
             } else {
-                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize))
+                barItem = AppScrubberTouchBarItem(identifier: identifier, autoResize: autoResize, showRunning: showRunning, maxApps: maxApps, iconSize: CGFloat(iconSize), apps: apps)
             }
         case .volume:
             if case let .image(source)? = item.additionalParameters[.image] {
@@ -833,8 +833,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             } else {
                 barItem = BrightnessViewController(identifier: identifier, refreshInterval: interval)
             }
-        case let .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type):
-            barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: api_key, icon_type: icon_type)
+        case let .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind):
+            barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
         case let .yandexWeather(interval: interval):
             barItem = YandexWeatherBarItem(identifier: identifier, interval: interval)
         case .currency:
