@@ -399,6 +399,8 @@ final class ServiceStateModel: ObservableObject {
         case .bilibiliCookie:   bilibiliCookie = ""
         case .opencodeGoCookie: opencodeGoCookie = ""
         case .opencodeGoWorkspaceID: opencodeGoWorkspaceID = ""
+        case .beecountURL, .beecountPAT:
+            break   // Managed in 记账 tab (BeeCount 同步 section)
         }
     }
 }

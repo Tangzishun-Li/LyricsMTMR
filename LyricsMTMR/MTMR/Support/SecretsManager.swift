@@ -45,6 +45,8 @@ enum APIService: String, CaseIterable, Identifiable {
     case bilibiliCookie
     case opencodeGoCookie
     case opencodeGoWorkspaceID
+    case beecountURL
+    case beecountPAT
 
     var id: String { rawValue }
 
@@ -69,6 +71,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .bilibiliCookie:   return "Bilibili Cookie"
         case .opencodeGoCookie:   return "OpenCode Go auth Cookie"
         case .opencodeGoWorkspaceID: return "OpenCode Go Workspace ID"
+        case .beecountURL:      return "BeeCount 服务器地址"
+        case .beecountPAT:      return "BeeCount PAT"
         }
     }
 
@@ -93,6 +97,8 @@ enum APIService: String, CaseIterable, Identifiable {
         case .bilibiliCookie:   return "com.lyricsmtmr.services.bilibiliCookie"
         case .opencodeGoCookie:   return "com.lyricsmtmr.services.opencodeGoCookie"
         case .opencodeGoWorkspaceID: return "com.lyricsmtmr.services.opencodeGoWorkspaceID"
+        case .beecountURL:      return "com.lyricsmtmr.services.beecountURL"
+        case .beecountPAT:      return "com.lyricsmtmr.services.beecountPAT"
         }
     }
 
@@ -101,10 +107,10 @@ enum APIService: String, CaseIterable, Identifiable {
         switch self {
         case .deepseekAPIKey, .openWeatherAPIKey, .kuaidi100Key,
                 .kuaidi100Customer, .slackBotToken, .githubToken,
-                .rssAPIKey, .mijiaToken, .bilibiliCookie:
+                .rssAPIKey, .mijiaToken, .bilibiliCookie, .beecountPAT:
             return true
         case .deepseekModel, .deepseekBaseURL, .rssProvider,
-                .sshHost, .sshUser:
+                .sshHost, .sshUser, .beecountURL:
             return false
         case .homeAssistantURL:
             return false
@@ -255,6 +261,8 @@ final class SecretsManager {
             testHomeAssistant(completion: completion)
         case .sshHost:
             testSSH(completion: completion)
+        case .beecountURL, .beecountPAT:
+            testBeeCount(completion: completion)
         default:
             completion(.fail("该服务暂不支持测试"))
         }
@@ -643,6 +651,56 @@ final class SecretsManager {
                 }
             }
         }
+    }
+
+    // MARK: - BeeCount (蜜蜂记账 self-hosted cloud)
+
+    /// Verifies the BeeCount-Cloud server + Personal Access Token by listing
+    /// ledgers. Endpoints: GET {base}/api/read/ledgers with `Bearer <PAT>`.
+    private func testBeeCount(completion: @escaping (APITestResult) -> Void) {
+        let base = retrieve(.beecountURL).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let pat = retrieve(.beecountPAT)
+        guard !base.isEmpty else {
+            completion(.fail("未配置服务器地址"))
+            return
+        }
+        guard !pat.isEmpty else {
+            completion(.fail("未配置 PAT"))
+            return
+        }
+        guard let url = URL(string: base + "/api/read/ledgers") else {
+            completion(.fail("服务器地址无效"))
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(pat)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 10
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.fail("网络错误", detail: error.localizedDescription))
+                    return
+                }
+                guard let http = response as? HTTPURLResponse else {
+                    completion(.fail("无响应"))
+                    return
+                }
+                if http.statusCode == 200 {
+                    if let data = data,
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [Any] {
+                        completion(.ok("连接成功", detail: "\(json.count) 个账本"))
+                    } else {
+                        completion(.ok("连接成功"))
+                    }
+                } else if http.statusCode == 401 {
+                    completion(.fail("HTTP 401 — PAT 无效"))
+                } else {
+                    completion(.fail("HTTP \(http.statusCode)"))
+                }
+            }
+        }.resume()
     }
 
     // MARK: - Hardcoded Key Detection
