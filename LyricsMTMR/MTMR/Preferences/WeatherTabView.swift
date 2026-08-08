@@ -4,24 +4,40 @@
 //
 //  Settings → 天气 / Weather tab
 //
+//  Two data sources:
+//  - 国内天气 (中国天气网): no API key, works in China, supports a city list
+//    (tap the widget on the Touch Bar to cycle) and one-tap location add.
+//  - OpenWeatherMap: needs an API key (设置 → 服务), location-based.
+//
 
 import SwiftUI
+import CoreLocation
 
 struct WeatherTab: View {
-    @State private var city: String = ""
+    @State private var apiSource: String = "china"
+    @State private var cities: [String] = []
     @State private var units: String = "metric"
     @State private var iconType: String = "text"
     @State private var showHumidity: Bool = false
     @State private var showWind: Bool = false
     @State private var forecastHours: Double = 0
+    @State private var locating = false
+    @State private var locationHint: String? = nil
+    @State private var locationManager: CLLocationManager? = nil
 
     var body: some View {
-        ScrollView {
+        TabTOCScrollView(sections: [
+            TOCSection("weather-source", localized("数据源", "Data Source")),
+            TOCSection("weather-cities", localized("城市", "Cities")),
+            TOCSection("weather-display", localized("显示", "Display")),
+            TOCSection("weather-forecast", localized("预报", "Forecast")),
+        ]) {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.weather.title, subtitle: SettingsTab.weather.subtitle)
-                locationSection
-                displaySection
-                forecastSection
+                sourceSection.id("weather-source")
+                locationSection.id("weather-cities")
+                displaySection.id("weather-display")
+                forecastSection.id("weather-forecast")
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -32,27 +48,90 @@ struct WeatherTab: View {
         .onAppear(perform: loadFromJSON)
     }
 
-    private var locationSection: some View {
+    // MARK: - Data source
+
+    private var sourceSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("位置", "Location"))
+            Deck.SectionHeader(title: localized("数据源", "Data Source"))
             Deck.Card {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(localized("城市", "City"))
-                        .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
-                    TextField(localized("输入城市名", "Enter city name"), text: $city)
-                        .textFieldStyle(.plain)
-                        .font(Deck.bodyFont).foregroundStyle(Deck.textPrimary)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(Deck.insetFill)
-                                .overlay { RoundedRectangle(cornerRadius: 7).strokeBorder(Deck.hairline) }
-                        }
-                        .onChange(of: city) { saveDebounced() }
+                VStack(spacing: 0) {
+                    Deck.LabeledRow(localized("天气服务", "Provider")) {
+                        Deck.Segmented(
+                            options: [
+                                Deck.SegmentOption(id: "china", label: localized("国内天气", "China")),
+                                Deck.SegmentOption(id: "openweather", label: "OpenWeather"),
+                            ],
+                            selection: $apiSource)
+                            .onChange(of: apiSource) { saveDebounced() }
+                    }
+                    Deck.RowDivider()
+                    Text(localized(
+                        "国内天气：中国天气网数据源，无需 API Key，支持城市列表切换，国内访问稳定。\nOpenWeather：国外服务，需要 API Key（在「服务」页填写），部分网络环境可能无法访问。",
+                        "China: 中国天气网 source, no API key, city list supported, stable in China.\nOpenWeather: overseas service, needs an API key (Services page), may be unreachable in some networks."))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                        .lineSpacing(2)
+                        .padding(.top, 6)
                 }
             }
         }
     }
+
+    // MARK: - Cities
+
+    private var locationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("城市", "Cities"),
+                               hint: localized("国内模式下轻点 Touch Bar 组件即可切换城市", "Tap the widget on the Touch Bar to cycle cities (China mode)"))
+            Deck.Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    if apiSource == "china" {
+                        EditableListView(
+                            items: $cities,
+                            placeholder: localized("城市名，如：成都", "City name, e.g. Chengdu"),
+                            validate: { !$0.isEmpty },
+                            hint: localized("例如：成都、喀什、乌鲁木齐", "e.g. 成都、喀什、乌鲁木齐")
+                        )
+                        .onChange(of: cities) { saveDebounced() }
+
+                        HStack(spacing: 8) {
+                            Button {
+                                locateAndAddCity()
+                            } label: {
+                                HStack(spacing: 5) {
+                                    if locating {
+                                        ProgressView().controlSize(.small)
+                                    } else {
+                                        Image(systemName: "location.fill").font(.system(size: 11))
+                                    }
+                                    Text(localized("使用定位添加", "Add My Location"))
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .foregroundStyle(Deck.accent)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(Deck.accent.opacity(0.12)))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(locating)
+
+                            if let hint = locationHint {
+                                Text(hint)
+                                    .font(Deck.captionFont)
+                                    .foregroundStyle(Deck.textTertiary)
+                            }
+                        }
+                    } else {
+                        Text(localized("OpenWeather 模式使用定位获取天气，无需城市列表。", "OpenWeather mode uses your location; no city list needed."))
+                            .font(Deck.captionFont)
+                            .foregroundStyle(Deck.textTertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Display
 
     private var displaySection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -79,8 +158,10 @@ struct WeatherTab: View {
                     }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("显示湿度", "Show Humidity"), isOn: $showHumidity)
+                        .onChange(of: showHumidity) { saveDebounced() }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("显示风速", "Show Wind"), isOn: $showWind)
+                        .onChange(of: showWind) { saveDebounced() }
                 }
             }
         }
@@ -92,16 +173,78 @@ struct WeatherTab: View {
             Deck.Card {
                 Deck.LabeledRow(localized("预报小时数", "Hours")) {
                     Deck.ValueSlider(range: 0...24, step: 3, unit: localized("h", "h"), value: $forecastHours)
+                        .onChange(of: forecastHours) { saveDebounced() }
                 }
             }
         }
     }
 
+    // MARK: - Location
+
+    private func locateAndAddCity() {
+        locating = true
+        locationHint = nil
+        let manager = CLLocationManager()
+        locationManager = manager
+
+        // Resolve via a one-shot geocoder after the first location fix.
+        var didResolve = false
+        let geocoder = CLGeocoder()
+        manager.requestLocation()
+        manager.startUpdatingLocation()
+
+        // Poll briefly for the first fix, then reverse-geocode.
+        var attempts = 0
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            attempts += 1
+            guard !didResolve else {
+                timer.invalidate()
+                return
+            }
+            if let loc = manager.location, attempts >= 2 {
+                timer.invalidate()
+                didResolve = true
+                geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
+                    DispatchQueue.main.async {
+                        self.locating = false
+                        if let placemark = placemarks?.first,
+                           let city = placemark.locality ?? placemark.administrativeArea {
+                            var name = city
+                            if name.hasSuffix("市") { name = String(name.dropLast()) }
+                            if !self.cities.contains(name) {
+                                self.cities.append(name)
+                                self.saveToJSON()
+                            }
+                            self.locationHint = localized("已添加：\(name)", "Added: \(name)")
+                        } else {
+                            self.locationHint = localized("无法获取定位", "Location unavailable")
+                        }
+                    }
+                }
+            } else if attempts > 12 {
+                timer.invalidate()
+                DispatchQueue.main.async {
+                    self.locating = false
+                    self.locationHint = localized("定位超时，请检查权限", "Location timed out — check permission")
+                }
+            }
+        }
+    }
+
+    // MARK: - Sync
+
     private func loadFromJSON() {
         if let item = SettingsSync.readItem(type: "weather") {
             if let u = item["units"] as? String { units = u }
             if let it = item["icon_type"] as? String { iconType = it }
-            if let c = item["city"] as? String { city = c }
+            if let src = item["apiSource"] as? String { apiSource = src }
+            if let cs = item["cities"] as? [String] { cities = cs }
+            if let h = item["showHumidity"] as? Bool { showHumidity = h }
+            if let w = item["showWind"] as? Bool { showWind = w }
+            // Legacy single-city configs migrate into the city list.
+            if cities.isEmpty, let c = item["city"] as? String, !c.isEmpty {
+                cities = [c]
+            }
         }
     }
 
@@ -109,10 +252,15 @@ struct WeatherTab: View {
         var settings: [String: Any] = [
             "units": units,
             "icon_type": iconType,
+            "apiSource": apiSource,
+            "showHumidity": showHumidity,
+            "showWind": showWind,
         ]
-        // 城市保存到最后一个 weather item（widget 用 openWeatherAPIKey + city 查询）
-        if !city.isEmpty {
-            settings["city"] = city
+        if apiSource == "china" {
+            settings["cities"] = cities
+            if let first = cities.first {
+                settings["city"] = first
+            }
         }
         SettingsSync.writeBack(type: "weather", settings: settings)
         SettingsSync.postGlobalConfigChanged(domain: "weather", key: "config", newValue: settings)

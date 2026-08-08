@@ -29,6 +29,9 @@
 		36C2ECDB207C3FE7003CDA33 /* ItemsParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */; };
 		36C2ECDD207C723B003CDA33 /* ParseConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */; };
 		36C2ECDE207C82DE003CDA33 /* ItemsParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */; };
+		A1C0DE001A2B3C4D5E6F70819 /* ChinaCityCodes.json in Resources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */; };
+		A1C0DE001A2B3C4D5E6F70820 /* TabTOCScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70821 /* TabTOCScrollView.swift */; };
+		A1C0DE001A2B3C4D5E6F70822 /* ChinaWeatherProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70823 /* ChinaWeatherProvider.swift */; };
 		36C2ECE0207CB1B0003CDA33 /* defaultPreset.json in Resources */ = {isa = PBXBuildFile; fileRef = 36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */; };
 		36FEF872235A1CFC00A0ABCE /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36FEF871235A1CFC00A0ABCE /* AppSettings.swift */; };
 		3721FA7B746C885FEF66D46A /* SystemMonitorTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B1ECF2607F2F745D4D4BE7 /* SystemMonitorTabView.swift */; };
@@ -275,10 +278,13 @@
 		36C2ECD8207B74B4003CDA33 /* AppleScriptTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTouchBarItem.swift; sourceTree = "<group>"; };
 		36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemsParsing.swift; sourceTree = "<group>"; };
 		36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseConfigTests.swift; sourceTree = "<group>"; };
+		A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ChinaCityCodes.json; sourceTree = "<group>"; };
 		36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = defaultPreset.json; sourceTree = "<group>"; };
 		36FEF871235A1CFC00A0ABCE /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		3CEB3BCA3578474E9838D5A3 /* SlotManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SlotManager.swift; sourceTree = "<group>"; };
 		3D6239500014EBC5B3780EA5 /* PropertyInspector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PropertyInspector.swift; sourceTree = "<group>"; };
+		A1C0DE001A2B3C4D5E6F70823 /* ChinaWeatherProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChinaWeatherProvider.swift; sourceTree = "<group>"; };
+		A1C0DE001A2B3C4D5E6F70821 /* TabTOCScrollView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TabTOCScrollView.swift; sourceTree = "<group>"; };
 		3DD5BAA93A9ABF411B9A6E0C /* EditableListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EditableListView.swift; sourceTree = "<group>"; };
 		483C335D29B872C329E6B67B /* PaperProgress.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PaperProgress.swift; sourceTree = "<group>"; };
 		4C11CB5D582A4A0C865E690E /* LyricsMatchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsMatchManager.swift; sourceTree = "<group>"; };
@@ -552,6 +558,7 @@
 				B0679BC0215AE73F000FC6B4 /* dsa_pub.pem */,
 				B082B25C205C7D8000BC04DC /* MTMR.entitlements */,
 				36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */,
+				A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */,
 				B2FBA932445D6054C62B1F5D /* Preferences */,
 				7A24C437165389B94EEBFAE8 /* App */,
 				EEC1A7D8046D985720323421 /* Core */,
@@ -793,6 +800,7 @@
 				C0FEE8688503E8BA6A04ACB3 /* TaxEstimate.swift */,
 				C0FEE498581FF471C8694CA7 /* TravelCountdown.swift */,
 				607EEA4A2087835F009DA5F0 /* WeatherBarItem.swift */,
+				A1C0DE001A2B3C4D5E6F70823 /* ChinaWeatherProvider.swift */,
 				C0FEC378FCFE489C056A4C4D /* WeatherOutfit.swift */,
 				4CFF5E5B22E623DD00BFB1EE /* YandexWeatherBarItem.swift */,
 			);
@@ -912,6 +920,7 @@
 				6F0B0913014C471F31B5DC76 /* NumberField.swift */,
 				D7BB393923F9A696FE5E94AF /* TimePickerField.swift */,
 				8F1A1B15EDFD0AB29C974BB6 /* CommitNumberField.swift */,
+				A1C0DE001A2B3C4D5E6F70821 /* TabTOCScrollView.swift */,
 			);
 			name = Components;
 			path = Components;
@@ -1019,6 +1028,7 @@
 				B0B17439207D6B590004B740 /* Vox.nowPlaying.scpt in Resources */,
 				B0B17438207D6B590004B740 /* Vox.next.scpt in Resources */,
 				36C2ECE0207CB1B0003CDA33 /* defaultPreset.json in Resources */,
+				A1C0DE001A2B3C4D5E6F70819 /* ChinaCityCodes.json in Resources */,
 				B0B17432207D6B590004B740 /* Weather.scpt in Resources */,
 				B0B17431207D6B590004B740 /* PlaySmart.scpt in Resources */,
 			);
@@ -1079,6 +1089,7 @@
 				6027D1BA2080E52A004FFDC7 /* VolumeViewController.swift in Sources */,
 				4CDC6E5022FCA93F0069ADD4 /* ShellScriptTouchBarItem.swift in Sources */,
 				607EEA4B2087835F009DA5F0 /* WeatherBarItem.swift in Sources */,
+				A1C0DE001A2B3C4D5E6F70822 /* ChinaWeatherProvider.swift in Sources */,
 				F29F6A2524BC7148004FF8E4 /* UpNextScrubberTouchBarItem.swift in Sources */,
 				F2A1B1C124BC7148004FF8E5 /* StockBarItem.swift in Sources */,
 				E7F8A9B0C1D2E3F4A5B6C7D8 /* ThemeSwitchBarItem.swift in Sources */,
@@ -1209,6 +1220,7 @@
 				13D3813E2D630B7D848800BB /* ImportExport.swift in Sources */,
 				778A8F2EEEA55DE5BB9DA869 /* ResetConfirmation.swift in Sources */,
 				E3744E63063EC012E880B4AA /* StockTabView.swift in Sources */,
+				A1C0DE001A2B3C4D5E6F70820 /* TabTOCScrollView.swift in Sources */,
 				01544D7D39EDE3664F3E00BC /* PomodoroTabView.swift in Sources */,
 				7C97102A1E2BE1643AE0DE33 /* WeatherTabView.swift in Sources */,
 				881DA21E242A743DCA02B70E /* PackageTabView.swift in Sources */,
