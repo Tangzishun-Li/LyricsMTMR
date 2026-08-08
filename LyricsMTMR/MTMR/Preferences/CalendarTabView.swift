@@ -16,11 +16,16 @@ struct CalendarTab: View {
     @State private var remindEnabled: Bool = true
 
     var body: some View {
-        ScrollView {
+        TabTOCScrollView(sections: [
+            TOCSection("calendar-source", localized("日历源", "Source")),
+            TOCSection("calendar-range", localized("显示范围", "Range")),
+            TOCSection("calendar-reminder", localized("提醒", "Reminder")),
+        ]) {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.calendar.title, subtitle: SettingsTab.calendar.subtitle)
-                rangeSection
-                reminderSection
+                sourceSection.id("calendar-source")
+                rangeSection.id("calendar-range")
+                reminderSection.id("calendar-reminder")
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -29,6 +34,35 @@ struct CalendarTab: View {
             .frame(maxWidth: .infinity)
         }
         .onAppear(perform: loadFromJSON)
+    }
+
+    // MARK: - 日历源（调研结论）
+
+    /// 调研结论：用户日历从 Outlook 同步到苹果日历（Exchange/CalDAV 账户），
+    /// EventKit 读到的就是 Outlook 的日程，无需额外认证即可工作。
+    /// 直连 Microsoft Graph 需要 Azure 应用注册 + OAuth，作为后续可选方案。
+    private var sourceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("日历源", "Calendar Source"))
+            Deck.Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Deck.mint)
+                        Text(localized("系统日历（含 Outlook 同步）", "System Calendar (incl. Outlook sync)"))
+                            .font(Deck.rowFont)
+                            .foregroundStyle(Deck.textPrimary)
+                    }
+                    Text(localized(
+                        "组件通过系统日历(EventKit)读取日程。你的苹果日历是从 Outlook 同步下来的，所以 Outlook 上的会议会自动出现在这里，无需任何额外认证。\n\n如果以后需要直连 Outlook（Microsoft Graph），需要先在 Azure 注册应用并走 OAuth 授权，我们可以在后续版本中作为可选数据源接入。",
+                        "The widget reads events via the system calendar (EventKit). Since your Apple Calendar syncs from Outlook, all Outlook meetings already show up here with zero extra auth.\n\nDirect Outlook access (Microsoft Graph) would require an Azure app registration + OAuth flow — we can add it as an optional source in a later version."))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                        .lineSpacing(2)
+                }
+            }
+        }
     }
 
     private var rangeSection: some View {

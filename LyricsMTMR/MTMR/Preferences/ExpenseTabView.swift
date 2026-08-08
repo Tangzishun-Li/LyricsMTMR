@@ -13,13 +13,22 @@ struct ExpenseTab: View {
     @State private var savingsGoal: Double = 10000
     @State private var currency: String = "CNY"
     @State private var overspendAlert: Bool = true
+    @State private var beecountURL: String = ""
+    @State private var beecountPAT: String = ""
+    @State private var beeCountTesting = false
+    @State private var beeCountResult: String? = nil
 
     var body: some View {
-        ScrollView {
+        TabTOCScrollView(sections: [
+            TOCSection("expense-categories", localized("支出类别", "Categories")),
+            TOCSection("expense-budget", localized("预算与目标", "Budget & Goals")),
+            TOCSection("expense-beecount", localized("BeeCount 同步", "BeeCount Sync")),
+        ]) {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.expense.title, subtitle: SettingsTab.expense.subtitle)
-                categorySection
-                budgetSection
+                categorySection.id("expense-categories")
+                budgetSection.id("expense-budget")
+                beecountSection.id("expense-beecount")
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -76,6 +85,80 @@ struct ExpenseTab: View {
         }
     }
 
+    // MARK: - BeeCount sync (蜜蜂记账自托管云端)
+
+    private var beecountSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("BeeCount 同步", "BeeCount Sync"),
+                               hint: localized("把 NAS 上的蜜蜂记账账本拉进 Touch Bar", "Pull your BeeCount ledger from your NAS onto the Touch Bar"))
+            Deck.Card {
+                VStack(spacing: 0) {
+                    Deck.LabeledRow(localized("服务器地址", "Server")) {
+                        Deck.Field(placeholder: "https://beecount.lan:8443", text: $beecountURL, mono: true)
+                            .frame(width: 300)
+                            .onChange(of: beecountURL) { persistBeeCount() }
+                    }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("PAT", "PAT")) {
+                        SecureField(localized("个人访问令牌", "Personal Access Token"), text: $beecountPAT)
+                            .textFieldStyle(.plain)
+                            .font(Deck.monoFont)
+                            .foregroundStyle(Deck.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .background {
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .fill(Deck.insetFill)
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                            .strokeBorder(Deck.hairline)
+                                    }
+                            }
+                            .frame(width: 300)
+                            .onChange(of: beecountPAT) { persistBeeCount() }
+                    }
+                    Deck.RowDivider()
+                    HStack(spacing: 8) {
+                        Button {
+                            testBeeCount()
+                        } label: {
+                            HStack(spacing: 6) {
+                                if beeCountTesting {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "bolt.fill").font(.system(size: 11))
+                                }
+                                Text(localized("测试连接", "Test Connection"))
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .foregroundStyle(Deck.accent)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Deck.accent.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(beeCountTesting || beecountURL.isEmpty || beecountPAT.isEmpty)
+
+                        if let result = beeCountResult {
+                            Text(result)
+                                .font(Deck.captionFont)
+                                .foregroundStyle(Deck.textSecondary)
+                        }
+                    }
+                    .padding(.top, 4)
+                    Deck.RowDivider()
+                    Text(localized(
+                        "在 BeeCount Web 控制台或 App 的「设置 → 开发者」中创建个人访问令牌(PAT)，填好服务器地址后点「测试连接」即可。后续可在 Touch Bar 上直接查看本月支出。",
+                        "Create a Personal Access Token (PAT) in BeeCount Web/App (Settings → Developer), enter your server URL, then hit Test Connection. The Touch Bar widget can then show this month's spending."))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                        .lineSpacing(2)
+                        .padding(.top, 4)
+                }
+            }
+        }
+    }
+
     // MARK: - Sync with the `expenseTracker` widget + savings.json
 
     private func loadFromJSON() {
@@ -84,6 +167,8 @@ struct ExpenseTab: View {
                 categories = c.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             }
         }
+        beecountURL = SecretsManager.shared.retrieve(.beecountURL)
+        beecountPAT = SecretsManager.shared.retrieve(.beecountPAT)
         // Budget / goal live in savings.json next to expenses.json.
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let savingsPath = appSupport + "/savings.json"
@@ -123,6 +208,31 @@ struct ExpenseTab: View {
         let work = DispatchWorkItem { self.saveToJSON() }
         Self.saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    // MARK: - BeeCount persistence & test
+
+    private func persistBeeCount() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem {
+            SecretsManager.shared.store(self.beecountURL.trimmingCharacters(in: .whitespacesAndNewlines), for: .beecountURL)
+            SecretsManager.shared.store(self.beecountPAT.trimmingCharacters(in: .whitespacesAndNewlines), for: .beecountPAT)
+        }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    private func testBeeCount() {
+        beeCountTesting = true
+        beeCountResult = nil
+        SecretsManager.shared.store(beecountURL.trimmingCharacters(in: .whitespacesAndNewlines), for: .beecountURL)
+        SecretsManager.shared.store(beecountPAT.trimmingCharacters(in: .whitespacesAndNewlines), for: .beecountPAT)
+        SecretsManager.shared.testConnection(for: .beecountURL) { result in
+            DispatchQueue.main.async {
+                self.beeCountTesting = false
+                self.beeCountResult = result.message + (result.detail.map { " · \($0)" } ?? "")
+            }
+        }
     }
 
     /// Static scratch so the value-type View can debounce without @State churn.
