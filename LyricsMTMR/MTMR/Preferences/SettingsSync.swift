@@ -21,14 +21,28 @@ class SettingsSync {
         Bundle.main.path(forResource: "defaultPreset", ofType: "json") ?? ""
     }
 
+    // MARK: - Comment-tolerant JSON
+
+    /// items.json is hand-editable and users write JS-style comments in it
+    /// (`//` line comments and `/* */` blocks). Strict JSONSerialization
+    /// throws on those, which silently broke every settings read AND write.
+    /// Parse through the same comment stripper the Touch Bar renderer uses
+    /// (`Data.barItemDefinitions()`), so settings and rendering always agree.
+    static func loadItemsRaw() -> [[String: Any]]? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsJSONPath)),
+              let raw = String(data: data, encoding: .utf8) else { return nil }
+        let cleaned = raw.stripComments()
+        guard let jsonData = cleaned.data(using: .utf8),
+              let array = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
+            return nil
+        }
+        return array
+    }
+
     // MARK: - Read from items.json
 
     static func loadItems() -> [[String: Any]] {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsJSONPath)),
-              let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return []
-        }
-        return array
+        return loadItemsRaw() ?? []
     }
 
     static func readItem(type: String) -> [String: Any]? {
@@ -48,10 +62,7 @@ class SettingsSync {
     // MARK: - Write back to items.json
 
     static func writeBack(type: String, settings: [String: Any]) {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsJSONPath)),
-              var array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
-        }
+        guard var array = loadItemsRaw() else { return }
         for i in 0..<array.count where (array[i]["type"] as? String) == type {
             for (key, value) in settings {
                 array[i][key] = value
@@ -61,10 +72,7 @@ class SettingsSync {
     }
 
     static func writeBack(index: Int, settings: [String: Any]) {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsJSONPath)),
-              var array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
-        }
+        guard var array = loadItemsRaw() else { return }
         guard index >= 0 && index < array.count else { return }
         for (key, value) in settings {
             array[index][key] = value
@@ -73,10 +81,7 @@ class SettingsSync {
     }
 
     static func writeBack(matcher: ([String: Any]) -> Bool, settings: [String: Any]) {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsJSONPath)),
-              var array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
-        }
+        guard var array = loadItemsRaw() else { return }
         for i in 0..<array.count {
             if matcher(array[i]) {
                 for (key, value) in settings {
@@ -85,6 +90,33 @@ class SettingsSync {
             }
         }
         saveItems(array)
+    }
+
+    // MARK: - Per-theme file helpers (themes are preset files the slot
+    // system copies to items.json when activated: theme1.json, …)
+
+    static func loadPresetFile(at path: String) -> [[String: Any]]? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let raw = String(data: data, encoding: .utf8) else { return nil }
+        let cleaned = raw.stripComments()
+        guard let jsonData = cleaned.data(using: .utf8),
+              let array = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else {
+            return nil
+        }
+        return array
+    }
+
+    @discardableResult
+    static func savePresetFile(_ array: [[String: Any]], at path: String) -> Bool {
+        guard let data = try? JSONSerialization.data(withJSONObject: array, options: [.prettyPrinted, .sortedKeys]) else {
+            return false
+        }
+        do {
+            try data.write(to: URL(fileURLWithPath: path))
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Save
