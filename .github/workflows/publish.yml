@@ -22,4 +22,4 @@ jobs:
             | xcpretty -c && exit ${PIPESTATUS[0]}
 
       - name: Verify universal binary
-        run: lipo -info Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR
+        run: lipo -info LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR
