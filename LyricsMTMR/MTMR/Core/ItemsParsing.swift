@@ -25,7 +25,9 @@ extension Data {
             AppLog.error("配置 JSON 解码失败，已回退默认布局：\(error)")
             if case let DecodingError.dataCorrupted(context) = error,
                let underlying = context.underlyingError as NSError? {
-                AppLog.error("JSON 语法错误位置：\(underlying.localizedDescription)")
+                let detail = underlying.userInfo[NSDebugDescriptionErrorKey] as? String
+                    ?? underlying.debugDescription
+                AppLog.error("JSON 语法错误位置：\(detail)")
             }
             return nil
         }
