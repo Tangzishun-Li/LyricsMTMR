@@ -114,7 +114,7 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
             guard !seen.contains(key) else { continue }
             seen.insert(key)
             merged.append(ThemeDefinition(
-                label: entry.name,
+                label: ThemeSupport.displayLabel(forThemeFile: entry.name),
                 preset: (entry.path as NSString).lastPathComponent,
                 matchAppIds: nil
             ))

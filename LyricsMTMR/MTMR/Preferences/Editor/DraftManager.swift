@@ -61,13 +61,24 @@ enum ThemeSupport {
         FileManager.default.fileExists(atPath: resolvedPath(for: preset))
     }
 
-    /// Normalizes a theme label: pure numbers like "3" become "theme3".
+    /// Normalizes a theme label for display: non-empty labels (including
+    /// pure numbers like "3") are shown verbatim on the Touch Bar — the
+    /// switcher shows the theme number, not "theme3". Empty labels fall
+    /// back to the theme number derived from the preset file name.
     static func normalizedLabel(_ label: String, preset: String) -> String {
-        let stem = (preset as NSString).deletingPathExtension
-        if stem.hasPrefix("theme"), Int(label) != nil {
-            return stem
+        if !label.isEmpty { return label }
+        if let idx = themeIndex(fromFileName: preset) {
+            return String(idx + 1)
         }
-        return label
+        return (preset as NSString).deletingPathExtension
+    }
+
+    /// Display label for a discovered theme file: "theme4.json" → "4".
+    static func displayLabel(forThemeFile name: String) -> String {
+        if let idx = themeIndex(fromFileName: name) {
+            return String(idx + 1)
+        }
+        return (name as NSString).deletingPathExtension
     }
 
     @discardableResult
@@ -112,7 +123,7 @@ enum ThemeSupport {
                 guard !seen.contains(key) else { continue }
                 seen.insert(key)
                 merged.append([
-                    "label": entry.name,
+                    "label": ThemeSupport.displayLabel(forThemeFile: entry.name),
                     "preset": (entry.path as NSString).lastPathComponent,
                 ])
             }
