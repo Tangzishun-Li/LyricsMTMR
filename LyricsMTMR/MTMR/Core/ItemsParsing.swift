@@ -15,8 +15,22 @@ import Foundation
 extension Data {
     func barItemDefinitions() -> [BarItemDefinition]? {
         guard let str = utf8string?.stripComments(),
-              let data = str.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode([BarItemDefinition].self, from: data)
+              let data = str.data(using: .utf8) else {
+            AppLog.error("配置 JSON 解码失败：无法读取 UTF-8 文本")
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode([BarItemDefinition].self, from: data)
+        } catch {
+            AppLog.error("配置 JSON 解码失败，已回退默认布局：\(error)")
+            if case let DecodingError.dataCorrupted(context) = error,
+               let underlying = context.underlyingError as NSError? {
+                let detail = underlying.userInfo[NSDebugDescriptionErrorKey] as? String
+                    ?? underlying.debugDescription
+                AppLog.error("JSON 语法错误位置：\(detail)")
+            }
+            return nil
+        }
     }
 }
 

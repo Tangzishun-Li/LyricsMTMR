@@ -591,7 +591,12 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
 
     func reloadPreset(path: String) {
         lastPresetPath = path
-        let items = path.fileData?.barItemDefinitions() ?? [BarItemDefinition(type: .staticButton(title: "bad preset"), actions: [], action: .none, legacyLongAction: .none, additionalParameters: [:])]
+        guard let items = path.fileData?.barItemDefinitions() else {
+            AppLog.error("预设文件解析失败，已回退到占位布局（可在设置面板修正配置）: \(path)")
+            let fallback = [BarItemDefinition(type: .staticButton(title: "bad preset"), actions: [], action: .none, legacyLongAction: .none, additionalParameters: [:])]
+            createAndUpdatePreset(newJsonItems: fallback)
+            return
+        }
         createAndUpdatePreset(newJsonItems: items)
     }
 
@@ -625,10 +630,13 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             
             if let frontApp = frontmostApplicationIdentifier {
                 if case let .matchAppId(regexString)? = definition.additionalParameters[.matchAppId] {
-                    let regex = try! NSRegularExpression(pattern: regexString)
-                    let range = NSRange(location: 0, length: frontApp.count)
-                    if regex.firstMatch(in: frontApp, range: range) == nil {
-                        show = false
+                    if let regex = try? NSRegularExpression(pattern: regexString) {
+                        let range = NSRange(location: 0, length: frontApp.count)
+                        if regex.firstMatch(in: frontApp, range: range) == nil {
+                            show = false
+                        }
+                    } else {
+                        AppLog.error("matchAppId 正则无效，该 item 将始终显示（可在设置面板修正）：\"\(regexString)\"")
                     }
                 }
             }
