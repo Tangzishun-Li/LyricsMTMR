@@ -1,3 +1,5 @@
+# 仅版本标签触发：推送 v* 标签（如 v0.9）才构建 universal Release 包并上传到 GitHub Release。
+# 日常 push / PR 由 build-test.yml 负责（只测试+Debug 构建，不上传），不会误触发发布。
 name: Build universal release
 
 on:
@@ -10,6 +12,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Build Archive (universal binary)
         run: |
           cd LyricsMTMR
@@ -23,3 +26,20 @@ jobs:
 
       - name: Verify universal binary
         run: lipo -info LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR
+
+      - name: Package app (zip + sha256)
+        run: |
+          APP="LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          test -d "$APP" || { echo "APP not found at $APP"; exit 1; }
+          ZIP="LyricsMTMR-${GITHUB_REF_NAME}-universal.zip"
+          ditto -c -k --keepParent "$APP" "$ZIP"
+          shasum -a 256 "$ZIP" > "$ZIP.sha256"
+          ls -lh "$ZIP" "$ZIP.sha256"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            LyricsMTMR-v*-universal.zip
+            LyricsMTMR-v*-universal.zip.sha256
+          generate_release_notes: true
