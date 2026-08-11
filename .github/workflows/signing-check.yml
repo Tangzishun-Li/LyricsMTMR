@@ -1,0 +1,66 @@
+# Sparkle 私钥格式 guard 冒烟测试（ITER-18）。
+# 背景：publish.yml 的 KEY_LEN guard（ITER-13 引入）只在 v* tag 发布时执行，
+#       日常 PR CI 从不触碰——guard 一旦被改坏要等下次发版才暴露。
+#       本 workflow 在 PR 时用三种伪造输入（正常 base64(96B) / PEM 文本 / 长度≠96B）
+#       跑与 publish.yml 完全相同的校验脚本 .github/scripts/verify_sparkle_key.sh，
+#       断言退出码（fail 表示校验有效），防回归。
+# 触发：pull_request（所有 PR）+ workflow_dispatch（手动）。
+name: Sparkle key format guard smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke-test verify_sparkle_key.sh (valid / PEM / wrong length)
+        run: |
+          set -euo pipefail
+          SCRIPT=".github/scripts/verify_sparkle_key.sh"
+          PASS=0
+          FAIL=0
+
+          # 1) 正常输入：base64(96B) 随机字节 keyfile → 期望退出码 0
+          VALID=$(mktemp)
+          head -c 96 /dev/urandom | base64 > "$VALID"
+          if bash "$SCRIPT" "$VALID" >/dev/null 2>&1; then
+            echo "[PASS] valid base64(96B) keyfile → exit 0"
+            PASS=$((PASS+1))
+          else
+            echo "[FAIL] valid base64(96B) keyfile 被误拒"
+            FAIL=$((FAIL+1))
+          fi
+
+          # 2) PEM 文本（非 base64）→ 期望非零退出（解码失败 → 0 字节 ≠ 96B）
+          PEM=$(mktemp)
+          printf '%s\n' \
+            '-----BEGIN PRIVATE KEY-----' \
+            'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgXXXXXXXXXXXXXXXXXXXXXXXX' \
+            '-----END PRIVATE KEY-----' > "$PEM"
+          if bash "$SCRIPT" "$PEM" >/dev/null 2>&1; then
+            echo "[FAIL] PEM 文本未报格式错误"
+            FAIL=$((FAIL+1))
+          else
+            echo "[PASS] PEM 文本 → 非零退出"
+            PASS=$((PASS+1))
+          fi
+
+          # 3) 长度≠96B：base64(64B) → 期望非零退出
+          SHORT=$(mktemp)
+          head -c 64 /dev/urandom | base64 > "$SHORT"
+          if bash "$SCRIPT" "$SHORT" >/dev/null 2>&1; then
+            echo "[FAIL] 长度≠96B 未报格式错误"
+            FAIL=$((FAIL+1))
+          else
+            echo "[PASS] 长度≠96B → 非零退出"
+            PASS=$((PASS+1))
+          fi
+
+          rm -f "$VALID" "$PEM" "$SHORT"
+          echo "---"
+          echo "assertions: PASS=$PASS FAIL=$FAIL"
+          [ "$FAIL" -eq 0 ] || { echo "ERROR: smoke assertions failed"; exit 1; }
