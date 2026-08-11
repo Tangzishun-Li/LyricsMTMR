@@ -87,6 +87,8 @@ class KaraokeLabel: NSTextField {
         _attrString = nil
         _ctFrame = nil
         _progressCTFrame = nil
+        _measuredSize = nil
+        _rubyLayoutCache.removeAll()
         needsLayout = true
         needsDisplay = true
         removeProgressAnimation()
@@ -155,21 +157,32 @@ class KaraokeLabel: NSTextField {
         return ctFrame
     }
 
-    override var intrinsicContentSize: NSSize {
-        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
-        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
+    /// 整行文本的测量尺寸缓存（OPT-6：每次调用新建 CTFramesetter + suggestFrameSize
+    /// 不缓存 → 按行缓存，行内容/字体/颜色/方向变化由 clearCache 统一失效）。
+    private var _measuredSize: CGSize?
+
+    /// 全文本无约束测量结果，供 intrinsicContentSize 与 fullTextWidth 复用。
+    /// 与 _ctFrame 同款惰性缓存模式（:129-156）。
+    private var measuredSize: CGSize {
+        if let measuredSize = _measuredSize {
+            return measuredSize
+        }
         let framesetter = CTFramesetter.create(attributedString: attrString)
         let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
-        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
+        let size = framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttributes).size
+        _measuredSize = size
+        return size
+    }
+
+    override var intrinsicContentSize: NSSize {
+        // OPT-6：命中 _measuredSize 缓存，避免每 tick 重复 shaping
+        measuredSize
     }
 
     /// The full measured text width from CoreText layout.
     var fullTextWidth: CGFloat {
-        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
-        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
-        let framesetter = CTFramesetter.create(attributedString: attrString)
-        let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
-        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size.width
+        // OPT-6：与 intrinsicContentSize 共用同一测量缓存
+        measuredSize.width
     }
 
     /// Returns the pixel x-position of a given character index in the first line.
@@ -460,14 +473,38 @@ class KaraokeLabel: NSTextField {
         drawRubyText(romajin: romajin, glyphBounds: glyphBounds, in: context)
     }
 
-    /// Creates a ruby (small superscript) attributed string that fits within the given glyph bounds.
+    /// 预计算的 ruby 布局（OPT-6）：CTLine + 宽度，draw 只做 CTLineDraw。
+    private struct RubyLayout {
+        let line: CTLine
+        let width: CGFloat
+    }
+
+    /// ruby 布局缓存键：romaji 文本 + 目标宽度 + 基准字号。
+    /// 行切换后 glyphBounds 宽度随之变化，键不命中 → 自动重建；字体/颜色/方向
+    /// 变化则由 clearCache 整体清空。
+    private struct RubyLayoutKey: Hashable {
+        let romajin: String
+        let maxWidth: CGFloat
+        let baseFontSize: CGFloat
+    }
+
+    private var _rubyLayoutCache: [RubyLayoutKey: RubyLayout] = [:]
+
+    /// Creates a ruby (small superscript) layout that fits within the given glyph bounds.
     /// The font size is progressively shrunk until the text fits or the minimum size is reached.
-    private func makeRubyAttributedString(for romajin: String, maxWidth: CGFloat) -> NSAttributedString {
-        let fontSize = font?.pointSize ?? RubyMetrics.defaultFontSize
-        var rubyFontSize = fontSize * RubyMetrics.fontSizeRatio
-        let font = NSFont.systemFont(ofSize: rubyFontSize)
+    /// OPT-6：布局（含收缩循环）只计算一次并缓存，draw() 期间不再重复重建+测量。
+    private func makeRubyLayout(for romajin: String, maxWidth: CGFloat) -> RubyLayout {
+        let key = RubyLayoutKey(
+            romajin: romajin,
+            maxWidth: maxWidth,
+            baseFontSize: font?.pointSize ?? RubyMetrics.defaultFontSize)
+        if let layout = _rubyLayoutCache[key] {
+            return layout
+        }
+
+        var rubyFontSize = key.baseFontSize * RubyMetrics.fontSizeRatio
         var rubyString = NSAttributedString(string: romajin, attributes: [
-            .font: font,
+            .font: NSFont.systemFont(ofSize: rubyFontSize),
             .foregroundColor: textColor ?? .black,
         ])
         var rubyWidth = rubyString.size().width
@@ -482,21 +519,22 @@ class KaraokeLabel: NSTextField {
             rubyWidth = rubyString.size().width
         }
 
-        return rubyString
+        let layout = RubyLayout(line: CTLineCreateWithAttributedString(rubyString), width: rubyWidth)
+        _rubyLayoutCache[key] = layout
+        return layout
     }
 
     /// Draws a ruby annotation centered horizontally above the given glyph bounds.
     private func drawRubyText(romajin: String, glyphBounds: CGRect, in context: CGContext) {
         let fontSize = font?.pointSize ?? RubyMetrics.defaultFontSize
-        let rubyString = makeRubyAttributedString(for: romajin, maxWidth: glyphBounds.width)
-        let rubyWidth = rubyString.size().width
-        let xOffset = (glyphBounds.width - rubyWidth) / 2
+        // OPT-6：命中缓存直接取预计算的 CTLine，draw 只做 CTLineDraw
+        let layout = makeRubyLayout(for: romajin, maxWidth: glyphBounds.width)
+        let xOffset = (glyphBounds.width - layout.width) / 2
         let rubyPoint = CGPoint(
             x: glyphBounds.minX + xOffset,
             y: glyphBounds.minY - fontSize * RubyMetrics.verticalOffsetRatio
         )
-        let rubyLine = CTLineCreateWithAttributedString(rubyString)
         context.textPosition = rubyPoint
-        CTLineDraw(rubyLine, context)
+        CTLineDraw(layout.line, context)
     }
 }
