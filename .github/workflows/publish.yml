@@ -58,6 +58,13 @@ jobs:
           trap 'rm -f "$KEYFILE"' EXIT
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEYFILE"
           chmod 600 "$KEYFILE"
+          # 格式自检：SPARKLE_PRIVATE_KEY 必须是 base64(96B) Ed25519 私钥（scalar‖prefix 64B + 公钥 32B），
+          # PEM 等错误格式在此直接报错退出，避免后续 sign_update/交叉自检报出看不出原因的失败
+          KEY_LEN=$(base64 -d < "$KEYFILE" 2>/dev/null | wc -c | tr -d ' ')
+          if [ "$KEY_LEN" -ne 96 ]; then
+            echo "ERROR: SPARKLE_PRIVATE_KEY 不是 base64(96B) Ed25519 私钥格式（期望 scalar‖prefix 64B + 公钥 32B）" >&2
+            exit 1
+          fi
           SIG_OUT=$(/tmp/sparkle210/bin/sign_update -f "$KEYFILE" "$ZIP")
           EDSIG=$(printf '%s' "$SIG_OUT" | sed -E 's/.*sparkle:edSignature="([^"]+)".*/\1/')
           LENGTH=$(printf '%s' "$SIG_OUT" | sed -E 's/.*length="([0-9]+)".*/\1/')
