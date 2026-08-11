@@ -12,9 +12,20 @@ class TouchBarMirrorWindowController: NSObject {
 
     /// ITER-3: 快照类 item 节流。快照类（AppScrubber/音量/亮度/自定义视图）没有低成本
     /// 指纹，旧逻辑每 0.1s tick 都重截一次位图；它们的内容变化频率远低于 10Hz，
-    /// 因此只允许每 snapshotRefreshInterval 个 tick（≈0.5s）重建一次。
+    /// 因此只允许每隔若干 tick（ITER-9 按快照 item 数量自适应，见下）重建一次。
+    /// ITER-11: syncTick 在 show() 时归零，使快照相位在每次显示后可预期。
     private var syncTick: Int = 0
-    private static let snapshotRefreshInterval = 5
+
+    /// ITER-9: 快照节流间隔按当前布局中快照类 item 数量自适应 —— 快照越多，
+    /// 每 tick 全量重截位图越贵，间隔越长：
+    /// 0-1 个 → 5 tick（0.5s，原值）；2 个 → 7 tick（0.7s，中间值）；≥3 个 → 10 tick（1s）。
+    private static func snapshotRefreshInterval(forSnapshotCount count: Int) -> Int {
+        switch count {
+        case 0...1: return 5
+        case 2: return 7
+        default: return 10
+        }
+    }
 
     private var isVisible: Bool = false {
         didSet { AppSettings.showMirrorWindow = isVisible }
@@ -28,6 +39,9 @@ class TouchBarMirrorWindowController: NSObject {
     }
 
     func show() {
+        // ITER-11: 快照相位归零 —— 每次显示后节流节奏重新从第 1 个 tick 起算，
+        // 快照刷新时刻可预期（间隔固定时始终是「显示后第 N 个 tick」）。
+        syncTick = 0
         if window != nil {
             window?.orderFront(nil)
             isVisible = true
@@ -116,12 +130,18 @@ class TouchBarMirrorWindowController: NSObject {
         guard let sv = stackView else { return }
 
         syncTick += 1
-        // ITER-3: 只有到了降频刷新点，快照类 item 才允许重建（重截位图）
-        let snapshotDue = syncTick % Self.snapshotRefreshInterval == 0
 
         let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
         let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
         let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
+
+        // ITER-9: 每 tick 按当前布局中快照类 item 数（fingerprint 为 nil，即
+        // AppScrubber/音量/亮度/自定义视图等无低成本指纹的 item）求自适应节流间隔；
+        // 数量变化后下一 tick 自动切换间隔。
+        let snapshotCount = (leftItems + centerItems + rightItems)
+            .filter { fingerprint(of: $0) == nil }.count
+        // ITER-3: 只有到了降频刷新点，快照类 item 才允许重建（重截位图）
+        let snapshotDue = syncTick % Self.snapshotRefreshInterval(forSnapshotCount: snapshotCount) == 0
 
         // 目标布局：与全量重建一致的 (item | separator) 序列
         var targets: [MirrorElement] = []
@@ -154,8 +174,9 @@ class TouchBarMirrorWindowController: NSObject {
                         } else {
                             // 快照类（AppScrubber/音量/亮度/自定义视图）：无低成本指纹。
                             // FIX-1 语义保留：快照必须能刷新，绝不永久冻结 —— 只是降频。
-                            // ITER-3：每 snapshotRefreshInterval 个 tick（≈0.5s）才重建一次，
-                            // 位图重截从 10Hz 降到 2Hz；未到刷新点时原地保留上一帧快照。
+                            // ITER-3 + ITER-9：按当前快照 item 数量自适应间隔
+                            // （1 个 ≈0.5s，2 个 ≈0.7s，3 个以上 ≈1s）才重建一次；
+                            // 未到刷新点时原地保留上一帧快照。
                             if !snapshotDue { continue }
                             itemFingerprints.removeValue(forKey: item.identifier)
                             let newView = makeView(for: .item(item))
@@ -197,8 +218,9 @@ class TouchBarMirrorWindowController: NSObject {
     }
 
     /// item 内容指纹。快照类 item（AppScrubber/音量/亮度/自定义视图等）无低成本指纹，
-    /// fingerprint(of:) 返回 nil，由 syncFromTouchBar 的快照分支按 ITER-3 节流
-    /// （每 snapshotRefreshInterval 个 tick ≈ 0.5s）重建，绝不永久冻结。
+    /// fingerprint(of:) 返回 nil，由 syncFromTouchBar 的快照分支按 ITER-3 + ITER-9 节流
+    /// （间隔随快照 item 数量自适应，1 个 5 tick / 2 个 7 tick / 3 个以上 10 tick）重建，
+    /// 绝不永久冻结。
     /// `internal` (was `private`) so MTMRTests can unit-test the equality semantics
     /// via `@testable import` (ITER-6); no logic change.
     enum ItemFingerprint: Equatable {
