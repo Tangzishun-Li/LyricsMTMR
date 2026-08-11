@@ -31,16 +31,18 @@
 2. **改表**：更新 `aShareHolidays` / `aShareMakeupDates` 对应年份段，并同步更新段注释
    （去掉「预估」标注、补上文号 + URL）。
 3. **更新测试锚点**：`LyricsMTMR/MTMRTests/StockMarketHoursTests.swift` 为 ITER-8 表驱动断言，
-   直接从两表生成断言——**改表后跑测试即自动覆盖**；另有 ITER-12「官方锚点金丝雀」
-   （固定日期断言，已覆盖 2026 全部官方节日窗口端点与全部补班日，见
-   `StockMarketHoursTests.swift:136` 起金丝雀区段）独立于两表——新年份核对落表后，
-   应同步为该年度补充金丝雀锚点（至少各节日窗口端点 + 全部官方补班日）。
+   直接从两表生成断言——**改表后跑测试即自动覆盖**；另有按年度分组的「官方锚点金丝雀」
+   （ITER-12 / ITER-16，固定日期断言，见 `StockMarketHoursTests.swift` 金丝雀区段
+   `testGoldenAnchors2026` / `testGoldenAnchorsMakeup2026` / `testGoldenAnchors2027`）
+   独立于两表——新年份核对落表后，应同步在该年度块补充官方锚点
+   （至少各节日窗口端点 + 全部官方补班日；连休/补班未确定前只补节日当天锚点）。
 4. **验证**：跑 `MTMRTests` 全量通过后提交 PR（改动应为纯数据 + 注释）。
 
 ### 修订历史
 
 - 2026 年：官方（国办发明电〔2025〕7 号）—— ITER-4 首次引入，ITER-7 外置为唯一数据源。
-- 2027 年：预估段—— 待 2026-11 国办通知核对（置顶待办 ITER-14，见 `docs/iteration-plan.md`）。
+- 2027 年：节日当天为农历/公历确定值（已补金丝雀 `testGoldenAnchors2027`）；连休窗口与补班仍为预估
+  —— 待 2026-11 国办通知核对（置顶待办 ITER-14，见 `docs/iteration-plan.md`）。
 
 ## 2. Sparkle 更新签名密钥
 
