@@ -357,10 +357,13 @@ class StockBarItem: CustomButtonTouchBarItem {
         }.resume()
     }
 
-    // MARK: - A股交易日历（法定节假日休市，ITER-4）
+    // MARK: - A股交易日历（法定节假日休市，ITER-4/ITER-7）
 
     /// A 股休市日（法定节假日及调休连休），格式 "yyyy-MM-dd"。
     /// 含假期窗口内的周末（本就休市，列出便于整窗核对）；补班日见 aShareMakeupDates。
+    ///
+    /// ITER-7：本表为休市日判断的**唯一数据源**（internal 静态只读），isMarketOpen 与
+    /// MTMRTests 表驱动断言（ITER-8）都引用它——修订休市安排只需改这一处，杜绝两处漂移。
     ///
     /// 数据来源与更新机制：
     /// - 2026 年：国务院办公厅《关于 2026 年部分节假日安排的通知》（国办发明电〔2025〕7 号，2025-11-04），
@@ -368,8 +371,8 @@ class StockBarItem: CustomButtonTouchBarItem {
     /// - 2027 年：春节（除夕 2027-02-05 腊月二十九、初一 2027-02-06）、端午（2027-06-09）、中秋（2027-09-15）
     ///   为农历天文历确定值；元旦/清明（2027-04-05）/劳动/国庆按公历；调休连休窗口与补班日为按近年惯例的预估，
     ///   待国办《2027 年部分节假日安排》（预计 2026 年 11 月发布）核对后更新。
-    /// - 更新机制：每年国办通知发布后（约 11 月）核对并更新本表与 aShareMakeupDates，两表须同步维护。
-    private static let aShareClosedDates: Set<String> = [
+    /// - 更新机制：每年国办通知发布后（约 11 月）核对并同步更新本表与 aShareMakeupDates，两表须一起维护。
+    static let aShareHolidays: Set<String> = [
         // —— 2026（官方：国办发明电〔2025〕7 号）——
         "2026-01-01", "2026-01-02", "2026-01-03",                    // 元旦 1/1(四)~1/3(六)
         "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18",
@@ -396,8 +399,9 @@ class StockBarItem: CustomButtonTouchBarItem {
     ]
 
     /// A 股调休补班日（周末上班，应视为交易日），格式 "yyyy-MM-dd"。
-    /// 2026 年数据同国办发明电〔2025〕7 号；2027 年为预估，随 aShareClosedDates 同步更新。
-    private static let aShareMakeupDates: Set<String> = [
+    /// ITER-7：与 aShareHolidays 同为交易日历唯一数据源（internal 静态只读），测试表驱动断言亦引用。
+    /// 2026 年数据同国办发明电〔2025〕7 号；2027 年为预估，随 aShareHolidays 同步更新。
+    static let aShareMakeupDates: Set<String> = [
         // —— 2026（官方）——
         "2026-01-04",   // 周日上班（元旦调休）
         "2026-02-14",   // 周六上班（春节调休）
@@ -432,7 +436,7 @@ class StockBarItem: CustomButtonTouchBarItem {
 
         // 法定节假日休市（含调休连休窗口），优先级最高
         let dateKey = String(format: "%04d-%02d-%02d", year, month, day)
-        if Self.aShareClosedDates.contains(dateKey) { return false }
+        if Self.aShareHolidays.contains(dateKey) { return false }
 
         // 周末：普通周末休市；调休补班日视为交易日，继续走时段判断
         let isWeekend = weekday == 1 || weekday == 7  // Calendar.weekday: 1=周日, 7=周六
