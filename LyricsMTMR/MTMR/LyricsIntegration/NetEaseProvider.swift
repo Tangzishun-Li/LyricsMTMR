@@ -21,6 +21,57 @@ enum NetEaseProvider {
 
     private static let eapiKey = "e82ckenh8dichen8".data(using: .utf8)!
 
+    // MARK: - Lyrics LRU Cache (OPT-18)
+
+    /// Bounded in-memory cache for parsed lyrics, keyed by song ID.
+    /// Background: every song switch used to re-download + re-parse the
+    /// YRC/KRC/LRC payload from NetEase (memory-rendering-audit: NetEaseProvider
+    /// had no cache). Switching back to a recently played track now hits this
+    /// LRU instead of the network. SimpleLyrics is immutable (all `let` props),
+    /// so sharing instances across the engine / adapter is safe.
+    private static let lyricsCache = LyricsLRUCache(capacity: 32)
+
+    /// Thread-safe LRU container. Only ever mutated inside the serial queue.
+    private final class LyricsLRUCache {
+        private var entries: [Int: SimpleLyrics] = [:]
+        private var order: [Int] = [] // MRU first
+        private let capacity: Int
+        private let queue = DispatchQueue(label: "com.lyricsmtmr.netease.lyrics-cache")
+
+        init(capacity: Int) {
+            self.capacity = max(1, capacity)
+        }
+
+        func object(forKey key: Int) -> SimpleLyrics? {
+            queue.sync {
+                guard let value = entries[key] else { return nil }
+                // Promote to MRU.
+                if let idx = order.firstIndex(of: key) {
+                    order.remove(at: idx)
+                    order.insert(key, at: 0)
+                }
+                return value
+            }
+        }
+
+        func setObject(_ value: SimpleLyrics, forKey key: Int) {
+            queue.sync {
+                if entries[key] == nil {
+                    order.insert(key, at: 0)
+                    if order.count > capacity {
+                        let evicted = order.removeLast()
+                        entries[evicted] = nil
+                    }
+                }
+                entries[key] = value
+            }
+        }
+
+        var count: Int {
+            queue.sync { entries.count }
+        }
+    }
+
     // MARK: - Search
 
     static func search(keyword: String, limit: Int = 10) async throws -> [NetEaseSong] {
@@ -57,19 +108,25 @@ enum NetEaseProvider {
 
     // MARK: - Fetch Lyrics
 
-   static func fetchLyrics(songId: Int) async throws -> SimpleLyrics {
-       let payload: [String: Any] = [
-           "id": "\(songId)",
-           "cp": "false",
+    static func fetchLyrics(songId: Int) async throws -> SimpleLyrics {
+        // OPT-18: LRU cache hit — skip the network round-trip + re-parse.
+        if let cached = lyricsCache.object(forKey: songId) {
+            AppLog.lyrics("NetEase.fetchLyrics: cache HIT songId=\(songId)")
+            return cached
+        }
+
+        let payload: [String: Any] = [
+            "id": "\(songId)",
+            "cp": "false",
             "lv": "-1",
             "kv": "-1",
-           "tv": "0",
-           "rv": "0",
+            "tv": "0",
+            "rv": "0",
             "yv": "-1",
-           "ytv": "0",
-           "yrv": "0",
-           "csrf_token": "",
-       ]
+            "ytv": "0",
+            "yrv": "0",
+            "csrf_token": "",
+        ]
 
         let raw = try await eapiPost(
             url: "https://interface3.music.163.com/eapi/song/lyric/v1",
@@ -86,6 +143,7 @@ enum NetEaseProvider {
           let lyrics = parseYRC(yrcLyric) {
             let wordCount = lyrics.lines.reduce(0) { $0 + $1.words.count }
             AppLog.lyrics("NetEase.fetchLyrics: YRC path — \(lyrics.lines.count) lines, \(wordCount) words total")
+            lyricsCache.setObject(lyrics, forKey: songId)
            return lyrics
        }
 
@@ -95,6 +153,7 @@ enum NetEaseProvider {
           let lyrics = parseKRC(kLyricText) {
             let wordCount = lyrics.lines.reduce(0) { $0 + $1.words.count }
             AppLog.lyrics("NetEase.fetchLyrics: KRC path — \(lyrics.lines.count) lines, \(wordCount) words total")
+            lyricsCache.setObject(lyrics, forKey: songId)
            return lyrics
        }
 
@@ -103,6 +162,7 @@ enum NetEaseProvider {
           !lrcLyric.isEmpty,
           let lyrics = SimpleLyrics.parse(lrcContent: lrcLyric) {
             AppLog.lyrics("NetEase.fetchLyrics: LRC fallback — \(lyrics.lines.count) lines (no word timing)")
+            lyricsCache.setObject(lyrics, forKey: songId)
            return lyrics
        }
 
