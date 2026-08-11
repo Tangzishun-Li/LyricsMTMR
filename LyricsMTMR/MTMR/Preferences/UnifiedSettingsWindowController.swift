@@ -94,6 +94,11 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private static weak var current: UnifiedSettingsWindowController?
 
+    /// OPT-1: invoked from `windowWillClose` so the owning AppDelegate can
+    /// drop its strong reference — the controller/window/SwiftUI tree are
+    /// then released immediately instead of lingering as a ghost window.
+    var onWindowWillClose: (() -> Void)?
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
@@ -134,6 +139,11 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         UnifiedSettingsWindowController.current = nil
         SettingsWindowState.shared.isVisible = false
         DockVisibilityManager.shared.handleSettingsWindowClosed()
+        // OPT-1: drop the owner's strong reference so the window and the whole
+        // SwiftUI tree deallocate with the close (ghost-window fix). AppKit
+        // holds no strong ref to the controller (windowController/delegate are
+        // weak), so this callback is what actually breaks the retention.
+        onWindowWillClose?()
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -414,6 +424,7 @@ enum Deck {
 extension Deck {
 
     struct Background: View {
+        @ObservedObject private var windowState = SettingsWindowState.shared
         @State private var drifting = false
 
         var body: some View {
@@ -434,11 +445,29 @@ extension Deck {
                         .offset(x: -170, y: 210)
                         .blur(radius: 5)
                 }
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
-                        drifting = true
-                    }
+                .onAppear { syncDrift() }
+                .onChange(of: windowState.isVisible) { _, _ in syncDrift() }
+        }
+
+        /// OPT-2: run the repeatForever drift only while the settings window is
+        /// visible. `withAnimation` has no `paused:` parameter like the
+        /// TimelineView-based Equalizer (:1113), so the equivalent is starting
+        /// the animation on visibility and cancelling it when hidden — off-screen
+        /// frames stop being rendered at all.
+        private func syncDrift() {
+            if windowState.isVisible {
+                withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
+                    drifting = true
                 }
+            } else {
+                // Snap back without animation — this cancels the running
+                // repeatForever so no frames are rendered while hidden.
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    drifting = false
+                }
+            }
         }
     }
 

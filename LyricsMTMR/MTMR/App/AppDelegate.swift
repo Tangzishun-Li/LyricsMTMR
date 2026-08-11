@@ -140,6 +140,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menuModel?.refresh()
     }
 
+    /// Strong ref is intentional: AppKit's windowController/delegate are both
+    /// weak, so nothing else would keep the controller alive while the window
+    /// is open. OPT-1 releases it in `windowWillClose` (via onWindowWillClose)
+    /// so the window + SwiftUI tree deallocate as soon as the user closes it.
     private var unifiedSettingsController: UnifiedSettingsWindowController?
 
     /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
@@ -155,7 +159,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func openSettings(_: Any?) {
         if unifiedSettingsController == nil || unifiedSettingsController?.window == nil {
-            unifiedSettingsController = UnifiedSettingsWindowController()
+            let controller = UnifiedSettingsWindowController()
+            // OPT-1: release on close — the window and its SwiftUI tree are
+            // deallocated as soon as the user closes settings, instead of
+            // lingering as a ghost window (~15% CPU + ~170MB memory).
+            controller.onWindowWillClose = { [weak self] in
+                self?.unifiedSettingsController = nil
+            }
+            unifiedSettingsController = controller
         }
         unifiedSettingsController?.showWindow(nil)
         unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)
