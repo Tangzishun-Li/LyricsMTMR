@@ -92,7 +92,12 @@ final class DockVisibilityManager: NSObject, NSWindowDelegate {
 
 class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
-    private static weak var current: UnifiedSettingsWindowController?
+    // OPT-1: 强持有当前设置窗口控制器，windowWillClose（:133-137）置 nil 即释放。
+    // 注意原实现是 weak：若 AppDelegate 侧改 weak 而这里仍 weak，控制器会在
+    // openSettings 返回后随自动释放池排空而抢先释放（实测 2s~30s 不定），
+    // 窗口随之消失或经 DockVisibilityManager.trackedWindow 变成新幽灵。
+    // 强持有 + 关窗置 nil 后，窗口生命周期与"打开→关闭"严格对应。
+    private static var current: UnifiedSettingsWindowController?
 
     convenience init() {
         let window = NSWindow(
@@ -414,31 +419,43 @@ enum Deck {
 extension Deck {
 
     struct Background: View {
-        @State private var drifting = false
+        /// OPT-2: 窗口不可见时暂停背景漂移动画，复用 :1113 Equalizer 的
+        /// TimelineView paused 模式。旧实现 withAnimation repeatForever 是
+        /// 全项目唯一常驻隐式动画：窗口关闭后仍以 60fps 离屏渲染烧 CPU。
+        @ObservedObject private var windowState = SettingsWindowState.shared
 
         var body: some View {
-            LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
-                .overlay(alignment: .topTrailing) {
-                    RadialGradient(
-                        colors: [Deck.accent.opacity(drifting ? 0.16 : 0.10), .clear],
-                        center: .center, startRadius: 0, endRadius: 360)
-                        .frame(width: 700, height: 700)
-                        .offset(x: 170, y: -230)
-                        .blur(radius: 5)
-                }
-                .overlay(alignment: .bottomLeading) {
-                    RadialGradient(
-                        colors: [Deck.mint.opacity(drifting ? 0.06 : 0.10), .clear],
-                        center: .center, startRadius: 0, endRadius: 320)
-                        .frame(width: 620, height: 620)
-                        .offset(x: -170, y: 210)
-                        .blur(radius: 5)
-                }
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
-                        drifting = true
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                    paused: !windowState.isVisible)) { context in
+                let ease = driftEase(at: context.date)
+                LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
+                    .overlay(alignment: .topTrailing) {
+                        RadialGradient(
+                            colors: [Deck.accent.opacity(0.10 + 0.06 * ease), .clear],
+                            center: .center, startRadius: 0, endRadius: 360)
+                            .frame(width: 700, height: 700)
+                            .offset(x: 170, y: -230)
+                            .blur(radius: 5)
                     }
-                }
+                    .overlay(alignment: .bottomLeading) {
+                        RadialGradient(
+                            colors: [Deck.mint.opacity(0.10 - 0.04 * ease), .clear],
+                            center: .center, startRadius: 0, endRadius: 320)
+                            .frame(width: 620, height: 620)
+                            .offset(x: -170, y: 210)
+                            .blur(radius: 5)
+                    }
+            }
+        }
+
+        /// 与旧实现 `withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true))`
+        /// 同周期同波形：16s 三角波（8s 起 + 8s 伏），easeInOut 用 smoothstep 近似。
+        /// 纯时间函数 → 暂停/恢复无缝衔接、不跳变。
+        private func driftEase(at date: Date) -> Double {
+            let period = 16.0
+            let half = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / (period / 2)
+            let u = half < 1 ? half : 2 - half
+            return u * u * (3 - 2 * u)
         }
     }
 

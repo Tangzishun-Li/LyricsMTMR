@@ -140,7 +140,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menuModel?.refresh()
     }
 
-    private var unifiedSettingsController: UnifiedSettingsWindowController?
+    // OPT-1: 关窗即释放设置窗口（幽灵窗口根治）。weak 打破 AppDelegate 的强持有，
+    // 窗口关闭后控制器+NSHostingView+SwiftUI 视图树整链释放，repeatForever 驱动的
+    // 离屏 60fps 渲染随之停止；openSettings 的 nil 判断会在下次打开时自动重建。
+    private weak var unifiedSettingsController: UnifiedSettingsWindowController?
 
     /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
     private lazy var updaterController = SPUStandardUpdaterController(
