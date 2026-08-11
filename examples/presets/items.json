@@ -207,7 +207,7 @@
     "items": [
       {
         "source": {
-          "inline": "ps -A -o %cpu,%mem | awk '{c+=$1;m+=$2}END{printf \"%d%%\",m}'"
+          "inline": "ps -A -o %cpu,%mem | awk '{m+=$2}END{printf \"%.0f%%\",m}'"
         },
         "action": "appleScript",
         "autoResize": true,
