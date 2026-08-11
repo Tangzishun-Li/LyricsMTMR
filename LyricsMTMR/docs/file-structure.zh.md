@@ -47,7 +47,7 @@ mindmap
 ├── .github/                          # CI（根目录才会被 GitHub 执行）
 │   ├── FUNDING.yml
 │   └── workflows/
-│       ├── build-test.yml            # push/PR：构建 + 16 个单元测试
+│       ├── build-test.yml            # push/PR：构建 + 59 个单元测试
 │       └── publish.yml               # v* tag：通用架构(arm64+x86_64)归档
 ├── Makefile                          # make build / test / archive / clean
 ├── examples/presets/                 # 主题预设示例（theme1-15、items.json、test_lyrics_preset.json）
@@ -80,7 +80,7 @@ mindmap
 │   │   ├── Resources/                # run.pl（MediaRemote 运行时脚本）
 │   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
-│   ├── MTMRTests/                    # 单元测试（57 个用例）
+│   ├── MTMRTests/                    # 单元测试（59 个用例）
 │   ├── Scripts/                      # 开发脚本
 │   │   ├── build.sh / test.sh / archive.sh   # 一键构建（Makefile 调用）
 │   │   ├── embed-entitlements.sh             # 重新签名脚本
