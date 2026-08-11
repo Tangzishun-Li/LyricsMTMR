@@ -1,11 +1,12 @@
 import XCTest
 @testable import LyricsMTMR
 
-/// ITER-6: OPT-11 + ITER-4 isMarketOpen(at:) (StockBarItem.swift) 边界单元测试。
-/// 覆盖：普通周末休市、调休补班日视为交易日、法定节假日休市（2026 官方表 +
-/// 2027 预估表）、9:15 集合竞价起算、11:30-13:00 午休、15:00 收盘边界。
-/// 所有日期按 Asia/Shanghai 时区构造；星期与日期锚点取自 ITER-4 表内注释
-/// （如“劳动 5/1(五)~5/5(二)”），断言与合并后 main 的行为一致。
+/// ITER-6 + ITER-8: isMarketOpen(at:) (StockBarItem.swift) 边界单元测试。
+/// 节假日/补班断言不再手工复制锚点，改为从 StockBarItem 内
+/// aShareHolidays / aShareMakeupDates 单一数据源生成（ITER-8）——
+/// 表里新增或修订日期时测试自动覆盖，杜绝表与断言两处漂移；
+/// 时间边界用例（9:15/11:30/13:00/15:00）与普通周末规则保留。
+/// 所有日期按 Asia/Shanghai 时区构造。
 class StockMarketHoursTests: XCTestCase {
 
     /// 构造北京时间（Asia/Shanghai）的指定日期时刻。
@@ -15,60 +16,126 @@ class StockMarketHoursTests: XCTestCase {
         return cal.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
     }
 
+    /// 北京时间日历（用于星期与次日推导）。
+    private var beijingCalendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        return cal
+    }
+
+    /// 解析表键 "yyyy-MM-dd" → (year, month, day)。
+    private func parse(_ key: String) -> (year: Int, month: Int, day: Int)? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return (parts[0], parts[1], parts[2])
+    }
+
+    /// 表键在交易时段内（10:00）的时刻。
+    private func atTradingTime(_ key: String) -> Date {
+        let (y, m, d) = parse(key)!
+        return bj(y, m, d, 10, 0)
+    }
+
+    /// 是否为周末（周六/周日）。
+    private func isWeekend(_ date: Date) -> Bool {
+        guard let weekday = beijingCalendar.dateComponents([.weekday], from: date).weekday else { return false }
+        return weekday == 1 || weekday == 7  // Calendar.weekday: 1=周日, 7=周六
+    }
+
     // MARK: - 周末
 
     func testRegularWeekendClosed() {
-        // 2026-08-15 周六、2026-08-16 周日（非补班日）
+        // 2026-08-15 周六、2026-08-16 周日（非补班日，不在节假日表内）
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 8, 15, 10, 0)), "普通周六应休市")
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 8, 16, 10, 0)), "普通周日应休市")
     }
 
+    // MARK: - 调休补班（数据源：aShareMakeupDates，ITER-8）
+
     func testMakeupWeekendIsTradingDay() {
-        // ITER-4 补班表：2026-01-04 周日、2026-02-14 周六、2026-05-09 周六均上班
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 1, 4, 10, 0)), "元旦调休补班日（周日）应视为交易日")
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 2, 14, 10, 0)), "春节调休补班日（周六）应视为交易日")
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 5, 9, 10, 0)), "劳动节调休补班日（周六）应视为交易日")
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 9, 20, 10, 0)), "国庆调休补班日（周日）应视为交易日")
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 10, 10, 10, 0)), "国庆调休补班日（周六）应视为交易日")
+        // 遍历补班表全表：任一补班日在交易时段内（10:00）必须视为交易日
+        XCTAssertFalse(StockBarItem.aShareMakeupDates.isEmpty, "补班表不应为空")
+        for key in StockBarItem.aShareMakeupDates {
+            XCTAssertTrue(StockBarItem.isMarketOpen(at: atTradingTime(key)),
+                          "表内补班日应视为交易日: \(key)")
+        }
     }
 
     func testMakeupDayStillRespectsSessionHours() {
-        // 补班日只是“算交易日”，时段规则不变：午休与盘后仍休市
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 1, 4, 10, 0)), "补班日早盘应开市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 1, 4, 12, 0)), "补班日午休应休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 1, 4, 15, 30)), "补班日收盘后应休市")
+        // 补班日只是“算交易日”，时段规则不变：午休与盘后仍休市（日期取自表内）
+        guard let key = StockBarItem.aShareMakeupDates.sorted().first else {
+            return XCTFail("补班表不应为空")
+        }
+        let (y, m, d) = parse(key)!
+        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(y, m, d, 10, 0)), "补班日早盘应开市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(y, m, d, 12, 0)), "补班日午休应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(y, m, d, 15, 30)), "补班日收盘后应休市")
     }
 
-    // MARK: - 法定节假日（ITER-4 表）
+    // MARK: - 法定节假日（数据源：aShareHolidays，ITER-8）
 
     func testHolidaysClosed2026Official() {
-        // 锚点（表内注释）：元旦 1/1(四)、春节 2/16(一) 假期中、清明 4/6(一)、
-        // 劳动 5/1(五)、端午 6/19(五)、中秋 9/25(五)、国庆 10/1(四)
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 1, 1, 10, 0)), "元旦休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 2, 16, 10, 0)), "春节假期休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 4, 6, 10, 0)), "清明假期休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 5, 1, 10, 0)), "劳动节休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 6, 19, 10, 0)), "端午休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 9, 25, 10, 0)), "中秋休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 10, 1, 10, 0)), "国庆休市")
+        // 2026 官方表（国办发明电〔2025〕7 号）全量遍历断言休市
+        let keys = StockBarItem.aShareHolidays.filter { $0.hasPrefix("2026-") }
+        XCTAssertFalse(keys.isEmpty, "2026 节假日表不应为空")
+        for key in keys {
+            XCTAssertFalse(StockBarItem.isMarketOpen(at: atTradingTime(key)),
+                           "2026 表内节假日应休市: \(key)")
+        }
     }
 
     func testHolidayWindowIncludesWeekend() {
-        // 春节窗口内的周日（2026-02-22）即使走周末规则也休市，整窗一致
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 2, 22, 10, 0)), "假期窗口内的周末应休市")
+        // 假期窗口内落在周末的日期也在表内并休市（整窗一致，不依赖周末规则兜底）
+        let weekendKeys = StockBarItem.aShareHolidays.filter { key in
+            guard let (y, m, d) = parse(key),
+                  let date = beijingCalendar.date(from: DateComponents(year: y, month: m, day: d)) else { return false }
+            return isWeekend(date)
+        }
+        XCTAssertFalse(weekendKeys.isEmpty, "节假日表应包含窗口内的周末日期")
+        for key in weekendKeys {
+            XCTAssertFalse(StockBarItem.isMarketOpen(at: atTradingTime(key)),
+                           "假期窗口内的周末应休市: \(key)")
+        }
     }
 
     func testHolidaysClosed2027Estimated() {
-        // ITER-4 2027 预估表：元旦 1/1(五)、春节除夕 2/5(五)
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 1, 1, 10, 0)), "2027 元旦休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 2, 5, 10, 0)), "2027 除夕休市")
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 2, 12, 10, 0)), "2027 春节假期末（初七）休市")
+        // 2027 预估表（待国办 2026-11 通知核对）全量遍历断言休市
+        let keys = StockBarItem.aShareHolidays.filter { $0.hasPrefix("2027-") }
+        XCTAssertFalse(keys.isEmpty, "2027 节假日表不应为空")
+        for key in keys {
+            XCTAssertFalse(StockBarItem.isMarketOpen(at: atTradingTime(key)),
+                           "2027 表内节假日应休市: \(key)")
+        }
     }
 
     func testHolidayAfterWindowEndsReopens() {
-        // 劳动节 5/5(二) 结束，次日 5/6(三) 为普通交易日
-        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 5, 5, 10, 0)), "劳动节最后一天仍休市")
-        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 5, 6, 10, 0)), "节后首个工作日应开市")
+        // 从表推导（无手工锚点）：假期窗口结束后的下一个普通工作日应开市
+        var found = false
+        for key in StockBarItem.aShareHolidays.sorted() {
+            guard let (y, m, d) = parse(key),
+                  let date = beijingCalendar.date(from: DateComponents(year: y, month: m, day: d)),
+                  let next = beijingCalendar.date(byAdding: .day, value: 1, to: date) else { continue }
+            let ny = beijingCalendar.component(.year, from: next)
+            let nm = beijingCalendar.component(.month, from: next)
+            let nd = beijingCalendar.component(.day, from: next)
+            let nextKey = String(format: "%04d-%02d-%02d", ny, nm, nd)
+            // 下一日为普通工作日（非周末、非节假日、非补班）→ 应开市
+            if !isWeekend(next) && !StockBarItem.aShareHolidays.contains(nextKey)
+                && !StockBarItem.aShareMakeupDates.contains(nextKey) {
+                XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(ny, nm, nd, 10, 0)),
+                              "假期窗口结束次日应开市: \(key) → \(nextKey)")
+                found = true
+            }
+        }
+        XCTAssertTrue(found, "表中至少应有一个假期窗口后接普通工作日")
+    }
+
+    // MARK: - 数据源一致性（ITER-8 新增守卫）
+
+    func testHolidayAndMakeupTablesDisjoint() {
+        // 同一日期不可能既休市又补班
+        let overlap = StockBarItem.aShareHolidays.intersection(StockBarItem.aShareMakeupDates)
+        XCTAssertTrue(overlap.isEmpty, "节假日表与补班表不应重叠: \(overlap.sorted())")
     }
 
     // MARK: - 交易时段边界（2026-05-06 周三，普通交易日）
