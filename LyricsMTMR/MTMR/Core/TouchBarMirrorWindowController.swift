@@ -10,6 +10,12 @@ class TouchBarMirrorWindowController: NSObject {
     /// item 内容指纹缓存：指纹未变化的 item 视图原地保留（增量同步，OPT-17）
     private var itemFingerprints: [NSTouchBarItem.Identifier: ItemFingerprint] = [:]
 
+    /// ITER-3: 快照类 item 节流。快照类（AppScrubber/音量/亮度/自定义视图）没有低成本
+    /// 指纹，旧逻辑每 0.1s tick 都重截一次位图；它们的内容变化频率远低于 10Hz，
+    /// 因此只允许每 snapshotRefreshInterval 个 tick（≈0.5s）重建一次。
+    private var syncTick: Int = 0
+    private static let snapshotRefreshInterval = 5
+
     private var isVisible: Bool = false {
         didSet { AppSettings.showMirrorWindow = isVisible }
     }
@@ -109,6 +115,10 @@ class TouchBarMirrorWindowController: NSObject {
         let controller = TouchBarController.shared
         guard let sv = stackView else { return }
 
+        syncTick += 1
+        // ITER-3: 只有到了降频刷新点，快照类 item 才允许重建（重截位图）
+        let snapshotDue = syncTick % Self.snapshotRefreshInterval == 0
+
         let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
         let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
         let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
@@ -142,9 +152,11 @@ class TouchBarMirrorWindowController: NSObject {
                             current[index] = newView
                             itemFingerprints[item.identifier] = fingerprint
                         } else {
-                            // 快照类（AppScrubber/音量/亮度/自定义视图）：无低成本指纹 →
-                            // 每次同步都刷新该单个视图（与 OPT-17 之前的全量重建行为一致，
-                            // 但不再连累其他视图）。不得 continue —— 否则镜像窗里的快照将永远冻结。
+                            // 快照类（AppScrubber/音量/亮度/自定义视图）：无低成本指纹。
+                            // FIX-1 语义保留：快照必须能刷新，绝不永久冻结 —— 只是降频。
+                            // ITER-3：每 snapshotRefreshInterval 个 tick（≈0.5s）才重建一次，
+                            // 位图重截从 10Hz 降到 2Hz；未到刷新点时原地保留上一帧快照。
+                            if !snapshotDue { continue }
                             itemFingerprints.removeValue(forKey: item.identifier)
                             let newView = makeView(for: .item(item))
                             replace(existing, with: newView, in: sv, at: index)
