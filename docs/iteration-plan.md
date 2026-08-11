@@ -1,0 +1,248 @@
+# LyricsMTMR 自迭代规划（iteration-plan）
+
+## ⏳ 待办区（置顶）
+
+> 时间敏感事项，完成一项划掉一项；流程与数据源详见 `docs/maintenance-notes.md`。
+
+- [ ] **ITER-14 核对提醒（2026-11）：国办发布《2027 年部分节假日安排》通知后，核对并更新
+      `StockBarItem.aShareHolidays` / `aShareMakeupDates` 的 2027 预估段**（
+      `LyricsMTMR/MTMR/Widgets/Life/StockBarItem.swift:388` 起；2027 节日日期为农历/公历确定值，
+      连休窗口与补班日为预估）。
+      检查点清单：
+      - 春节连休窗口与补班日（当前预估 2/5(五)除夕 ~ 2/12(五)初七，共 8 天）；
+      - 端午连休窗口与补班日（当前预估 6/7(一) ~ 6/9(三)）；
+      - 中秋连休窗口与补班日（当前预估 9/13(一) ~ 9/15(三)）；
+      - 其余节日窗口是否与官方通知一致（元旦 / 清明 / 劳动 / 国庆）。
+      改表后跑 `MTMRTests` 验证（ITER-8 表驱动断言自动覆盖两表）。
+
+> 由 review-agent t_d5f6f8d4 在「19 项 OPT 全部合并进 main」（t_c5bc1429）之后，通读
+> 本次合并 diff（8641071..e9c7502，10 个 merge commit、15 文件、+538/-100）后产出。
+> 目标：不是再跑一遍测试，而是从 UI 设计 / 交互逻辑 / 功能改进 / 代码一致性角度
+> 寻找下一轮可落地优化，并记录本轮 review 直接修复的问题。
+
+---
+
+## 〇、本轮 review 直接修复（已合并 / 合并中）
+
+### FIX-1 镜像窗快照类 item 永久冻结 + 指纹变化双重重建（OPT-17 回归）✅ PR #19
+
+**现象**：`TouchBarMirrorWindowController.syncFromTouchBar()`（OPT-17 增量同步）中，
+快照类 item（AppScrubber / 音量 / 亮度 / 自定义视图等）`fingerprint(of:)` 返回 nil，
+原代码 `guard let fingerprint = fingerprint(of: item) else { continue }` **直接跳过重建**，
+而这些视图的内容是 `snapshot()` 截的位图 —— 意味着镜像窗里 Dock 切换、音量拖动、
+亮度变化永远不会反映出来（永远冻结在首次渲染）。与注释「快照类：每次刷新」自相矛盾，
+也回归了 OPT-17 之前每 0.1s 全量重建的旧行为。
+
+**附带问题**：指纹变化分支用 `makeItemView(for:)` 重建，但该方法**不设置 view.identifier**，
+下一轮 0.1s 同步时 `view(existing, matches:)` 按 identifier 比对失败 → 走 else 分支
+→ 用 `makeView(for:)` 再重建一次（这次才带 identifier）。即每次内容变化实际重建两次。
+
+**修复**（PR #19，build ✅ / test 待跑）：
+- 指纹为 nil → 每次同步重建该单个视图（与旧行为一致，不连累其他视图），并清理其指纹缓存条目；
+- 指纹变化 → 改用 `makeView(for: .item(item))`，重建即带 identifier，下轮直接命中 matches，消除双重重建。
+
+---
+
+## 一、下一轮优化建议（按优先级）
+
+### ITER-1 【高】Sparkle 2.1 appcast 签名缺口 —— 自动更新大概率不可用（OPT-12 遗留）
+
+**现状**：仓库内嵌 Sparkle **2.1.0**。Sparkle 2 起**移除了 DSA 支持**，只认 EdDSA
+（Info.plist 的 `SUPublicEDKey` + appcast 的 `sparkle:edSignature`）。但当前：
+- `Info.plist` 仍是 `SUPublicDSAKeyFile = dsa_pub.pem`（Sparkle 1.x 风格，2.1 不再读取）；
+- `.github/workflows/publish.yml` 生成的 `appcast.xml` **完全没有签名字段**（无 dsaSignature 也无 edSignature）。
+
+后果：带公钥配置的 Sparkle 2 会拒绝/无法校验未签名更新 —— 即 OPT-12 改完更新源后，
+用户点击检查更新大概率报「无法验证更新」。**建议**：
+1. 用 Sparkle 工具链生成 Ed25519 密钥对（`generate_keys` / `sign_update`）；
+2. 把公钥 base64 写入 `Info.plist` 的 `SUPublicEDKey`；
+3. publish.yml 增加签名步骤（私钥放 GitHub Secrets），给 `<enclosure>` 加 `sparkle:edSignature`；
+4. 若暂不打算签名，则删掉 `SUPublicDSAKeyFile` 并接受「未签名更新」降级（不推荐）。
+
+**验证方式**：本地用 `Sparkle/bin/sign_update` 对构建产物签名后，跑一次 `SPUUpdater` 检查。
+
+### ITER-2 【中】OPT-8 内存警告未覆盖 OPT-18 歌词 LRU —— 清理面不一致
+
+`AppDelegate.applicationDidReceiveMemoryWarning` 清了 CoverCache、URLCache、设置页缓存，
+但**没清** `NetEaseProvider.lyricsCache`（OPT-18 新增，32 条上限）。虽然容量有界、
+单条歌词不过几十 KB，与「内存压力兜底」的语义不一致。建议给 `LyricsLRUCache` 加
+`clear()` 并在此处调用。改动 ~10 行，低风险。
+
+### ITER-3 【中】镜像窗快照类 item 每 0.1s 全量位图重渲染 —— 节流
+
+FIX-1 恢复正确性后，快照类 item（scrubber/音量/亮度等，通常 1~3 个）每 0.1s 都做一次
+`layer.render(in:)` 位图截取（`snapshot()`）。这类内容变化频率远低于 10Hz：
+- AppScrubber：只有前台 App 变化时才变；
+- 音量/亮度：拖动或按键时才变。
+
+建议：快照类 item 降频（如每 5 个 tick ≈ 0.5s 刷新一次），或对源视图做轻量
+「内容变化探针」（比较 `view.frame` + 一个 cheap hash），无变化则跳过重截。
+收益：镜像窗开启时 CPU 进一步下降；风险低（最坏情况快照延迟几百 ms）。
+
+### ITER-4 【中】A 股法定节假日未纳入休市判断（OPT-11 边界）
+
+`StockBarItem.isMarketOpen()` 只判断「工作日 + 时段」。国庆/春节/中秋等**法定假日
+落在工作日**时，会误判为交易时段，10s 轮询照跑（休市日行情恒定，纯浪费）。
+建议：内置一张小型 A 股休市日表（或每年更新一次），在 `isMarketOpen` 前置判断。
+数据源简单（如公开交易日历 CSV），改动集中在 `StockBarItem.swift`。
+
+### ITER-5 【低】examples/presets/items.json 内存组件 awk 死代码
+
+OPT-10 改动后：`ps -A -o %cpu,%mem | awk '{c+=$1;m+=$2}END{printf "%d%%",m}'` —
+`c` 求和了但从未输出（死代码），且 `%d` 是截断而非四舍五入。建议输出 CPU 或删除 `c`。
+纯示例文件，零风险。
+
+### ITER-6 【低】为新增纯逻辑补单元测试（代码一致性/防回归）
+
+项目已有 UnitTests scheme（4 个测试文件）。OPT-17/18/11/4 新增的纯逻辑——
+`ItemFingerprint` 相等性、`LyricsLRUCache` 淘汰顺序、`isMarketOpen` 边界、`SettingsTabCache`
+LRU 淘汰 —— 均可低成本单测，防止下轮优化误伤。建议按 OPT 编号补一组
+`NetEaseLRUCacheTests` / `MirrorFingerprintTests` / `StockMarketHoursTests`。
+
+---
+
+## 二、本轮 review 确认无问题（排除清单，避免重复改）
+
+| 项 | 结论 |
+|---|---|
+| KaraokeLabel `intrinsicContentSize` / `fullTextWidth` 改走 ctFrame 缓存 | ✅ 等价：path 即 `suggestFrameSize` 结果，无精度损失 |
+| OPT-5 marquee 复用守卫（lineIndex + lyricsId） | ✅ 同行复用、行切换重建，逻辑闭合 |
+| OPT-13 切应用快速路径 `!appDidChange && touchBarIsBuilt()` | ✅ 快速路径只跳过无必要的重建，preset 重载仍走 prepareTouchBar |
+| OPT-1 关窗释放（windowWillClose 回调置 nil） | ✅ 已按计划改动点②实现，PR #12 有注释说明 |
+| OPT-3 blur 静态化（opacity 移到 blur 之后） | ✅ 高斯模糊线性，数学等价 |
+| OPT-7 删 synchronize() | ✅ 系统自动持久化 |
+| OPT-19 os.Logger 迁移 | ✅ 等级映射正确，debug 仍 #if DEBUG 裁剪 |
+| OPT-9 build.sh Debug→Release | ✅ 与发布流程一致 |
+| OPT-10 脚本轮询（%cpu,%mem）| ⚠️ 见 ITER-5（示例文件死代码，不影响运行） |
+
+---
+
+## 三、建议的实施批次
+
+- **Batch 1（1~2 张卡）**：ITER-1 Sparkle 签名（功能完整性，需密钥生成 + CI 改动，可先出方案再实施）；
+- **Batch 2（1 张卡）**：ITER-2 + ITER-3（内存清理一致性 + 镜像窗节流，都是低风险小改）；
+- **Batch 3（1 张卡，可选）**：ITER-4 交易日历 + ITER-6 单测；
+- **顺手**：ITER-5 示例清理。
+
+每张卡完成后跑 `xcodebuild build`（Debug）+ UnitTests，涉及 CI 的卡（ITER-1）需真机/本地验证一次检查更新流程。
+
+---
+
+## 四、第二轮审查（ITER-1~6 全部合并后，由 review-agent t_ba973cf0 产出）
+
+> 在 ITER-1~6（PR #20~#24，含补合的 ITER-6 #24）全部并入 main 之后，通读合并 diff
+> （fd3daeb..c69fabb，5 个 PR、15 文件、+583/-61），并对 ITER-1 签名做了真实端到端验证。
+
+### 〇、本轮 review 直接修复（已合并）
+
+- **注释/文档一致性（PR #25）**：ITER-3 节流落地后，`TouchBarMirrorWindowController.swift`
+  仍有 2 处过时注释写「每次同步都刷新」（ItemFingerprint 枚举文档 :199-200、`fingerprint(of:)`
+  :264），与「每 5 tick ≈ 0.5s 重建」矛盾 —— 已改为指向 ITER-3 节流语义；
+  `file-structure.zh.md:83` 单测计数 16 → 56（ITER-6 新增 38 个用例后）。
+
+### 一、已排除候选清单（本轮确认无问题，避免重复改）
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| ITER-1 EdDSA 签名流程可用性 | ✅ 端到端验证通过 | `Info.plist:113` SUPublicEDKey 与 v1.0.0 appcast.xml 的 `sparkle:edSignature` 验签一致（Python Ed25519 verify PASS）；`publish.yml:36-53` 的 sign_update CLI 用法与 Sparkle 2.1.0 官方工具实测一致（96B 私钥文件 = 64B 私钥+32B 公钥，`-f` 与 `--verify` 参数正确）；SPARKLE_PRIVATE_KEY secret 已配置（gh secret list 确认） |
+| ITER-2 内存警告清歌词 LRU | ✅ 语义一致、线程安全 | `NetEaseProvider.swift:80-87` clear() 走 serial queue；`AppDelegate.swift:74` 调用点在 CoverCache/URLCache 清理旁；容量守卫 `max(1, capacity)` 与测试断言一致 |
+| ITER-3 节流与 FIX-1 兼容 | ✅ 无冻结回归 | `TouchBarMirrorWindowController.swift:159` 的 `if !snapshotDue { continue }` 只作用于快照分支（fingerprint 为 nil 的 item），指纹 item 不受影响；`liveIdentifiers` 插入在 continue 之前（:145），指纹缓存清理不误伤；最坏快照延迟 0.5s，与 ITER-3 预期一致 |
+| ITER-4 节假日表准确性（抽 2-3 个日期复核 → 全表复核） | ✅ 2026 官方表逐日核对通过 | 元旦 1/1(四)~1/3(六)+1/4(日)补班；春节 2/15(日)~2/23(一)+2/14(六)、2/28(六)补班；清明 4/4(六)~4/6(一)；劳动 5/1(五)~5/5(二)+5/9(六)补班；端午 6/19(五)~6/21(日)；中秋 9/25(五)~9/27(日)；国庆 10/1(四)~10/7(三)+9/20(日)、10/10(六)补班 —— 星期、窗口、补班日与国办发明电〔2025〕7 号完全一致（Python 校验星期）。2027 表已明确标注「预估、待国办通知核对」，注释含数据来源与更新机制 |
+| ITER-5 items.json awk 清理 | ✅ 与建议一致 | `examples/presets/items.json:210` 删除死代码 `c`、`%d`→`%.0f` 四舍五入 |
+| ITER-6 单测可见性调整 | ✅ 无逻辑变更 | 3 处 private→internal（`TouchBarMirrorWindowController.swift:203`、`NetEaseProvider.swift:37`、`UnifiedSettingsWindowController.swift:937`）+ `isMarketOpen` 抽 static（`StockBarItem.swift:425-438`），均保留实例入口；56 用例 0 失败 |
+| dsa_pub.pem 残留 | ✅ 清理干净 | pbxproj 0 引用、文件已删、docs 已同步；仅 gitignored 构建产物（.build/、Release/）含旧 key，无影响 |
+
+### 二、下一轮建议（ITER-7+，按优先级）
+
+- **ITER-7 【高】2027 节假日表核对 + 后续年份滚动维护机制**
+  现状：`StockBarItem.swift:75-118` 内置表只到 2027 且 2027 为预估。2026-11 国办发布
+  2027 通知后须核对更新；2028+ 完全无表，工作日落在法定假日时会误判为交易日。
+  建议：表数据抽成独立资源（JSON/plist）+ 每年 11 月核对一次的维护备注（或 CI 提醒）。
+  风险：低（纯数据），但需要人跟进，时间敏感。
+
+- **ITER-8 【中】节假日表与测试数据源合一**
+  现状：`StockMarketHoursTests.swift` 的锚点日期（如「劳动 5/1(五)~5/5(二)」）从表注释
+  复制，两处漂移风险。建议：单测从 `StockBarItem` 的同一常量生成断言（或暴露 internal
+  只读表）。风险：低。
+
+- **ITER-9 【中】镜像窗节流参数按场景自适应**
+  现状：`TouchBarMirrorWindowController.swift:17` 固定 5 tick（0.5s）。快照 item 多时
+  仍每 0.5s 全截一次。建议：按快照 item 数量动态调整（1 个 → 5 tick，3 个以上 → 10 tick），
+  或对 AppScrubber 用 `NSWorkspace.sharedNotificationCenter` 前台 App 变化事件驱动刷新
+  （事件驱动后节流可更激进）。风险：低-中（涉及 FIX-1 语义，需保留「绝不冻结」底线）。
+
+- **ITER-10 【低】publish.yml 签名自检增强**
+  现状：`publish.yml:52-53` 的 `--verify` 只验证签名与 keyfile 自身配套，未交叉校验
+  `Info.plist` 的 SUPublicEDKey 与 secret 是否同源 —— 若 key 轮换后两者不同步，CI 仍绿
+  但客户端验签失败。建议：workflow 中从归档产物 Info.plist 提取 SUPublicEDKey 与
+  keyfile 内公钥比对。风险：低。
+
+- **ITER-11 【低】syncTick 生命周期**
+  现状：`TouchBarMirrorWindowController.swift:16` syncTick 只增不减，hide/show 之间
+  不归零（无功能影响，但快照相位不可预期）。建议：show() 时归零。风险：无。
+
+### 三、实施批次建议
+
+- **Batch 1（1 张卡）**：ITER-7 节假日表核对 + 外置化（数据维护，先出方案）；
+- **Batch 2（1 张卡）**：ITER-8 + ITER-9（单测数据源合一 + 节流自适应，代码小改）；
+- **Batch 3（可选）**：ITER-10 + ITER-11（CI 自检增强 + syncTick 归零，各 <20 行）。
+
+
+---
+
+## 五、第三轮审查（ITER-7~11 全部合并后，由 review-agent t_9e31a058 产出）
+
+> 在 ITER-7~11（PR #26~#28）全部并入 main 之后，通读合并 diff
+> （63c59bf..d0b668d，3 个 squash commit、4 文件、+150/-49），并对 ITER-10
+> 密钥格式做了官方源码 + 工具链端到端实证（Sparkle 2.1.0 generate_keys/sign_update 源码
+> + /tmp/sparkle210 实测）。
+
+### 〇、本轮 review 直接修复（已合并）
+
+- **注释/文档一致性（PR #29，CI 全绿后合入）**：ITER-8 后 `file-structure.zh.md:83`
+  单测计数仍写 56（实际 57，ITER-8 新增 `testHolidayAndMakeupTablesDisjoint` 守卫用例）；
+  `TouchBarMirrorWindowController.swift:287` `fingerprint(of:)` 文档注释仍写
+  「按 ITER-3 节流重建」，与枚举级注释（:221 已写 ITER-3 + ITER-9）及自适应间隔
+  5/7/10 tick 不一致 —— 均已修正（与第二轮 PR #25 同类问题，无逻辑改动）。
+
+### 一、已排除候选清单（本轮确认无问题，避免重复改）
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| ITER-7 数据源重构后 isMarketOpen 行为与 ITER-4 表一致 | ✅ 集合逐字节一致 + 14 日期抽查 | `StockBarItem.swift` 65 节假日 + 12 补班日期集合 63c59bf→d0b668d 完全相同（仅改名 aShareClosedDates→aShareHolidays + 注释，git 提取比对）；isMarketOpen 函数 diff 仅 1 行改名；抽查 2026-02-14/02-28/05-09/10-10 补班周六开市、02-23 假期窗口末休市、02-24/05-06 节后首日开市、04-26(日) 非补班休市（国办通知确无此补班）、01-04 补班日 09:00/09:15/12:00/15:00 时段边界 —— 全部与国办发明电〔2025〕7 号一致 |
+| ITER-9 自适应节流与 FIX-1/ITER-3 语义兼容 | ✅ | 0-1 个快照 item → 5 tick（:22-27，原值行为不变）；snapshotCount 仅统计 fingerprint(of:)==nil 的 item（:141-143，纯类型检查无副作用）；快照分支 `if !snapshotDue { continue }` 语义未动，FIX-1「绝不永久冻结」底线保留；间隔按每 tick 计数重算，切换下一 tick 生效，无相位漂移问题 |
+| ITER-11 syncTick 归零 | ✅ | `show()` 顶部 :44 归零，先于 window!=nil 早退分支 → 每次显示相位可预期；首刷时刻 = 显示后第 interval 个 tick（0.5/0.7/1.0s），与注释一致 |
+| ITER-10 交叉自检（key 轮换场景） | ✅ 官方源码+工具链端到端实证 | Sparkle 2.1.0 `generate_keys/main.swift`（-x 导出 = base64(私钥 64B + 公钥 32B)，私钥 = scalar(32)+零(32)，由 orlp/ed25519@7fa6712 keypair.c 实证）+ `sign_update/main.swift`（96B 校验、[0..<64]/[64...] 拆分）；`base64 -d \| tail -c 32 \| base64` 实测提取公钥 == SUPublicEDKey 值；sign_update -f 签名 + --verify 往返通过；Info.plist 公钥与 keyfile 不同源 → exit 1（fail-closed，防密钥轮换后 CI 绿但客户端验签失败） |
+| ITER-8 表驱动测试 | ✅ 设计取舍明确 | 表全量遍历断言（休市/补班）+ 窗口末次日后置 + 两表不相交守卫均为真实逻辑断言；代价：表内容不再有独立锚点校验（测试与数据源同源），见 ITER-12 |
+
+### 二、下一轮建议（ITER-12+，按优先级）
+
+- **ITER-12 【低】节假日表恢复少量官方锚点断言（独立数据校验）**
+  现状：ITER-8 后 `StockMarketHoursTests` 全部从表生成断言，表内日期若被误改
+  （如手滑把 2026-03-15 加进 aShareHolidays）测试仍绿 —— 表数据正确性只剩人工核对。
+  建议：保留表驱动遍历的同时，恢复 5-8 个国办通知官方锚点（如 2026-01-01、
+  2026-02-23、2026-04-06、2026-05-01/05-09、2026-10-10）做固定断言，作为表内容的
+  独立「金丝雀」。风险：低；改一处测试文件。
+
+- **ITER-13 【低】publish.yml 自检报错信息增强**
+  现状：ITER-10 校验失败时若 `base64 -d` 失败（如 secret 误存 PEM 格式），
+  `KEY_PUB64` 为空，报「SUPublicEDKey() != ...()」看不出原因。
+  建议：`base64 -d` 失败时单独报「SPARKLE_PRIVATE_KEY 不是 base64(96B) 格式」。
+  风险：无。
+
+- **ITER-14 【低】2027 节假日表维护提醒机制**
+  现状：2027 表为预估，注释已写明待国办 2026-11 通知核对，但无机制提醒。
+  建议：2026-11 前后在 docs 置顶待办或加 CI 定时提醒（需人跟进，时间敏感）。
+  风险：无（纯流程）。
+
+- **ITER-15 【中·可选】AppScrubber 事件驱动刷新（ITER-9 深化）**
+  ITER-9 按数量自适应后快照最坏 ~1s 延迟仍存在。可对 AppScrubber 用
+  `NSWorkspace.sharedNotificationCenter` 前台 App 变化事件驱动刷新，事件触发时
+  跳过节流直接重建，其余快照 item 维持节流。风险：中（涉及 FIX-1 语义边界，
+  需保留「绝不冻结」底线），建议镜像窗使用场景确认有感知后再做。
+
+### 三、实施批次建议
+
+- **Batch 1（1 张卡）**：ITER-12（测试金丝雀，纯测试文件小改）；
+- **Batch 2（1 张卡）**：ITER-13（CI 脚本，<10 行）；
+- **Batch 3（可选）**：ITER-14（流程提醒）、ITER-15（事件驱动，需先观察镜像窗实际使用）。
