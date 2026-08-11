@@ -426,21 +426,29 @@ extension Deck {
 
         var body: some View {
             LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
+                // OPT-3: blur input kept static — the animated opacity now
+                // sits *after* .blur(), so CoreAnimation renders the blurred
+                // texture once and only animates layer opacity per frame.
+                // Math-identical to animating the gradient alpha (gaussian
+                // blur is linear), but removes the per-frame blur recompute
+                // and its double backing store (~24-30MB while visible).
                 .overlay(alignment: .topTrailing) {
                     RadialGradient(
-                        colors: [Deck.accent.opacity(drifting ? 0.16 : 0.10), .clear],
+                        colors: [Deck.accent, .clear],
                         center: .center, startRadius: 0, endRadius: 360)
                         .frame(width: 700, height: 700)
                         .offset(x: 170, y: -230)
                         .blur(radius: 5)
+                        .opacity(drifting ? 0.16 : 0.10)
                 }
                 .overlay(alignment: .bottomLeading) {
                     RadialGradient(
-                        colors: [Deck.mint.opacity(drifting ? 0.06 : 0.10), .clear],
+                        colors: [Deck.mint, .clear],
                         center: .center, startRadius: 0, endRadius: 320)
                         .frame(width: 620, height: 620)
                         .offset(x: -170, y: 210)
                         .blur(radius: 5)
+                        .opacity(drifting ? 0.06 : 0.10)
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
@@ -891,12 +899,54 @@ extension Deck {
 /// visited tab: revisits become an instant opacity swap instead of a full
 /// teardown + re-layout (and re-load) on the main thread. Built lazily on
 /// first visit; cleared wholesale when a profile is imported.
+///
+/// OPT-4: the cache is now LRU-bounded — the old unbounded dictionary kept
+/// every visited tab alive forever, so the whole 21-tab view tree stayed
+/// resident while the window was open. Only the most recently used tabs are
+/// retained; evicted tabs rebuild on their next visit (first-open cost is
+/// a few tens of ms, imperceptible).
 private final class SettingsTabCache {
+    /// How many tab views to keep alive after LRU eviction (plan: 3~5).
+    private let capacity = 4
     private var views: [SettingsTab: AnyView] = [:]
+    /// Most-recently-used order, newest last; the newest entry is the
+    /// active tab and is therefore never evicted.
+    private var recency: [SettingsTab] = []
 
     func view(for tab: SettingsTab) -> AnyView? { views[tab] }
-    func insert(_ view: AnyView, for tab: SettingsTab) { views[tab] = view }
-    func removeAll() { views.removeAll() }
+
+    func insert(_ view: AnyView, for tab: SettingsTab) {
+        views[tab] = view
+        touch(tab)
+        evictIfNeeded()
+    }
+
+    /// Marks `tab` as most-recently-used (call on selection change) and
+    /// trims the cache back to capacity.
+    func markUsed(_ tab: SettingsTab) {
+        touch(tab)
+        evictIfNeeded()
+    }
+
+    /// Exposed for OPT-8 (memory-pressure handler) and profile import:
+    /// drops every cached tab so the next visit rebuilds from scratch.
+    func removeAll() {
+        views.removeAll()
+        recency.removeAll()
+    }
+
+    private func touch(_ tab: SettingsTab) {
+        recency.removeAll { $0 == tab }
+        recency.append(tab)
+    }
+
+    /// Evicts the least-recently-used entries until the cache fits within
+    /// capacity. The active tab is always the newest entry, so it survives.
+    private func evictIfNeeded() {
+        while recency.count > capacity {
+            views.removeValue(forKey: recency.removeFirst())
+        }
+    }
 }
 
 // MARK: - Root View
@@ -957,6 +1007,8 @@ struct SettingsRootView: View {
         }
         .onChange(of: selection) { _, newValue in
             SettingsWindowState.shared.activeTab = newValue
+            // OPT-4: keep the newly active tab at MRU and trim the cache.
+            tabCache.markUsed(newValue)
         }
         .onReceive(NotificationCenter.default.publisher(for: .editorFocusModeRequested)) { _ in
             // Hide sidebar
@@ -1147,8 +1199,9 @@ struct SettingsRootView: View {
     }
 
     /// Returns the cached tab view, building it on first visit only. Tabs
-    /// stay mounted once visited, so state (scroll positions, edits, loaded
-    /// data) survives switching and revisits cost no rebuild at all.
+    /// stay mounted once visited (within the OPT-4 LRU cap), so state
+    /// (scroll positions, edits, loaded data) survives switching and
+    /// revisits cost no rebuild at all.
     @ViewBuilder
     private func tabContainer(for tab: SettingsTab) -> some View {
         if let cached = tabCache.view(for: tab) {
