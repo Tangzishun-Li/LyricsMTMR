@@ -22,6 +22,10 @@
 		36300E8F20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */; };
 		36300E9120A2D2B200B31C71 /* BackgroundColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */; };
 		CA8F2B732FC2000000D189D1 /* WidgetLeakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */; };
+		CA8F2B802FC3000000D189D1 /* NetEaseLRUCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B812FC3000000D189D1 /* NetEaseLRUCacheTests.swift */; };
+		CA8F2B822FC3000000D189D2 /* MirrorFingerprintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B832FC3000000D189D2 /* MirrorFingerprintTests.swift */; };
+		CA8F2B842FC3000000D189D3 /* StockMarketHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B852FC3000000D189D3 /* StockMarketHoursTests.swift */; };
+		CA8F2B862FC3000000D189D4 /* SettingsTabCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B872FC3000000D189D4 /* SettingsTabCacheTests.swift */; };
 		368EDDE720812A1D00E10953 /* ScrollViewItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368EDDE620812A1D00E10953 /* ScrollViewItem.swift */; };
 		36A778BE20A6C27100B38714 /* GeneralExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A778BD20A6C27100B38714 /* GeneralExtensions.swift */; };
 		36C2ECD7207B6DAE003CDA33 /* TimeTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECD6207B6DAE003CDA33 /* TimeTouchBarItem.swift */; };
@@ -269,6 +273,10 @@
 		36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptDefinitionTests.swift; sourceTree = "<group>"; };
 		36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundColorTests.swift; sourceTree = "<group>"; };
 		CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetLeakTests.swift; sourceTree = "<group>"; };
+		CA8F2B812FC3000000D189D1 /* NetEaseLRUCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseLRUCacheTests.swift; sourceTree = "<group>"; };
+		CA8F2B832FC3000000D189D2 /* MirrorFingerprintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirrorFingerprintTests.swift; sourceTree = "<group>"; };
+		CA8F2B852FC3000000D189D3 /* StockMarketHoursTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockMarketHoursTests.swift; sourceTree = "<group>"; };
+		CA8F2B872FC3000000D189D4 /* SettingsTabCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTabCacheTests.swift; sourceTree = "<group>"; };
 		368EDDE620812A1D00E10953 /* ScrollViewItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollViewItem.swift; sourceTree = "<group>"; };
 		36A778BD20A6C27100B38714 /* GeneralExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralExtensions.swift; sourceTree = "<group>"; };
 		36BDC22F207CDA8600FCFEBE /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
@@ -615,6 +623,10 @@
 				36300E8E20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift */,
 				36300E9020A2D2B200B31C71 /* BackgroundColorTests.swift */,
 				CA8F2B722FC2000000D189D1 /* WidgetLeakTests.swift */,
+				CA8F2B812FC3000000D189D1 /* NetEaseLRUCacheTests.swift */,
+				CA8F2B832FC3000000D189D2 /* MirrorFingerprintTests.swift */,
+				CA8F2B852FC3000000D189D3 /* StockMarketHoursTests.swift */,
+				CA8F2B872FC3000000D189D4 /* SettingsTabCacheTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1263,6 +1275,10 @@
 				36300E8F20A2CF3400B31C71 /* AppleScriptDefinitionTests.swift in Sources */,
 				36C2ECDD207C723B003CDA33 /* ParseConfigTests.swift in Sources */,
 				CA8F2B732FC2000000D189D1 /* WidgetLeakTests.swift in Sources */,
+				CA8F2B802FC3000000D189D1 /* NetEaseLRUCacheTests.swift in Sources */,
+				CA8F2B822FC3000000D189D2 /* MirrorFingerprintTests.swift in Sources */,
+				CA8F2B842FC3000000D189D3 /* StockMarketHoursTests.swift in Sources */,
+				CA8F2B862FC3000000D189D4 /* SettingsTabCacheTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
