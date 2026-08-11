@@ -4,11 +4,16 @@
 #       本 workflow 在 PR 时用三种伪造输入（正常 base64(96B) / PEM 文本 / 长度≠96B）
 #       跑与 publish.yml 完全相同的校验脚本 .github/scripts/verify_sparkle_key.sh，
 #       断言退出码（fail 表示校验有效），防回归。
-# 触发：pull_request（所有 PR）+ workflow_dispatch（手动）。
+# 触发：pull_request（仅 paths 命中时）+ workflow_dispatch（手动，不受 paths 限制）。
+# 注意：paths 漏列任一路径会静默漏跑冒烟——本 workflow 自身的改动必须能触发自身。
 name: Sparkle key format guard smoke
 
 on:
   pull_request:
+    paths:
+      - '.github/scripts/**'
+      - '.github/workflows/publish.yml'
+      - '.github/workflows/signing-check.yml'
   workflow_dispatch:
 
 jobs:
