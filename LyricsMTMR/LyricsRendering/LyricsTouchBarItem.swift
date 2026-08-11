@@ -22,7 +22,8 @@ import Combine
 
 /// Timing constants for marquee scrolling animation.
 private enum MarqueeMetrics {
-    static let fps: Double = 60.0
+    // OPT-5: 60fps → 30fps — 触摸条宽度有限，30fps 滚动肉眼无差，定时器开销减半
+    static let fps: Double = 30.0
     static let defaultTimeBudget: TimeInterval = 4.0
     static let flashDuration: TimeInterval = 1.5
     static let overflowPadding: CGFloat = 15
@@ -54,6 +55,10 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     private var marqueeStartTime: Date?
     private var marqueeOverflowWidth: CGFloat = 0
     private var marqueeTimeBudget: TimeInterval = MarqueeMetrics.defaultTimeBudget
+    /// OPT-5 ②: marquee timer 当前服务的行/歌词对象 — 用于「同一行复用 timer，
+    /// 仅行切换时重建」，避免 0.25s playback tick 反复重建导致滚动回跳。
+    private var marqueeLineIndex: Int?
+    private var marqueeLyricsId: ObjectIdentifier?
 
     /// Tracks which line/mode the karaoke animation was last built for,
     /// so we only rebuild the (expensive) karaoke keyframes once per
@@ -262,7 +267,7 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         }
 
         // ── Lightweight per-tick updates (scroll + pause/resume) ──
-        handleTextScroll(line: line, lineIndex: idx, active: active, track: track)
+        handleTextScroll(line: line, lineIndex: idx, active: active, track: track, lineChanged: lineChanged)
 
         // Only pause/resume on STATE TRANSITIONS. Calling resume every
         // 0.25 s tick would reset the sweep anchor and the progress
@@ -275,6 +280,9 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             // Only act if the player is paused.
             if !nowPlaying {
                 lyricsLabel.pauseProgressAnimation()
+                // OPT-5 ①: 暂停即停 — 暂停时也停掉 marquee timer，
+                // 否则 30/60fps 定时器继续空转（暂停时空转缺陷）。
+                stopMarqueeTimer()
             }
         } else if nowPlaying && !wasPlaying {
             // Resumed from pause → unpick the freeze.
@@ -282,13 +290,15 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         } else if !nowPlaying && wasPlaying {
             // Paused → freeze the animation in place.
             lyricsLabel.pauseProgressAnimation()
+            // OPT-5 ①: 暂停即停（同上）。
+            stopMarqueeTimer()
         }
         lastPlaybackState = track.playbackState
     }
 
     // MARK: - Text Scrolling
 
-    private func handleTextScroll(line: SimpleLyrics.Line, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo) {
+    private func handleTextScroll(line: SimpleLyrics.Line, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo, lineChanged: Bool) {
         guard config.marqueeEnabled else { return }
 
         let clipWidth = stackView.bounds.width
@@ -318,7 +328,12 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
             updateAutoScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflowWidth)
         } else {
             lyricsLabel.removeProgressAnimation()
-            startMarquee(overflowWidth: overflowWidth, lineIndex: lineIndex, active: active, track: track)
+            // OPT-16: marquee 只在线切换（或 timer 缺失/宽度变化需重建）时启动/重建，
+            // 移出 0.25s playback Combine 链 — 常规 tick 不再走 startMarquee。
+            // startMarquee 内部另有 OPT-5 ② 的同行复用守卫，双保险。
+            if lineChanged || marqueeTimer == nil || abs(marqueeOverflowWidth - overflowWidth) > 1 {
+                startMarquee(overflowWidth: overflowWidth, lineIndex: lineIndex, active: active, track: track)
+            }
         }
     }
 
@@ -353,8 +368,6 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
     }
 
     private func startMarquee(overflowWidth: CGFloat, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo) {
-        stopMarqueeTimer()
-
         let nextPosition: TimeInterval
         if lineIndex + 1 < active.lines.count {
             nextPosition = active.lines[lineIndex + 1].position
@@ -363,6 +376,20 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         }
 
         let timeBudget = max(nextPosition - track.playbackTime, 1.0)
+
+        // OPT-5 ②: timer 已存在且仍服务同一行 → 复用，不重建。
+        // 0.25s playback tick 曾反复 stop+rebuild + 重置 marqueeStartTime，
+        // 导致滚动每 0.25s 跳回起点；仅行切换时才重建 timer。
+        // 复用时仅刷新宽度/预算（触摸条尺寸变化场景），滚动相位不重置。
+        if marqueeTimer != nil, marqueeLineIndex == lineIndex, marqueeLyricsId == ObjectIdentifier(active) {
+            marqueeOverflowWidth = overflowWidth
+            marqueeTimeBudget = timeBudget
+            return
+        }
+
+        stopMarqueeTimer()
+        marqueeLineIndex = lineIndex
+        marqueeLyricsId = ObjectIdentifier(active)
 
         marqueeOverflowWidth = overflowWidth
         marqueeTimeBudget = timeBudget
@@ -389,6 +416,8 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         marqueeTimer?.invalidate()
         marqueeTimer = nil
         marqueeStartTime = nil
+        marqueeLineIndex = nil
+        marqueeLyricsId = nil
     }
 
     // MARK: - Placeholder
