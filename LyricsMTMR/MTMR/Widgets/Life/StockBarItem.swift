@@ -74,9 +74,24 @@ class StockBarItem: CustomButtonTouchBarItem {
     private func scheduleRefresh() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.timer?.invalidate()
-            self.timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
-                self?.refreshData()
+            self.rescheduleRefreshTimer()
+        }
+    }
+
+    /// 当前应使用的刷新间隔：A 股交易时段用配置值，休市时段降频到至少 60s
+    /// （分钟线数据休市时恒定，降频可省 2×HTTP/10s 与主线程全图重绘；OPT-11）
+    private var effectiveRefreshInterval: TimeInterval {
+        isMarketOpen() ? refreshInterval : max(refreshInterval, 60)
+    }
+
+    private func rescheduleRefreshTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: effectiveRefreshInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.refreshData()
+            // 交易时段边界（如 9:15 开盘 / 15:00 收盘）切换时立即调整频率，不必等下一次 tick
+            if self.timer?.timeInterval != self.effectiveRefreshInterval {
+                self.rescheduleRefreshTimer()
             }
         }
     }
@@ -344,15 +359,17 @@ class StockBarItem: CustomButtonTouchBarItem {
 
     // MARK: - A股交易时间判断
 
+    /// A 股交易时段判断（北京时间）：周一至周五 9:15-11:30、13:00-15:00。
+    /// 9:15 起为集合竞价（行情已开始变化），11:30-13:00 午休、收盘后与周末视为休市（OPT-11）。
+    /// 注：不能用 TimeZone(abbreviation: "CST") —— "CST" 有歧义（可能解析为美国中部时间），统一显式用 Asia/Shanghai。
     private func isMarketOpen() -> Bool {
-        let cal = Calendar.current
-        let now = Date()
-        let weekday = cal.component(.weekday, from: now)
-        guard weekday >= 2, weekday <= 6 else { return false }
-        let comp = cal.dateComponents(in: TimeZone(abbreviation: "CST")!, from: now)
-        guard let hour = comp.hour, let minute = comp.minute else { return false }
-        let timeInMinutes = hour * 60 + minute
-        return timeInMinutes >= 9 * 60 && timeInMinutes < 15 * 60
+        let beijing = TimeZone(identifier: "Asia/Shanghai") ?? .current
+        let comp = Calendar(identifier: .gregorian).dateComponents(in: beijing, from: Date())
+        guard let weekday = comp.weekday, let hour = comp.hour, let minute = comp.minute else { return false }
+        guard weekday >= 2, weekday <= 6 else { return false }  // 周一 ~ 周五
+        let minutes = hour * 60 + minute
+        return (minutes >= 9 * 60 + 15 && minutes < 11 * 60 + 30)
+            || (minutes >= 13 * 60 && minutes < 15 * 60)
     }
 
     // MARK: - 跑马灯
