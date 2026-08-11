@@ -36,13 +36,32 @@ jobs:
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
           ls -lh "$ZIP" "$ZIP.sha256"
 
-      - name: Generate appcast.xml (Sparkle feed)
+      - name: Download Sparkle signing tools (2.1.0)
+        run: |
+          curl -fsSL -o /tmp/Sparkle-2.1.0.tar.xz \
+            "https://github.com/sparkle-project/Sparkle/releases/download/2.1.0/Sparkle-2.1.0.tar.xz"
+          mkdir -p /tmp/sparkle210 && tar -xJf /tmp/Sparkle-2.1.0.tar.xz -C /tmp/sparkle210
+          test -x /tmp/sparkle210/bin/sign_update
+
+      - name: Generate appcast.xml (Sparkle feed, EdDSA-signed)
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           APP="LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
           SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
           BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
           TAG="${GITHUB_REF_NAME}"
           ZIP="LyricsMTMR-${TAG}-universal.zip"
+          test -n "$SPARKLE_PRIVATE_KEY" || { echo "ERROR: SPARKLE_PRIVATE_KEY secret is not set"; exit 1; }
+          # 私钥文件：base64(96B) = expanded 私钥(64B) + 公钥(32B)，与 generate_keys -x 导出格式一致
+          KEYFILE=$(mktemp)
+          trap 'rm -f "$KEYFILE"' EXIT
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+          SIG_OUT=$(/tmp/sparkle210/bin/sign_update -f "$KEYFILE" "$ZIP")
+          EDSIG=$(printf '%s' "$SIG_OUT" | sed -E 's/.*sparkle:edSignature="([^"]+)".*/\1/')
+          LENGTH=$(printf '%s' "$SIG_OUT" | sed -E 's/.*length="([0-9]+)".*/\1/')
+          test -n "$EDSIG" || { echo "ERROR: failed to parse edSignature from: $SIG_OUT"; exit 1; }
           cat > appcast.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -53,13 +72,16 @@ jobs:
                 <pubDate>$(date -u +"%a, %d %b %Y %H:%M:%S +0000")</pubDate>
                 <sparkle:version>${BUILD}</sparkle:version>
                 <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
-                <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream"/>
+                <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream" sparkle:edSignature="${EDSIG}" length="${LENGTH}"/>
               </item>
             </channel>
           </rss>
           EOF
           echo "--- appcast.xml ---"
           cat appcast.xml
+          # 自检：用私钥文件（含公钥）验证签名，确认与 SUPublicEDKey 配套
+          /tmp/sparkle210/bin/sign_update --verify -f "$KEYFILE" "$ZIP" "$EDSIG" \
+            && echo "--- appcast signature verified OK ---"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

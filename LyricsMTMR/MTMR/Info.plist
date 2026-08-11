@@ -110,8 +110,8 @@
 	<string>LyricsMTMR needs access to Administration for work</string>
 	<key>SUFeedURL</key>
 	<string>https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest/download/appcast.xml</string>
-	<key>SUPublicDSAKeyFile</key>
-	<string>dsa_pub.pem</string>
+	<key>SUPublicEDKey</key>
+	<string>DTgMVOhSuRAQZYXlrPud0XtqUbwPyeV/mJD6oxYTqQI=</string>
 	<key>kTCCServiceMediaLibrary</key>
 	<string>LyricsMTMR needs access to Music for work</string>
 </dict>
