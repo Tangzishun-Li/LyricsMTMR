@@ -133,12 +133,23 @@ class TouchBarMirrorWindowController: NSObject {
                 if view(existing, matches: target) {
                     if case let .item(item) = target {
                         liveIdentifiers.insert(item.identifier)
-                        guard let fingerprint = fingerprint(of: item) else { continue }  // 快照类：每次刷新
-                        if itemFingerprints[item.identifier] == fingerprint { continue }  // 内容未变
-                        let newView = makeItemView(for: item)
-                        replace(existing, with: newView, in: sv, at: index)
-                        current[index] = newView
-                        itemFingerprints[item.identifier] = fingerprint
+                        if let fingerprint = fingerprint(of: item) {
+                            if itemFingerprints[item.identifier] == fingerprint { continue }  // 内容未变
+                            // 指纹变化 → 只重建该单个视图；makeView 会带上 identifier，
+                            // 保证下一轮同步仍能命中 matches（避免无标识视图再被 else 分支重建一次）
+                            let newView = makeView(for: .item(item))
+                            replace(existing, with: newView, in: sv, at: index)
+                            current[index] = newView
+                            itemFingerprints[item.identifier] = fingerprint
+                        } else {
+                            // 快照类（AppScrubber/音量/亮度/自定义视图）：无低成本指纹 →
+                            // 每次同步都刷新该单个视图（与 OPT-17 之前的全量重建行为一致，
+                            // 但不再连累其他视图）。不得 continue —— 否则镜像窗里的快照将永远冻结。
+                            itemFingerprints.removeValue(forKey: item.identifier)
+                            let newView = makeView(for: .item(item))
+                            replace(existing, with: newView, in: sv, at: index)
+                            current[index] = newView
+                        }
                     }
                 } else {
                     let newView = makeView(for: target)
