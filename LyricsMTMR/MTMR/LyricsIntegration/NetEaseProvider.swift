@@ -70,6 +70,24 @@ enum NetEaseProvider {
         var count: Int {
             queue.sync { entries.count }
         }
+
+        /// Drop every entry. Used by the memory-pressure fallback (ITER-2):
+        /// unlike the bounded eviction path, this frees all parsed lyrics at once.
+        func clear() {
+            queue.sync {
+                entries.removeAll(keepingCapacity: false)
+                order.removeAll(keepingCapacity: false)
+            }
+        }
+    }
+
+    // MARK: - Memory Pressure (ITER-2)
+
+    /// OPT-8/ITER-2: memory-warning fallback entry point. Called from
+    /// `AppDelegate.applicationDidReceiveMemoryWarning` so the lyrics LRU is
+    /// dropped together with the other on-demand caches (CoverCache/URLCache).
+    static func clearLyricsCache() {
+        lyricsCache.clear()
     }
 
     // MARK: - Search

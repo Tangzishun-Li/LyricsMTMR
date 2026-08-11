@@ -68,12 +68,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Memory Pressure
 
     /// OPT-8: system memory pressure fallback. Drops every on-demand cache
-    /// — settings tab view hierarchies, cover artwork bitmaps, and URL
-    /// response bodies — all rebuildable on next access.
+    /// — settings tab view hierarchies, cover artwork bitmaps, URL
+    /// response bodies, and the NetEase lyrics LRU (ITER-2) — all
+    /// rebuildable on next access.
     func applicationDidReceiveMemoryWarning(_ notification: Notification) {
         NotificationCenter.default.post(name: .settingsMemoryWarning, object: nil)
         CoverCache.shared.clearMemoryCache()
         URLCache.shared.removeAllCachedResponses()
+        NetEaseProvider.clearLyricsCache() // ITER-2: 内存警告兜底语义覆盖歌词 LRU
     }
 
     // MARK: - Popover
