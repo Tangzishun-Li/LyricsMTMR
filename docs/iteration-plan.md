@@ -360,3 +360,55 @@ LRU 淘汰 —— 均可低成本单测，防止下轮优化误伤。建议按 O
 
 - 本轮修复（金丝雀直查 + CI 文件结构补录 + 文档追记）已在单个 PR（#37）内完成，无需拆分；
   ITER-19~21 均为低优先可选卡，建议 2026-11 随 ITER-14 核对待办一起评估。
+
+---
+
+## 八、第六轮审查（ITER-20 合并后，由 review-agent t_a314745d 产出）
+
+> 在 ITER-20（PR #38，squash 合并 e5f52d7）+ INTEG docs commit 9cf68a5 并入 main 之后，
+> 通读合并 diff（a6ed575..9cf68a5，2 commits、2 文件、+36/-1），审查方向：
+> signing-check.yml paths 过滤正确性（改 publish.yml 是否仍触发冒烟 / 纯文档 PR 是否确实不触发 /
+> workflow_dispatch 是否不受限）、代码一致性、文档遗留；并对优化空间做收敛评估。
+
+### 〇、本轮 review 直接修复（文档一致性，随本轮 docs PR 合入）
+
+- **file-structure.zh.md:54 注释未随 ITER-20 收敛**：CI mindmap 中 signing-check.yml 注释仍写
+  「PR：Sparkle 私钥格式 guard 冒烟（ITER-18）」，暗示所有 PR 都跑；ITER-20 后实际触发面为
+  「PR（仅 paths 命中）+ 手动触发」。已改为与 signing-check.yml:7-8 注释一致的表述
+  （与前几轮同类文档漂移，无逻辑改动）。
+
+### 一、已排除候选清单（本轮确认无问题，避免重复改）
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| paths 三路清单完备性 | ✅ | verify_sparkle_key.sh 为独立 bash（仅依赖系统 base64/wc，`verify_sparkle_key.sh:14-29`），仓库内无其他文件影响其行为；publish.yml 是唯一消费方（`publish.yml:65` 调用）；build-test.yml 不涉及签名逻辑。signing-check.yml:14-16 三路（`.github/scripts/**` / `publish.yml` / workflow 自身）即触发面全集，无漏列 |
+| 纯文档 PR 不触发 | ✅ | paths 仅限上述三路；docs/、LyricsMTMR/ 下源文件改动均不命中 → 冒烟不跑，与收敛目标一致（GitHub paths 语义：pull_request 按变更文件评估）；本轮 docs PR 即为实证（见 PR #39 checks） |
+| workflow_dispatch 不受限 | ✅ | paths 过滤器只作用于 pull_request 分支（signing-check.yml:12-17），manual trigger 恒可跑，与注释「手动，不受 paths 限制」（:7）一致 |
+| 改 publish.yml 仍触发冒烟 | ✅ | `.github/workflows/publish.yml` 在 paths 清单内（:15）；未来 publish.yml 改脚本调用方式（参数/工作目录）时变更即命中该路径 → 冒烟覆盖 |
+| 冒烟自触发语义生效 | ✅ 实证 | PR #38 三 checks 全绿：build/test（1m12s）+ smoke（5s），smoke 由 PR 自身改动触发 → 「本 workflow 改动必须能触发自身」（signing-check.yml:8）防漏列语义生效 |
+| glob 语法正确性 | ✅ | `.github/scripts/**` 的 `**` 匹配任意层级（含直接子文件 verify_sparkle_key.sh），与 GitHub 官方 `sub-project/**` 示例语义一致 |
+| 冒烟三输入分支完备 | ✅ | verify_sparkle_key.sh 仅一条判别路径：`base64 -d` 后长度≠96B → exit 1（:25-29）；输入 2（PEM 文本）覆盖「解码失败→0B→≠96B」、输入 3（64B）覆盖「解码成功但长度≠96B」（signing-check.yml:44-66），两错误分支均被覆盖；第五轮本地 8 类输入实测（含真实 PEM 块、128B、空文件）已证等价，无新增输入价值 |
+| 冒烟不跑在 push/main | ✅ 设计如此 | 项目协议所有改动走 PR（合并史无直接 main 提交）；PR 期冒烟已覆盖变更；build-test.yml 对 main push 全量重跑（build-test.yml:4-5），签名冒烟无需重复 |
+| signing-check.yml 注释与 on 块一致 | ✅ | 头部注释（:7-8）与 on 块（:12-17）描述逐字对应；optimization-plan.md 第六轮块（:52-58）与实施记录一致 |
+| ITER-15 AppScrubber 事件驱动 | ✅ 维持可选项 | 与第五轮结论一致：需镜像窗实际使用场景确认后再做，不阻塞收敛 |
+
+### 二、收敛评估与后续维护路径（ITER-21 后不再开实现卡）
+
+**收敛结论**：自 OPT 19 项以来的优化/修复空间已收敛。证据：
+1. 各轮合并 diff 规模持续收窄：+538/-100（OPT）→ +583/-61（ITER-1~6）→ +150/-49（ITER-7~11）
+   → +336（ITER-12~14）→ +187/-24（ITER-16~18）→ **+6/-1**（ITER-20，单文件）；
+2. ITER-1~21 建议清单全部实现或明确排期/排除，无遗留未处理项；
+3. 本轮全量通读未发现功能回归，唯一不一致为文档注释漂移（已修）。
+
+**剩余未结项仅两类，均非代码实现卡**：
+- 时间驱动：ITER-14/21（2026-11 国办发布 2027 节假日通知后核对 `StockBarItem.swift` 2027 预估段，
+  置顶待办 + maintenance-notes.md:22-47 年度流程已固化）；
+- 可选观察：ITER-15（镜像窗快照事件驱动刷新，需使用场景确认后再评估）。
+
+**后续维护路径**（无需新卡，按既有流程执行）：
+1. 每年 11 月国办通知后按 maintenance-notes.md 步骤 1-3 核对节假日表 + 滚动补充金丝雀锚点
+   （含周末锚点直查规则，maintenance-notes.md:39-40）；
+2. 若未来新增消费 verify_sparkle_key.sh 的 workflow，须同步加入 signing-check.yml paths 清单
+   （signing-check.yml:8 注释已登记该要求）；
+3. 密钥轮换时 SPARKLE_PRIVATE_KEY 与 Info.plist SUPublicEDKey 同源由 publish.yml 交叉自检兜底
+   （publish.yml:90-97），无需人工步骤。
