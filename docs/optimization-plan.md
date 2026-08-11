@@ -40,3 +40,33 @@
 
 - 2026-11 国办发布《2027 年部分节假日安排》后：核对 StockBarItem.swift 的 2027 预估段
   （详见 docs/iteration-plan.md 顶部待办 ITER-14 与 maintenance-notes.md 第 1 节）。
+
+---
+
+## 第六轮 ITER 实施状态（2026-08-12，INTEG t_f93862b5）
+
+### 本轮 1 张实现卡（独立分支 + PR，CI 全绿后提交）
+
+| 卡 | 内容 | PR | 分支 | squash commit |
+|----|------|----|------|---------------|
+| ITER-20 (t_7015da1d) | signing-check.yml 触发面 paths 收敛：pull_request 加 paths 过滤（.github/scripts/**、.github/workflows/publish.yml、workflow 自身 三路，漏列会静默漏跑冒烟），workflow_dispatch 手动触发保留不受限 | #38 | lyricsmtmr/t_7015da1d-iter-20-signing-check-workflow-paths | e5f52d7 |
+
+### 核验要点
+
+- CI 三 checks 全绿：build + test + smoke；smoke 由本 PR 自身改动触发（三输入断言通过），
+  证明 paths 收敛后「改 workflow 自身仍能触发冒烟」的防回归语义生效。
+- diff 仅 .github/workflows/signing-check.yml（+6/-1），单 commit，无敏感信息，无重复 PR。
+
+### 回归结果（合并后本地整体回归，main @ e5f52d7）
+
+- `xcodebuild build`（Debug, CODE_SIGNING_ALLOWED=NO）：**BUILD SUCCEEDED**
+- `xcodebuild test -scheme UnitTests`：**60 用例 / 0 失败**
+- `xcodebuild test -scheme MTMR`：**60 用例 / 0 失败**
+- main 已 push origin（e5f52d7），GitHub main CI 对合并提交自动重跑
+
+### 清理
+
+- ITER-20 分支（本地 + 远程 + .worktrees/t_7015da1d worktree）已删除；
+  顺手清理遗留 worktree/分支：t_5ea6d239（第四轮 review）、t_6061df4a（第五轮 INTEG）、
+  t_e7950587（第五轮 review）。
+- 合并后无遗留 open PR（#38 state=MERGED，gh pr list 为空）。
