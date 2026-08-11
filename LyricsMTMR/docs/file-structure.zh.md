@@ -47,7 +47,7 @@ mindmap
 ├── .github/                          # CI（根目录才会被 GitHub 执行）
 │   ├── FUNDING.yml
 │   └── workflows/
-│       ├── build-test.yml            # push/PR：构建 + 59 个单元测试
+│       ├── build-test.yml            # push/PR：构建 + 单元测试（数量以 xcodebuild test 输出为准）
 │       └── publish.yml               # v* tag：通用架构(arm64+x86_64)归档
 ├── Makefile                          # make build / test / archive / clean
 ├── examples/presets/                 # 主题预设示例（theme1-15、items.json、test_lyrics_preset.json）
@@ -61,7 +61,7 @@ mindmap
 │   │   ├── App/                      # 应用入口与全局状态（AppDelegate、StatusBarMenuView、AppSettings）
 │   │   ├── Core/                     # Touch Bar 核心（TouchBarController、ItemsParsing、各基础 item）
 │   │   ├── Support/                  # 基础设施（SecretsManager、KeyPress、CPU、AppLog、扩展等）
-│   │   ├── Widgets/                  # 全部 94 个注册 widget，按领域分组
+│   │   ├── Widgets/                  # 全部注册 widget，按领域分组
 │   │   │   ├── Media/                #   媒体播放（Music、进度、频谱、歌词翻译…）
 │   │   │   ├── System/               #   系统状态与硬件控制（电池、CPU、亮度、勿扰…）
 │   │   │   ├── DevOps/               #   开发运维（Git、Docker、SSH、AI 用量、API 测试…）
@@ -72,7 +72,7 @@ mindmap
 │   │   ├── Preferences/              # 设置界面
 │   │   │   ├── Editor/               #   编辑器（EditorTabView、Schema、DraftManager、预览…）
 │   │   │   └── Components/           #   通用表单组件
-│   │   ├── LyricsIntegration/        # 歌词搜索/匹配/封面缓存（18 个文件）
+│   │   ├── LyricsIntegration/        # 歌词搜索/匹配/封面缓存
 │   │   ├── CBridge/                  # ObjC/C 桥接（TouchBar 私有 API、MediaRemote…）
 │   │   ├── AppleScripts/             # 内置 .scpt 脚本资源
 │   │   ├── Assets.xcassets/          # 应用图标与图片资源
@@ -80,7 +80,7 @@ mindmap
 │   │   ├── Resources/                # run.pl（MediaRemote 运行时脚本）
 │   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
-│   ├── MTMRTests/                    # 单元测试（59 个用例）
+│   ├── MTMRTests/                    # 单元测试套件（随新增用例增长）
 │   ├── Scripts/                      # 开发脚本
 │   │   ├── build.sh / test.sh / archive.sh   # 一键构建（Makefile 调用）
 │   │   ├── embed-entitlements.sh             # 重新签名脚本
