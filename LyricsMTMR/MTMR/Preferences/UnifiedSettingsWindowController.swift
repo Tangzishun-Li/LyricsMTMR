@@ -945,6 +945,11 @@ struct SettingsRootView: View {
             tabCache.removeAll()
             refreshToken = UUID()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsMemoryWarning)) { _ in
+            // OPT-8: system memory pressure — drop cached tab view
+            // hierarchies; the active tab stays, others rebuild on visit.
+            tabCache.removeAll()
+        }
         .onAppear {
             SettingsWindowState.shared.activeTab = selection
             let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool

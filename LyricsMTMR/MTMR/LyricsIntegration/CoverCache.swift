@@ -89,4 +89,11 @@ class CoverCache {
             _ = await image(for: url)
         }
     }
+
+    /// OPT-8: memory pressure fallback — drop every cached cover bitmap
+    /// and the URL session's response cache. Both rebuild on next fetch.
+    func clearMemoryCache() {
+        memoryCache.removeAllObjects()
+        session.configuration.urlCache?.removeAllCachedResponses()
+    }
 }

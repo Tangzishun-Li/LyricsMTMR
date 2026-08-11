@@ -3,6 +3,9 @@ import Foundation
 extension Notification.Name {
     static let themeIndexDidChange = Notification.Name("LyricsMTMRThemeIndexDidChangeNotification")
     static let appThemeAutoSwitchDidChange = Notification.Name("LyricsMTMRAppThemeAutoSwitchDidChange")
+    /// OPT-8: system memory pressure — posted by AppDelegate so views can
+    /// drop their on-demand caches (settings tab view hierarchies).
+    static let settingsMemoryWarning = Notification.Name("LyricsMTMRSettingsMemoryWarningNotification")
 }
 
 /// Activation mode for an app-specific theme rule.
