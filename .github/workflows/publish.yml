@@ -82,6 +82,14 @@ jobs:
           # 自检：用私钥文件（含公钥）验证签名，确认与 SUPublicEDKey 配套
           /tmp/sparkle210/bin/sign_update --verify -f "$KEYFILE" "$ZIP" "$EDSIG" \
             && echo "--- appcast signature verified OK ---"
+          # 交叉自检：Info.plist 的 SUPublicEDKey(base64 公钥) 必须与签名私钥同源，防密钥轮换不同步
+          KEY_PUB64=$(base64 -d < "$KEYFILE" | tail -c 32 | base64)
+          PLIST_PUB64=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP/Contents/Info.plist" 2>/dev/null)
+          if [ -z "$PLIST_PUB64" ] || [ "$KEY_PUB64" != "$PLIST_PUB64" ]; then
+            echo "ERROR: SUPublicEDKey(${PLIST_PUB64:-<missing>}) in Info.plist != public key in SPARKLE_PRIVATE_KEY($KEY_PUB64); key rotation out of sync" >&2
+            exit 1
+          fi
+          echo "--- SUPublicEDKey matches SPARKLE_PRIVATE_KEY ---"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
