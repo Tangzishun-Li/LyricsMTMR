@@ -87,6 +87,7 @@ class KaraokeLabel: NSTextField {
         _attrString = nil
         _ctFrame = nil
         _progressCTFrame = nil
+        _rubyLayouts.removeAll()
         needsLayout = true
         needsDisplay = true
         removeProgressAnimation()
@@ -155,21 +156,17 @@ class KaraokeLabel: NSTextField {
         return ctFrame
     }
 
+    /// The measured text size from CoreText layout. Reuses the cached
+    /// `_ctFrame` (whose path was built from `CTFramesetterSuggestFrameSize`)
+    /// instead of rebuilding a framesetter + measurement on every query.
     override var intrinsicContentSize: NSSize {
-        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
-        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
-        let framesetter = CTFramesetter.create(attributedString: attrString)
-        let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
-        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size
+        CTFrameGetPath(ctFrame()).boundingBox.size
     }
 
     /// The full measured text width from CoreText layout.
+    /// Same caching path as `intrinsicContentSize` — no per-call framesetter.
     var fullTextWidth: CGFloat {
-        let progression: CTFrameProgression = isVertical ? .rightToLeft : .topToBottom
-        let frameAttr: [CTFrame.AttributeKey: Any] = [.progression: progression.rawValue as NSNumber]
-        let framesetter = CTFramesetter.create(attributedString: attrString)
-        let constraints = CGSize(width: CGFloat.infinity, height: .infinity)
-        return framesetter.suggestFrameSize(constraints: constraints, frameAttributes: frameAttr).size.width
+        CTFrameGetPath(ctFrame()).boundingBox.width
     }
 
     /// Returns the pixel x-position of a given character index in the first line.
@@ -487,16 +484,38 @@ class KaraokeLabel: NSTextField {
 
     /// Draws a ruby annotation centered horizontally above the given glyph bounds.
     private func drawRubyText(romajin: String, glyphBounds: CGRect, in context: CGContext) {
+        let layout = rubyLayout(for: romajin, maxWidth: glyphBounds.width)
         let fontSize = font?.pointSize ?? RubyMetrics.defaultFontSize
-        let rubyString = makeRubyAttributedString(for: romajin, maxWidth: glyphBounds.width)
-        let rubyWidth = rubyString.size().width
-        let xOffset = (glyphBounds.width - rubyWidth) / 2
+        let xOffset = (glyphBounds.width - layout.width) / 2
         let rubyPoint = CGPoint(
             x: glyphBounds.minX + xOffset,
             y: glyphBounds.minY - fontSize * RubyMetrics.verticalOffsetRatio
         )
-        let rubyLine = CTLineCreateWithAttributedString(rubyString)
         context.textPosition = rubyPoint
-        CTLineDraw(rubyLine, context)
+        CTLineDraw(layout.line, context)
+    }
+
+    /// Layout key for a ruby annotation line — the romaji string plus the
+    /// available glyph width fully determine its geometry and appearance.
+    private struct RubyLineKey: Hashable {
+        let romajin: String
+        let maxWidth: CGFloat
+    }
+
+    /// Precomputed ruby layouts keyed by (romaji, maxWidth). The karaoke
+    /// timer redraws at 30fps with a stable layout, so the attributed-string
+    /// measurement + shrink loop + CTLine creation only run once per distinct
+    /// annotation instead of on every frame; draw only performs CTLineDraw.
+    private var _rubyLayouts: [RubyLineKey: (width: CGFloat, line: CTLine)] = [:]
+
+    private func rubyLayout(for romajin: String, maxWidth: CGFloat) -> (width: CGFloat, line: CTLine) {
+        let key = RubyLineKey(romajin: romajin, maxWidth: maxWidth)
+        if let cached = _rubyLayouts[key] {
+            return cached
+        }
+        let rubyString = makeRubyAttributedString(for: romajin, maxWidth: maxWidth)
+        let layout = (rubyString.size().width, CTLineCreateWithAttributedString(rubyString))
+        _rubyLayouts[key] = layout
+        return layout
     }
 }
