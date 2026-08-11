@@ -244,8 +244,8 @@ struct UserDefault<T> {
             return UserDefaults.standard.object(forKey: key) as? T ?? defaultValue
         }
         set {
+            // No synchronize() — the system persists defaults automatically.
             UserDefaults.standard.set(newValue, forKey: key)
-            UserDefaults.standard.synchronize()
         }
     }
 }
