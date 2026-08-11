@@ -418,21 +418,29 @@ extension Deck {
 
         var body: some View {
             LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
+                // OPT-3: blur input kept static — the animated opacity now
+                // sits *after* .blur(), so CoreAnimation renders the blurred
+                // texture once and only animates layer opacity per frame.
+                // Math-identical to animating the gradient alpha (gaussian
+                // blur is linear), but removes the per-frame blur recompute
+                // and its double backing store (~24-30MB while visible).
                 .overlay(alignment: .topTrailing) {
                     RadialGradient(
-                        colors: [Deck.accent.opacity(drifting ? 0.16 : 0.10), .clear],
+                        colors: [Deck.accent, .clear],
                         center: .center, startRadius: 0, endRadius: 360)
                         .frame(width: 700, height: 700)
                         .offset(x: 170, y: -230)
                         .blur(radius: 5)
+                        .opacity(drifting ? 0.16 : 0.10)
                 }
                 .overlay(alignment: .bottomLeading) {
                     RadialGradient(
-                        colors: [Deck.mint.opacity(drifting ? 0.06 : 0.10), .clear],
+                        colors: [Deck.mint, .clear],
                         center: .center, startRadius: 0, endRadius: 320)
                         .frame(width: 620, height: 620)
                         .offset(x: -170, y: 210)
                         .blur(radius: 5)
+                        .opacity(drifting ? 0.06 : 0.10)
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
