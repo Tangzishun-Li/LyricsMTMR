@@ -65,6 +65,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         LyricsEngine.shared.shutdown()
     }
 
+    // MARK: - Memory Pressure
+
+    /// OPT-8: system memory pressure fallback. Drops every on-demand cache
+    /// — settings tab view hierarchies, cover artwork bitmaps, and URL
+    /// response bodies — all rebuildable on next access.
+    func applicationDidReceiveMemoryWarning(_ notification: Notification) {
+        NotificationCenter.default.post(name: .settingsMemoryWarning, object: nil)
+        CoverCache.shared.clearMemoryCache()
+        URLCache.shared.removeAllCachedResponses()
+    }
+
     // MARK: - Popover
 
     private func setupPopover() {

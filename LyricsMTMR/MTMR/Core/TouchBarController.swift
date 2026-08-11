@@ -487,6 +487,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             if isAutoSwitched {
                 revertAutoSwitch()
             }
+            // OPT-13 fast path: re-activating the same app with a bar that
+            // is already built needs no teardown/rebuild — the existing
+            // items are still correct, just make sure the bar is up. This
+            // skips the createItems() cascade (item re-subscription,
+            // AppleScript recompile, timer rebuild, CAAnimation churn).
+            // The guard only short-circuits when the target app equals the
+            // current one AND the bar is built, so real app switches and
+            // fresh preset loads (unbuilt bar) still rebuild as before.
+            if !appDidChange && touchBarIsBuilt() {
+                presentTouchBar()
+                return
+            }
             prepareTouchBar()
             if touchBarContainsAnyItems() {
                 presentTouchBar()
