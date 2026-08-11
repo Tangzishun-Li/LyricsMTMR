@@ -162,6 +162,15 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         SettingsWindowState.shared.isVisible = true
     }
 
+    func windowDidResignKey(_ notification: Notification) {
+        // OPT-14 可见性加固：orderOut / 切 Space / 失焦等非标准隐藏路径从不
+        // 复位 isVisible，导致设置窗口离屏后歌词预览的 TimelineView/Equalizer
+        // 动画继续空转。保守版只补这一个通知：把"非 key"视为"不可见"，
+        // 重新聚焦时 didBecomeKey 会再翻回 true。相比 didOrderOut/willMoveToWindow
+        // 全量监听，误复位风险最低（可见窗口动画依赖 isVisible，不能乱复位）。
+        SettingsWindowState.shared.isVisible = false
+    }
+
     func windowDidMiniaturize(_ notification: Notification) {
         SettingsWindowState.shared.isVisible = false
     }

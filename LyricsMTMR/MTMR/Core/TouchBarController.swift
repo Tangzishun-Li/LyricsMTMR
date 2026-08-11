@@ -487,6 +487,17 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             if isAutoSwitched {
                 revertAutoSwitch()
             }
+            // OPT-13 快速路径：目标 app 与当前相同且 items 已构建时直接展示，
+            // 跳过 prepareTouchBar() → createItems() 的全量销毁重建。
+            // didLaunch/didTerminate/didActivate 三通知都会进来，同一应用反复
+            // 激活时全量重建是纯浪费：每次前后台切换主线程一次性重建（数 10ms
+            // 级卡顿），且连锁触发歌词 item 重新订阅、AppleScript 重新编译、
+            // 定时器全部重建、CAAnimation dealloc 抖动。仅在 appDidChange 复位
+            // 分支之外短路，app 真正切换时行为与现状完全一致。
+            if !appDidChange && touchBarIsBuilt() {
+                presentTouchBar()
+                return
+            }
             prepareTouchBar()
             if touchBarContainsAnyItems() {
                 presentTouchBar()
