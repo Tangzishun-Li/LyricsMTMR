@@ -197,7 +197,8 @@ class TouchBarMirrorWindowController: NSObject {
     }
 
     /// item 内容指纹。快照类 item（AppScrubber/音量/亮度/自定义视图等）无低成本指纹，
-    /// fingerprint(of:) 返回 nil，每次同步都刷新该单个视图（与旧行为一致但不再连累其他视图）。
+    /// fingerprint(of:) 返回 nil，由 syncFromTouchBar 的快照分支按 ITER-3 节流
+    /// （每 snapshotRefreshInterval 个 tick ≈ 0.5s）重建，绝不永久冻结。
     /// `internal` (was `private`) so MTMRTests can unit-test the equality semantics
     /// via `@testable import` (ITER-6); no logic change.
     enum ItemFingerprint: Equatable {
@@ -261,7 +262,7 @@ class TouchBarMirrorWindowController: NSObject {
         }
     }
 
-    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（每次同步刷新）
+    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（快照类，按 ITER-3 节流重建）
     private func fingerprint(of item: NSTouchBarItem) -> ItemFingerprint? {
         if let bi = item as? CustomButtonTouchBarItem {
             return .button(
