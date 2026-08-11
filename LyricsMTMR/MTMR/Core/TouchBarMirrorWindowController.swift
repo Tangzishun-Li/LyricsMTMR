@@ -5,8 +5,10 @@ class TouchBarMirrorWindowController: NSObject {
 
     private var window: NSPanel?
     private var stackView: NSStackView?
-    private var mirrorItems: [NSTouchBarItem.Identifier: NSView] = [:]
     private var syncTimer: Timer?
+
+    /// item 内容指纹缓存：指纹未变化的 item 视图原地保留（增量同步，OPT-17）
+    private var itemFingerprints: [NSTouchBarItem.Identifier: ItemFingerprint] = [:]
 
     private var isVisible: Bool = false {
         didSet { AppSettings.showMirrorWindow = isVisible }
@@ -100,6 +102,9 @@ class TouchBarMirrorWindowController: NSObject {
         window.setFrame(NSRect(x: x, y: y, width: w, height: 34), display: true)
     }
 
+    /// 增量同步（OPT-17）：与 Touch Bar 当前布局做结构对齐，仅重建内容变化的 item 视图，
+    /// 未变化的视图与分隔线原地保留 —— 取代原先每 0.1s 全量清空 stackView 并重建全部 item NSView。
+    /// 布局增删/换序时 TouchBarController 已事件驱动调用本方法，无需依赖高频轮询。
     func syncFromTouchBar() {
         let controller = TouchBarController.shared
         guard let sv = stackView else { return }
@@ -107,28 +112,146 @@ class TouchBarMirrorWindowController: NSObject {
         let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
         let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
         let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
-        let groups: [(String, [NSTouchBarItem])] = [
-            ("left", leftItems),
-            ("center", centerItems),
-            ("right", rightItems),
-        ]
 
-        sv.views.forEach { $0.removeFromSuperview() }
-        mirrorItems.removeAll()
-
+        // 目标布局：与全量重建一致的 (item | separator) 序列
+        var targets: [MirrorElement] = []
         var first = true
-        for (_, items) in groups {
+        for items in [leftItems, centerItems, rightItems] {
             if items.isEmpty { continue }
-            if !first {
-                sv.addArrangedSubview(separatorLine())
-            }
+            if !first { targets.append(.separator) }
             first = false
-            for item in items {
-                let v = makeItemView(for: item)
-                sv.addArrangedSubview(v)
-                mirrorItems[item.identifier] = v
+            targets.append(contentsOf: items.map { .item($0) })
+        }
+
+        var current = sv.arrangedSubviews
+        var liveIdentifiers = Set<NSTouchBarItem.Identifier>()
+
+        // 按位置对齐：类型不匹配 → 换视图；同 item 且指纹未变 → 原地保留；指纹变化 → 只重建该单个视图
+        for (index, target) in targets.enumerated() {
+            if index < current.count {
+                let existing = current[index]
+                if view(existing, matches: target) {
+                    if case let .item(item) = target {
+                        liveIdentifiers.insert(item.identifier)
+                        guard let fingerprint = fingerprint(of: item) else { continue }  // 快照类：每次刷新
+                        if itemFingerprints[item.identifier] == fingerprint { continue }  // 内容未变
+                        let newView = makeItemView(for: item)
+                        replace(existing, with: newView, in: sv, at: index)
+                        current[index] = newView
+                        itemFingerprints[item.identifier] = fingerprint
+                    }
+                } else {
+                    let newView = makeView(for: target)
+                    replace(existing, with: newView, in: sv, at: index)
+                    current[index] = newView
+                    remember(newView, for: target, identifiers: &liveIdentifiers)
+                }
+            } else {
+                let newView = makeView(for: target)
+                sv.addArrangedSubview(newView)
+                current.append(newView)
+                remember(newView, for: target, identifiers: &liveIdentifiers)
             }
         }
+
+        // 移除尾部多余视图（item 被移除/布局收窄）
+        while current.count > targets.count {
+            let extra = current.removeLast()
+            sv.removeArrangedSubview(extra)
+            extra.removeFromSuperview()
+        }
+
+        // 清理已不在布局中的指纹缓存
+        itemFingerprints = itemFingerprints.filter { liveIdentifiers.contains($0.key) }
+    }
+
+    // MARK: - 增量同步辅助（OPT-17）
+
+    /// 布局元素：item 或 分组分隔线
+    private enum MirrorElement {
+        case separator
+        case item(NSTouchBarItem)
+    }
+
+    /// item 内容指纹。快照类 item（AppScrubber/音量/亮度/自定义视图等）无低成本指纹，
+    /// fingerprint(of:) 返回 nil，每次同步都刷新该单个视图（与旧行为一致但不再连累其他视图）。
+    private enum ItemFingerprint: Equatable {
+        case button(imageRef: ObjectIdentifier?, title: NSAttributedString?, width: CGFloat)
+        case text(String, width: CGFloat)
+
+        static func == (lhs: ItemFingerprint, rhs: ItemFingerprint) -> Bool {
+            switch (lhs, rhs) {
+            case let (.button(aImage, aTitle, aWidth), .button(bImage, bTitle, bWidth)):
+                guard aWidth == bWidth, aImage == bImage else { return false }
+                switch (aTitle, bTitle) {
+                case (nil, nil): return true
+                case let (a?, b?): return a.isEqual(to: b)
+                default: return false
+                }
+            case let (.text(a, aWidth), .text(b, bWidth)):
+                return a == b && aWidth == bWidth
+            default:
+                return false
+            }
+        }
+    }
+
+    private static let separatorIdentifier = NSUserInterfaceItemIdentifier("mirror.separator")
+
+    private func makeView(for target: MirrorElement) -> NSView {
+        switch target {
+        case .separator:
+            let line = separatorLine()
+            line.identifier = Self.separatorIdentifier
+            return line
+        case let .item(item):
+            let v = makeItemView(for: item)
+            v.identifier = NSUserInterfaceItemIdentifier(item.identifier.rawValue)
+            return v
+        }
+    }
+
+    private func view(_ view: NSView, matches target: MirrorElement) -> Bool {
+        switch target {
+        case .separator:
+            return view.identifier == Self.separatorIdentifier
+        case let .item(item):
+            return view.identifier?.rawValue == item.identifier.rawValue
+        }
+    }
+
+    private func replace(_ oldView: NSView, with newView: NSView, in sv: NSStackView, at index: Int) {
+        sv.insertArrangedSubview(newView, at: index)
+        sv.removeArrangedSubview(oldView)
+        oldView.removeFromSuperview()
+    }
+
+    private func remember(_ view: NSView, for target: MirrorElement, identifiers: inout Set<NSTouchBarItem.Identifier>) {
+        guard case let .item(item) = target else { return }
+        identifiers.insert(item.identifier)
+        if let fingerprint = fingerprint(of: item) {
+            itemFingerprints[item.identifier] = fingerprint
+        } else {
+            itemFingerprints.removeValue(forKey: item.identifier)
+        }
+    }
+
+    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（每次同步刷新）
+    private func fingerprint(of item: NSTouchBarItem) -> ItemFingerprint? {
+        if let bi = item as? CustomButtonTouchBarItem {
+            return .button(
+                imageRef: bi.image.map { ObjectIdentifier($0) },
+                title: bi.attributedTitle,
+                width: item.view?.frame.width ?? 0
+            )
+        }
+        if let li = item as? LyricsTouchBarItem {
+            return .text(lyricsText(from: li), width: item.view?.frame.width ?? 0)
+        }
+        if let gi = item as? GroupBarItem {
+            return .text(gi.collapsedRepresentationLabel, width: 0)
+        }
+        return nil
     }
 
     private func separatorLine() -> NSBox {
@@ -175,16 +298,7 @@ class TouchBarMirrorWindowController: NSObject {
         }
 
         if let li = item as? LyricsTouchBarItem {
-            var txt = "♫"
-            if let stack = li.view as? NSStackView {
-                for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
-                    let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
-                    if !s.isEmpty {
-                        txt = s
-                        break
-                    }
-                }
-            }
+            let txt = lyricsText(from: li)
             let label = simpleLabel(txt)
             label.font = .systemFont(ofSize: 15, weight: .medium)
             if let itemView = item.view, itemView.frame.width > 0 {
@@ -220,6 +334,20 @@ class TouchBarMirrorWindowController: NSObject {
         }
 
         return simpleLabel("?")
+    }
+
+    private func lyricsText(from li: LyricsTouchBarItem) -> String {
+        var txt = "♫"
+        if let stack = li.view as? NSStackView {
+            for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
+                let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
+                if !s.isEmpty {
+                    txt = s
+                    break
+                }
+            }
+        }
+        return txt
     }
 
     private func simpleLabel(_ text: String) -> NSTextField {
