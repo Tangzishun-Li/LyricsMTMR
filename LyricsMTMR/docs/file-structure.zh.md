@@ -80,7 +80,7 @@ mindmap
 │   │   ├── Resources/                # run.pl（MediaRemote 运行时脚本）
 │   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
-│   ├── MTMRTests/                    # 单元测试（56 个用例）
+│   ├── MTMRTests/                    # 单元测试（57 个用例）
 │   ├── Scripts/                      # 开发脚本
 │   │   ├── build.sh / test.sh / archive.sh   # 一键构建（Makefile 调用）
 │   │   ├── embed-entitlements.sh             # 重新签名脚本

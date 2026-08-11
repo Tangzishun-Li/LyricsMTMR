@@ -284,7 +284,7 @@ class TouchBarMirrorWindowController: NSObject {
         }
     }
 
-    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（快照类，按 ITER-3 节流重建）
+    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（快照类，按 ITER-3 + ITER-9 节流重建）
     private func fingerprint(of item: NSTouchBarItem) -> ItemFingerprint? {
         if let bi = item as? CustomButtonTouchBarItem {
             return .button(
