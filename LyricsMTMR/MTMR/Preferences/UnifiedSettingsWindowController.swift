@@ -7,6 +7,8 @@
 
 import Cocoa
 import SwiftUI
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 // MARK: - Settings Window Visibility State
 
@@ -413,26 +415,72 @@ enum Deck {
 
 extension Deck {
 
+    // MARK: OPT-3 静态模糊辉光纹理
+    //
+    // 原先两处「RadialGradient + blur(radius: 5)」在漂移动画中每帧重算模糊，
+    // 源+目标双 backing 常驻约 24~30MB。模糊是线性运算（blur(α·c) = α·blur(c)），
+    // 因此以全强度把「渐变 + 模糊」烘焙成静态 NSImage（首次访问时渲染一次），
+    // 动画只对纹理做整体 opacity —— 观感与原先逐帧改色值再模糊等价。
+    private static let accentGlowTexture: NSImage = makeGlowTexture(
+        color: NSColor(srgbRed: 1.00, green: 0.56, blue: 0.34, alpha: 1),  // Deck.accent
+        endRadius: 360, size: CGSize(width: 700, height: 700))
+    private static let mintGlowTexture: NSImage = makeGlowTexture(
+        color: NSColor(srgbRed: 0.36, green: 0.85, blue: 0.63, alpha: 1),  // Deck.mint
+        endRadius: 320, size: CGSize(width: 620, height: 620))
+
+    /// 预渲染一张带高斯模糊的径向渐变纹理（2x 采样保证 Retina 清晰，一次性成本）。
+    private static func makeGlowTexture(color: NSColor, endRadius: CGFloat, size: CGSize) -> NSImage {
+        let scale: CGFloat = 2
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width * scale),
+            pixelsHigh: Int(size.height * scale),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else {
+            return NSImage(size: size)
+        }
+        rep.size = size  // 逻辑尺寸（pt），像素尺寸由 scale 决定
+
+        // 1) 径向渐变：中心全强度 → endRadius 处透明（对应 RadialGradient startRadius: 0）
+        NSGraphicsContext.saveGraphicsState()
+        let context = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current = context
+        let gradient = NSGradient(colors: [color, color.withAlphaComponent(0)])!
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        gradient.draw(fromCenter: center, radius: 0,
+                      toCenter: center, radius: endRadius, options: [])
+        context?.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+
+        // 2) 高斯模糊（半径换算到像素空间）
+        guard let input = CIImage(bitmapImageRep: rep) else { return NSImage(size: size) }
+        let filter = CIFilter.gaussianBlur()
+        filter.inputImage = input
+        filter.radius = Float(5 * scale)
+        guard let output = filter.outputImage,
+              let cgImage = CIContext().createCGImage(output, from: output.extent) else {
+            return NSImage(size: size)
+        }
+        return NSImage(cgImage: cgImage, size: size)
+    }
+
     struct Background: View {
         @State private var drifting = false
 
         var body: some View {
             LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
                 .overlay(alignment: .topTrailing) {
-                    RadialGradient(
-                        colors: [Deck.accent.opacity(drifting ? 0.16 : 0.10), .clear],
-                        center: .center, startRadius: 0, endRadius: 360)
+                    // OPT-3: 静态模糊纹理，动画只做整体 opacity（原先每帧重算 blur）
+                    Image(nsImage: Deck.accentGlowTexture)
                         .frame(width: 700, height: 700)
                         .offset(x: 170, y: -230)
-                        .blur(radius: 5)
+                        .opacity(drifting ? 0.16 : 0.10)
                 }
                 .overlay(alignment: .bottomLeading) {
-                    RadialGradient(
-                        colors: [Deck.mint.opacity(drifting ? 0.06 : 0.10), .clear],
-                        center: .center, startRadius: 0, endRadius: 320)
+                    Image(nsImage: Deck.mintGlowTexture)
                         .frame(width: 620, height: 620)
                         .offset(x: -170, y: 210)
-                        .blur(radius: 5)
+                        .opacity(drifting ? 0.06 : 0.10)
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
@@ -883,12 +931,41 @@ extension Deck {
 /// visited tab: revisits become an instant opacity swap instead of a full
 /// teardown + re-layout (and re-load) on the main thread. Built lazily on
 /// first visit; cleared wholesale when a profile is imported.
+///
+/// OPT-4: 改为 LRU 淘汰 —— 最多保留最近 3~5 个 tab（取 4），超出后释放
+/// 最久未访问 tab 的视图树。ZStack 里未被缓存的 tab 渲染为 Color.clear，
+/// 因此窗口打开期间驻留视图图从 21 tab 收敛到活跃 tab（约省 10-15MB）。
+/// 视图只在首次访问时构建一次，插入顺序即访问顺序。
 private final class SettingsTabCache {
+    /// 最多保留的已构建 tab 数（OPT-4：3~5 取 4）
+    private static let capacity = 4
+
     private var views: [SettingsTab: AnyView] = [:]
+    /// 访问（插入）顺序：队首最新、队尾最旧，超出容量时从队尾淘汰
+    private var recency: [SettingsTab] = []
 
     func view(for tab: SettingsTab) -> AnyView? { views[tab] }
-    func insert(_ view: AnyView, for tab: SettingsTab) { views[tab] = view }
-    func removeAll() { views.removeAll() }
+
+    func insert(_ view: AnyView, for tab: SettingsTab) {
+        // 重新构建的 tab 视为最近访问，先移出旧位置再插到队首
+        if let index = recency.firstIndex(of: tab) {
+            recency.remove(at: index)
+        }
+        recency.insert(tab, at: 0)
+        views[tab] = view
+        // 超出容量：淘汰最久未访问的 tab（队尾）
+        while recency.count > Self.capacity, let oldest = recency.last {
+            recency.removeLast()
+            views[oldest] = nil
+        }
+    }
+
+    /// 清空全部缓存（配置导入 :937 与 OPT-8 内存压力兜底共用），
+    /// 之后访问过的 tab 将按需重建。
+    func removeAll() {
+        views.removeAll()
+        recency.removeAll()
+    }
 }
 
 // MARK: - Root View
