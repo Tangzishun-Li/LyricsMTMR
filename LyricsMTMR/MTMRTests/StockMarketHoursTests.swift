@@ -5,6 +5,9 @@ import XCTest
 /// 节假日/补班断言不再手工复制锚点，改为从 StockBarItem 内
 /// aShareHolidays / aShareMakeupDates 单一数据源生成（ITER-8）——
 /// 表里新增或修订日期时测试自动覆盖，杜绝表与断言两处漂移；
+/// ITER-12 起：对 2026 年国办通知官方节假日/补班恢复固定锚点断言
+/// （金丝雀，来源：国办发明电〔2025〕7 号）——表若被误改（删改官方日期）
+/// 锚点立即失败，作为表驱动遍历的独立校验；
 /// 时间边界用例（9:15/11:30/13:00/15:00）与普通周末规则保留。
 /// 所有日期按 Asia/Shanghai 时区构造。
 class StockMarketHoursTests: XCTestCase {
@@ -128,6 +131,31 @@ class StockMarketHoursTests: XCTestCase {
             }
         }
         XCTAssertTrue(found, "表中至少应有一个假期窗口后接普通工作日")
+    }
+
+    // MARK: - 官方锚点金丝雀（ITER-12，来源：国办发明电〔2025〕7 号）
+
+    /// 2026 年官方节假日/补班的固定锚点断言（金丝雀）：
+    /// 与表驱动遍历（testHolidaysClosed2026Official 等）互补——日期硬编码于此，
+    /// 独立于 aShareHolidays / aShareMakeupDates 数据源。表若被误改
+    /// （如删改某官方休市日、补班日），锚点断言立即失败，杜绝“表错了测试仍绿”。
+    /// 数据来源：国务院办公厅《关于 2026 年部分节假日安排的通知》
+    /// （国办发明电〔2025〕7 号，2025-11-04，
+    /// https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm）。
+    func testCanaryOfficialHolidaysClosed2026() {
+        // 各节日锚点日（交易时段 10:00）必须休市
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 1, 1, 10, 0)), "锚点：元旦 2026-01-01(四) 应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 2, 23, 10, 0)), "锚点：春节末日 2026-02-23(一) 应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 4, 6, 10, 0)), "锚点：清明末日 2026-04-06(一) 应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 5, 1, 10, 0)), "锚点：劳动节 2026-05-01(五) 应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 6, 19, 10, 0)), "锚点：端午 2026-06-19(五) 应休市")
+        XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2026, 9, 25, 10, 0)), "锚点：中秋 2026-09-25(五) 应休市")
+    }
+
+    func testCanaryOfficialMakeupDaysOpen2026() {
+        // 官方补班锚点日（周末上班）在交易时段必须开市
+        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 5, 9, 10, 0)), "锚点：劳动节补班 2026-05-09(六) 应开市")
+        XCTAssertTrue(StockBarItem.isMarketOpen(at: bj(2026, 10, 10, 10, 0)), "锚点：国庆补班 2026-10-10(六) 应开市")
     }
 
     // MARK: - 数据源一致性（ITER-8 新增守卫）
