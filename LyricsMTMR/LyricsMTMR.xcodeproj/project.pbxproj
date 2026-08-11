@@ -89,7 +89,6 @@
 		B059D622205E03F5006E6B86 /* TouchBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B059D621205E03F5006E6B86 /* TouchBarController.swift */; };
 		B059D624205E04F3006E6B86 /* CustomButtonTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B059D623205E04F3006E6B86 /* CustomButtonTouchBarItem.swift */; };
 		B059D62D205F11E8006E6B86 /* DFRFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B059D62C205F11E8006E6B86 /* DFRFoundation.framework */; };
-		B0679BC1215AE73F000FC6B4 /* dsa_pub.pem in Resources */ = {isa = PBXBuildFile; fileRef = B0679BC0215AE73F000FC6B4 /* dsa_pub.pem */; };
 		B08126EF217BD0B900A98970 /* PomodoroBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08126EE217BD0B900A98970 /* PomodoroBarItem.swift */; };
 		B08126F1217BE19000A98970 /* WidgetProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08126F0217BE19000A98970 /* WidgetProtocol.swift */; };
 		B08173272135F02B005D4908 /* NightShiftBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08173262135F02B005D4908 /* NightShiftBarItem.swift */; };
@@ -342,7 +341,6 @@
 		B059D629205E13E5006E6B86 /* TouchBarPrivateApi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TouchBarPrivateApi.h; sourceTree = "<group>"; };
 		B059D62A205F0E7D006E6B86 /* TouchBarPrivateApi-Bridging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TouchBarPrivateApi-Bridging.h"; sourceTree = "<group>"; };
 		B059D62C205F11E8006E6B86 /* DFRFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DFRFoundation.framework; path = ../../../../../System/Library/PrivateFrameworks/DFRFoundation.framework; sourceTree = "<group>"; };
-		B0679BC0215AE73F000FC6B4 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dsa_pub.pem; sourceTree = "<group>"; };
 		B0796A74F53B733DDDFB8718 /* StockTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StockTabView.swift; sourceTree = "<group>"; };
 		B08126EE217BD0B900A98970 /* PomodoroBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroBarItem.swift; sourceTree = "<group>"; };
 		B08126F0217BE19000A98970 /* WidgetProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetProtocol.swift; sourceTree = "<group>"; };
@@ -555,7 +553,6 @@
 				B082B256205C7D8000BC04DC /* Assets.xcassets */,
 				B082B258205C7D8000BC04DC /* Main.storyboard */,
 				B082B25B205C7D8000BC04DC /* Info.plist */,
-				B0679BC0215AE73F000FC6B4 /* dsa_pub.pem */,
 				B082B25C205C7D8000BC04DC /* MTMR.entitlements */,
 				36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */,
 				A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */,
@@ -1023,7 +1020,6 @@
 				5DC6CA03241F92CB005CD5E8 /* Music.next.scpt in Resources */,
 				B082B25A205C7D8000BC04DC /* Main.storyboard in Resources */,
 				B0B17435207D6B590004B740 /* Spotify.next.scpt in Resources */,
-				B0679BC1215AE73F000FC6B4 /* dsa_pub.pem in Resources */,
 				B0B17433207D6B590004B740 /* Finder.scpt in Resources */,
 				B0B17439207D6B590004B740 /* Vox.nowPlaying.scpt in Resources */,
 				B0B17438207D6B590004B740 /* Vox.next.scpt in Resources */,

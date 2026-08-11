@@ -78,7 +78,7 @@ mindmap
 │   │   ├── Assets.xcassets/          # 应用图标与图片资源
 │   │   ├── Base.lproj/               # Main.storyboard
 │   │   ├── Resources/                # run.pl（MediaRemote 运行时脚本）
-│   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json / dsa_pub.pem
+│   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
 │   ├── MTMRTests/                    # 单元测试（16 个用例）
 │   ├── Scripts/                      # 开发脚本
@@ -135,7 +135,7 @@ flowchart TD
 | `LyricsMTMR/MTMR/MTMRExceptionCatcher.h` | 被 `CBridge/TouchBarPrivateApi-Bridging.h` 的 `#import "../MTMRExceptionCatcher.h"` 引用，且 `MTMRTryOrError` 在 3 处 Swift 中使用 |
 | `LyricsMTMR/MTMR/CBridge/MediaRemoteMRBridge.m` | 构建阶段脚本按 `${SRCROOT}/MTMR/CBridge` 编译 |
 | `LyricsMTMR/MTMR/Resources/run.pl` | 构建阶段脚本拷贝进 app Bundle，运行时由 `MediaRemoteAdapter` 从 `Bundle.main` 读取 |
-| `LyricsMTMR/MTMR/Info.plist`、`defaultPreset.json`、`dsa_pub.pem` | `INFOPLIST_FILE` / Copy Bundle Resources 引用 |
+| `LyricsMTMR/MTMR/Info.plist`、`defaultPreset.json` | `INFOPLIST_FILE` / Copy Bundle Resources 引用 |
 | `LyricsMTMR/MTMR/Assets.xcassets`、`AppleScripts/`、`Base.lproj/` | 资源拷贝阶段引用 |
 | `LyricsMTMR/Sparkle.framework` | 本地依赖（gitignored），`FRAMEWORK_SEARCH_PATHS` 引用 |
 | `.secrets.env` | 本地密钥文件（gitignored，不入库） |
