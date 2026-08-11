@@ -934,7 +934,9 @@ extension Deck {
 /// resident while the window was open. Only the most recently used tabs are
 /// retained; evicted tabs rebuild on their next visit (first-open cost is
 /// a few tens of ms, imperceptible).
-private final class SettingsTabCache {
+/// `internal` (was `private`) so MTMRTests can unit-test the LRU eviction
+/// semantics via `@testable import` (ITER-6); no logic change.
+final class SettingsTabCache {
     /// How many tab views to keep alive after LRU eviction (plan: 3~5).
     private let capacity = 4
     private var views: [SettingsTab: AnyView] = [:]

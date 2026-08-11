@@ -422,10 +422,11 @@ class StockBarItem: CustomButtonTouchBarItem {
     /// 3. 交易日时段：9:15 起为集合竞价（行情已开始变化）计入交易，11:30-13:00 午休、
     ///    收盘后休市（OPT-11）。日期与时段均按 Asia/Shanghai 时区。
     /// 注：不能用 TimeZone(abbreviation: "CST") —— "CST" 有歧义（可能解析为美国中部时间），统一显式用 Asia/Shanghai。
-    private func isMarketOpen() -> Bool {
+    /// `static + internal`（原 private 实例方法）以便 MTMRTests 注入任意日期做边界单测（ITER-6），逻辑未变。
+    static func isMarketOpen(at date: Date) -> Bool {
         let beijing = TimeZone(identifier: "Asia/Shanghai") ?? .current
         let cal = Calendar(identifier: .gregorian)
-        let comp = cal.dateComponents(in: beijing, from: Date())
+        let comp = cal.dateComponents(in: beijing, from: date)
         guard let weekday = comp.weekday, let hour = comp.hour, let minute = comp.minute,
               let year = comp.year, let month = comp.month, let day = comp.day else { return false }
 
@@ -440,6 +441,11 @@ class StockBarItem: CustomButtonTouchBarItem {
         let minutes = hour * 60 + minute
         return (minutes >= 9 * 60 + 15 && minutes < 11 * 60 + 30)
             || (minutes >= 13 * 60 && minutes < 15 * 60)
+    }
+
+    /// 实例入口：按当前时间判断（保持原调用语义）。
+    private func isMarketOpen() -> Bool {
+        Self.isMarketOpen(at: Date())
     }
 
     // MARK: - 跑马灯

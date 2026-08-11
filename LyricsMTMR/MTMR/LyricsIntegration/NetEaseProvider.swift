@@ -32,7 +32,9 @@ enum NetEaseProvider {
     private static let lyricsCache = LyricsLRUCache(capacity: 32)
 
     /// Thread-safe LRU container. Only ever mutated inside the serial queue.
-    private final class LyricsLRUCache {
+    /// `internal` (was `private`) so MTMRTests can unit-test the LRU semantics
+    /// via `@testable import` (ITER-6); no logic change.
+    final class LyricsLRUCache {
         private var entries: [Int: SimpleLyrics] = [:]
         private var order: [Int] = [] // MRU first
         private let capacity: Int
