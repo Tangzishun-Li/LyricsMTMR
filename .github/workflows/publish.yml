@@ -36,10 +36,36 @@ jobs:
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
           ls -lh "$ZIP" "$ZIP.sha256"
 
+      - name: Generate appcast.xml (Sparkle feed)
+        run: |
+          APP="LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+          TAG="${GITHUB_REF_NAME}"
+          ZIP="LyricsMTMR-${TAG}-universal.zip"
+          cat > appcast.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>LyricsMTMR</title>
+              <item>
+                <title>${SHORT} (${BUILD})</title>
+                <pubDate>$(date -u +"%a, %d %b %Y %H:%M:%S +0000")</pubDate>
+                <sparkle:version>${BUILD}</sparkle:version>
+                <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
+                <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream"/>
+              </item>
+            </channel>
+          </rss>
+          EOF
+          echo "--- appcast.xml ---"
+          cat appcast.xml
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             LyricsMTMR-v*-universal.zip
             LyricsMTMR-v*-universal.zip.sha256
+            appcast.xml
           generate_release_notes: true

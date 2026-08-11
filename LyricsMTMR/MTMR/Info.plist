@@ -109,7 +109,7 @@
 	<key>NSSystemAdministrationUsageDescription</key>
 	<string>LyricsMTMR needs access to Administration for work</string>
 	<key>SUFeedURL</key>
-	<string>https://mtmr.app/appcast.xml</string>
+	<string>https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest/download/appcast.xml</string>
 	<key>SUPublicDSAKeyFile</key>
 	<string>dsa_pub.pem</string>
 	<key>kTCCServiceMediaLibrary</key>
