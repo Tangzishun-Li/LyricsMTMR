@@ -143,7 +143,8 @@ class StockMarketHoursTests: XCTestCase {
     /// 1. 更新 2027 预估段（StockBarItem.swift 的 aShareHolidays / aShareMakeupDates 两表，
     ///    注释去掉「预估」并补上文号 + URL）；
     /// 2. 在该年度块补充官方锚点（至少各节日窗口端点 + 全部官方补班日；
-    ///    连休窗口/补班未确定前只补节日当天锚点，不臆测）。
+    ///    连休/补班未确定前只补节日当天锚点，不臆测；
+    ///    落在周末的节日锚点须加表内 contains 直查断言，防周末规则掩蔽）。
     /// 锚点日期硬编码于此、独立于两表数据源——表若被误改（如删改官方休市日、补班日），
     /// 锚点断言立即失败，作为表驱动遍历（testHolidaysClosed2026Official 等）的独立校验。
 
@@ -177,6 +178,8 @@ class StockMarketHoursTests: XCTestCase {
     /// 春节 2027-02-06（正月初一）、端午 2027-06-09（五月初五）、中秋 2027-09-15（八月十五）；
     /// 元旦 01-01、清明 04-05、劳动 05-01、国庆 10-01 按公历。
     /// 连休窗口与补班日待国办 2026-11 通知核对，此处仅断言节日当天休市（不臆测连休/补班）。
+    /// 注意：落在周末的节日锚点（2027 的春节 02-06、劳动 05-01）须加表内 contains 直查断言——
+    /// 周末规则会兜底返回休市，isMarketOpen 断言测不出删表；后续年度新增锚点遇周末节日同样处理。
     func testGoldenAnchors2027() {
         // 各节日当天（交易时段 10:00）必须休市
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 1, 1, 10, 0)), "锚点：元旦 2027-01-01(五) 应休市")
@@ -186,6 +189,11 @@ class StockMarketHoursTests: XCTestCase {
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 6, 9, 10, 0)), "锚点：端午 2027-06-09(三) 应休市")
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 9, 15, 10, 0)), "锚点：中秋 2027-09-15(三) 应休市")
         XCTAssertFalse(StockBarItem.isMarketOpen(at: bj(2027, 10, 1, 10, 0)), "锚点：国庆 2027-10-01(五) 应休市")
+        // 周末兜底防掩蔽：02-06(六) 与 05-01(六) 即便被误删出 aShareHolidays，isMarketOpen
+        // 也会因周末规则返回休市（断言测不出删表）——直查数据源补强金丝雀；
+        // 其余 5 个锚点均为工作日，由上方 isMarketOpen 断言兜住。
+        XCTAssertTrue(StockBarItem.aShareHolidays.contains("2027-02-06"), "表内应含春节当天 2027-02-06（周末锚点须直查，防周末规则掩蔽）")
+        XCTAssertTrue(StockBarItem.aShareHolidays.contains("2027-05-01"), "表内应含劳动节当天 2027-05-01（周末锚点须直查，防周末规则掩蔽）")
     }
 
     // MARK: - 数据源一致性（ITER-8 新增守卫）

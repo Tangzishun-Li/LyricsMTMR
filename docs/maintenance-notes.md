@@ -35,7 +35,9 @@
    （ITER-12 / ITER-16，固定日期断言，见 `StockMarketHoursTests.swift` 金丝雀区段
    `testGoldenAnchors2026` / `testGoldenAnchorsMakeup2026` / `testGoldenAnchors2027`）
    独立于两表——新年份核对落表后，应同步在该年度块补充官方锚点
-   （至少各节日窗口端点 + 全部官方补班日；连休/补班未确定前只补节日当天锚点）。
+   （至少各节日窗口端点 + 全部官方补班日；连休/补班未确定前只补节日当天锚点；
+   落在周末的节日锚点须加表内 `contains` 直查断言，防周末规则掩蔽——如 2027 春节 02-06、
+   劳动 05-01，见 `testGoldenAnchors2027` 注释）。
 4. **验证**：跑 `MTMRTests` 全量通过后提交 PR（改动应为纯数据 + 注释）。
 
 ### 修订历史

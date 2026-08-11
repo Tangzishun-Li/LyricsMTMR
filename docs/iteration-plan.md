@@ -303,3 +303,60 @@ LRU 淘汰 —— 均可低成本单测，防止下轮优化误伤。建议按 O
 
 - **Batch 1（1 张卡，可选）**：ITER-16（金丝雀滚动，建议 2026-11 随 ITER-14 待办一起做）；
 - **Batch 2（1 张卡，可选）**：ITER-17 + ITER-18（文档计数去硬编码 + CI 冒烟，各 <15 行）。
+
+---
+
+## 七、第五轮审查（ITER-16~18 全部合并后，由 review-agent t_e7950587 产出）
+
+> 在 ITER-16~18（PR #34~#36，squash 合并 13db6ee/508f346/adbec30）+ INTEG docs commit 6a8e468
+> 全部并入 main 之后，通读合并 diff（2253dff..6a8e468，7 文件、+187/-24），审查方向：
+> ITER-16 2027 锚点与预估表一致性、ITER-18 共享脚本 / publish.yml 引用正确性、
+> 新 workflow（signing-check.yml）触发条件、代码一致性、文档遗留。
+
+### 〇、本轮 review 直接修复（PR #37，CI 全绿后合入）
+
+- **ITER-16 金丝雀周末锚点掩蔽缺口（2 处）**：`testGoldenAnchors2027`
+  （`LyricsMTMR/MTMRTests/StockMarketHoursTests.swift:180-189`）的春节 2027-02-06(六) 与
+  劳动节 2027-05-01(六) 落在周末——即使被误删出 `aShareHolidays`，`isMarketOpen` 的周末规则
+  也会兜底返回休市，锚点断言依然通过，与金丝雀注释声称的「表若被误改，锚点立即失败」
+  （:147-148）相悖。已补 `aShareHolidays.contains(...)` 直查断言（:190-196）+ 注释说明，
+  并在测试区块年度滚动步骤（:146-147）与 maintenance-notes 步骤 3 登记「周末节日锚点须直查」
+  要求（2026 锚点均为工作日或补班开市断言，无此问题；后续年度如 2028 元旦周六会再遇）。
+- **file-structure.zh.md 未收录 ITER-18 新增文件**：`.github/scripts/verify_sparkle_key.sh`
+  与 `.github/workflows/signing-check.yml`（ITER-18 新增）未登记在 CI mindmap
+  （`LyricsMTMR/docs/file-structure.zh.md:46-51`），文档与目录结构漂移。已补两行。
+- **iteration-plan 本轮追记**：本区块（修复项 / 排除清单 / 下一轮建议落盘）。
+
+### 一、已排除候选清单（本轮确认无问题，避免重复改）
+
+| 项 | 结论 | 证据 |
+|---|---|---|
+| ITER-16 2027 锚点与预估表一致性 | ✅ | 7 个锚点日期全部存在于 `aShareHolidays`（`StockBarItem.swift:388-398`），且均不在 `aShareMakeupDates`（:412-418，两表重叠另有 `testHolidayAndMakeupTablesDisjoint` 守卫）；Python 复核 7 个星期标注（五/六/一/六/三/三/五）与断言消息逐一吻合；农历日期（春节 02-06 正月初一、端午 06-09、中秋 09-15）为天文历确定值，除夕 02-05 腊月二十九亦与表注释一致 |
+| ITER-16 2026 金丝雀改名后无遗留引用 | ✅ | grep 全仓无 `CanaryOfficial` / `testCanary*` 残留；maintenance-notes.md:35-37 已同步新名 testGoldenAnchors* |
+| ITER-18 共享脚本与 ITER-13 内联 guard 等价 | ✅ | `.github/scripts/verify_sparkle_key.sh:20-27` 与 2253dff 版 publish.yml:63-67 逐行一致（含错误文案）；macOS 本地 8 类输入实测全部符合预期：base64(96B)→0、PEM 文本→1、base64(64B)→1、空文件→1、文件不存在→1、96B+尾随空白→0、base64(128B)→1、真实 PEM 块→1 |
+| ITER-18 publish.yml 脚本引用路径 | ✅ | 「Generate appcast.xml」步骤无 `working-directory` 覆盖，checkout@v4（publish.yml:14）后默认 $GITHUB_WORKSPACE 根目录，相对路径 `.github/scripts/verify_sparkle_key.sh` 可解析；脚本 exit 1 → GitHub 默认 `bash -e` 使步骤失败，fail-closed 语义与内联 guard 一致（内联原为 set -e+pipefail 下命令替换失败即退，殊途同归） |
+| ITER-18 signing-check.yml 触发条件与断言 | ✅ | `on: pull_request` + `workflow_dispatch`（signing-check.yml:12-15）：PR 期即冒烟，无需等 v* tag 发版；三输入断言在 `set -euo pipefail` 下用 `if` 条件豁免正确；mktemp 用完即删、断言计数门禁齐全（:59-64） |
+| ITER-17 去硬编码后残留数字 | ✅ | file-structure.zh.md 残留数字逐一核对：`v* tag`（:51 workflow 触发条件）、`theme1-15`（:53 预设命名）、`MTMRTryOrError 3 处`（:135 = 3 个 Swift 文件，grep 实证 TouchBarController / WidgetKit / AudioSpectrumBarItem）、`x86_64 + arm64`（:149 架构）、`3 个 commit` + 哈希（:155-161 历史记录），均非会漂移的计数 |
+| 2028 节假日表缺失 | ✅ 可接受 | 同第四轮结论：符合国办发布节奏（2028 通知 2027-11 发布）；ITER-14 置顶待办 + maintenance-notes 已登记每年 11 月核对流程 |
+
+### 二、下一轮建议（ITER-19+，按优先级）
+
+- **ITER-19 【低】金丝雀周末锚点直查化（后续年度自动生效）**
+  现状：本轮已修 2027 两处周末锚点（contains 直查）；维护说明与测试区块注释已登记该要求。
+  2028 元旦（周六）等周末节日落表时按注释执行即可。风险：无（纯测试 + 文档，已随本轮合入）。
+
+- **ITER-20 【低】signing-check.yml 触发面收敛**
+  现状：`on: pull_request` 对全部 PR 生效（含 draft / 纯文档 PR）。可选 `paths:` 过滤
+  （`.github/scripts/**`、`.github/workflows/publish.yml`、`.github/workflows/signing-check.yml`）。
+  收益小（冒烟 <10s）；paths 方案需同时列出 publish.yml 路径，否则改 publish.yml 不会触发冒烟。
+  风险：低（过滤误配会漏跑冒烟，需在 PR 描述注明）。
+
+- **ITER-21 【低】2027 预估段复核时点提醒**
+  现状：ITER-14 置顶待办已覆盖（2026-11 国办通知后核对连休窗口/补班日），无需新卡；
+  届时按 maintenance-notes 步骤 3 同步补连休端点金丝雀锚点（若官方窗口与预估一致则仅去「预估」标注）。
+  风险：无（流程已固化）。
+
+### 三、实施批次建议
+
+- 本轮修复（金丝雀直查 + CI 文件结构补录 + 文档追记）已在单个 PR（#37）内完成，无需拆分；
+  ITER-19~21 均为低优先可选卡，建议 2026-11 随 ITER-14 核对待办一起评估。

@@ -46,9 +46,12 @@ mindmap
 .
 ├── .github/                          # CI（根目录才会被 GitHub 执行）
 │   ├── FUNDING.yml
+│   ├── scripts/
+│   │   └── verify_sparkle_key.sh     # Sparkle 私钥 base64(96B) 格式校验（publish / signing-check 共用，ITER-18）
 │   └── workflows/
 │       ├── build-test.yml            # push/PR：构建 + 单元测试（数量以 xcodebuild test 输出为准）
-│       └── publish.yml               # v* tag：通用架构(arm64+x86_64)归档
+│       ├── publish.yml               # v* tag：通用架构(arm64+x86_64)归档
+│       └── signing-check.yml         # PR：Sparkle 私钥格式 guard 冒烟（ITER-18）
 ├── Makefile                          # make build / test / archive / clean
 ├── examples/presets/                 # 主题预设示例（theme1-15、items.json、test_lyrics_preset.json）
 ├── tools/
