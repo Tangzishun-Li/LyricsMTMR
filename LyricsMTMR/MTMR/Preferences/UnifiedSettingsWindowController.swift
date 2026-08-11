@@ -162,6 +162,14 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         SettingsWindowState.shared.isVisible = true
     }
 
+    func windowDidResignKey(_ notification: Notification) {
+        // OPT-14: non-standard hide paths (orderOut / Space switch / losing
+        // key status) never reset isVisible, leaving offscreen DisplayLink
+        // frames running. Treat "not key" as "not visible" — didBecomeKey
+        // flips it back when the window regains focus.
+        SettingsWindowState.shared.isVisible = false
+    }
+
     func windowDidMiniaturize(_ notification: Notification) {
         SettingsWindowState.shared.isVisible = false
     }
@@ -469,7 +477,7 @@ extension Deck {
                                     startPoint: .top, endPoint: .bottom),
                                 lineWidth: 1)
                         }
-                        .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
+                        .shadow(color: .black.opacity(0.28), radius: 5, y: 2)
                 }
                 .onHover { isOver in
                     withAnimation(.easeOut(duration: 0.15)) { hovering = isOver }
@@ -545,7 +553,7 @@ extension Deck {
                         Capsule().strokeBorder(.white.opacity(isOn ? 0.22 : 0.07), lineWidth: 1)
                     }
                     .frame(width: 42, height: 25)
-                    .shadow(color: isOn ? tint.opacity(0.4) : .clear, radius: 7, y: 2)
+                    .shadow(color: isOn ? tint.opacity(0.4) : .clear, radius: 3.5, y: 1)
                     .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isOn)
             }
             .buttonStyle(.plain)
@@ -1209,7 +1217,7 @@ struct NavItem: View {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(Deck.accentGradient)
                         .matchedGeometryEffect(id: "navPill", in: namespace)
-                        .shadow(color: Deck.accent.opacity(0.42), radius: 9, y: 2)
+                        .shadow(color: Deck.accent.opacity(0.42), radius: 4.5, y: 1)
                 } else if hovering {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(Color.white.opacity(0.06))
