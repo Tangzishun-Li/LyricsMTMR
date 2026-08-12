@@ -611,3 +611,15 @@
   - 年度维护核验（第 8 次）：ITER-14 置顶待办完好可执行（唯一未勾选项，:388 引用准，检查点与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370/:375-399/:404-419、三函数 :155/:167/:183、年度流程 :22-47、周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=024ec61；本地 main 领先 1 个 docs 提交为父任务预登记）；文档一致性三方交叉核对一致、无冲突残留标记；
   - 仓库卫生：round-13 父卡 t_bdcd677c + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4 → prune → branch -d ×4，删除后清点 .worktrees 仅 round14-A/B/C + 主仓库、本地分支 4 条、远端仅 main、prune --dry-run 空；
   - 产出：根目录 3 份报告（回归报告_第14轮.md / 核验报告_第14轮_维护机制健在与文档一致性.md / 清理报告_第14轮_round13遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~14 轮 + 3 份报告登记）；约束遵守：仅动本工作区与 r14/review，未 push，未开新分支/子任务。
+
+---
+
+## 第 15 轮（功能/优化迭代第 3 轮）
+
+### 子任务记录
+
+- **t_979458b4 维护三合一（review-agent，分支 r15/review）**：
+  - 年度维护核验（第 9 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=1f4b1ca，本地 main 与 origin 同步）；文档一致性三方交叉核对一致（iteration-log 第 14 轮收口 ↔ 提交图 1f4b1ca→8c97b8a→96c9618→d6916a8→404d46e→be9b6ef→7116d00↔ file-structure 登记 5 份报告）、无冲突残留标记；
+  - 仓库卫生：round-14 父卡 t_15388599 + 3 子卡遗留清理 —— 删除前复核 4 检查全过（3 分支 --merged main 0 ahead + merge-base 祖先 + 3 worktree 干净 + 远端仅 main），删除动作 worktree remove ×3 → prune → branch -d ×3（r14/feature r14/docs r14/review），另清理父卡预建残留空目录壳 .worktrees/round14-parent/（非注册 worktree，rmdir）；删除后清点 .worktrees 仅 round15-A/B/C + t_f67afe50 + 主仓库、本地分支 5 条（main + r15/* + t_f67afe50 分支）、远端仅 main、prune --dry-run 空；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问 / ITER-14 时间驱动 / 内存修复真机冒烟 3 项 / currency 真机冒烟 —— 均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第15轮_维护机制健在与文档一致性.md / 清理报告_第15轮_round14遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~15 轮 + 2 份报告登记）；约束遵守：仅动本工作区与 r15/review，零代码改动（未触发构建/测试/全量回归），未 push，未开新分支/子任务。
