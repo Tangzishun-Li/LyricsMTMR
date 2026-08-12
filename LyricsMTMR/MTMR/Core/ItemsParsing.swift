@@ -255,6 +255,13 @@ class SupportedTypesHolder {
 
     static let sharedInstance = SupportedTypesHolder()
 
+    /// 注册表键集只读快照（round 25 对账测试用）：预定义 14 键 +
+    /// 控制器运行时注册键（exitTouchbar / close / themeSwitch 重复注册）。
+    /// 内部可见性，仅枚举不改写；任何注册/注销经由此处可被测试观测。
+    var registeredTypeNames: [String] {
+        Array(supportedTypes.keys).sorted()
+    }
+
     func lookup(by type: String, actions: [Action]) -> ParametersDecoder {
         return supportedTypes[type] ?? { decoder in (
             item: try ItemType(from: decoder),
@@ -482,7 +489,7 @@ enum ItemType: Decodable {
         case width
     }
 
-    enum ItemTypeRaw: String, Decodable {
+    enum ItemTypeRaw: String, Decodable, CaseIterable {
         case staticButton
         case appleScriptTitledButton
         case shellScriptTitledButton
