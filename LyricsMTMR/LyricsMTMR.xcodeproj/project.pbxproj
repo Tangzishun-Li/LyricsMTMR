@@ -244,6 +244,8 @@
 		C1FF434F207C11097FC6CA41 /* PausableTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */; };
 		C1FF36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */; };
 		C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */; };
+		C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */; };
+		C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -516,6 +518,8 @@
 		C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PausableTimerTests.swift; sourceTree = "<group>"; };
 		C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryTests.swift; sourceTree = "<group>"; };
 		C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHiddenStateTests.swift; sourceTree = "<group>"; };
+		C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSession.swift; sourceTree = "<group>"; };
+		C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSessionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -661,6 +665,7 @@
 				C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */,
 				C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */,
 				C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */,
+				C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -898,6 +903,7 @@
 				6E934999DE9040A4840FC85D /* KeyBindingModel.swift */,
 				5F48F01FC23F4982AE8C2B17 /* KeyBindingTabView.swift */,
 				54D50C2A58718B948CCF51CF /* Editor */,
+				C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */,
 			);
 			name = Preferences;
 			path = Preferences;
@@ -1303,6 +1309,7 @@
 				63340F321AB44DC34B2D053B /* CommitNumberField.swift in Sources */,
 				B9AD4E44826AB52D3D69C151 /* RSSTabView.swift in Sources */,
 				C0FFB3400C3B5EE0211E19A3 /* TBPausableTimer.swift in Sources */,
+				C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1327,6 +1334,7 @@
 				C1FF434F207C11097FC6CA41 /* PausableTimerTests.swift in Sources */,
 				C1FF36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift in Sources */,
 				C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */,
+				C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
