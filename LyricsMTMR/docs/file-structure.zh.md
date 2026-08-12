@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~12 轮回归/核验/评估/核对/修复报告（仓库根）
+      第 7~13 轮回归/核验/评估/核对/修复报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -121,6 +121,11 @@ mindmap
 ├── 回归报告_第12轮.md                        # 第 12 轮子任务 A 全量回归报告（隔代触发：BUILD/TEST SUCCEEDED，60 用例 0 失败，r12/review，预登记）
 ├── 核验报告_第12轮_维护机制健在与文档一致性.md # 第 12 轮核验报告（第 6 次年度维护核验，r12/review，预登记）
 ├── 清理报告_第12轮.md         # 第 12 轮子任务 C 仓库卫生报告（round-11 父卡+子卡遗留 worktree/分支清理，r12/cleanup）
+
+├── 核验报告_第13轮_维护机制健在与文档一致性.md # 第 13 轮核验报告（第 7 次年度维护核验，r13/cleanup，预登记）
+├── 清理报告_第13轮_round12遗留清理.md          # 第 13 轮子任务 C 仓库卫生报告（round-12 父卡+子卡遗留 worktree/分支清理，r13/cleanup，预登记）
+├── 核验报告_第13轮_issue40_按软件切换bar.md    # 第 13 轮子任务 A 实现核验报告（issue #40 Per-app bar switching 验收核验+补齐，r13/feature，预登记）
+├── 文档报告_第13轮_README补全.md               # 第 13 轮子任务 B 文档报告（README 补 MediaRemote 风险说明 + 应用专属主题说明，r13/docs，预登记）
 
 └── .gitignore / .gitattributes / README.md
 ```
