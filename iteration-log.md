@@ -997,3 +997,17 @@
   - 等价性：未治理路径严格等价——轮询 0.5s/fix 验收 attempts>=2/超时 attempts>12/城市提取 locality??administrativeArea+剥「市」/三文案/主线程状态写入全部逐字一致；行为差异仅「resolve/超时/视图消失三路径停 GPS（核心修复）+ 失焦取消在途操作 + 视图隐藏期间丢弃在途 geocode 结果（释放引用要求，窗口极小用户重试即可）」；
   - 交付：验证报告《验证报告_第23轮_WeatherTabView定位生命周期治理.md》（本分支根目录，含实证/评估取舍/变更明细/等价性论证/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~22 轮→第 7~23 轮 + 报告行登记，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）；
   - 约束遵守：仅本工作区与 r23/location-fix 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；登记遗留：真机冒烟延续挂账（设置窗口定位添加隐私指示灯熄灭/恢复观感依赖 Touch Bar 真机）、失焦取消在途操作为范围决策（如需区分 close-hide 与 resignKey 需扩大改动，如实记录）。
+
+---
+
+## 第 24 轮（功能/优化迭代第 12 轮）
+
+### 子任务记录
+
+- **t_d04bdf6c README 更新日志补登 v0.28 + 现状核对（text-processing-agent，分支 r24/docs）**：
+  - 版本决策：Info.plist 核对（LyricsMTMR/MTMR/Info.plist:21-24 CFBundleShortVersionString=0.27 / CFBundleVersion=452，git log 实证自第 19 轮基线 main@04d0279 起零变更，最近变更为 917983f 第 8 轮 era）+ git tag 核对（仅 v1.0.0/v0.8/pre-opt-20260812-0114 三枚，第 20~23 轮无新 tag 未发版）→ **新增「v0.28（当前开发版本）」条目**（任务既定口径；v0.27 条目降为历史段并移除「当前开发版本」标注，语义移交 v0.28）；v0.28 与 Info.plist 0.27 存在一版本领先差，**建议**父任务收口时同步升 Info.plist 至 0.28（CFBundleVersion 452→453+），本卡仅建议不擅改；备选「并入 v0.27」不采纳——v0.27 条目语义为第 13~18 轮快照，并入将混 11 轮跨度、粒度变粗；
+  - 现状核对（grep 实证 12 项）：✅ 114 种 widget（ITEMS_REFERENCE.md:3/:59 口径 114=98+14+2 含 holidayCountdown，README:11/:25/:98 三处一致）/ ✅ 15 套主题（examples/presets theme1~15.json 实存 15 个）/ ✅ 22 个设置 Tab（UnifiedSettingsWindowController.swift:242 SettingsTab enum 22 case=7+4+4+7）/ ✅ holidayCountdown（README:28 第 19 轮补登在位）/ ✅ 应用专属主题（README:37/:101-124，issue #40）/ ✅ MediaRemote 机制与风险段（README:53-69）/ ✅ 剪贴板快捷查看（BarItemFactory.swift:212 case .clipboardHistory，第 19 轮实证 :210 漂移 +2 语义零变化）/ ✅ OpenCode Go / ✅ BeeCount / ✅ 中国天气网多城市 / ⚠️ 第 20~23 轮能力均为内部性能/隐私行为（零新 widget 零新用户功能）→ 不入功能列表（第 19 轮既定原则：内部行为归更新日志，v0.28 改进段已补记）/ ✅ 第 20~23 轮代码地标在位（TBPausableTimer.swift:86 TouchBarVisibilityState、ClipboardHistory.swift:26 ClipboardChangeSource、pollGate×4（Currency:29/Weather:34/Yandex:53/UpNext:28）、locationPauseGate×2（Weather:69/Yandex:62）、AudioSpectrumBarItem:272 capturePauseGate、Preferences/WeatherLocationSession.swift）/ ✅ 更新日志 v0.27 条目在位且与第 13~18 轮记录一致（抽查）；
+  - README.md 共 2 处改动：① 更新日志区置顶新增「v0.28（当前开发版本）」条目（改进 5 项：隐藏机制收官——8 常驻定时器组件+4 后台调度组件隐藏期零空转/恢复立即补刷、隐藏期隐私保护——音频采集零采样（麦克风关闭、指示灯熄灭）+定位暂停（GPS 关闭、指示灯熄灭）、全局隐藏态注入——重建组件初始即暂停、init fetch 零请求、恢复零延迟补刷、剪贴板浮层即时对齐、天气定位添加城市生命周期治理；性能与稳定性 1 项：强引用环修复——CPU/天气点击动作 + 汇率/天气调度闭包，全部来自第 20~23 轮 iteration-log 实证记录，未虚构）；② v0.27 条目标题移除「（当前开发版本）」标注；
+  - 版本体系观察（如实记录未归因）：git tag 仍三枚（v1.0.0/v0.8/pre-opt），Info.plist 0.27/452 自第 19 轮起零变更，第 20~23 轮迭代均未升版本号——补登后更新日志最高 v0.28 领先 Info.plist 一版本，与第 19 轮修复的「日志落后 plist」方向相反，同属版本体系历史错位延续；建议收口时升 Info.plist（仅建议不擅改）；v0.9~v0.26 完整版本史仍缺失（需 GitHub Releases/git tag 考古，超出本卡范围）；
+  - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
+  - 交付：核对报告《核对报告_第24轮_README更新日志与现状核对.md》（本分支根目录，含版本决策/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/改动清单/风险点）+ 本记录（iteration-log 末尾追加）+ file-structure.zh.md 登记（mindmap 第 7~23 轮→第 7~24 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
