@@ -745,3 +745,18 @@
   - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17b-test）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug）**TEST SUCCEEDED —— 134 用例 0 失败 0 意外**（129 基线 + 新增 5 全过，BarItemVisibilityTests 11 / BarItemFactoryTests 18 全绿，金丝雀锚点全绿）；本轮不触发全量回归（父任务未安排回归卡，基线 129 用例）；
   - 文档：TECHNICAL_DEBT.md ③ 条目追加第 17 轮跟进标注 + 验证报告《验证报告_第17轮_隐藏机制正则缓存优化.md》（本分支根目录，含热点分析/形态选择表/变更明细/等价性论证表/单测清单/风险点）+ file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r17/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 18 轮（功能/优化迭代第 6 轮）
+
+### 子任务记录
+
+- **t_e610d199 假期名映射健壮化（code-agent，分支 r18/feature）**：
+  - 遗留问题 7 后半句闭环：HolidayCountdownLogic.holidayName 由「窗口首日月份惯例」改为「**窗口特征判定**」，对跨月/重叠窗口（未来年份随 aShareHolidays 年度维护加入）健壮——3 个隐患逐一消除：① 元旦跨年窗口（国办 12/30、12/31 起始安排，如 2023-12-30~2024-01-01）旧映射 (12,_) 首日误回退「节假日」；② 中秋落 10 月初（2028-10-03 中秋）旧映射 (10,_) 无条件误判「国庆节」；③ 元旦/春节 1 月边界 (1,...3) vs (1,_) 依赖「元旦窗口≤1/3」隐含惯例，改为显式日期边界；
+  - 新判定规则 9 级优先级（自上而下首个命中）：含 1/1 → 元旦（覆盖跨年窗口）/ 含 10/1 → 国庆节（含中秋+国庆合并窗口，2020-10-01~10-08 结构以国庆锚点命名）/ 首日 12 月 → 元旦（双保险，国办历年无其他 12 月法定假期）/ 首日 10 月 → 中秋（2028-10-03 同构，未含 10/1 故不命中）/ 首日 2 月 → 春节 / 4/5/6/9 月 → 清明/劳动节/端午/中秋 / 首日 1 月下旬（≥1/20）→ 春节（春节最早除夕 ~1/20、元旦窗口至多 1/3，间隔安全）/ 其余 → 节假日（含 1 月中旬空档，宁缺毋滥不猜测）；
+  - 签名变更：`holidayName(startMonth:startDay:)` → `holidayName(window:calendar:)`（生产调用方仅 makeWindows，同步改造）；makeWindows 改**两遍式**——先空名建窗、窗口完整成型后统一判定（名字依赖整窗特征，单遍边合并边取名会提前丢失「是否跨月/含锚点」信息），配套 Window.name let→var；新增私有 contains(month:day:from:to:calendar:) 逐日扫描窗口闭区间（窗口最长约 10 天代价可忽略，跨年/跨月天然正确）；零拷贝日期表约束保持（aShareHolidays 仍为唯一数据源，未新增任何日期表）；
+  - 单测：HolidayCountdownTests.swift 同文件追加（免 pbxproj 注册）——现有 16 例全部保留（testHolidayNameMapping 随签名改造为窗口制 16 组表驱动，语义更新：原 (10,7) 月份惯例→窗口语义下 10 月首日未含 10/1 判中秋，真实数据映射结果 100% 不变由 testWindowsFromRealData2026/2027 断言）+ 新增 8 例合成未来年份特征窗口：12/30 跨年元旦（含跨年窗口内 dayIndex=3 验证）/ 12/31 跨年元旦 / 10/3~10/5 中秋不误判国庆 / 10/1~10/7 国庆 / 10/1~10/8 中秋+国庆合并窗口 / 1/25 起春节（2028 春节=1/26）/ 1/10~1/11 空档回退节假日 / 12/29~12/31 未含 1/1 双保险分支；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r18a-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r18a-test）**TEST SUCCEEDED —— 142 用例 0 失败 0 意外**（134 基线 + 新增 8 全过，HolidayCountdownTests 24 = 16 现有 + 8 新增，金丝雀锚点 StockMarketHoursTests 2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已在 main@7690ac7 实证 134 用例 0 失败）；
+  - 交付：验证报告《验证报告_第18轮_假期名映射健壮化.md》（本分支根目录，含问题分析 3 隐患表/9 级判定规则表/变更明细/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~17 轮→第 7~18 轮 + 本报告登记）；
+  - 约束遵守：仅本工作区与 r18/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。

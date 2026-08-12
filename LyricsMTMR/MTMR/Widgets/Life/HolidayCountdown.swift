@@ -17,13 +17,15 @@ enum HolidayCountdownLogic {
 
     /// 一个假期窗口：名称 + 首日 + 末日（均为当日 00:00 的 Date，闭区间）。
     struct Window: Equatable {
-        let name: String
+        var name: String    // 两遍式：先空名建窗，窗口成型后统一判定
         let start: Date
-        var end: Date   // 并窗合并时扩展
+        var end: Date       // 并窗合并时扩展
     }
 
     /// 由 "yyyy-MM-dd" 日期集合推导假期窗口：连续日期合并为同一窗口，结果按首日升序。
     /// 非法键（无法解析为日期）静默跳过；空集合返回空数组。
+    /// 假期名在窗口**完整成型后**统一判定（两遍式）：名字依赖整窗特征（是否含 1/1、10/1），
+    /// 单遍边合并边取名会把「窗口是否跨月/是否含锚点」这类信息提前丢失。
     static func makeWindows(dates: Set<String>, calendar: Calendar) -> [Window] {
         var result: [Window] = []
         for key in dates.sorted() {
@@ -32,29 +34,53 @@ enum HolidayCountdownLogic {
                 last.end = date
                 result[result.count - 1] = last
             } else {
-                let name = Self.holidayName(startMonth: calendar.component(.month, from: date),
-                                            startDay: calendar.component(.day, from: date))
-                result.append(Window(name: name, start: date, end: date))
+                result.append(Window(name: "", start: date, end: date))
             }
+        }
+        for i in result.indices {
+            result[i].name = Self.holidayName(window: result[i], calendar: calendar)
         }
         return result
     }
 
-    /// 假期名映射：按窗口首日的月份推导（1 月窗口按日期区分元旦/春节）。
-    /// 国办历年安排中元旦/春节/清明/劳动节/端午/中秋/国庆的窗口首日固定落在
-    /// 1/2/4/5/6/9/10 月；未知组合回退「节假日」。随 aShareHolidays 年度维护同步核对
-    /// （2026/2027 数据全部命中，见 HolidayCountdownTests）。
-    static func holidayName(startMonth: Int, startDay: Int) -> String {
+    /// 假期名判定（**窗口特征**，第 18 轮健壮化）：基于窗口日期集合的特征而非仅首日月份，
+    /// 对跨月/重叠窗口（未来年份随 aShareHolidays 年度维护加入）健壮。判定优先级自上而下
+    /// 首个命中：
+    /// 1. 窗口含 1/1 → 元旦——覆盖 12/30、12/31 开始的跨年窗口（如国办 2023-12-30~2024-01-01），
+    ///    旧「首日月份」映射对 (12,_) 首日会误回退「节假日」；
+    /// 2. 窗口含 10/1 → 国庆节——10/1 为国庆锚点；中秋+国庆合并窗口（如 2020-10-01~10-08）亦以
+    ///    国庆命名，旧映射无法区分 10 月首日的中秋与国庆；
+    /// 3. 首日 12 月 → 元旦——12 月末跨年窗口双保险（国办历年无其他 12 月法定假期）；
+    /// 4. 首日 10 月 → 中秋——中秋落 10 月初的独立窗口（如 2028-10-03 中秋，窗口 10/3~10/5，
+    ///    未含 10/1 故不命中 2），旧映射会误判「国庆节」；
+    /// 5. 首日 2 月 → 春节；
+    /// 6. 首日 4 月 → 清明；首日 5 月 → 劳动节；首日 6 月 → 端午；
+    /// 7. 首日 9 月 → 中秋；
+    /// 8. 首日 1 月下旬（≥1/20）→ 春节——春节最早除夕约 1/20（正月初一最早 1/21），
+    ///    元旦窗口至多 1/1~1/3，两者间隔安全，用日期边界而非「(1,...3) vs (1,_)」隐含惯例；
+    /// 9. 其余 → 节假日——含 1 月中旬空档（元旦窗口后、春节最早前）与未知月份，宁缺毋滥不猜测。
+    /// 元旦/清明/劳动/国庆按公历固定；春节/端午/中秋为农历，随 aShareHolidays 年度维护同步核对
+    /// （2026/2027 现有数据映射结果 100% 不变，见 HolidayCountdownTests）。
+    static func holidayName(window: Window, calendar: Calendar) -> String {
+        let start = calendar.startOfDay(for: window.start)
+        let end = calendar.startOfDay(for: window.end)
+        let startMonth = calendar.component(.month, from: start)
+        let startDay = calendar.component(.day, from: start)
+        let containsJan1 = Self.contains(month: 1, day: 1, from: start, to: end, calendar: calendar)
+        let containsOct1 = Self.contains(month: 10, day: 1, from: start, to: end, calendar: calendar)
+
+        if containsJan1 { return "元旦" }
+        if containsOct1 { return "国庆节" }
         switch (startMonth, startDay) {
-        case (1, ...3):   return "元旦"
-        case (1, _):      return "春节"     // 未来年份春节窗口可能从 1 月下旬开始
-        case (2, _):      return "春节"
-        case (4, _):      return "清明"
-        case (5, _):      return "劳动节"
-        case (6, _):      return "端午"
-        case (9, _):      return "中秋"
-        case (10, _):     return "国庆节"
-        default:          return "节假日"
+        case (12, _):    return "元旦"
+        case (10, _):    return "中秋"
+        case (2, _):     return "春节"
+        case (4, _):     return "清明"
+        case (5, _):     return "劳动节"
+        case (6, _):     return "端午"
+        case (9, _):     return "中秋"
+        case (1, 20...): return "春节"
+        default:         return "节假日"
         }
     }
 
@@ -94,6 +120,21 @@ enum HolidayCountdownLogic {
     private static func isNextDay(_ date: Date, after other: Date, calendar: Calendar) -> Bool {
         guard let next = calendar.date(byAdding: .day, value: 1, to: other) else { return false }
         return calendar.isDate(date, inSameDayAs: next)
+    }
+
+    /// 窗口（start...end 闭区间，均已对齐到当日 00:00）内是否包含某月某日。
+    /// 窗口最长约 10 天，逐日扫描代价可忽略；跨年/跨月窗口（如 12/30~1/1）天然正确。
+    private static func contains(month: Int, day: Int, from start: Date, to end: Date, calendar: Calendar) -> Bool {
+        var cursor = start
+        while cursor <= end {
+            if calendar.component(.month, from: cursor) == month,
+               calendar.component(.day, from: cursor) == day {
+                return true
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { return false }
+            cursor = next
+        }
+        return false
     }
 }
 
