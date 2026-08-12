@@ -745,3 +745,15 @@
   - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17b-test）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug）**TEST SUCCEEDED —— 134 用例 0 失败 0 意外**（129 基线 + 新增 5 全过，BarItemVisibilityTests 11 / BarItemFactoryTests 18 全绿，金丝雀锚点全绿）；本轮不触发全量回归（父任务未安排回归卡，基线 129 用例）；
   - 文档：TECHNICAL_DEBT.md ③ 条目追加第 17 轮跟进标注 + 验证报告《验证报告_第17轮_隐藏机制正则缓存优化.md》（本分支根目录，含热点分析/形态选择表/变更明细/等价性论证表/单测清单/风险点）+ file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r17/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 18 轮（功能/优化迭代第 6 轮）
+
+### 子任务记录
+
+- **t_c0d544d7 维护三合一（review-agent，分支 r18/review）**：
+  - 年度维护核验（第 12 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7 分布断言通过）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对（7/7）；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则 :39-40、isMarketOpen :430）；GitHub 4/4 实测（先 git fetch origin：#1 OPEN / #40 CLOSED / 0 open PR / origin/main=7690ac7，本地 main 与 origin 同步 0/0）；文档一致性三方交叉核对一致（iteration-log 第 17 轮收口 ↔ 提交图 7690ac7→8033480→26e806d↔ file-structure 登记 4 份第 17 轮报告）、无冲突残留标记（git grep 行首锚定 0 命中）；
+  - 仓库卫生：round-17 父卡 t_7001f2ef + 3 子卡（t_4227912b / t_9c0de9ca / t_157a9cb6）遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round17-A/B/C + round17-parent）→ prune → branch -d ×4（r17/tooling r17/feature r17/review lyricsmtmr/t_7001f2ef-17-lyricsmtmr-5-16）；删除后清点 .worktrees 仅 round18-A/B/C + round18-parent + 主仓库、本地分支 5 条（main + r18/*×3 + lyricsmtmr/t_39a5c016-18-lyricsmtmr-6-17 父卡分支）、远端仅 main、prune --dry-run 空；round18-* 未动（约束遵守）；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问 / ITER-14 时间驱动（第 12 次核验健在）/ 口径统一 32+114（114 口径 TouchBarController :1126/:1137 在位）/ 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟+跨月窗口（main 上「按窗口首日月份推导」实现在位，本轮 A 卡处理映射健壮性、r18/feature 尚未合入 main，后续轮次跟踪）/ 隐藏机制真机冒烟 / add_files.py 已闭环 —— 共 9 项均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第18轮_维护机制健在与文档一致性.md / 清理报告_第18轮_round17遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~17 轮→第 7~18 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r18/review，零代码改动（未触发构建/测试/全量回归，第 17 轮收口已实证 134 用例 0 失败），未 push，未开新分支/子任务；完成自查 git status 干净 + commit 已提交。
