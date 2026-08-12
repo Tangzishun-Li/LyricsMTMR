@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~20 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~21 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -165,6 +165,8 @@ mindmap
 ├── 清理报告_第20轮_round19遗留清理.md          # 第 20 轮子任务 C 仓库卫生报告（round-19 父卡+子卡遗留 worktree/分支清理，r20/review）
 
 ├── 验证报告_第20轮_actions强引用环评估.md # 第 20 轮子任务 B 验证报告（CustomButtonTouchBarItem actions 强引用环评估与修复：CPUBarItem/YandexWeatherBarItem 两处 defaultTapAction 方法引用强捕获 self 成环 → [weak self] 闭包，Yandex 另修 scheduler/URLSession 两处同类强捕获，视图/手势链实证无环，157 用例实证，r20/code-quality）
+
+├── 验证报告_第21轮_AudioSpectrum采集链隐藏期治理.md # 第 21 轮子任务 B 验证报告（AudioSpectrum 采集链纳入隐藏暂停：SCK system tap / mic engine 隐藏期零采集、恢复重启采集并立即补刷，SystemAudioTap stopped 取消标记防孤儿流，独立 capturePauseGate 广播幂等，TCC 持久授权零重弹风险实证，166 用例实证，r21/audio）
 
 └── .gitignore / .gitattributes / README.md
 ```

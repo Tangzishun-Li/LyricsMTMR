@@ -890,3 +890,20 @@
   - 等价性：callActions 仍调同一 defaultTapAction；scheduler completion 无条件调用满足协议；URLSession 闭包逻辑不变仅弱化捕获——item 存活期间行为无差异，断环后 item 随 NSTouchBar 释放即刻回收；
   - 交付：验证报告《验证报告_第20轮_actions强引用环评估.md》（本分支根目录，含引用图三链+审计链表/结论/改动清单/单测清单/等价性论证/风险遗留）+ 本记录 + file-structure.zh.md（mindmap 第 7~19 轮→第 7~20 轮 + 报告行登记，无重复行）；
   - 约束遵守：仅本工作区与 r20/code-quality 分支改动，未 push 远端，未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+---
+
+## 第 21 轮（功能/优化迭代第 9 轮）
+
+### 子任务记录
+
+- **t_5f002e2d AudioSpectrum 采集链隐藏期治理（default，分支 r21/audio）**：
+  - 背景：第 20 轮 A 卡登记遗留第 11 项前半句——AudioSpectrumBarItem 的显示轮转（0.04s displayTimer）已纳入隐藏暂停，但音频采集 tap 因「SCK/AVAudioEngine 重启有权限风险」未纳入（事件驱动非 Timer）；本卡实证并治理：整条 bar 隐藏（黑名单/exitTouchbar）期间采集链是否仍活跃收数，若活跃评估并落地零权限风险暂停/恢复路径；
+  - 实证（步骤①，问题成立）：采集链定位——system 链为 SystemAudioTap（ScreenCaptureKit：SCShareableContent 取整个 display 混合音频 → SCStream capturesAudio 48kHz 1ch → addStreamOutput(.audio) 回调 PCM），mic 链为 AVAudioEngine + inputNode.installTap（fftSize 1024 buffer）；生命周期：init 即 startCapture()，仅 deinit 与 applySettingsSourceChange（source 切换）停止，**与 bar 显隐零关联**——dismissTouchBar → setPollingPaused(true) 广播 setPaused 只停 display timer；隐藏期活跃收数实证：SCK 流持续回调 ingestSystemSamples（RMS 噪声门 -66dBFS 之上 append 滚动窗 + 每 1024 样本 FFT 50% 重叠 + 主线程 hop 送显示），mic tap 持续回调 processMicBuffer（-54dBFS 门限之上同链全速），且隐藏期麦克风保持开启（隐私指示灯常亮）——「事件驱动≠零成本：事件源在隐藏期持续产生事件」；
+  - 评估（步骤②，零权限风险）：TCC 授权（录屏/麦克风）持久化（TCC.db 按 bundle+签名记录），engine/stream stop+restart 不重弹授权窗；**仓库内已有生产实证路径**——applySettingsSourceChange 每次 source 切换即执行 stopSystem/stopMic+startCapture 全套重启，无二次授权路径；macOS 15 每周录屏再确认弹窗为 OS 时间驱动与启停无关；异常路径全覆盖（SCK 抛错 → fail → 权限 hint 幂等重走、mic MTMRTryOrError + engine.start() try/catch 不死 widget）；数据连续性：频谱为实时可视化无持久状态，rolling 窗 21ms 可重填，静默期数据可丢弃（显示侧 immediateFireOnResume 已补刷，采集侧恢复首帧前由合成/衰减覆盖）；
+  - 落地（步骤③）：① SystemAudioTap 新增 stopped 取消标记——stop() 置位，start() 在 SCShareableContent await 后与 startCapture await 后各复查（在途 start 不得复活已停流的孤儿 stream，防「恢复后立即隐藏」竞态），fail() 加 !stopped 守卫（停流后陈旧失败不触发 hint）；② AudioSpectrumBarItem 新增独立 capturePauseGate（TBPauseGate）——present 广播对未暂停过的 item 也调 setPaused(false)，须按「状态实际变化」决定是否重启采集（重复广播零副作用）；③ setPaused：先停/启显示轮转，再按 gate 变更启停采集（主线程 hop + 状态复查，同 TBPausableTimer 模式）；④ 新增 stopCapture()（stopSystem+stopMic+重置 lastRealFeed/lastAudibleMic）统一 stop 路径，deinit 与 applySettingsSourceChange 改走它；⑤ applySettingsSourceChange 隐藏期只记最新 source 不重启采集（恢复统一重启）；⑥ stopSystem 增 rolling.removeAll()（丢弃跨会话陈旧窗口，恢复首批 FFT 全新鲜样本）；⑦ startCapture/stopCapture/spectrumTick 放宽 internal 作单测注入点；TouchBarController 零改动；
+  - 单测（步骤④）：PausableTimerTests.swift 新增「Round 21」节 3 用例（沿用既有文件与 helper 无需 add_files.py 注册；CountingSpectrumItem override 三注入点计数不触碰真实 SCK/AVAudioEngine/LyricsEngine）：pause 停采集（stopCount==1）+ tick 冻结 + resume 重启（startCount==2）+ 立即补刷 / 广播幂等（未暂停 item 收 setPaused(false) 零副作用、重复 dismiss 不双停、重复 present 不重启）/ 隐藏期 source 变更延迟重启（走真实 UserDefaults.didChangeNotification，改 source 不重启、resume 以最新 source 重启、defer 恢复原值），3 用例合计 ~3.3s；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r21b-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r21b-test）**TEST SUCCEEDED —— 166 用例 0 失败 0 意外**（163 基线 + 新增 3 全过，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿，WidgetLeakTests 5 用例仍绿无新泄漏）；本轮不触发全量回归（第 20 轮收口整体 163 用例实证，隔代规则预计第 22 轮触发）；
+  - 等价性：未隐藏时严格等价——init 顺序不变、广播幂等（未暂停 no-op）、采集参数零改动、启停全经主线程 hop+复查；行为差异仅「整条 bar 隐藏期间采集停止」一处 + 恢复首帧由合成/衰减覆盖（改动前短暂隐藏恢复会冻结陈旧光柱一帧，属严格改进）；
+  - 交付：验证报告《验证报告_第21轮_AudioSpectrum采集链隐藏期治理.md》（本分支根目录，含实证/评估/变更明细/等价性论证/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~20 轮→第 7~21 轮 + 报告行登记，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）；
+  - 约束遵守：仅本工作区与 r21/audio 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；登记遗留：真机冒烟延续挂账（隐藏期麦克风指示灯熄灭/恢复首帧观感）、macOS 15 每周录屏再确认弹窗为 OS 行为与启停无关、第 20 轮遗留第 11 项后半句（ClipboardHistory NSPasteboard.observe 事件驱动化）保持挂账。
