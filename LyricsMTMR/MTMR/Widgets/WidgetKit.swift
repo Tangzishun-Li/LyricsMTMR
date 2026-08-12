@@ -539,11 +539,21 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
 
 // MARK: - Polling metric base
 
+/// Implemented by widgets whose background polling loop can be paused while
+/// the whole Touch Bar is hidden (blacklist app / exitTouchbar item).
+/// `TouchBarController` broadcasts pause/resume to every live item on
+/// dismiss/present — the items stay alive in the controller's `items`
+/// dictionary while hidden, so without this their loops would keep
+/// computing (network requests / process calls / file IO) for nothing.
+protocol TBPollPausable: AnyObject {
+    func setPaused(_ paused: Bool)
+}
+
 /// Base class for "display" widgets that periodically recompute a metric on a
 /// background queue and repaint a shared `TBMetricView` on the main queue.
 /// Subclasses override `compute()` (background) to fill their own stored
 /// properties, then `apply()` (main) to push those values into `metric`.
-class TBPollItem: NSCustomTouchBarItem {
+class TBPollItem: NSCustomTouchBarItem, TBPollPausable {
     let metric = TBMetricView(frame: NSRect(x: 0, y: 0, width: 150, height: 30))
     private let interval: TimeInterval
     private var queue: DispatchQueue?
@@ -559,20 +569,81 @@ class TBPollItem: NSCustomTouchBarItem {
         metric.value = "…"
         view = metric
         queue = DispatchQueue(label: "com.lyricsmtmr.poll." + identifier.rawValue)
-        loop()
+        scheduleNextCycle()
     }
 
     required init?(coder: NSCoder) { return nil }
+
+    // MARK: Polling lifecycle (thread-safe)
+
+    /// Guards every polling flag: the loop runs on `queue` while
+    /// pause/resume arrives from the main thread (TouchBarController) and
+    /// deinit can run on any thread — all accesses go through this lock.
+    private let flagLock = NSLock()
     private var _isCancelled = false
+    private var _isPaused = false
+    /// True while a next cycle is already queued on `queue`. Guarantees at
+    /// most one in-flight cycle even when pause/resume races with a cycle
+    /// that is currently executing (double-scheduling would double compute).
+    private var _cycleScheduled = false
 
     deinit {
+        flagLock.lock()
         _isCancelled = true
+        flagLock.unlock()
         queue = nil
+    }
+
+    /// Pauses (true) or resumes (false) the polling loop. While paused the
+    /// loop performs no compute() and schedules no further cycles; resume
+    /// restarts it. Safe from any thread; repeated calls are idempotent.
+    func setPaused(_ paused: Bool) {
+        flagLock.lock()
+        let changed = _isPaused != paused
+        _isPaused = paused
+        flagLock.unlock()
+        if changed && !paused {
+            scheduleNextCycle()
+        }
+    }
+
+    private var isPaused: Bool {
+        flagLock.lock()
+        defer { flagLock.unlock() }
+        return _isPaused
+    }
+
+    private var isCancelled: Bool {
+        flagLock.lock()
+        defer { flagLock.unlock() }
+        return _isCancelled
+    }
+
+    /// Queues the next cycle unless one is already queued, the loop is
+    /// paused, or the item is cancelled. At most one cycle is ever in flight.
+    private func scheduleNextCycle() {
+        flagLock.lock()
+        guard !_isCancelled, !_isPaused, !_cycleScheduled else {
+            flagLock.unlock()
+            return
+        }
+        _cycleScheduled = true
+        flagLock.unlock()
+        queue?.asyncAfter(deadline: .now() + interval) { [weak self] in
+            guard let self = self else { return }
+            self.flagLock.lock()
+            self._cycleScheduled = false
+            self.flagLock.unlock()
+            self.loop()
+        }
     }
 
     private func loop() {
         queue?.async { [weak self] in
             guard let self = self else { return }
+            // A pause that landed while this cycle was queued skips compute
+            // entirely — no point running a cycle nobody will see.
+            if self.isPaused { return }
             // Run compute() inside ObjC exception protection — a single bad
             // cycle (e.g. a crashed shell command, a broken JSON parse) must
             // not kill the polling loop for this widget.
@@ -595,8 +666,8 @@ class TBPollItem: NSCustomTouchBarItem {
                 }
                 self.metric.needsDisplay = true
             }
-            guard !self._isCancelled else { return }
-            self.queue?.asyncAfter(deadline: .now() + self.interval) { [weak self] in self?.loop() }
+            guard !self.isCancelled else { return }
+            self.scheduleNextCycle()
         }
     }
 
@@ -612,7 +683,7 @@ class TBPollItem: NSCustomTouchBarItem {
 /// into a `TBMetricView`) with `TBPopoverItem` behavior (tapping opens the
 /// full-width overlay). The collapsed representation is the metric view
 /// itself, covered by an invisible button that triggers `showOverlay`.
-class TBMetricPopoverItem: TBPopoverItem {
+class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
     let metric = TBMetricView(frame: NSRect(x: 0, y: 0, width: 150, height: 30))
     private let interval: TimeInterval
     private var queue: DispatchQueue?
@@ -637,18 +708,69 @@ class TBMetricPopoverItem: TBPopoverItem {
         collapsedRepresentation = metric
         popoverTouchBar.delegate = self
         queue = DispatchQueue(label: "com.lyricsmtmr.metricpoll." + identifier.rawValue)
-        loop()
+        scheduleNextCycle()
     }
     required init?(coder: NSCoder) { return nil }
 
+    // MARK: Polling lifecycle (thread-safe) — same semantics as TBPollItem.
+
+    private let flagLock = NSLock()
+    private var _isPaused = false
+    private var _cycleScheduled = false
+
     deinit {
+        flagLock.lock()
         cancelled = true
+        flagLock.unlock()
         queue = nil
+    }
+
+    /// Pauses (true) or resumes (false) the polling loop. While paused the
+    /// loop performs no compute() and schedules no further cycles; resume
+    /// restarts it. Safe from any thread; repeated calls are idempotent.
+    func setPaused(_ paused: Bool) {
+        flagLock.lock()
+        let changed = _isPaused != paused
+        _isPaused = paused
+        flagLock.unlock()
+        if changed && !paused {
+            scheduleNextCycle()
+        }
+    }
+
+    private var isPaused: Bool {
+        flagLock.lock()
+        defer { flagLock.unlock() }
+        return _isPaused
+    }
+
+    private var isCancelled: Bool {
+        flagLock.lock()
+        defer { flagLock.unlock() }
+        return cancelled
+    }
+
+    private func scheduleNextCycle() {
+        flagLock.lock()
+        guard !cancelled, !_isPaused, !_cycleScheduled else {
+            flagLock.unlock()
+            return
+        }
+        _cycleScheduled = true
+        flagLock.unlock()
+        queue?.asyncAfter(deadline: .now() + interval) { [weak self] in
+            guard let self = self else { return }
+            self.flagLock.lock()
+            self._cycleScheduled = false
+            self.flagLock.unlock()
+            self.loop()
+        }
     }
 
     private func loop() {
         queue?.async { [weak self] in
             guard let self = self else { return }
+            if self.isPaused { return }
             let computeError = MTMRTryOrError {
                 self.compute()
             }
@@ -668,8 +790,8 @@ class TBMetricPopoverItem: TBPopoverItem {
                 }
                 self.metric.needsDisplay = true
             }
-            guard !self.cancelled else { return }
-            self.queue?.asyncAfter(deadline: .now() + self.interval) { [weak self] in self?.loop() }
+            guard !self.isCancelled else { return }
+            self.scheduleNextCycle()
         }
     }
 
