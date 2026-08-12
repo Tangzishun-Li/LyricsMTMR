@@ -28,6 +28,7 @@
 //
 
 import XCTest
+import CoreLocation
 @testable import LyricsMTMR
 
 class PausableTimerTests: XCTestCase {
@@ -641,4 +642,298 @@ class PausableTimerTests: XCTestCase {
         XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
                       "resume must restart capture with the latest source")
     }
+
+    // MARK: - Round 22: NSBackgroundActivityScheduler widgets
+
+    func testCurrencyItemPauseFreezesPollAndResumeRefreshes() {
+        let item = CountingCurrencyItem(
+            identifier: NSTouchBarItem.Identifier("r22.currency.pauseFreeze"),
+            interval: 3600, from: "USD", to: "EUR", full: false)
+        XCTAssertEqual(item.refreshCount, 1, "init must fetch the rate exactly once")
+
+        item.setPaused(true)
+        item.pollTick() // simulated scheduler fire while hidden
+        item.pollTick()
+        XCTAssertEqual(item.refreshCount, 1,
+                       "scheduler fires while hidden must not issue network requests")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+                      "resume must refresh immediately (catch-up refresh)")
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.refreshCount, 2,
+                       "no extra refreshes after the single catch-up refresh")
+    }
+
+    func testWeatherItemPauseFreezesPollAndResumeRefreshes() {
+        let item = CountingWeatherItem(
+            identifier: NSTouchBarItem.Identifier("r22.weather.pauseFreeze"),
+            interval: 3600, units: "metric", api_key: "", icon_type: "text",
+            apiSource: "china", cities: ["北京"])
+        XCTAssertEqual(item.refreshCount, 1, "init must fetch weather exactly once")
+
+        item.setPaused(true)
+        item.pollTick()
+        item.pollTick()
+        XCTAssertEqual(item.refreshCount, 1,
+                       "scheduler fires while hidden must not issue network requests")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+                      "resume must refresh immediately (catch-up refresh)")
+    }
+
+    func testYandexItemPauseFreezesPollAndResumeRefreshes() {
+        let item = CountingYandexItem(
+            identifier: NSTouchBarItem.Identifier("r22.yandex.pauseFreeze"),
+            interval: 3600)
+        // Init refresh count is environment-dependent (0 when location
+        // permission is denied — the widget early-returns before the
+        // initial fetch; 1 otherwise). Assert deltas, not absolutes.
+        let baseline = item.refreshCount
+
+        item.setPaused(true)
+        item.pollTick()
+        item.pollTick()
+        XCTAssertEqual(item.refreshCount, baseline,
+                       "scheduler fires while hidden must not issue network requests")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == baseline + 1 },
+                      "resume must refresh immediately (catch-up refresh)")
+    }
+
+    func testUpNextItemPauseFreezesPollAndResumeRefreshes() {
+        let source = CountingUpNextSource()
+        let item = CountingUpNextItem(
+            identifier: NSTouchBarItem.Identifier("r22.upnext.pauseFreeze"),
+            interval: 3600, source: source)
+        XCTAssertEqual(source.queryCount, 1, "init must load events exactly once")
+
+        item.setPaused(true)
+        item.pollTick() // simulated scheduler fire while hidden
+        item.pollTick()
+        XCTAssertEqual(source.queryCount, 1,
+                       "scheduler fires while hidden must not query the event store")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { source.queryCount == 2 },
+                      "resume must reload events immediately (catch-up refresh)")
+    }
+
+    func testSchedulerWidgetsPauseBroadcastIsIdempotent() {
+        let currency = CountingCurrencyItem(
+            identifier: NSTouchBarItem.Identifier("r22.idem.currency"),
+            interval: 3600, from: "USD", to: "EUR", full: false)
+        let weather = CountingWeatherItem(
+            identifier: NSTouchBarItem.Identifier("r22.idem.weather"),
+            interval: 3600, units: "metric", api_key: "", icon_type: "text",
+            apiSource: "china", cities: ["北京"])
+        let yandex = CountingYandexItem(
+            identifier: NSTouchBarItem.Identifier("r22.idem.yandex"),
+            interval: 3600)
+        let source = CountingUpNextSource()
+        let upnext = CountingUpNextItem(
+            identifier: NSTouchBarItem.Identifier("r22.idem.upnext"),
+            interval: 3600, source: source)
+        let yandexBaseline = yandex.refreshCount
+
+        // presentTouchBar broadcasts setPaused(false) even to items that
+        // were never paused — that must not trigger a refresh.
+        currency.setPaused(false)
+        weather.setPaused(false)
+        yandex.setPaused(false)
+        upnext.setPaused(false)
+        pumpRunLoop(for: 0.4)
+        XCTAssertEqual(currency.refreshCount, 1, "no-op resume broadcast must not refresh")
+        XCTAssertEqual(weather.refreshCount, 1, "no-op resume broadcast must not refresh")
+        XCTAssertEqual(yandex.refreshCount, yandexBaseline, "no-op resume broadcast must not refresh")
+        XCTAssertEqual(source.queryCount, 1, "no-op resume broadcast must not query the event store")
+
+        // First real pause, then a repeated dismiss broadcast — no double effect.
+        currency.setPaused(true)
+        weather.setPaused(true)
+        yandex.setPaused(true)
+        upnext.setPaused(true)
+        currency.setPaused(true)
+        weather.setPaused(true)
+        yandex.setPaused(true)
+        upnext.setPaused(true)
+        currency.pollTick()
+        weather.pollTick()
+        yandex.pollTick()
+        upnext.pollTick()
+        XCTAssertEqual(currency.refreshCount, 1, "paused scheduler fires must be gated")
+        XCTAssertEqual(weather.refreshCount, 1, "paused scheduler fires must be gated")
+        XCTAssertEqual(yandex.refreshCount, yandexBaseline, "paused scheduler fires must be gated")
+        XCTAssertEqual(source.queryCount, 1, "paused scheduler fires must not query the event store")
+
+        // First real resume: each widget refreshes exactly once.
+        currency.setPaused(false)
+        weather.setPaused(false)
+        yandex.setPaused(false)
+        upnext.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) {
+            currency.refreshCount == 2 && weather.refreshCount == 2
+                && yandex.refreshCount == yandexBaseline + 1 && source.queryCount == 2
+        }, "resume must refresh all four widgets exactly once")
+
+        // Repeated present broadcast stays a no-op.
+        currency.setPaused(false)
+        weather.setPaused(false)
+        yandex.setPaused(false)
+        upnext.setPaused(false)
+        pumpRunLoop(for: 0.4)
+        XCTAssertEqual(currency.refreshCount, 2, "repeated resume broadcast must not refresh again")
+        XCTAssertEqual(weather.refreshCount, 2, "repeated resume broadcast must not refresh again")
+        XCTAssertEqual(yandex.refreshCount, yandexBaseline + 1, "repeated resume broadcast must not refresh again")
+        XCTAssertEqual(source.queryCount, 2, "repeated resume broadcast must not refresh again")
+    }
+
+    func testCurrencyRapidPauseResumeSkipsStaleResumeRefresh() {
+        let item = CountingCurrencyItem(
+            identifier: NSTouchBarItem.Identifier("r22.currency.rapid"),
+            interval: 3600, from: "USD", to: "EUR", full: false)
+        XCTAssertEqual(item.refreshCount, 1)
+
+        // Pause → resume → re-pause before the resume hop lands: the stale
+        // resume hop must re-check the gate and drop the refresh (same
+        // main-thread hop + state re-check pattern as TBPausableTimer).
+        item.setPaused(true)
+        item.setPaused(false)
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.refreshCount, 1,
+                       "stale resume hop must be dropped by the gate re-check")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+                      "final resume must refresh exactly once")
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.refreshCount, 2,
+                       "no double refresh after the final resume")
+    }
+}
+
+// MARK: - Round 22 shared test doubles (file scope so WidgetLeakTests reuses them)
+
+// CurrencyBarItem / WeatherBarItem / YandexWeatherBarItem /
+// UpNextScrubberTouchBarItem drive their polling with
+// NSBackgroundActivityScheduler, which has no pause API. Round 22
+// gates the scheduler callbacks (pollTick) instead of tearing the
+// scheduler down: while the bar is hidden a scheduler fire does zero
+// work (no network request / no EventKit query), resume refreshes
+// immediately and the scheduler keeps its original cadence.
+//
+// The counting subclasses below override the network/EventKit entry
+// points so no real request or calendar permission is touched; the
+// base-class pollTick()/setPaused() gates are what gets exercised.
+// Test instances use interval 3600 so the real (system-managed)
+// scheduler never fires during a test run — pollTick() is driven
+// directly, which is exactly the closure the scheduler invokes.
+
+/// CurrencyBarItem subclass counting updateCurrency() invocations.
+final class CountingCurrencyItem: CurrencyBarItem {
+    private let counterLock = NSLock()
+    private var _refreshCount = 0
+
+    var refreshCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _refreshCount
+    }
+
+    override func updateCurrency() {
+        counterLock.lock()
+        _refreshCount += 1
+        counterLock.unlock()
+    }
+}
+
+/// WeatherBarItem subclass counting updateWeather() invocations.
+/// Built in china mode with explicit cities (no CLLocationManager);
+/// the location delegate hooks are neutralized for determinism.
+final class CountingWeatherItem: WeatherBarItem {
+    private let counterLock = NSLock()
+    private var _refreshCount = 0
+
+    var refreshCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _refreshCount
+    }
+
+    override func updateWeather() {
+        counterLock.lock()
+        _refreshCount += 1
+        counterLock.unlock()
+    }
+
+    override func locationManager(_: CLLocationManager, didUpdateLocations _: [CLLocation]) {}
+    override func locationManager(_: CLLocationManager, didFailWithError _: Error) {}
+    override func locationManager(_: CLLocationManager, didChangeAuthorization _: CLAuthorizationStatus) {}
+}
+
+/// YandexWeatherBarItem subclass counting updateWeather() invocations.
+/// The real CLLocationManager may still run (environment-dependent);
+/// its delegate hooks are neutralized so async location updates can
+/// never perturb the counters.
+final class CountingYandexItem: YandexWeatherBarItem {
+    private let counterLock = NSLock()
+    private var _refreshCount = 0
+
+    var refreshCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _refreshCount
+    }
+
+    override func updateWeather() {
+        counterLock.lock()
+        _refreshCount += 1
+        counterLock.unlock()
+    }
+
+    override func locationManager(_: CLLocationManager, didUpdateLocations _: [CLLocation]) {}
+    override func locationManager(_: CLLocationManager, didFailWithError _: Error) {}
+    override func locationManager(_: CLLocationManager, didChangeAuthorization _: CLAuthorizationStatus) {}
+}
+
+/// IUpNextSource fake counting getUpcomingEvents() queries — the
+/// EventKit-free equivalent of "network requests" for the upnext
+/// widget. Never touches EKEventStore, so no TCC calendar prompt.
+final class CountingUpNextSource: IUpNextSource {
+    static let bundleIdentifier: String = "com.lyricsmtmr.tests.fakesource"
+    let hasPermission = true
+    var updateCallback: () -> Void = {}
+    private let counterLock = NSLock()
+    private var _queryCount = 0
+
+    var queryCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _queryCount
+    }
+
+    required init(updateCallback: @escaping () -> Void = {}) {
+        self.updateCallback = updateCallback
+    }
+
+    func getUpcomingEvents(dateLowerBounds _: Date, dateUpperBounds _: Date) -> [UpNextEventModel] {
+        counterLock.lock()
+        _queryCount += 1
+        counterLock.unlock()
+        return []
+    }
+}
+
+/// UpNextScrubberTouchBarItem subclass with an injected fake source
+/// (the round-22 test seam — no real EventKit source is created).
+final class CountingUpNextItem: UpNextScrubberTouchBarItem {
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, source: CountingUpNextSource) {
+        super.init(identifier: identifier, interval: interval, from: 1, to: 4,
+                   maxToShow: 1, autoResize: false, eventSources: [source])
+    }
+
+    required init?(coder _: NSCoder) { return nil }
 }

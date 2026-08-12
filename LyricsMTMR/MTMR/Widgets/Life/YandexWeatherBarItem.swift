@@ -9,7 +9,7 @@
 import Cocoa
 import CoreLocation
 
-class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
+class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPollPausable {
     private let activity: NSBackgroundActivityScheduler
     private let unitsStr = "°C"
     private let iconsSource = [
@@ -34,6 +34,13 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
     private var manager: CLLocationManager!
     private var updateWeatherTask: URLSessionDataTask?
 
+    /// round 22：隐藏暂停门。NSBackgroundActivityScheduler 无 pause API，
+    /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
+    /// bar 隐藏（黑名单 app / exitTouchbar）期间零网络请求（含定位回调、
+    /// 授权变更触发的刷新入口，全部经 updateWeather 顶部守卫拦截），
+    /// 恢复后调度器按原 interval 继续 + setPaused(false) 立即补刷一次。
+    private let pollGate = TBPauseGate()
+
     init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
         activity = NSBackgroundActivityScheduler(identifier: "\(identifier.rawValue).updatecheck")
         activity.interval = interval
@@ -54,7 +61,7 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
         activity.repeats = true
         activity.qualityOfService = .utility
         activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self?.updateWeather()
+            self?.pollTick()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateWeather()
@@ -73,7 +80,33 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
 
     required init?(coder _: NSCoder) { return nil }
 
+    // MARK: - 隐藏暂停（round 22）
+
+    /// 调度器触发入口（background 队列）：bar 隐藏期间过门拦截，
+    /// 零网络请求；隐藏期可能已累积多个触发，全部被门挡掉。
+    func pollTick() {
+        guard !pollGate.isPaused else { return }
+        updateWeather()
+    }
+
+    /// 隐藏（黑名单 app / exitTouchbar）时暂停轮询；显示时恢复：
+    /// 主线程 hop + 状态复查（同 TBPausableTimer 模式），快速
+    /// pause/resume 序列下最后一次状态为准；恢复立即补刷一次，
+    /// 随后调度器按原 interval 继续。
+    func setPaused(_ paused: Bool) {
+        guard pollGate.setPaused(paused) else { return }
+        if !paused {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, !self.pollGate.isPaused else { return }
+                self.updateWeather()
+            }
+        }
+    }
+
     @objc func updateWeather() {
+        // round 22：隐藏期零网络请求——任何入口（调度器/补刷/定位回调/
+        // 授权变更）在 bar 隐藏期间一律拦截，不发 Yandex 请求。
+        guard !pollGate.isPaused else { return }
         var urlRequest = URLRequest(url: URL(string: getWeatherUrl())!)
         urlRequest.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36", forHTTPHeaderField: "user-agent") // important for the right format
 

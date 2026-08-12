@@ -80,4 +80,57 @@ class WidgetLeakTests: XCTestCase {
         letRunLoopSpin()
         XCTAssertNil(weakItem, "YandexWeatherBarItem leaked — an action/scheduler/URLSession closure still retains it")
     }
+
+    // MARK: - Round 22: NSBackgroundActivityScheduler widgets
+
+    // CurrencyBarItem / WeatherBarItem used to capture self strongly in
+    // their NSBackgroundActivityScheduler schedule blocks (item → activity
+    // → block → item retain cycle), so a discarded item plus its scheduler
+    // kept polling forever. Round 22 weakened the captures; these tests
+    // pin the dealloc. The initial network fetch fires fire-and-forget
+    // with weak-self completions — harmless in the hosted suite (same
+    // precedent as testYandexWeatherBarItemDoesNotLeak).
+
+    func testCurrencyBarItemDoesNotLeak() {
+        weak var weakItem: CurrencyBarItem?
+        autoreleasepool {
+            var item: CurrencyBarItem? = CurrencyBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.currency"),
+                interval: 3600, from: "USD", to: "EUR", full: false)
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "CurrencyBarItem leaked — the scheduler block likely still retains it")
+    }
+
+    func testWeatherBarItemDoesNotLeak() {
+        weak var weakItem: WeatherBarItem?
+        autoreleasepool {
+            var item: WeatherBarItem? = WeatherBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.weather"),
+                interval: 3600, units: "metric", api_key: "", icon_type: "text",
+                apiSource: "china", cities: ["北京"])
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "WeatherBarItem leaked — the scheduler block likely still retains it")
+    }
+
+    func testUpNextScrubberDoesNotLeak() {
+        weak var weakItem: UpNextScrubberTouchBarItem?
+        autoreleasepool {
+            // Injected fake source: never touches EKEventStore, so no TCC
+            // calendar permission prompt is raised inside the suite.
+            var item: UpNextScrubberTouchBarItem? = UpNextScrubberTouchBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.upnext"),
+                interval: 3600, from: 1, to: 4, maxToShow: 1, autoResize: false,
+                eventSources: [CountingUpNextSource()])
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "UpNextScrubberTouchBarItem leaked — the scheduler block or source callbacks still retain it")
+    }
 }
