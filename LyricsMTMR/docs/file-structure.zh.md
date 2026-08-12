@@ -28,6 +28,8 @@ mindmap
       docs 用户/开发者文档
       ITEMS_REFERENCE
       LyricsAnalysis
+      backup 优化前调研文档归档
+      iteration-log 迭代轨迹
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -81,7 +83,7 @@ mindmap
 │   │   ├── Assets.xcassets/          # 应用图标与图片资源
 │   │   ├── Base.lproj/               # Main.storyboard
 │   │   ├── Resources/                # run.pl（MediaRemote 运行时脚本）
-│   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json
+│   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json / ChinaCityCodes.json   # 中国天气网城市码表（917983f 起）
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
 │   ├── MTMRTests/                    # 单元测试套件（随新增用例增长）
 │   ├── Scripts/                      # 开发脚本
@@ -93,6 +95,9 @@ mindmap
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
 │   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 │   └── archive/                      # 死代码归档（duplicate-LyricsRendering、dead-functions…）
+├── backup/                          # 优化前调研文档归档（16 份，存档点 pre-opt-20260812-0114）
+├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
+├── 调研报告_生命周期窗口保留_t_705ecd03.md   # 存档点遗留（与 backup/ 内同名文件为副本，收口时评估清理）
 └── .gitignore / .gitattributes / README.md
 ```
 

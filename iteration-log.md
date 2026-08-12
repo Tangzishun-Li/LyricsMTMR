@@ -75,9 +75,20 @@
 - 目标：新链启动 —— ① 全量回归验证前链 37 项积累变更是否破坏主干（按回归规则，
   前链最后 2~3 轮均为文档/CI 小改，跨链交界处做一次完整回归）；② 仓库卫生清理
   （遗留分支 + 过期 worktree）；③ 遗留 open issue 分诊 + 维护机制核验。
-- 合并提交点：（待收口后填写 commit）
-- 遗留问题：（待收口后填写）
-- 下轮方向：（待收口后填写）
+- 合并提交点：main@b405839 → 回归分支（427972c/2b29039）+ 核验分支（763bd73）合并，
+  file-structure.zh.md 清单修正 3 处 + iteration-log.md 收口（含 4 子卡记录 +
+  父记录 + dispatcher 缺陷说明）。
+- 遗留问题：
+  1. issue #1 建议动作待执行：真机 macOS 15.7 回归验证 → 回复用户 → 关闭 issue →
+     另开 backlog「按软件切换 bar」；
+  2. 根目录调研报告文件与 backup/ 重复副本待清理（核验子卡登记，收口时保留未删）；
+  3. hermes dispatcher worktree 尾空格缺陷源码已修（kanban_db.py rstrip("\n")），
+     需 dispatcher 下次重启后自然生效；修复前遗留的重复分支/工作区已清理，但
+     .worktrees/r7-regression、r7-review 及归档卡工作区待下轮收口确认；
+  4. 2026-11 国办 2027 节假日通知核对（ITER-14）为时间驱动项，置顶待办已核验健在。
+- 下轮方向：① 若用户确认，回复并关闭 issue #1（草稿已在分诊报告）；② 清理收尾
+  工作区与重复分支；③ 维持年度维护模式（无实现卡），重点仍是时间驱动项跟踪 +
+  文档一致性抽查；④ 可评估 ITER-15（镜像窗事件驱动刷新，需使用场景确认）。
 
 ### 子任务记录
 
@@ -89,3 +100,29 @@
   `回归报告_第7轮_t_eeddbbf0.md`。注：首跑因并行重复回归任务共享
   /tmp/LyricsMTMR-dd 的 build.db 锁定（exit 65），换独立 derivedDataPath
   （/tmp/LyricsMTMR-dd-r7reg）重跑通过，属环境并发非回归。
+- **t_9e8d35f8 核验：维护机制健在性 + 文档一致性检查（review-agent）**：
+  - a) ITER-14 置顶待办完好可执行：:388 行号引用准确，春节/端午/中秋连休窗口与补班日数据与代码逐项一致（17 日期星期 Python 复核全对），金丝雀防掩蔽直查在位；
+  - b) maintenance-notes 年度流程与代码零漂移：:369-370/:375-399/:404-419、SUPublicEDKey（Info.plist:113）、金丝雀三函数（:155/:167/:183）全部吻合；
+  - c) file-structure.zh.md 计数健康（用例 60 / 8 文件，ITER-17 去硬编码生效）；文件清单 3 处小漂移已就地修正（补登记 ChinaCityCodes.json、backup/、iteration-log.md、调研报告_生命周期窗口保留_t_705ecd03.md）；
+  - d) 0 open PR；最近 3 个 PR（#37→a6ed575 / #38→e5f52d7 / #39→76778ad）全部合入 main。
+  - 遗留观察：根目录调研报告文件与 backup/ 内为重复副本，建议收口时清理（已在 file-structure 注释登记）。
+- 子任务·卫生（t_7b8debf5，merge-agent）：仓库卫生清理完成 —— 删除探测遗留分支
+  `test-repro-branch`（复核 main..branch=0 后 -d，was b405839；首次被 worktree 检出保护
+  拒绝，先移除 worktree 后重试成功）+ 移除残留 worktree `.worktrees/test-repro`（@b405839，
+  随后 prune）；复核前批（t_ef52ab95）已清除项（f93862b5 分支 + t_a314745d/t_f93862b5
+  两 worktree）确已不在；远端 refs/heads 仅 main。前链遗留 2 分支 + 3 worktree 全部清除，
+  main 未动未 push。报告见 `清理报告_第7轮卫生_t_7b8debf5.md`（r7-hygiene-ws）。
+- 子任务·分诊（t_f1a05e9a，research-agents）：issue #1「Why Apple why?」分类为外部依赖
+  问题驱动的功能请求，**实质已解决**——issue 创建次日（2026-05-23）的 b2e24aa 已按用户
+  线索集成 MediaRemote 桥接（perl 特权子进程 + dlopen dylib），曲目信息+播放控制随 v0.27
+  发布；歌词显示/item/GUI 均已实现，唯一未实现为「按软件切换 bar」。根因：macOS 15.4+
+  mediaremoted 校验客户端 entitlements，裸调 MRMediaRemoteGetNowPlayingInfo 报
+  Operation not permitted（LyricFever#94 多方确认）。建议：回复用户（草稿见分诊报告）→
+  真机 15.7 验证后关闭 issue → 另开 backlog 承接「按软件切换 bar」；跟进上游 adapter 防
+  再封堵。报告见 `r7-triage-ws/triage-report.md`。
+- 说明：本批 4 张子卡执行期间，因项目仓库路径含末尾空格触发 hermes dispatcher worktree
+  解析缺陷（`_git_toplevel` 对 git 输出做 .strip() 吞掉有意义尾空格，指向非 git 的同名
+  兄弟目录），首轮 4 张 worktree 卡 spawn 失败；已修复 hermes-agent 源码
+  （kanban_db.py 三处 git 输出解析改 rstrip("\n")，dispatcher 重启后生效）并以预建
+  worktree + dir 工作区绕过重发。修复前被归档的 4 张卡在 dispatcher 重启后自动重派并
+  各自完成（产生重复交付物，内容与本批一致，未并入 main；分支/工作区由父任务统一清理）。

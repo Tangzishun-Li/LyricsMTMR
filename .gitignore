@@ -83,3 +83,6 @@ App.xcarchive/
 
 # LLVM coverage artifacts
 *.profraw
+
+# Kanban worktrees (never commit)
+.worktrees/
