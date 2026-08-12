@@ -111,7 +111,8 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
     /// 根因是每次开窗都重建整棵窗口/视图树，框架缓存按窗口实例去重失败。
     ///
     /// 方案：关窗只 orderOut 隐藏（树保留 → 重开零重建、零增长）；AppDelegate
-    /// 侧挂一个闲置 GC（默认 10 分钟未再开则整体释放，内存回到基线），系统内存
+    /// 侧挂一个闲置 GC（默认 1 小时未再开则整体释放，内存回到基线；时长见
+    /// AppDelegate.settingsWindowIdleGCSeconds = 3600），系统内存
     /// 压力时立即释放。隐藏期间 Deck 动画已被 OPT-2 的 isVisible 暂停，不会出现
     /// 优化前的幽灵渲染问题。
     var onWindowHidden: (() -> Void)?
