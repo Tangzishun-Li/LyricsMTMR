@@ -840,3 +840,19 @@
   - 版本体系观察（如实记录未归因）：git tag v1.0.0（07-30）→ v0.8（08-10）→ pre-opt（08-12），Info.plist 0.27 自 08-08 起，tag 体系与 marketing version 存在历史错位，更新日志 v0.8 与 v0.27 并存——本卡仅置顶补当前版本条目，不编造中间版本史（如需完整版本史需 GitHub Releases/git tag 考古，超出本卡范围）；
   - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
   - 交付：核对报告《核对报告_第19轮_README占位符清理与现状核对.md》（本分支根目录，含占位符处理决策/12 项逐项核对表/改动清单/风险点）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（mindmap 第 7~18 轮→第 7~19 轮 + 报告行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+---
+
+## 第 20 轮（代码质量轮）
+
+### 子任务记录
+
+- **t_60cbd9a4 actions 强引用环评估与修复（review-agent，分支 r20/code-quality）**：
+  - 背景：第 19 轮 A 卡登记超范围观察（遗留清单第 10 项②）——CustomButtonTouchBarItem actions 强自引用环（pre-existing）：round-19 deinit 单测以 `actions.removeAll()` 手动打破环后才暴露 CPUBarItem libdispatch suspend 崩溃（已修），环本身未动，本卡评估；
+  - 引用图分析（三条指定链逐一确认 + 审计新发现链）：① item→actions→closure→?：全库 23 处 `ItemAction(` 构造点逐一点验——21 处 [weak self]/[weak ocgItem]/resolver 注入（TouchBarController:829-832 三 resolver 均 [weak self]，closure(for:) 外层包 weak）或仅捕获局部值，均无环；**CPUBarItem:29-32 与 YandexWeatherBarItem:68-71 两处传 `defaultTapAction` 实例方法引用，Swift 方法引用作为闭包值强捕获 self 且无法加捕获列表 → item→actions→closure→item 经典保留环，deinit 永不可达，构成真实泄漏**（round-19 测试注释即为此绕开的直接证据）；② item→button→cell→parentItem：`CustomButtonCell.parentItem` 原代码即 `weak var`（CustomButtonTouchBarItem.swift:175）→ 无环；③ item→view→gesture→target：AppKit 头文件实证 `@property (nullable, weak) id target`（NSGestureRecognizer.h:44）→ 无环；审计额外发现同缺陷类 2 处：YandexWeatherBarItem activity.schedule 块强捕获 self（scheduler 被 item 强持有成环）+ URLSession 完成闭包强捕获 self（在途期间互持）；
+  - 修复（最小改动 2 文件 4 处）：CPUBarItem 与 YandexWeatherBarItem 的 actions 方法引用 → `ItemAction(trigger: .singleTap) { [weak self] in self?.defaultTapAction() }`；Yandex scheduler 块 → [weak self]（completion 无条件调用）；URLSession 完成闭包 → [weak self] + guard + 内层主线程 async 同步弱化（文本构造成局部常量）——触发语义逐字节等价，仅引用捕获由强转弱；CustomButtonTouchBarItem.swift 本身零改动（视图链原即无环）；
+  - 单测：`PausableTimerTests.testCPUItemDeinitStopsChain` 去掉 `actions.removeAll()` 绕开（改为断言 actions 原样保留时 deinit 可达，在途 hop 不复活断言保留）+ `WidgetLeakTests` 新增 `testYandexWeatherBarItemDoesNotLeak`（autoreleasepool 建/释 + runloop 空转后 weak 为 nil，0.249s 实测无环境波动，网络 -1003 无影响）；
+  - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r20b-test）**TEST SUCCEEDED —— 157 用例 0 失败 0 意外**（156 基线 + 新增 1，金丝雀锚点全绿，WidgetLeakTests 5 用例全绿无泄漏）；
+  - 等价性：callActions 仍调同一 defaultTapAction；scheduler completion 无条件调用满足协议；URLSession 闭包逻辑不变仅弱化捕获——item 存活期间行为无差异，断环后 item 随 NSTouchBar 释放即刻回收；
+  - 交付：验证报告《验证报告_第20轮_actions强引用环评估.md》（本分支根目录，含引用图三链+审计链表/结论/改动清单/单测清单/等价性论证/风险遗留）+ 本记录 + file-structure.zh.md（mindmap 第 7~19 轮→第 7~20 轮 + 报告行登记，无重复行）；
+  - 约束遵守：仅本工作区与 r20/code-quality 分支改动，未 push 远端，未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。

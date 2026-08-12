@@ -24,12 +24,13 @@ class CPUBarItem: CustomButtonTouchBarItem, TBPollPausable {
             self.image = #imageLiteral(resourceName: "cpu").resize(maxSize: NSSize(width: 24, height: 24));
         }
         
-        // Set default action
+        // Set default action (round 20: a plain method reference captured self
+        // strongly — a retain cycle that blocked deinit; use [weak self] like
+        // every other widget's ItemAction closure).
         if actions.filter({ $0.trigger == .singleTap }).isEmpty {
-            actions.append(ItemAction(
-                trigger: .singleTap,
-                defaultTapAction
-            ))
+            actions.append(ItemAction(trigger: .singleTap) { [weak self] in
+                self?.defaultTapAction()
+            })
         }
         
         refreshAndSchedule()

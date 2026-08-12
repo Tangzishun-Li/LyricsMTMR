@@ -268,12 +268,10 @@ class PausableTimerTests: XCTestCase {
             weakItem = item
             XCTAssertTrue(waitUntil(timeout: 3.0) { item.cycleCount >= 1 },
                           "CPU item should cycle before release")
-            // CPUBarItem's init appends an ItemAction with a plain method
-            // reference (defaultTapAction), which captures self strongly —
-            // a pre-existing pattern shared by custom-button items, not part
-            // of this round. Break that cycle so deinit can run; the polling
-            // chain itself holds the item only weakly.
-            item.actions.removeAll()
+            // Round 20: the default-tap ItemAction now captures self weakly —
+            // it used to be a plain method reference forming a retain cycle
+            // that had to be broken manually here. deinit must be reachable
+            // with `actions` untouched.
         }
         XCTAssertNil(weakItem,
                      "CPU item must deallocate once the last strong reference is dropped")
