@@ -164,6 +164,8 @@ mindmap
 ├── 核验报告_第20轮_维护机制健在与文档一致性.md # 第 20 轮核验报告（第 14 次年度维护核验，r20/review；修正 maintenance-notes/iteration-plan 行号引用 +3 漂移 4 处）
 ├── 清理报告_第20轮_round19遗留清理.md          # 第 20 轮子任务 C 仓库卫生报告（round-19 父卡+子卡遗留 worktree/分支清理，r20/review）
 
+├── 验证报告_第20轮_actions强引用环评估.md # 第 20 轮子任务 B 验证报告（CustomButtonTouchBarItem actions 强引用环评估与修复：CPUBarItem/YandexWeatherBarItem 两处 defaultTapAction 方法引用强捕获 self 成环 → [weak self] 闭包，Yandex 另修 scheduler/URLSession 两处同类强捕获，视图/手势链实证无环，157 用例实证，r20/code-quality）
+
 └── .gitignore / .gitattributes / README.md
 ```
 

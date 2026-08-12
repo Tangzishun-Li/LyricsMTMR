@@ -67,4 +67,17 @@ class WidgetLeakTests: XCTestCase {
         letRunLoopSpin()
         XCTAssertNil(weakItem, "NightShiftBarItem leaked — its 1s timer likely still retains it")
     }
+
+    func testYandexWeatherBarItemDoesNotLeak() {
+        weak var weakItem: YandexWeatherBarItem?
+        autoreleasepool {
+            var item: YandexWeatherBarItem? = YandexWeatherBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.yandexweather"),
+                interval: 3600)
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "YandexWeatherBarItem leaked — an action/scheduler/URLSession closure still retains it")
+    }
 }

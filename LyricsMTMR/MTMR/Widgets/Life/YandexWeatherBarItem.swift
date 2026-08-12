@@ -53,8 +53,8 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
 
         activity.repeats = true
         activity.qualityOfService = .utility
-        activity.schedule { (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self.updateWeather()
+        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
+            self?.updateWeather()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateWeather()
@@ -65,10 +65,9 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
         manager.startUpdatingLocation()
         
         if actions.filter({ $0.trigger == .singleTap }).isEmpty {
-            actions.append(ItemAction(
-                trigger: .singleTap,
-                defaultTapAction
-            ))
+            actions.append(ItemAction(trigger: .singleTap) { [weak self] in
+                self?.defaultTapAction()
+            })
         }
     }
 
@@ -79,8 +78,8 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
         urlRequest.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36", forHTTPHeaderField: "user-agent") // important for the right format
 
         updateWeatherTask?.cancel()
-        updateWeatherTask = URLSession.shared.dataTask(with: urlRequest) { data, _, error in
-            guard error == nil, let response = data?.utf8string else {
+        updateWeatherTask = URLSession.shared.dataTask(with: urlRequest) { [weak self] data, _, error in
+            guard let self = self, error == nil, let response = data?.utf8string else {
                 return
             }
 //            print(response)
@@ -98,8 +97,9 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate 
             }
 
             if temperature != nil {
-                DispatchQueue.main.async {
-                    self.setWeather(text: "\(icon ?? "?") \(temperature!)\(self.unitsStr)")
+                let text = "\(icon ?? "?") \(temperature!)\(self.unitsStr)"
+                DispatchQueue.main.async { [weak self] in
+                    self?.setWeather(text: text)
                 }
             }
         }
