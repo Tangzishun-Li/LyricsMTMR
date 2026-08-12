@@ -931,6 +931,13 @@
 
 ## 第 22 轮（功能/优化迭代第 10 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 10 轮——承接第 18~21 轮「隐藏期零空转」治理主线，补齐最后一块缺口——**NSBackgroundActivityScheduler 类 widget 与定位服务未纳入暂停体系**（grep 实证 4 个 widget 用 NSBackgroundActivityScheduler 自驱动轮询 + 2 个天气 widget CLLocationManager 无 stop 路径）。分解前触发全量回归（隔代规则）：**172 用例 0 失败 0 意外**（make test 基线口径与第 21 轮收口一致）。
+- 合并提交点：3 子分支按 C→A→B 顺序并入父分支（f25bf88 直入 + 95cff91 merge r22/feature + 491f903 merge r22/location），收口整体 build+test 实证 **186 用例 0 失败 0 意外**（172 基线 + A 9 + B 5，金丝雀锚点全绿）后并入 main + push origin。**收口修复 1 处**（commit 296a9ce）：A/B 并行新增测试合并后 testSchedulerWidgetsPauseBroadcastIsIdempotent 失败——B 卡实证 NSBackgroundActivityScheduler 首触发不遵守 interval 下限、其定位计数子类 init 后 invalidate 隔离，而 A 卡共享计数双打未隔离，真实调度器首触发落入测试窗口污染刷新计数（4 item 全部 +1）；修复 = 4 个共享计数双打 init 后 activity.invalidate()（pollTick 直驱不受影响）+ Currency/UpNext 的 activity private→internal 供测试隔离（与 Weather/Yandex 第 22 轮 B 卡写法一致）。合并期间无冲突标记残留（收口 grep 行首锚定 exit=1 清零）。
+- 遗留问题（第 21 轮 11 项 → 更新）：① issue #1 OPEN 待真机验证；② ITER-15 决策门 4 问待用户确认；③ ITER-14 时间驱动（第 16 次核验健在，2026-11 前无动作）；④ 口径统一 32+114（:1145/:1156 在位无新漂移）；⑤ 内存修复真机冒烟 3 项挂账；⑥ currency 真机冒烟挂账（Coinbase 直连依赖系统代理）；⑦ holidayCountdown 真机冒烟挂账；⑧ 隐藏机制真机冒烟挂账（本轮 A/B 卡落地后覆盖范围再扩大：调度器类 4 widget + 定位服务，真机观感待确认）；⑨ add_files.py 已闭环；⑩ 第 19 轮观察①② + 第 20 轮 A 卡登记 2 项已闭环（第 21 轮落地合入 + 本轮 main 源码实证）；⑪ 第 21 轮新登记 2 项（AudioSpectrum 真机冒烟 2 项 + macOS 15 每周录屏弹窗 OS 行为无需动作）保持挂账；**本轮 A/B 卡新登记遗留 3 项**：真机冒烟延续挂账（隐藏期零请求/恢复补刷观感、隐藏期隐私指示灯熄灭/恢复定位观感）、隐藏期重建 item 的 init 单次 fetch 为配置变更事件请求（严格零请求需全局隐藏态注入 init，超出本轮范围）、WeatherTabView 定位添加城市 resolve/超时后未停 manager（设置窗口生命周期内用户在场，登记建议后续补 stop）；另 NSBackgroundActivityScheduler 隐藏期周期刷新为范围决策（B 卡取舍：系统级合并调度非 runloop Timer，隐藏期仅网络请求用缓存 location 不唤醒 GPS；如需隐藏期零网络可单独评估）。
+- 下轮方向：① 继续功能/优化迭代候选：隐藏机制/轮询暂停/采集暂停/调度器门控/定位暂停真机冒烟（多项挂账待用户 Touch Bar 真机确认）、隐藏期重建 item 的 init 单次 fetch 全局隐藏态注入评估、WeatherTabView 定位添加城市补 stop、NSBackgroundActivityScheduler 隐藏期零网络评估；② 待用户确认事项继续跟踪（issue #1 关闭 / ITER-15 使用场景 4 问）；③ ITER-14 时间驱动持续跟踪（2026-11 国办 2027 节假日通知核对）；④ 第 23 轮分解前不触发全量回归（本轮收口整体 186 实证，隔代规则预计第 24 轮分解前触发，届时基线 186）。
+
 ### 子任务记录
 
 - **t_c2f81e9c 维护三合一（review-agent，分支 r22/review）**：
