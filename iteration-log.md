@@ -217,3 +217,22 @@
     分支盘点与合并报告_t12c217be.md；
   - file-structure.zh.md 清单同步（backup/ 计数 16→17、移除根目录调研报告行）；
     清理报告见 `清理报告_第8轮收尾_r8-cleanup.md`，删除明细含哈希清单。
+## 第 9 轮（本链第 3 轮）
+
+### 子任务 C：收尾核对 — 内存修复文档↔代码一致性 + issue 状态复核（t_712caec9，merge-agent，分支 r9/issue）
+
+- **t_712caec9 收尾核对（merge-agent，分支 r9/issue）**：
+  - 一致性核对（2d2d681 提交信息/内存修复报告 ↔ 28e65b6 实际带入 main 的代码）：9 项主张逐项比对，
+    **6/6 核心修复项完全一致**（windowShouldClose 改隐藏复用 hideWindow() / DockVisibilityManager.track 幂等 /
+    AppDelegate 闲置 GC settingsWindowIdleGCSeconds=3600 / 内存压力 releaseSettingsWindowIfHidden /
+    openSettings 取消待执行 GC + 重挂 Dock 跟踪 / onWindowWillClose 收敛为真关闭路径），
+    「代码随 28e65b6 已入 main」声明属实（git diff 28e65b6..HEAD 为空）；
+  - 差异清单 3 项均低危/可忽略：D1 `UnifiedSettingsWindowController.swift:113-114` 注释写「默认 10 分钟」
+    但实际 3600s=1h（纯注释陈旧，建议下次改代码时顺手修正）；D2 报告内基线数字 22-24MB vs 23/21.3MB
+    （不同测量时刻正常波动）；D3 报告未提及 onWindowWillClose 保留（代码更完整，无冲突）；
+  - issue/PR 复核：issue #1 OPEN + 1 comment（=第 8 轮回复，无新动态）；issue #40 OPEN（backlog，0 评论）；
+    open PR 0；均符合预期；
+  - 待用户确认事项清单（第 9 轮版）：① issue #1 关闭（待 15.7 真机验证）；② ITER-15 使用场景 4 问（决策门）；
+    ③ README 补 MediaRemote 风险说明（建议后续补、不强制）；④【新增】2d2d681 文档并入 main 决策依据
+    （代码已核对一致，建议父任务收口时并入以闭环文档）；⑤【可选】D1 注释修正；
+  - 交付：核对报告 `核对报告_第9轮_子任务C_内存修复文档代码一致性.md`（本分支根目录）；本记录即 iteration-log 追加。
