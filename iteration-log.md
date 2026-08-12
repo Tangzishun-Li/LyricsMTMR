@@ -126,3 +126,25 @@
   （kanban_db.py 三处 git 输出解析改 rstrip("\n")，dispatcher 重启后生效）并以预建
   worktree + dir 工作区绕过重发。修复前被归档的 4 张卡在 dispatcher 重启后自动重派并
   各自完成（产生重复交付物，内容与本批一致，未并入 main；分支/工作区由父任务统一清理）。
+
+---
+
+## 第 8 轮 / 子任务 D（t_f5def9e7，research-agents，分支 r8/iter15）
+
+- **ITER-15 镜像窗事件驱动刷新可行性评估**（只读调研，无代码改动）：
+  - 现状梳理：镜像窗 = TouchBarMirrorWindowController（NSPanel 复刻 Touch Bar 布局），
+    刷新主链路为 10Hz syncTimer 轮询（:109-114），叠加 OPT-17 增量同步（指纹缓存）、
+    ITER-3 快照节流 + ITER-9 数量自适应（5/7/10 tick）、ITER-11 syncTick 归零、FIX-1
+    快照绝不冻结；布局增删/换序已事件驱动（TouchBarController.swift:438-441/:749-752）。
+  - 事件源盘点：歌词行变化（LyricsEngine @Published + 既有 Combine 链）、播放状态
+    （$trackInfo）、前台 App（NSWorkspace 通知，AppScrubber 已订阅）、音量（CoreAudio
+    listener）、配置变化（lyricsItemConfigDidChange / themeIndexDidChange /
+    didSwitchSlotNotification / settingsProfileImported 等）均已有现成信号可挂；
+    亮度与自定义视图无事件源，必须保留轮询兜底。
+  - 结论：有条件值得实现 —— 推荐「事件驱动即时刷新 + 1Hz 轮询兜底」叠加方案
+    （纯事件驱动不可行：E8/E10 无事件源 + 事件遗漏风险）；收益：歌词延迟 0.1s→即时、
+    开启期间 sync 唤醒减 ~80-90%、Dock/音量从最坏 1s 陈旧变即时；成本：6 处订阅 +
+    100ms 防抖 + 轮询降频，复用 syncFromTouchBar 单入口。第一决策门 = 用户使用场景
+    （镜像窗默认关闭，AppSettings.showMirrorWindow=false；是否常驻/用途/快照实时性
+    要求/电量敏感度 4 问）。报告见
+    `评估报告_第8轮_ITER15镜像窗事件驱动刷新.md`（本分支根目录）。
