@@ -531,3 +531,14 @@
   - GitHub：issue #40 已评论核验证据（代码位置 + 测试清单 + 未采纳说明）并**关闭**（comment 5264408736）；
   - 交付：验证报告《验证报告_第13轮_issue40_按软件切换bar.md》（本分支根目录）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（mindmap 第 7~13 轮 + 报告行）；
   - 约束遵守：仅本工作区与分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务。
+
+### 子任务 B：README 补 MediaRemote 风险说明 + 应用专属主题使用文档（t_2d42b7e3，text-processing-agent，分支 r13/docs）
+
+- **t_2d42b7e3 README 补全（text-processing-agent，分支 r13/docs，基于 main@77faefe）**：
+  - a) 遗留④（连续跟踪 5 轮）落地：README 新增小节「### 🎵 macOS 15.4+ 音乐信息获取机制与已知风险」（置于集成与扩展之后）——背景（macOS 15.4+ mediaremoted entitlements 校验，裸调 MRMediaRemoteGetNowPlayingInfo 报 Operation not permitted，LyricFever#94 多方确认）+ 工作机制（mediaremote-adapter 架构：Swift 侧 MediaRemoteAdapter 拉起系统特权 /usr/bin/perl 子进程 run.pl → DynaLoader 加载 MediaRemoteMRBridge.dylib → dlopen/dlsym 运行时解析私有符号 → loop 注册 Now Playing 通知 → JSON 行流 stdout 管道回传；播放控制同子进程一次性命令）+ 已知风险（依赖私有框架+平台二进制特权，Apple 可能再次封堵，macOS 26 曾出现一次并已跟进修复；曲目信息依赖来源 App 主动上报，部分 App 不可用）+ 关联 issue #1（b2e24aa 集成随 v0.27 发布解决）；
+  - b) 应用专属主题（Per-app bar switching，issue #40，commit 2b84be3）补文档：「布局与主题」特性列表 +1 条；「使用指南」新增独立小节——入口（设置→通用→应用专属主题 或 状态栏菜单→应用专属主题卡片）、创建规则（为当前应用创建主题：复制当前布局至 Application Support/LyricsMTMR/app-themes/<BundleID>.json，默认始终使用并自动打开）、编辑/删除（编辑主题文件 / 切换激活模式 / 移除规则连带删文件）、激活模式三态表（始终使用=每次前台强制 / 激活时使用=仅切换进入时应用且尊重手动覆盖 / 已停用=保留不生效）、主题文件缺失自动移除规则回退；
+  - c) README 漂移修正 5 处小改：widget 数量 100+→99（ItemsParsing.swift ItemTypeRaw 实测 97 type + close/exitTouchbar 注册 = 99）；「设置→主题」→「设置→编辑器顶部配置下拉」+themeSwitch/状态栏入口（SettingsTab 22 Tab 无「主题」Tab）；「设置→组件」→「设置→编辑器元素面板」（无「组件」Tab）；设置 Tab「14+：歌词/组件/主题/快捷键/数据源/服务/高级」→「22 个：通用/歌词/槽位/编辑器/键位/服务/关于/股票/番茄钟/天气/RSS/快递/日历/智能家居/AI 助手/记账/Dock/通知/系统监控/健康/生活/快捷工具」；歌词源「Gecimi」→「咪咕」（LyricsProviderID 实测 netease/qqMusic/kugou/migu/spotify/subtitle/custom，代码无 Gecimi）；
+  - d) 核对其余章节零漂移：主题 15 套（examples/presets 实测 15 个 theme*.json）、v1.0.0「8 个新 widget」8 case 全命中、「10 个新测试主题（theme6–15）」、多播放器列表、天气中国网免 Key、OpenCode Go/BeeCount/theme4/工具 Tab 均实测在位；README 引用的 6 个文档链接全部在位；
+  - e) 未改动：ITEMS_REFERENCE「80+ 种 Item 类型」旧口径（实测 99，留待下轮单独核对，本报告已记录）；README 数据来源章节对上游 LyricsKit「Gecimi」能力的描述（准确陈述，保留）；
+  - 纯文档轮零代码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
+  - 交付：文档报告 `文档报告_第13轮_README补全.md`（本分支根目录，含改动明细/依据/核对结论）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记 + mindmap 更新。
