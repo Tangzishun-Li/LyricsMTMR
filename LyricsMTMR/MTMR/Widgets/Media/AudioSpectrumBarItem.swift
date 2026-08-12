@@ -225,7 +225,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
 
 // MARK: - AudioSpectrumBarItem
 
-class AudioSpectrumBarItem: NSCustomTouchBarItem {
+class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
 
     private let spectrumView = SpectrumView(frame: NSRect(x: 0, y: 0, width: 120, height: 30))
 
@@ -247,7 +247,12 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
 
     private var fftSetup: FFTSetup?
     private var smoothedLevels: [CGFloat] = []
-    private var displayTimer: Timer?
+    /// 0.04s 显示定时器（round 20：隐藏期间整体暂停——25fps 轮转隐藏期
+    /// 不可见纯属空转；恢复后立即补刷一帧，随后按原节奏继续）。
+    private lazy var pausableDisplayTimer = TBPausableTimer(interval: 0.04, tolerance: nil,
+                                                            immediateFireOnResume: true) { [weak self] in
+        self?.spectrumTick()
+    }
     private var lastRealFeed: TimeInterval = 0
     private var lastAudibleMic: TimeInterval = 0
 
@@ -300,13 +305,16 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
         if let observer = defaultsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        displayTimer?.invalidate()
-        displayTimer = nil
         stopSystem()
         stopMic()
         if let setup = fftSetup {
             vDSP_destroy_fftsetup(setup)
         }
+    }
+
+    /// 隐藏（黑名单/exitTouchbar）时暂停 0.04s 显示轮转；显示时恢复并立即补刷一帧。
+    func setPaused(_ paused: Bool) {
+        pausableDisplayTimer.setPaused(paused)
     }
 
     // MARK: - Source selection
@@ -560,26 +568,26 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem {
     // MARK: - Display timer (synth fallback while music plays)
 
     private func startDisplayTimer() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.displayTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in
-                guard let self = self else { return }
-                let now = Date().timeIntervalSince1970
-                // A live audible source (system tap, or mic above the noise
-                // gate) drives the bars directly.
-                if now - self.lastRealFeed < 0.25 { return }
-                // The mic is live and was audible moments ago — give the real
-                // feed a grace period so quiet passages don't flicker to synth.
-                if self.micActive, now - self.lastAudibleMic < 1.2 { return }
-                let info = LyricsEngine.shared.trackInfo
-                if info.playbackState == .playing {
-                    self.smooth(toward: Self.syntheticLevels(seed: info.playbackTime, count: self.barCount),
-                                attack: 0.5, release: 0.4)
-                } else {
-                    self.smooth(toward: Array(repeating: 0.02, count: self.barCount),
-                                attack: 0.2, release: 0.2)
-                }
-            }
+        pausableDisplayTimer.start()
+    }
+
+    /// 0.04s 轮转：实时音源（system tap / 可闻麦克风）直接驱动光柱；
+    /// 否则按 LyricsEngine 播放状态走合成或衰减。隐藏期间整体暂停。
+    private func spectrumTick() {
+        let now = Date().timeIntervalSince1970
+        // A live audible source (system tap, or mic above the noise
+        // gate) drives the bars directly.
+        if now - lastRealFeed < 0.25 { return }
+        // The mic is live and was audible moments ago — give the real
+        // feed a grace period so quiet passages don't flicker to synth.
+        if micActive, now - lastAudibleMic < 1.2 { return }
+        let info = LyricsEngine.shared.trackInfo
+        if info.playbackState == .playing {
+            smooth(toward: Self.syntheticLevels(seed: info.playbackTime, count: barCount),
+                   attack: 0.5, release: 0.4)
+        } else {
+            smooth(toward: Array(repeating: 0.02, count: barCount),
+                   attack: 0.2, release: 0.2)
         }
     }
 

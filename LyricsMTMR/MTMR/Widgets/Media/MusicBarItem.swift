@@ -9,7 +9,7 @@
 import Cocoa
 import ScriptingBridge
 
-class MusicBarItem: CustomButtonTouchBarItem {
+class MusicBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private enum Player: String {
         case Music = "com.apple.Music"
         case iTunes = "com.apple.iTunes"
@@ -31,7 +31,17 @@ class MusicBarItem: CustomButtonTouchBarItem {
     private let interval: TimeInterval
     private let disableMarquee: Bool
     private var songTitle: String?
-    private var timer: Timer?
+    /// 隐藏期间暂停自循环（round 20）：链在下一 hop 处终结，恢复时立即补刷一次。
+    private let pauseGate = TBPauseGate()
+    /// 0.25s 跑马灯（round 20：与自循环共用同一暂停信号——隐藏期
+    /// 无效化，恢复后按原节奏重新安装）。仅在出现歌名后创建/安装。
+    private lazy var marqueeTimer = TBPausableTimer(interval: 0.25, tolerance: nil,
+                                                    immediateFireOnResume: false) { [weak self] in
+        self?.marquee()
+    }
+    /// 跑马灯是否已装过（未装过时 setPaused 不得触碰 wrapper——
+    /// 否则恢复会凭空装一个 0.25s 空转 timer）。
+    private var marqueeStarted = false
     private let iconSize = NSSize(width: 21, height: 21)
 
     
@@ -62,8 +72,15 @@ class MusicBarItem: CustomButtonTouchBarItem {
 
     required init?(coder _: NSCoder) { return nil }
 
-    deinit {
-        timer?.invalidate()
+    /// 隐藏（黑名单/exitTouchbar）时暂停自循环与跑马灯；显示时恢复
+    /// （立即刷新一次播放器再按原节奏继续）。
+    func setPaused(_ paused: Bool) {
+        if pauseGate.setPaused(paused), !paused {
+            refreshAndSchedule()
+        }
+        if marqueeStarted {
+            marqueeTimer.setPaused(paused)
+        }
     }
 
     @objc func playPause() {
@@ -209,6 +226,9 @@ class MusicBarItem: CustomButtonTouchBarItem {
     }
 
     func refreshAndSchedule() {
+        // 隐藏（黑名单/exitTouchbar）期间：既不查询播放器也不调度下一 hop，
+        // 链在此终结；恢复时由 setPaused(false) 重新拉起（立即刷新一次 + 按原节奏继续）。
+        guard !pauseGate.isPaused else { return }
         DispatchQueue.main.async {
             self.updatePlayer()
             DispatchQueue.main.asyncAfter(deadline: .now() + self.interval) { [weak self] in
@@ -282,16 +302,15 @@ class MusicBarItem: CustomButtonTouchBarItem {
                     }
 
                     if let songTitle = self.songTitle?.ifNotEmpty {
-                        self.timer?.invalidate()
-                        self.timer = nil
-                        
                         if (disableMarquee) {
                             self.title = " " + songTitle
                         } else {
                             self.title = " " + songTitle + "     "
-                            self.timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
-                                self?.marquee()
-                            }
+                            // round 20: 跑马灯改用可暂停封装——隐藏期间不再
+                            // 以 0.25s 频率空转字符串轮转；start() 对换歌
+                            // 语义与原 invalidate+recreate 一致。
+                            self.marqueeStarted = true
+                            self.marqueeTimer.start()
                         }
                         
                         titleUpdated = true

@@ -167,11 +167,19 @@ private class NativeProgressSliderView: NSView {
 
 // MARK: - PlaybackProgressBarItem
 
-class PlaybackProgressBarItem: NSCustomTouchBarItem {
+class PlaybackProgressBarItem: NSCustomTouchBarItem, TBPollPausable {
 
     private let sliderView: NativeProgressSliderView
     private var cancellables = Set<AnyCancellable>()
-    private var timer: Timer?
+
+    /// 0.5s 进度轮询（round 20：隐藏期间整体暂停——隐藏期刷新不可见；
+    /// 恢复后立即补刷一次，进度条不会停留在陈旧位置）。
+    private lazy var pausableTimer = TBPausableTimer(interval: 0.5, tolerance: 0.05,
+                                                     immediateFireOnResume: true) { [weak self] in
+        guard let self = self, !self.sliderView.isScrubbing else { return }
+        let info = LyricsEngine.shared.trackInfo
+        self.updateProgress(info: info)
+    }
 
     init(identifier: NSTouchBarItem.Identifier, width: CGFloat = 0) {
         // 支持主题 JSON 里用 width 指定滑条宽度（原生 Now Playing 风格），
@@ -193,8 +201,9 @@ class PlaybackProgressBarItem: NSCustomTouchBarItem {
 
     required init?(coder: NSCoder) { return nil }
 
-    deinit {
-        timer?.invalidate()
+    /// 隐藏（黑名单/exitTouchbar）时暂停 0.5s 进度轮询；显示时恢复并立即补刷。
+    func setPaused(_ paused: Bool) {
+        pausableTimer.setPaused(paused)
     }
 
     private func observePlayback() {
@@ -205,12 +214,7 @@ class PlaybackProgressBarItem: NSCustomTouchBarItem {
             }
             .store(in: &cancellables)
 
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            guard let self = self, !self.sliderView.isScrubbing else { return }
-            let info = LyricsEngine.shared.trackInfo
-            self.updateProgress(info: info)
-        }
-        timer?.tolerance = 0.05
+        pausableTimer.start()
     }
 
     private func updateProgress(info: EngineTrackInfo) {

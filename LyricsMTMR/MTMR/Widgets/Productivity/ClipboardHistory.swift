@@ -7,10 +7,17 @@
 
 import Cocoa
 
-class ClipboardHistoryItem: TBPopoverItem {
+class ClipboardHistoryItem: TBPopoverItem, TBPollPausable {
     private let maxItems: Int
     private weak var resultLabel: NSTextField?
-    private var watcher: Timer?
+
+    /// 1s 剪贴板轮询（round 20：隐藏期间整体暂停——持续空转典型；
+    /// .common 模式与改动前一致。隐藏期间新复制的内容只丢中间条目，
+    /// 恢复后 changeCount 已变化，首次 tick 即收录最新一条）。
+    private lazy var pausableWatcher = TBPausableTimer(interval: 1.0, tolerance: 0.1,
+                                                       immediateFireOnResume: true, mode: .common) {
+        Self.poll()
+    }
     private static var history: [String] = ClipboardHistoryItem.loadHistory()
     private static var lastCount: Int = NSPasteboard.general.changeCount
     private static var didSeedCurrent = false
@@ -22,16 +29,14 @@ class ClipboardHistoryItem: TBPopoverItem {
         super.init(identifier: identifier)
         Self.seedCurrentPasteboard()
         configureButton(title: localized("剪贴板", "Clipboard"), symbol: "doc.on.clipboard.fill", tint: TB.sky)
-        // .common keeps the watcher firing while touch-bar tracking modes
-        // are active; a .default-mode timer can stall during interactions,
-        // which reads as "history never collects anything".
-        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in Self.poll() }
-        timer.tolerance = 0.1
-        RunLoop.main.add(timer, forMode: .common)
-        watcher = timer
+        pausableWatcher.start()
     }
     required init?(coder: NSCoder) { return nil }
-    deinit { watcher?.invalidate() }
+
+    /// 隐藏（黑名单/exitTouchbar）时暂停 1s 剪贴板轮询；显示时恢复。
+    func setPaused(_ paused: Bool) {
+        pausableWatcher.setPaused(paused)
+    }
 
     /// 首次打开时把当前剪贴板里的内容也收进历史，避免浮层完全空白。
     private static func seedCurrentPasteboard() {
