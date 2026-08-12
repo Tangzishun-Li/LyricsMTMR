@@ -1576,6 +1576,45 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 点击 Touch Bar 上的主题切换器（themeSwitch），或手动替换 `items.json` 的内容。
 
+### 应用专属主题（Per-app bar switching）
+
+> 自 commit 2b84be3（2026-07-30 大规模功能更新）起支持：为指定 App 绑定专属 Touch Bar 布局，前台切换到该 App 时自动加载其布局，切走时回落到默认布局（backlog issue #40）。
+
+**机制**
+
+- 规则表：`AppSettings.appThemeRules`（UserDefaults key `com.lyricsmtmr.appThemeRules.v2`，bundleId → AppThemeMode rawValue）；
+- 布局文件：每个 App 一个 JSON 文件，位于 `~/Library/Application Support/LyricsMTMR/app-themes/<bundleId>.json`，格式与 `items.json` 完全一致（JSON 数组）；
+- 切换依据：前台 App（NSWorkspace 激活/启动/退出通知）→ `TouchBarController.updateActiveApp()`；切换经 `reloadPresetAsync` 异步解析 + 防抖 + 主线程原子替换，避免快速切换时的卡顿/闪烁。
+
+**三种模式（AppThemeMode）**
+
+| rawValue | 模式 | 行为 |
+|:---:|:---|:---|
+| 0 | 始终使用（always） | 每次该 App 成为前台都强制加载其专属布局 |
+| 1 | 已停用（disabled） | 规则保留但不生效（相当于临时关闭） |
+| 2 | 激活时使用（onActivation） | 激活时加载；用户可手动切换主题覆盖，直到下次切换 App |
+
+**GUI 配置入口**（二选一）
+
+1. 状态栏菜单 →「应用专属主题」卡片（StatusBarMenuView）：为当前前台 App 创建规则（复制当前布局或空白模板）、三模式切换、编辑布局文件、删除规则；
+2. 设置 →「通用」→「应用专属主题」（GeneralTabView）：规则列表（按 bundleId 排序）、添加当前前台 App、改模式、编辑、删除。
+
+**示例**（为 QQ 音乐绑定一个只显示歌词的布局）
+
+```json
+// ~/Library/Application Support/LyricsMTMR/app-themes/com.tencent.QQMusicMac.json
+[
+  { "type": "lyrics", "width": 530, "align": "center" }
+]
+```
+
+**行为细节**
+
+- 未配置规则（或无规则匹配）的 App 回落到默认布局（`items.json`），歌词 bar 默认行为不受影响；
+- 黑名单 App 优先于主题规则（黑名单直接隐藏 Touch Bar）；
+- 布局文件被删除时，对应规则自动移除并回退默认布局；
+- 用户通过 themeSwitch 手动切换主题会覆盖自动布局（onActivation 模式下次切 App 时恢复）。
+
 ### 完整 type 速查表
 
 | 分类 | 可用 type |

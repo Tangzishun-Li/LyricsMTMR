@@ -512,3 +512,22 @@
   5. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；
   6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
 - 下轮方向：【运营者指示】第 13 轮起**退出年度维护模式，恢复功能/优化迭代**（继续优化、增加功能），迭代维度参考：后端服务 / 前端体验 / UI 迭代维度 / 数据与存储 / 安全与合规 / 代码质量与工程规范 / 功能与业务更新迭代。待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问 / README 补 MediaRemote 风险说明）与 backlog #40（Per-app bar switching）为首轮实现候选；ITER-14 时间驱动项第 7 次核验跟踪可并入维护面；回归规则：第 13 轮起有代码改动，改动并入后需 build+test 全绿实证（60 用例基线），累积 2~3 轮再全量回归。
+
+---
+
+## 第 13 轮（退出年度维护模式，恢复功能/优化迭代第 1 轮）
+
+### 子任务 A：issue #40 Per-app bar switching 核验与补齐（t_441906a7，code-agent，分支 r13/feature，基于 main@77faefe）
+
+- **t_441906a7 核验 + 补齐（code-agent，分支 r13/feature）**：
+  - 核验结论：issue #40 四条验收标准**全部满足**（核心机制自 commit 2b84be3 已实现）——
+    ① 规则配置 GUI 双入口（状态栏菜单 AppThemeCard，StatusBarMenuView.swift:441-551；设置 GeneralTabView.appThemeSection :219-247）+ 配置文件通道（app-themes/<bundleId>.json，TouchBarController.swift:270-277）+ 持久化（AppSettings.appThemeRules :88-90，三态 AppThemeMode）；
+    ② 前台切换机制（NSWorkspace 三通知 → updateActiveApp :457-518 → handleAppThemeSwitch :522-558 → reloadPresetAsync :1108+ 后台解析+防抖+主线程原子替换，OPT-13 同 App 快速路径 :507-510）；
+    ③ 未配置 App 回落默认（默认分支 :494-517 + revertAutoSwitch :568-577 恢复切入前预设；规则文件被删自动移除 :526-536）；
+    ④ 歌词 bar 默认行为零改动（规则分支为新增旁路，回归 60 基线全绿）；
+  - 本轮补齐：① 可测试性提取——TouchBarController 新增纯函数 `static resolveAppThemeMode(rules:appId:)`（:277-285），updateActiveApp 规则分支改用它（语义逐字等价，唯一生产代码改动 +12 行）；② 新增单测 `MTMRTests/AppThemeRulesTests.swift`（12 个测试方法：模式 rawValue 往返 / 规则解析 7 例 / 布局文件路径推导 2 例 / 用户覆盖入口无副作用 1 例），pbxproj 4 处注册（PBXBuildFile/PBXFileReference/组/编译期）；③ 文档：ITEMS_REFERENCE.md 新增「应用专属主题（Per-app bar switching）」小节、README 功能特性补条目、file-structure.zh.md 登记报告；
+  - 未采纳项（据实）：MediaRemote 来源 App 依据（kMRMediaRemoteNowPlayingInfoApplicationBundleIdentifier）——验收标准仅要求前台 App 切换，现有实现即 issue 风险备注所指的兜底形态，不引入依赖；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug）**TEST SUCCEEDED —— 72 用例 0 失败 0 意外**（60 基线 + 新增 12 全过，金丝雀锚点全绿，警告与第 12 轮基线一致）；
+  - GitHub：issue #40 已评论核验证据（代码位置 + 测试清单 + 未采纳说明）并**关闭**（comment 5264408736）；
+  - 交付：验证报告《验证报告_第13轮_issue40_按软件切换bar.md》（本分支根目录）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（mindmap 第 7~13 轮 + 报告行）；
+  - 约束遵守：仅本工作区与分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务。
