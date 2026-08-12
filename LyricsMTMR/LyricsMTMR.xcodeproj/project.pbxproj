@@ -30,6 +30,7 @@
 		CA8F2B8B2FC5000000D189D6 /* CurrencyBarItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8A2FC5000000D189D6 /* CurrencyBarItemTests.swift */; };
 		CA8F2B8D2FC5000000D189D7 /* BarItemFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8C2FC5000000D189D7 /* BarItemFactory.swift */; };
 		CA8F2B8F2FC5000000D189D8 /* BarItemFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8E2FC5000000D189D8 /* BarItemFactoryTests.swift */; };
+		CA8F2B8D2FC6000000D189D7 /* HolidayCountdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8F2B8C2FC6000000D189D7 /* HolidayCountdownTests.swift */; };
 		368EDDE720812A1D00E10953 /* ScrollViewItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368EDDE620812A1D00E10953 /* ScrollViewItem.swift */; };
 		36A778BE20A6C27100B38714 /* GeneralExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A778BD20A6C27100B38714 /* GeneralExtensions.swift */; };
 		36C2ECD7207B6DAE003CDA33 /* TimeTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECD6207B6DAE003CDA33 /* TimeTouchBarItem.swift */; };
@@ -124,6 +125,7 @@
 		B1C2D3E4F5A60718293A4C04 /* PlaybackProgressBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4C03 /* PlaybackProgressBarItem.swift */; };
 		B1C2D3E4F5A60718293A4C06 /* LyricsTranslateBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4C05 /* LyricsTranslateBarItem.swift */; };
 		B1C2D3E4F5A60718293A4C08 /* QuickReplyBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4C07 /* QuickReplyBarItem.swift */; };
+		C0FF636E84187E7F66029EE0 /* HolidayCountdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE636E84187E7F66029EE0 /* HolidayCountdown.swift */; };
 		C0FF703FDC5F6301CA832DCB /* OpenCodeGoUsageBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE703FDC5F6301CA832DCB /* OpenCodeGoUsageBarItem.swift */; };
 		B290FA59E96FFA6082DB5CCF /* ExpenseTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB3F6F4961666FFA7D3DA4D /* ExpenseTabView.swift */; };
 		B85B9F268B014E97A3251EEB /* SubtitleProviderPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8C6B3CC07457AABDC461B /* SubtitleProviderPlaceholder.swift */; };
@@ -285,6 +287,7 @@
 		CA8F2B8A2FC5000000D189D6 /* CurrencyBarItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyBarItemTests.swift; sourceTree = "<group>"; };
 		CA8F2B8C2FC5000000D189D7 /* BarItemFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarItemFactory.swift; sourceTree = "<group>"; };
 		CA8F2B8E2FC5000000D189D8 /* BarItemFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarItemFactoryTests.swift; sourceTree = "<group>"; };
+		CA8F2B8C2FC6000000D189D7 /* HolidayCountdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HolidayCountdownTests.swift; sourceTree = "<group>"; };
 		368EDDE620812A1D00E10953 /* ScrollViewItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollViewItem.swift; sourceTree = "<group>"; };
 		36A778BD20A6C27100B38714 /* GeneralExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralExtensions.swift; sourceTree = "<group>"; };
 		36BDC22F207CDA8600FCFEBE /* TECHNICAL_DEBT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_DEBT.md; sourceTree = "<group>"; };
@@ -393,6 +396,7 @@
 		B1C2D3E4F5A60718293A4C03 /* PlaybackProgressBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressBarItem.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A60718293A4C05 /* LyricsTranslateBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsTranslateBarItem.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A60718293A4C07 /* QuickReplyBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickReplyBarItem.swift; sourceTree = "<group>"; };
+		C0FE636E84187E7F66029EE0 /* HolidayCountdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HolidayCountdown.swift; sourceTree = "<group>"; };
 		C0FE703FDC5F6301CA832DCB /* OpenCodeGoUsageBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeGoUsageBarItem.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* MediaRemoteMRBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MediaRemoteMRBridge.h; sourceTree = "<group>"; };
 		B7FC5E71D023A596427A70AB /* DraftManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DraftManager.swift; sourceTree = "<group>"; };
@@ -639,6 +643,7 @@
 				CA8F2B882FC4000000D189D5 /* AppThemeRulesTests.swift */,
 				CA8F2B8A2FC5000000D189D6 /* CurrencyBarItemTests.swift */,
 				CA8F2B8E2FC5000000D189D8 /* BarItemFactoryTests.swift */,
+				CA8F2B8C2FC6000000D189D7 /* HolidayCountdownTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -800,6 +805,7 @@
 				57DAD2EF624E751D16E5CFF4 /* BilibiliFeed.swift */,
 				C0FE0E8A7313E0B372A292F6 /* BillSplit.swift */,
 				C0FE940045F31C6370C216AD /* BirthdayCountdown.swift */,
+				C0FE636E84187E7F66029EE0 /* HolidayCountdown.swift */,
 				C0FE383C6A0682945AB88720 /* ClassCountdown.swift */,
 				C0FECE7D931356C533D03B4D /* CreditCardDue.swift */,
 				607EEA4C2087A8DA009DA5F0 /* CurrencyBarItem.swift */,
@@ -1179,6 +1185,7 @@
 				B1C2D3E4F5A60718293A4C04 /* PlaybackProgressBarItem.swift in Sources */,
 				B1C2D3E4F5A60718293A4C06 /* LyricsTranslateBarItem.swift in Sources */,
 				B1C2D3E4F5A60718293A4C08 /* QuickReplyBarItem.swift in Sources */,
+				C0FF636E84187E7F66029EE0 /* HolidayCountdown.swift in Sources */,
 				C0FF96DE20234BC7F44AAB0F /* NetworkSpeed.swift in Sources */,
 				C0FF2B55F03A65EBA2FE2C0B /* GitStatus.swift in Sources */,
 				C0FFC0E38D1ADA81F235F525 /* ApiLatency.swift in Sources */,
@@ -1295,6 +1302,7 @@
 				CA8F2B892FC4000000D189D5 /* AppThemeRulesTests.swift in Sources */,
 				CA8F2B8B2FC5000000D189D6 /* CurrencyBarItemTests.swift in Sources */,
 				CA8F2B8F2FC5000000D189D8 /* BarItemFactoryTests.swift in Sources */,
+				CA8F2B8D2FC6000000D189D7 /* HolidayCountdownTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

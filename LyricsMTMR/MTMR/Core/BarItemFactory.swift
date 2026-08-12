@@ -193,6 +193,8 @@ class BarItemFactory {
             barItem = TravelCountdownItem(identifier: identifier, refreshInterval: refreshInterval, calendarFilter: calendarFilter)
         case let .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
             barItem = BirthdayCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .holidayCountdown(refreshInterval: refreshInterval):
+            barItem = HolidayCountdownItem(identifier: identifier, refreshInterval: refreshInterval)
         case let .dailyQuote(refreshInterval: refreshInterval):
             barItem = DailyQuoteItem(identifier: identifier, refreshInterval: refreshInterval)
         case .screenLock:

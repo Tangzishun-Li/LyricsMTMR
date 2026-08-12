@@ -120,6 +120,7 @@ class EditorPaletteView: NSView {
             ("postureReminder", localized("久坐", "Posture"), "figure.stand"),
             ("travelCountdown", localized("出行", "Travel"), "airplane"),
             ("birthdayCountdown", localized("生日", "Bday"), "gift"),
+            ("holidayCountdown", localized("假期", "Holiday"), "calendar"),
             ("dailyQuote", localized("一言", "Quote"), "quote.opening"),
             ("screenLock", localized("锁屏", "Lock"), "lock"),
         ]),

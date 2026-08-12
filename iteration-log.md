@@ -631,3 +631,11 @@
   - 顺带项：README TODO 区 6 条逐条按源码实测——前 4 条维持 [x]，「剪切板快捷查看」已实现但未勾选（ItemsParsing.swift:350 clipboardHistory 解码 + BarItemFactory.swift:210 case .clipboardHistory 创建 ClipboardHistoryItem，提取前 TouchBarController.swift:986）本轮修正为 [x] 并注明依据，「……」占位符维持；TECHNICAL_DEBT.md 第 4 条勾选标注落地；
   - 文档：验证报告《验证报告_第15轮_barItemFactory提取.md》（本分支根目录，含提取前后结构对比/依赖处理说明/等价性论证/风险点/README TODO 核对表）+ file-structure.zh.md（mindmap 第 7~14 轮→第 7~15 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r15/refactor 分支改动，未 push 远端（父任务收口统一合并），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+- **t_1f0724c1 节假日倒计时 widget（code-agent，分支 r15/feature）**：
+  - 新 widget `holidayCountdown`：复用 `StockBarItem.aShareHolidays`（2026 国办发明电〔2025〕7 号 + 2027 预估，65 日期）为**唯一数据源**（零拷贝日期表、未改 StockBarItem 语义），展示距下一个法定节假日首日的天数 + 假期名（元旦/春节/清明/劳动节/端午/中秋/国庆节）；假期窗口内显示「X 第 N 天」，≤7 天或假期中金色高亮；数据表尽头（2027-10-07 后）优雅降级「无假期」；
+  - 实现（新文件 `MTMR/Widgets/Life/HolidayCountdown.swift`）：纯逻辑 `HolidayCountdownLogic`（makeWindows 连续日期并窗 / holidayName 按月映射含 1 月日期区分 / window(containing:) 第 N 天 / nextHoliday 天数，全部 Asia/Shanghai 日粒度可单测）+ `HolidayCountdownItem: TBPollItem`；注册链路 6 处：ItemsParsing（ItemTypeRaw + ItemType 关联值 + decode 默认 refreshInterval=3600）、TouchBarController（identifier 映射 com.lyricsmtmr.holidayCountdown. + 绑定构造）、EditorSchema（健康分类 palette + ItemSchema + Meta）、ElementPaletteView（健康分组条目）；
+  - 单测：新增 `MTMRTests/HolidayCountdownTests.swift`（16 个测试方法：真实数据 2026/2027 窗口名+长度、全表覆盖零丢失、合成数据并窗/断窗/空集、假期名映射表、下一假期 4 例含跨年 2026→2027=85 天、假期内第 N 天/末日/首日、假期后首日、数据表前后边界），pbxproj 8 处注册（widget 经 add_files.py + 手工补 2 处过期锚点、测试文件 ID CA8F2B8C/8D2FC6000000D189D7）；
+  - 文档：ITEMS_REFERENCE.md 口径 113→114（:3/:59 含 97+14+2+1 说明、八大类统计表计时/提醒 12→13、新增 5.13 条目、速查表补 holidayCountdown），README 3 处 113→114，file-structure.zh.md 登记（mindmap 第 7~14 轮→第 7~15 轮 + 报告行）；本记录即 iteration-log 追加；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r15a-build）BUILD SUCCEEDED + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r15a-test）TEST SUCCEEDED（84 基线 + 新增 16 全过 = 100 用例 0 失败，金丝雀锚点全绿）；
+  - 交付：验证报告《验证报告_第15轮_节假日倒计时widget.md》（本分支根目录，含变更明细/单测清单/边界说明/风险点）+ 本记录 + file-structure.zh.md 登记；
+  - 约束遵守：仅本工作区与 r15/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（本轮无回归卡，84+16=100 用例实证已附）。

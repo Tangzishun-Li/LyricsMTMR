@@ -155,7 +155,7 @@ enum EditorSchema {
         (localized("极客", "Geek"),       ["portChecker", "httpCodes", "regexTester", "timestampConvert", "uuidGen", "qrCode", "apiTester"]),
         (localized("工具箱", "Tools"),    ["base64Tool", "jsonFormatter", "hashCalc", "colorConvert", "regexReference"]),
         (localized("生活", "Life"),       ["packageTracker", "foodDelivery", "weatherOutfit", "noiseMeter", "expenseTracker", "subscriptionCountdown"]),
-        (localized("健康", "Health"),     ["breathingGuide", "postureReminder", "travelCountdown", "birthdayCountdown", "dailyQuote", "screenLock"]),
+        (localized("健康", "Health"),     ["breathingGuide", "postureReminder", "travelCountdown", "birthdayCountdown", "holidayCountdown", "dailyQuote", "screenLock"]),
         (localized("办公", "Office"),     ["emailBadge", "meetingCountdown", "slackUnread", "printerStatus", "standupTimer", "clipboardHistory"]),
         (localized("校园", "Campus"),     ["classCountdown", "ddlList", "readingProgress", "wordLookup", "readTimer", "noteCapture", "latexSymbols", "citationGen", "paperProgress", "paperTags"]),
         (localized("财务", "Finance"),    ["billSplit", "savingsGoal", "taxEstimate", "creditCardDue"]),
@@ -424,6 +424,9 @@ enum EditorSchema {
             ItemProperty(key: "dataPath", displayName: localized("数据路径", "Data"), type: .text(placeholder: ""), isRequired: false, note: "birthdays.json"),
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "300"), isRequired: false, note: nil),
         ], width: "110")),
+        ItemSchema(type: "holidayCountdown", displayName: localized("假期", "Holiday"), symbol: "calendar", properties: std([
+            ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "3600"), isRequired: false, note: nil),
+        ], width: "120")),
         ItemSchema(type: "dailyQuote", displayName: localized("一言", "Quote"), symbol: "quote.opening", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "120"), isRequired: false, note: "hitokoto"),
         ], width: "160")),
@@ -721,6 +724,7 @@ enum EditorSchema {
         "postureReminder": Meta(description: localized("久坐提醒", "Posture/sit reminder"), category: "Health"),
         "travelCountdown": Meta(description: localized("出行倒计时", "Travel countdown"), category: "Health"),
         "birthdayCountdown": Meta(description: localized("生日倒计时", "Birthday countdown"), category: "Health"),
+        "holidayCountdown": Meta(description: localized("节假日倒计时", "Holiday countdown"), category: "Health"),
         "dailyQuote": Meta(description: localized("每日一言/语录", "Daily quote"), category: "Health"),
         "screenLock": Meta(description: localized("一键锁屏", "Lock screen"), category: "Health"),
         // Office
