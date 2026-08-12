@@ -791,3 +791,13 @@
   - 等价性：新建未暂停/显示期间调度节奏（interval 不变、asyncAfter 一次）/取消语义/deinit/异常捕获/overlay 全部与改动前一致，行为差异仅「整条 bar 隐藏期间轮询暂停」一处；
   - 交付：验证报告《验证报告_第18轮_黑名单隐藏暂停轮询.md》（本分支根目录，含实证结论/方案设计/变更明细/等价性论证/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~17 轮→第 7~18 轮 + 报告行登记）；
   - 约束遵守：仅本工作区与 r18/optimize 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
+
+## 第 19 轮（功能/优化迭代第 7 轮）
+
+### 子任务记录
+
+- **t_a03a87e6 维护三合一（review-agent，分支 r19/review）**：
+  - 年度维护核验（第 13 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7 分布断言通过）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对（7/7）；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则 :39-40、isMarketOpen :430）；GitHub 4/4 实测（先 git fetch origin：#1 OPEN / #40 CLOSED / 0 open PR / origin/main=04d0279，本地 main 与 origin 同步 0/0）；文档一致性三方交叉核对一致（iteration-log 第 18 轮收口 ↔ 提交图 04d0279→7f82635→e08acd5/73230a8/c30ff16 ↔ file-structure 登记 4 份第 18 轮报告）、无冲突残留标记（git grep 行首锚定 0 命中）；114 口径注释行号自 :1126/:1137 漂移至 :1145/:1156（第 18 轮 B 卡合入所致），语义无漂移；
+  - 仓库卫生：round-18 父卡 t_39a5c016 + 3 子卡（t_e610d199 / t_ebbd96e5 / t_c0d544d7）遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round18-A/B/C + round18-parent）→ prune → branch -d ×4（r18/feature r18/optimize r18/review lyricsmtmr/t_39a5c016-18-lyricsmtmr-6-17）；删除后清点 .worktrees 仅 round19-A/B/C + round19-parent + 主仓库、本地分支 5 条（main + r19/*×3 + lyricsmtmr/t_d5d7d17a-19-lyricsmtmr-7-18 父卡分支）、远端仅 main、prune --dry-run 空；round19-* 未动（约束遵守）；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问（iteration-plan :238-242 在位）/ ITER-14 时间驱动（第 13 次核验健在）/ 口径统一 32+114（114 口径注释 :1145/:1156 在位，行号漂移无语义漂移）/ 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟（映射健壮化已随第 18 轮 A 卡合入 main）/ 隐藏机制真机冒烟 / add_files.py 已闭环 —— 共 9 项均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第19轮_维护机制健在与文档一致性.md / 清理报告_第19轮_round18遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~18 轮→第 7~19 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r19/review，零代码改动（未触发构建/测试/全量回归，第 18 轮收口已实证 147 用例 0 失败，下次全量回归预计第 20 轮隔代触发），未 push，未开新分支/子任务；完成自查 git status 干净 + commit 已提交。
