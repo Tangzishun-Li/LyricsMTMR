@@ -3,7 +3,7 @@
 - 任务：`t_eeddbbf0`（第 7 轮 / 子任务·回归，新链第 1 轮）
 - 验证对象：main = `b405839`（前链 6 轮累计 37 项优化：OPT-1~19 + ITER-1~18 + ITER-20 全部并入）
 - 工作区分支：`lyricsmtmr/r7-regression`
-- 执行时间：2026-08-12 13:0x（+0800）
+- 执行时间：2026-08-12 13:08–13:16（+0800）
 - 环境：macOS 15.7.7 / Xcode 16.4 (16F6) / arm64，Debug 配置，CODE_SIGNING_ALLOWED=NO
 
 ## 1. 执行命令（与官方 CI .github/workflows/build-test.yml 一致）
@@ -14,16 +14,17 @@ xcodebuild build -project LyricsMTMR.xcodeproj -scheme MTMR      -configuration 
 xcodebuild test  -project LyricsMTMR.xcodeproj -scheme UnitTests -configuration Debug -derivedDataPath <dd> CODE_SIGNING_ALLOWED=NO
 ```
 
-> 环境注记：首次执行因另一 worktree 的并发 xcodebuild 占用共享 derivedDataPath
-> `/tmp/LyricsMTMR-dd`（build.db locked，exit 65），改用独立路径 `/tmp/LyricsMTMR-dd-r7`
-> 重跑。属环境并发问题，非代码问题；CI 单 job 场景不受影响。
+> 环境注记：首次执行因并行的重复回归任务 worktree 的 xcodebuild 占用共享
+> derivedDataPath `/tmp/LyricsMTMR-dd`（build.db locked，exit 65），改用独立路径
+> `/tmp/LyricsMTMR-dd-r7reg` 重跑。属环境并发问题，非代码问题；CI 单 job
+> 场景不受影响。
 
 ## 2. 结果摘要
 
 | 步骤 | 命令 | 结果 | exit | 耗时 (real) |
 |---|---|---|---|---|
-| 构建 | xcodebuild build, scheme=MTMR, Debug | **BUILD SUCCEEDED** | 0 | 452.87s（冷 derived data + 并发构建争抢 CPU） |
-| 测试 | xcodebuild test, scheme=UnitTests, Debug | **TEST SUCCEEDED** | 0 | 121.35s（含测试 target 覆盖率编译） |
+| 构建 | xcodebuild build, scheme=MTMR, Debug | **BUILD SUCCEEDED** | 0 | 293.37s（冷 derived data + 并行任务争抢 CPU） |
+| 测试 | xcodebuild test, scheme=UnitTests, Debug | **TEST SUCCEEDED** | 0 | 159.42s（含测试 target 编译） |
 
 ## 3. 单测统计：60 用例，0 失败，0 意外
 

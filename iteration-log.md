@@ -83,8 +83,9 @@
 
 - `t_eeddbbf0` 第 7 轮-回归（main 全量构建 + 单测回归，跨链交界）：✅ 通过。
   于 main=b405839 上按 CI 命令执行 xcodebuild build（MTMR, Debug）+ xcodebuild
-  test（UnitTests, Debug）：BUILD SUCCEEDED（452.9s，冷 derived data）+ TEST
-  SUCCEEDED（121.4s），60 用例 0 失败（含易碎点 testGoldenAnchors2026/2027/
+  test（UnitTests, Debug）：BUILD SUCCEEDED（293.4s，冷 derived data）+ TEST
+  SUCCEEDED（159.4s），60 用例 0 失败（含易碎点 testGoldenAnchors2026/2027/
   Makeup2026 全绿）。前链 37 项优化积累未破坏主干，无代码改动；报告见
-  `回归报告_第7轮_t_eeddbbf0.md`。注：首跑因并发 worktree 共享 /tmp/LyricsMTMR-dd
-  的 build.db 锁定（exit 65），换独立 derivedDataPath 重跑通过，属环境并发非回归。
+  `回归报告_第7轮_t_eeddbbf0.md`。注：首跑因并行重复回归任务共享
+  /tmp/LyricsMTMR-dd 的 build.db 锁定（exit 65），换独立 derivedDataPath
+  （/tmp/LyricsMTMR-dd-r7reg）重跑通过，属环境并发非回归。
