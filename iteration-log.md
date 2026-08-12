@@ -431,3 +431,24 @@
     本记录（iteration-log 追加）+ file-structure.zh.md 登记 1 行；
   - 约束遵守：未动 round11-A/B/C/parent 工作区与 r11-* 分支；未 push 远端（收口由父任务统一推送）；
     未开新分支/新子任务。
+
+---
+
+### 子任务 C：仓库卫生 — round-11 父卡+子卡遗留 worktree/分支清理（t_9b478368，merge-agent，分支 r12/cleanup）
+
+- **t_9b478368 仓库卫生（merge-agent，分支 r12/cleanup）**：
+  - 清理对象：round-11 父卡 t_3bf28bf5 及 3 张子卡遗留 —— worktree `.worktrees/round11-parent`（@ a1daf87，
+    检出分支 r11-parent）+ `.worktrees/round11-A`（r11/review @ 04d3cb8）+ `.worktrees/round11-B`（r11/check
+    @ 72ab579）+ `.worktrees/round11-C`（r11/cleanup @ 1da6ff2），及对应本地分支 4 条（均无远端对应）；
+  - 删除前复核（每项 4 检查，全部通过）：`git branch --merged main` 含全部 4 个 r11 分支（0 ahead，已随
+    bfcecd0 并入 main）+ `merge-base --is-ancestor` 4 分支均通过（r11/* 经 r11-parent 合并，r11-parent 是
+    bfcecd0 的父提交）+ 4 个 worktree 工作区 `status --porcelain` 均为空（干净）+ 远端 heads 仅 main；
+  - 删除动作：`git worktree remove` ×4（无需 --force）→ `git branch -d` ×4（was a1daf87/04d3cb8/72ab579/
+    1da6ff2）→ `git worktree prune`；
+  - 删除后清点（与任务预期逐一吻合）：.worktrees/ 仅剩 round12-parent + round12-A/B/C（4 项，主仓库另计，
+    合计 5 项）；本地分支仅剩 main / r12-parent / r12/review / r12/check / r12/cleanup（5 项）；远端 refs/heads
+    仅 main；`prune --dry-run` 空、`for-each-ref refs/heads` 计数 5（无幽灵）；
+  - 产出：清理报告 `清理报告_第12轮.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录（iteration-log
+    追加）+ file-structure.zh.md 登记 1 行；
+  - 约束遵守：未动 round12-parent/A/B/C 任何工作区与 r12-* 分支；未 push 远端（收口由父任务统一推送）；
+    未开新分支/新子任务。
