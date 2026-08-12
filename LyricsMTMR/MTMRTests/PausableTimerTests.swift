@@ -641,4 +641,229 @@ class PausableTimerTests: XCTestCase {
         XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
                       "resume must restart capture with the latest source")
     }
+
+    // MARK: - Round 22: Weather widgets' location-service pause
+
+    /// Shared counters for the round-22 counting subclasses. A box is used
+    /// (instead of per-item properties) so a deallocated item's deinit
+    /// effects stay observable after the item is released.
+    private final class LocationCounts {
+        private let lock = NSLock()
+        private var _startCount = 0
+        private var _stopCount = 0
+        private var _refreshCount = 0
+
+        var startCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return _startCount
+        }
+
+        var stopCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return _stopCount
+        }
+
+        var refreshCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return _refreshCount
+        }
+
+        func start() {
+            lock.lock()
+            _startCount += 1
+            lock.unlock()
+        }
+
+        func stop() {
+            lock.lock()
+            _stopCount += 1
+            lock.unlock()
+        }
+
+        func refresh() {
+            lock.lock()
+            _refreshCount += 1
+            lock.unlock()
+        }
+    }
+
+    /// WeatherBarItem subclass counting the location lifecycle and weather
+    /// refreshes. startLocationUpdates()/stopLocationUpdates()/updateWeather()
+    /// and the location permission gate are overridden to count only — no
+    /// real CLLocationManager updates, network requests or reverse
+    /// geocoding is touched (the seams are internal since round 22, same
+    /// pattern as CountingSpectrumItem).
+    private final class CountingWeatherItem: WeatherBarItem {
+        private let counts: LocationCounts
+
+        init(counts: LocationCounts, identifier: NSTouchBarItem.Identifier, interval: TimeInterval,
+             apiSource: String = "openweather", cities: [String] = []) {
+            self.counts = counts
+            super.init(identifier: identifier, interval: interval, units: "metric", api_key: "",
+                       icon_type: "text", apiSource: apiSource, cities: cities,
+                       showHumidity: false, showWind: false)
+            // NSBackgroundActivityScheduler 的首次触发不遵守 interval 下限，
+            // 会污染刷新计数——invalidate 隔离（被测对象是定位暂停语义，
+            // 调度器不在本卡范围）。
+            activity.invalidate()
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func locationServicesUsable() -> Bool { true }
+
+        override func startLocationUpdates() { counts.start() }
+
+        override func stopLocationUpdates() { counts.stop() }
+
+        override func updateWeather() { counts.refresh() }
+    }
+
+    /// YandexWeatherBarItem counterpart of CountingWeatherItem.
+    private final class CountingYandexWeatherItem: YandexWeatherBarItem {
+        private let counts: LocationCounts
+
+        init(counts: LocationCounts, identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
+            self.counts = counts
+            super.init(identifier: identifier, interval: interval)
+            // 同 CountingWeatherItem：隔离系统调度器的首触发污染。
+            activity.invalidate()
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func locationServicesUsable() -> Bool { true }
+
+        override func startLocationUpdates() { counts.start() }
+
+        override func stopLocationUpdates() { counts.stop() }
+
+        override func updateWeather() { counts.refresh() }
+    }
+
+    func testWeatherBarItemLocationPauseStopsResumeRestartsAndRefreshes() {
+        let counts = LocationCounts()
+        let item = CountingWeatherItem(counts: counts, identifier: testIdentifier, interval: 60)
+        XCTAssertEqual(counts.startCount, 1,
+                       "init must start location updates exactly once")
+        XCTAssertEqual(counts.refreshCount, 1,
+                       "init calls updateWeather() once (a no-op without a location fix)")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+                      "hiding the bar must stop location updates (GPS off, privacy light out)")
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.startCount, 1,
+                       "pause must not restart location updates")
+        XCTAssertEqual(counts.refreshCount, 1,
+                       "pause must not refresh weather")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+                      "showing the bar must restart location updates")
+        XCTAssertEqual(counts.refreshCount, 2,
+                       "resume must refresh weather immediately with the cached location")
+    }
+
+    func testWeatherBarItemLocationPauseBroadcastIsIdempotent() {
+        let counts = LocationCounts()
+        let item = CountingWeatherItem(counts: counts, identifier: testIdentifier, interval: 60)
+        XCTAssertEqual(counts.startCount, 1)
+
+        // presentTouchBar broadcasts setPaused(false) to every item, even
+        // ones that were never paused — that must not restart anything.
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.startCount, 1,
+                       "resume broadcast on a never-paused item must not restart location")
+        XCTAssertEqual(counts.stopCount, 0,
+                       "resume broadcast must not stop location either")
+        XCTAssertEqual(counts.refreshCount, 1,
+                       "resume broadcast on a never-paused item must not refresh")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+                      "first pause must stop location updates")
+        // A repeated dismiss broadcast must not double-stop.
+        item.setPaused(true)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.stopCount, 1,
+                       "repeated pause broadcast must not double-stop")
+        XCTAssertEqual(counts.startCount, 1,
+                       "repeated pause broadcast must not restart location")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+                      "first real resume must restart location updates")
+        XCTAssertEqual(counts.refreshCount, 2,
+                       "resume must refresh weather exactly once")
+        // A second present broadcast stays a no-op.
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.startCount, 2,
+                       "repeated resume broadcast must not restart location again")
+        XCTAssertEqual(counts.refreshCount, 2,
+                       "repeated resume broadcast must not refresh again")
+    }
+
+    func testYandexWeatherBarItemLocationPauseResume() {
+        let counts = LocationCounts()
+        let item = CountingYandexWeatherItem(counts: counts, identifier: testIdentifier, interval: 60)
+        XCTAssertEqual(counts.startCount, 1,
+                       "init must start location updates exactly once")
+        XCTAssertEqual(counts.refreshCount, 1,
+                       "init calls updateWeather() once")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+                      "hiding the bar must stop location updates")
+        item.setPaused(true)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.stopCount, 1,
+                       "repeated pause broadcast must not double-stop")
+        XCTAssertEqual(counts.startCount, 1,
+                       "pause must not restart location")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+                      "showing the bar must restart location updates")
+        XCTAssertEqual(counts.refreshCount, 2,
+                       "resume must refresh weather immediately")
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.startCount, 2,
+                       "repeated resume broadcast must not restart location again")
+    }
+
+    func testWeatherBarItemChinaCityModeIgnoresPauseBroadcasts() {
+        let counts = LocationCounts()
+        let item = CountingWeatherItem(counts: counts, identifier: testIdentifier, interval: 60,
+                                       apiSource: "china", cities: ["成都"])
+        XCTAssertEqual(counts.startCount, 0,
+                       "china mode with an explicit city list never starts location updates")
+
+        item.setPaused(true)
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counts.startCount, 0,
+                       "pause/resume broadcasts must stay no-ops when no manager exists")
+        XCTAssertEqual(counts.stopCount, 0,
+                       "pause broadcast must not stop anything when no manager exists")
+    }
+
+    func testWeatherBarItemDeinitStopsLocationAndReleases() {
+        let counts = LocationCounts()
+        var item: CountingWeatherItem? = CountingWeatherItem(counts: counts, identifier: testIdentifier, interval: 60)
+        XCTAssertEqual(counts.startCount, 1)
+        weak var weakItem = item
+
+        item = nil
+        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+                      "deinit must stop location updates (manager cleanup)")
+        XCTAssertNil(weakItem,
+                     "item must deallocate — the activity scheduler closure must not retain it (round 22 weak-self fix)")
+    }
 }

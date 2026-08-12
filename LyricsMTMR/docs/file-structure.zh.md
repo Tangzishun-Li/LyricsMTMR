@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~21 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~22 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -170,6 +170,7 @@ mindmap
 ├── 清理报告_第21轮_round20遗留清理.md          # 第 21 轮子任务 C 仓库卫生报告（round-20 父卡+子卡遗留 worktree/分支清理，r21/review）
 ├── 验证报告_第21轮_ClipboardHistory事件驱动化.md # 第 21 轮子任务 A 验证报告（ClipboardHistory 事件驱动化评估：NSPasteboard.observe 公开 SDK 不存在（编译/头文件/官方文档三重证伪）+ 四种替代事件机制实测全灭 → changeCount 轮询为唯一机制；落地变更源抽象 ClipboardChangeSource（测试注入假源直驱捕获路径）+ 浮层打开即时对齐 + pollInterval 可注入，隐藏期零丢失不可达如实记录，169 用例实证，r21/feature；新增测试 MTMRTests/ClipboardHistoryTests.swift）
 ├── 验证报告_第21轮_AudioSpectrum采集链隐藏期治理.md # 第 21 轮子任务 B 验证报告（AudioSpectrum 采集链纳入隐藏暂停：SCK system tap / mic engine 隐藏期零采集、恢复重启采集并立即补刷，SystemAudioTap stopped 取消标记防孤儿流，独立 capturePauseGate 广播幂等，TCC 持久授权零重弹风险实证，166 用例实证，r21/audio）
+├── 验证报告_第22轮_天气widget定位服务隐藏期治理.md # 第 22 轮子任务 B 验证报告（WeatherBarItem/YandexWeatherBarItem 定位服务纳入隐藏暂停：隐藏期 stopUpdatingLocation（GPS 关闭、隐私指示灯熄灭）、恢复重启定位+立即补刷天气；locationPauseGate 广播幂等 + locationTrackingEnabled init 期守卫（城市模式/权限拒绝广播 no-op）+ start/stop 定位接缝 internal 单测注入；TCC 持久授权零重弹风险实证（stop/start 不重弹窗）；WeatherBarItem activity 闭包 [weak self] 断永久循环引用（deinit 可达并停定位，配置热重载旧 item 泄漏放大器根治）；TouchBarController 零改动，177 用例实证，r22/location）
 
 └── .gitignore / .gitattributes / README.md
 ```
