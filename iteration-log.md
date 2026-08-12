@@ -126,3 +126,28 @@
   （kanban_db.py 三处 git 输出解析改 rstrip("\n")，dispatcher 重启后生效）并以预建
   worktree + dir 工作区绕过重发。修复前被归档的 4 张卡在 dispatcher 重启后自动重派并
   各自完成（产生重复交付物，内容与本批一致，未并入 main；分支/工作区由父任务统一清理）。
+
+---
+
+## 第 8 轮（本链第 2 轮）
+
+### 子任务记录
+
+- **t_25fc1988 收尾清理：根目录调研报告与 backup/ 重复副本 + 残留工作区（merge-agent，
+  分支 r8/cleanup）**：
+  - 根目录与 backup/ 重复副本：删除根目录 `调研报告_生命周期窗口保留_t_705ecd03.md`
+    （与 backup/ 内同名文件哈希一致 fec0d21a，backup/ 作为 pre-opt 存档保留，两处引用
+    均指向 backup/ 侧，删除后引用仍有效）；
+  - 无空格报告工作区（/Users/litz/codespace/MTMR with LyricsX，非 git）收尾：删除 14 份
+    pre-opt 调研报告（与 backup/ 存档逐字节一致）+ 回归/核验第 7 轮报告 2 份重复副本
+    （与仓库根 git 跟踪版哈希一致）+ pr_body_opt7_karaoke.md（OPT-6/7 已合并 PR 的草稿，
+    内容已含于归档的 OPT 任务清单）；移除 r7-hygiene-ws/、r7-triage-ws/ 残留子卡工作区
+    （报告内容已提升至工作区根保留，日志追记已并入本文件第 7 轮记录）；删除 docs/ 下
+    过期草稿 iteration-plan.md（仓库版超集）与 optimization-plan.md.bak-20260812-premerge
+    （premerge 旧稿，总览表为最终版子集）；
+  - 唯一副本归档：工作区 docs/optimization-plan.md（OPT-1~19 任务清单，仓库内无历史
+    副本）归档至 `backup/优化计划_OPT任务清单.md`，backup-note.md 计数 16→17 同步；
+  - 无空格工作区保留近期报告 3 份：清理报告_第7轮卫生_t_7b8debf5.md、triage-report.md、
+    分支盘点与合并报告_t12c217be.md；
+  - file-structure.zh.md 清单同步（backup/ 计数 16→17、移除根目录调研报告行）；
+    清理报告见 `清理报告_第8轮收尾_r8-cleanup.md`，删除明细含哈希清单。

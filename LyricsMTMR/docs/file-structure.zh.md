@@ -95,9 +95,8 @@ mindmap
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
 │   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 │   └── archive/                      # 死代码归档（duplicate-LyricsRendering、dead-functions…）
-├── backup/                          # 优化前调研文档归档（16 份，存档点 pre-opt-20260812-0114）
+├── backup/                          # 优化前调研文档归档（17 份，存档点 pre-opt-20260812-0114；第8轮收尾新增 优化计划_OPT任务清单.md）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
-├── 调研报告_生命周期窗口保留_t_705ecd03.md   # 存档点遗留（与 backup/ 内同名文件为副本，收口时评估清理）
 └── .gitignore / .gitattributes / README.md
 ```
 
