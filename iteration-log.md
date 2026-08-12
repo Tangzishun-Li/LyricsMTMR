@@ -362,6 +362,7 @@
   - 交付：清理报告 `清理报告_第10轮卫生_r10-cleanup.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录
     （iteration-log 追加）+ file-structure.zh.md 登记 1 行。
 
+<<<<<<< HEAD
 ## 第 11 轮（本链第 5 轮）
 
 ### 子任务 A：年度维护核验（第 5 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（t_8a25938b，review-agent，分支 r11/review）
@@ -373,3 +374,25 @@
   - d) 0 open PR（gh pr list 实测）；origin/main = 0727066（ls-remote 实证 07270661671c…，第 10 轮收口 push 完好）；
   - 文档一致性抽查：iteration-log 第 10 轮收口 ↔ iteration-plan 第八节收敛结论（:397-413）↔ main 提交图（623a24c r10-cleanup → 93afaea r10-review 冲突解决 → da87191 r10-check 冲突解决 → 29cf6e6 父收口 → 565a8eb file-structure 去重 → 0727066 r10-parent 收口合入）三者交叉核对一致，无漂移；A/B/C 子任务记录并列齐全无冲突残留标记；提交信息标签本轮无新增偏差；
   - 遗留观察：① 沿袭「15/27 个 2027 节日日期」日志口径 vs 实际 32 日期（本轮全覆盖复核星期全对，建议后续轮次统一以 32 为准）；② 沿袭 issue #1/#40 维持 OPEN、ITER-15 决策门 4 问待用户、README MediaRemote 风险说明待补（README 仅 :49 提及）；③ 沿袭内存修复真机冒烟 3 项挂账（无真机条件）；④ ITER-14 2026-11 前无动作符合预期。报告见 `核验报告_第11轮_维护机制健在与文档一致性.md`（本分支根目录）。
+
+---
+
+### 子任务 B：收尾核对 — 遗留问题清单复核 + GitHub 状态复核（t_93134b14，merge-agent，分支 r11/check）
+
+- **t_93134b14 收尾核对（merge-agent，分支 r11/check，基于 main@0727066）**：
+  - GitHub 状态复核 4/4 符合：issue #1 OPEN + 1 条评论（=第 8 轮回复「感谢反馈！…」，无新动态）；
+    issue #40 OPEN（backlog，0 评论）；open PR 0（gh pr list 实测）；origin/main = 0727066
+    （ls-remote 实证 07270661671c7…，第 10 轮收口 push 完好）；
+  - 遗留 6 项逐一复核（与第 10 轮分类逐项一致，状态零变化）：① issue #1 待用户 15.7 真机验证
+    → 待用户确认；② ITER-15 使用场景 4 问（iteration-plan :238/:393/:406 三处「可选项/维持可选项/
+    可选观察」实测在案）→ 待用户确认；③ ITER-14 第 5 次核验由子任务 A（t_8a25938b，review-agent，
+    running）覆盖，板面实测确认 → 已闭环；④ README 补 MediaRemote 风险说明仍未实施（README 无 FAQ
+    章节/15.4+ 段落，仅 :49 集成列表提及）→ 继续跟踪；⑤ D1 注释陈旧 → main@0727066 实测已修正
+    （UnifiedSettingsWindowController.swift:113-116「默认 1 小时（settingsWindowIdleGCSeconds = 3600）」，
+    第 10 轮修正已随 0727066 入 main）→ 已闭环；⑥ 内存修复真机冒烟 3 项（出处：回归报告_第9轮 :89-92）
+    挂账（无真机执行条件）→ 继续跟踪；
+  - 归档一致性抽查：backup/ 17 份 ✅、docs/ 5 文件 ✅、根目录 12 份报告 vs backup/ 无同名重复 ✅、
+    mindmap「第 7~10 轮」与现状一致 ✅；file-structure.zh.md 目录树缺登记 `核对报告_第10轮_收尾核对.md`
+    （第 10 轮预登记 3 份仅落实 2 份）→ 已就地补登记（纯文档，第 10 轮三份报告现已连续成组）；
+  - 本轮零代码改动（纯文档交付）；未 push（父任务收口统一合并）；
+  - 交付：核对报告 `核对报告_第11轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
