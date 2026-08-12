@@ -23,7 +23,10 @@ class CurrencyBarItem: CustomButtonTouchBarItem, TBPollPausable {
     /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
     /// bar 隐藏（黑名单 app / exitTouchbar）期间零网络请求，恢复后调度器
     /// 按原 interval 继续 + setPaused(false) 立即补刷一次。
-    private let pollGate = TBPauseGate()
+    /// round 23：init 播种全局隐藏态——重建恰发生在 bar 隐藏期间时 gate
+    /// 初始即暂停，init 单次 fetch（updateCurrency）被守卫拦截零请求，
+    /// 恢复广播（setPaused(false)）负责补刷。
+    private let pollGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
 
     private let currencies = [
         "USD": "$",

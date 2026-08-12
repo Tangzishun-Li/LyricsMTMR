@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~22 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~23 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -175,6 +175,10 @@ mindmap
 ├── 核验报告_第22轮_维护机制健在与文档一致性.md # 第 22 轮核验报告（第 16 次年度维护核验，r22/review；行号引用连续两轮零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=b46116b 同步）
 ├── 清理报告_第22轮_round21遗留清理.md          # 第 22 轮子任务 C 仓库卫生报告（round-21 父卡+子卡遗留 worktree/分支清理，r22/review）
 ├── 验证报告_第22轮_天气widget定位服务隐藏期治理.md # 第 22 轮子任务 B 验证报告（WeatherBarItem/YandexWeatherBarItem 定位服务纳入隐藏暂停：隐藏期 stopUpdatingLocation（GPS 关闭、隐私指示灯熄灭）、恢复重启定位+立即补刷天气；locationPauseGate 广播幂等 + locationTrackingEnabled init 期守卫（城市模式/权限拒绝广播 no-op）+ start/stop 定位接缝 internal 单测注入；TCC 持久授权零重弹风险实证（stop/start 不重弹窗）；WeatherBarItem activity 闭包 [weak self] 断永久循环引用（deinit 可达并停定位，配置热重载旧 item 泄漏放大器根治）；TouchBarController 零改动，177 用例实证，r22/location）
+├── 核验报告_第23轮_维护机制健在与文档一致性.md # 第 23 轮核验报告（第 17 次年度维护核验，r23/review；行号引用连续三轮零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=8b15f98 同步）
+├── 清理报告_第23轮_round22遗留清理.md          # 第 23 轮子任务 C 仓库卫生报告（round-22 父卡+子卡遗留 worktree/分支清理，r23/review）
+├── 验证报告_第23轮_全局隐藏态注入与重建覆盖.md # 第 23 轮子任务 A 验证报告（隐藏期重建治理收官：TouchBarVisibilityState 全局隐藏态注册表（present/dismiss 驱动、初始态可见）+ createItems 重建覆盖 guard + init 隐藏态注入——TBPollItem/TBMetricPopoverItem 隐藏期重建零 compute 初始 fetch 跳过、恢复零延迟补刷（runImmediateCycle + _needsInitialRefresh 陈旧补刷丢弃）；Currency/Weather/Yandex/UpNext gate 播种全局态 init fetch 零请求、天气类隐藏期重建 GPS 不亮；广播协议零破坏逐字节等价，192 用例实证，r23/feature；新增测试 MTMRTests/GlobalHiddenStateTests.swift）
+├── 验证报告_第23轮_WeatherTabView定位生命周期治理.md # 第 23 轮子任务 B 验证报告（WeatherTabView 定位添加城市生命周期治理：locateAndAddCity resolve/超时/视图消失三路径停 manager——提取 WeatherLocationSession 会话封装（LocationProviding/GeocodingProviding 双抽象缝，假源+MKPlacemark 假 geocoder 零硬件零网络），resolve 当拍停定位、超时 stop、stop 幂等+丢弃在途 geocode；onDisappear 在本架构不可靠（关窗=orderOut 隐藏复用/切页=ZStack 常驻）改用 SettingsWindowState.isVisible+activeTab 等价生命周期；stopUpdatingLocation 每会话恰一次契约 + deinit 兜底；权限拒绝路径保持原超时文案、requestLocation+startUpdatingLocation 并存语义不破，195 用例实证，r23/location-fix；新增源码 MTMR/Preferences/WeatherLocationSession.swift + 测试 MTMRTests/WeatherLocationSessionTests.swift）
 
 └── .gitignore / .gitattributes / README.md
 ```

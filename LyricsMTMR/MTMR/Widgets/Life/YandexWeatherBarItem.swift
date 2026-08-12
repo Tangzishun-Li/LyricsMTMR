@@ -48,14 +48,18 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate,
     /// bar 隐藏（黑名单 app / exitTouchbar）期间零网络请求（含定位回调、
     /// 授权变更触发的刷新入口，全部经 updateWeather 顶部守卫拦截），
     /// 恢复后调度器按原 interval 继续 + setPaused(false) 立即补刷一次。
-    private let pollGate = TBPauseGate()
+    /// round 23：init 播种全局隐藏态——重建恰发生在 bar 隐藏期间时 gate
+    /// 初始即暂停，init 单次 fetch（updateWeather）零请求，恢复广播补刷。
+    private let pollGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
 
     /// 定位暂停门（round 22 B 卡）：整条 bar 隐藏（黑名单 app / exitTouchbar）时
     /// 停止定位更新——GPS 关闭、隐私指示灯熄灭；恢复时重启定位并立即补刷
     /// 天气。独立 gate——presentTouchBar 广播会对从未暂停过的 item 也调
     /// setPaused(false)，必须按「状态实际变化」决定是否重启定位（重复广播
     /// 零副作用，同 round 21 capturePauseGate 模式）。
-    private let locationPauseGate = TBPauseGate()
+    /// round 23：init 播种全局隐藏态（与 pollGate 同步），隐藏期重建时
+    /// init 不启动定位（GPS 不亮），恢复广播统一重启 + 补刷。
+    private let locationPauseGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
 
     init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
         activity = NSBackgroundActivityScheduler(identifier: "\(identifier.rawValue).updatecheck")
@@ -76,7 +80,12 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate,
         updateWeather()
 
         locationTrackingEnabled = true
-        startLocationUpdates()
+        // Round 23: created while the bar is hidden — do not start location
+        // (GPS + privacy indicator would stay on for nothing); the resume
+        // broadcast restarts it as catch-up.
+        if !locationPauseGate.isPaused {
+            startLocationUpdates()
+        }
         
         if actions.filter({ $0.trigger == .singleTap }).isEmpty {
             actions.append(ItemAction(trigger: .singleTap) { [weak self] in
