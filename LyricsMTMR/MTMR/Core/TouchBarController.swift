@@ -287,6 +287,25 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return mode == .disabled ? nil : mode
     }
 
+    /// Pure show/hide decision for a preset item (TECHNICAL_DEBT ③).
+    ///
+    /// The only per-item hiding rule in presets is the `matchAppId` general
+    /// parameter: an item carrying it is created only while the frontmost
+    /// app's bundle id matches the regex. Items without the rule — or when no
+    /// frontmost app is known — always show. An invalid regex degrades to
+    /// "show" (logged), matching the historical behavior of `createItems()`.
+    /// Kept free of AppKit/state so it is unit-testable.
+    static func shouldShowItem(_ definition: BarItemDefinition, frontmostAppId: String?) -> Bool {
+        guard let frontApp = frontmostAppId else { return true }
+        guard case let .matchAppId(regexString)? = definition.additionalParameters[.matchAppId] else { return true }
+        guard let regex = try? NSRegularExpression(pattern: regexString) else {
+            AppLog.error("matchAppId 正则无效，该 item 将始终显示（可在设置面板修正）：\"\(regexString)\"")
+            return true
+        }
+        let range = NSRange(location: 0, length: frontApp.count)
+        return regex.firstMatch(in: frontApp, range: range) != nil
+    }
+
     /// Items that failed to create — tracked so we can log and surface errors
     private(set) var failedItemIds: [NSTouchBarItem.Identifier] = []
 
@@ -649,22 +668,9 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         swipeItems = []
 
         for (identifier, definition) in itemDefinitions {
-            var show = true
-            
-            if let frontApp = frontmostApplicationIdentifier {
-                if case let .matchAppId(regexString)? = definition.additionalParameters[.matchAppId] {
-                    if let regex = try? NSRegularExpression(pattern: regexString) {
-                        let range = NSRange(location: 0, length: frontApp.count)
-                        if regex.firstMatch(in: frontApp, range: range) == nil {
-                            show = false
-                        }
-                    } else {
-                        AppLog.error("matchAppId 正则无效，该 item 将始终显示（可在设置面板修正）：\"\(regexString)\"")
-                    }
-                }
-            }
-            
-            if show {
+            // Hide decision is centralized in shouldShowItem (TECHNICAL_DEBT ③):
+            // matchAppId rule → only create while the frontmost app matches.
+            if Self.shouldShowItem(definition, frontmostAppId: frontmostApplicationIdentifier) {
                 // Items are constructed synchronously on the calling (main)
                 // thread. AppKit requires view creation on the main thread;
                 // the previous design built items on a background queue while
@@ -881,6 +887,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 var newSwipeItems: [SwipeItem] = []
                 var newFailed: [NSTouchBarItem.Identifier] = []
                 for (theId, def) in newDefs {
+                    // Same hide decision as the sync path (createItems) — see
+                    // shouldShowItem / TECHNICAL_DEBT ③. The async path used
+                    // to bypass matchAppId, so app-filtered items reappeared
+                    // after theme switches; both paths must agree.
+                    guard Self.shouldShowItem(def, frontmostAppId: self.frontmostApplicationIdentifier) else { continue }
                     if let item = self.createItemSafely(forIdentifier: theId, definition: def) {
                         if let swipe = item as? SwipeItem {
                             newSwipeItems.append(swipe)
