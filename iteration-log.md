@@ -702,3 +702,17 @@
   - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16b-test）**TEST SUCCEEDED —— 129 用例 0 失败 0 意外**（118 基线 + 新增 11 全过，xcresult 实证，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已实证 118 用例基线）；
   - 文档：TECHNICAL_DEBT.md 三条状态标注（① ② 已评估-暂缓附现状与前置条件，③ 已落地）+ 验证报告《验证报告_第16轮_技术债评估与落地.md》（本分支根目录）+ file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r16/techdebt 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；新增测试文件 pbxproj 手工注册（add_files.py 锚点过期，第 15 轮遗留⑧）；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 17 轮（功能/优化迭代第 5 轮）
+
+### 子任务记录
+
+- **t_9c0de9ca 隐藏机制性能跟进（code-agent，分支 r17/feature）**：
+  - 落地第 16 轮隐藏机制（TECHNICAL_DEBT ③）的性能细节跟进：`shouldShowItem(_:frontmostAppId:)` 原对每个带 matchAppId 的 item、每次评估（前台应用切换/主题切换全量评估）都执行 `try? NSRegularExpression(pattern:)` 重编译正则——同一 regexString 反复编译纯浪费。新增有界、线程安全的 `MatchAppIdRegexCache`（TouchBarController.swift 文件尾，未开新文件零 pbxproj 注册）：按 regexString 缓存编译结果（`maxEntries` 128 封顶 + FIFO 淘汰最旧，128 ≈ 一份 114 全集预设 + 第二份交替余量；NSLock 全临界区串行化——`shouldShowItem` 为静态纯函数测试可任意线程调用，锁代价远小于编译且可断言「并发下每 pattern 恰好编译一次」；**不做负缓存**——无效正则仍每次评估重新尝试编译并记日志，与缓存前日志频次逐字节一致）；`shouldShowItem` 仅一行替换接入缓存（静态共享实例 `matchAppIdRegexCache`）；顺带把两条调用路径（同步 createItems :673 / 异步 reloadPresetAsync :894）循环体内重复取值的 `frontmostApplicationIdentifier` 提出循环（同步循环内该值不可能变，取一次与 114 次等价）——两条路径各自每轮评估只取一次；
+  - 等价性：无规则/nil 前台/有效匹配/不匹配/无效降级 5 分支逐一比对语义不变，仅编译频次下降；缓存淘汰后复用重新编译（编译是无状态纯操作）结果等价；
+  - 单测：`BarItemVisibilityTests.swift` 同文件新增 `MatchAppIdRegexCacheTests` 类 5 用例（同文件免 pbxproj 注册）：重复评估编译一次（compileCount==1 命中复用）/不同 pattern 各自编译/无效正则不缓存仍降级显示（compileCount==2 证明无负缓存）/容量封顶 128 + 淘汰后重编译/200 次并发评估 × 20 pattern（concurrentPerform）结果全对且 compileCount==20（锁串行化恰好一次）；setUp/tearDown reset 隔离，既有 11 用例不受影响；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17b-test）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug）**TEST SUCCEEDED —— 134 用例 0 失败 0 意外**（129 基线 + 新增 5 全过，BarItemVisibilityTests 11 / BarItemFactoryTests 18 全绿，金丝雀锚点全绿）；本轮不触发全量回归（父任务未安排回归卡，基线 129 用例）；
+  - 文档：TECHNICAL_DEBT.md ③ 条目追加第 17 轮跟进标注 + 验证报告《验证报告_第17轮_隐藏机制正则缓存优化.md》（本分支根目录，含热点分析/形态选择表/变更明细/等价性论证表/单测清单/风险点）+ file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 本报告登记）；本记录即 iteration-log 追加；
+  - 约束遵守：仅本工作区与 r17/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。

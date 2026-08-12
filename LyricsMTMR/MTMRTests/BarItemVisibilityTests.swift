@@ -119,3 +119,107 @@ class BarItemVisibilityTests: XCTestCase {
         XCTAssertTrue(TouchBarController.shouldShowItem(defs!.first!, frontmostAppId: "com.apple.Safari"))
     }
 }
+
+// MARK: - matchAppId regex compile cache (round 17 performance follow-up)
+
+/// Round 17 (B): the `shouldShowItem` decision routes `matchAppId` regex
+/// compilation through the bounded, thread-safe `MatchAppIdRegexCache`
+/// (compile once per distinct pattern, reuse on every evaluation). These
+/// tests pin the cache contract: hit reuse, per-pattern compilation, no
+/// negative caching of invalid patterns, capacity bounding, and safe
+/// concurrent use.
+class MatchAppIdRegexCacheTests: XCTestCase {
+
+    override func setUp() {
+        super.setUp()
+        TouchBarController.matchAppIdRegexCache.reset()
+    }
+
+    override func tearDown() {
+        TouchBarController.matchAppIdRegexCache.reset()
+        super.tearDown()
+    }
+
+    private func makeDefinition(params: [GeneralParameters.CodingKeys: GeneralParameter] = [:]) -> BarItemDefinition {
+        BarItemDefinition(type: .staticButton(title: "t"), actions: [], action: .none,
+                          legacyLongAction: .none, additionalParameters: params)
+    }
+
+    // MARK: - Cache hit: compile once, reuse
+
+    func testRepeatedEvaluationsReuseCompiledRegex() {
+        let def = makeDefinition(params: [.matchAppId: .matchAppId("com.apple.Safari")])
+        XCTAssertTrue(TouchBarController.shouldShowItem(def, frontmostAppId: "com.apple.Safari"))
+        XCTAssertFalse(TouchBarController.shouldShowItem(def, frontmostAppId: "com.google.Chrome"))
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.compileCount, 1,
+                       "同一 regexString 多次评估应只编译一次（命中缓存复用）")
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.count, 1)
+    }
+
+    func testDistinctPatternsCompiledSeparately() {
+        XCTAssertTrue(TouchBarController.shouldShowItem(
+            makeDefinition(params: [.matchAppId: .matchAppId("Safari")]), frontmostAppId: "com.apple.Safari"))
+        XCTAssertTrue(TouchBarController.shouldShowItem(
+            makeDefinition(params: [.matchAppId: .matchAppId("^com\\.apple\\..*")]), frontmostAppId: "com.apple.Safari"))
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.compileCount, 2,
+                       "不同 regexString 应各自编译一次")
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.count, 2)
+    }
+
+    // MARK: - Invalid patterns: never cached, behavior unchanged
+
+    func testInvalidRegexIsNotCachedAndStillShows() {
+        let def = makeDefinition(params: [.matchAppId: .matchAppId("[")])
+        XCTAssertTrue(TouchBarController.shouldShowItem(def, frontmostAppId: "com.apple.Safari"))
+        XCTAssertTrue(TouchBarController.shouldShowItem(def, frontmostAppId: "com.apple.Safari"))
+        // 无效正则不做负缓存：每次评估仍重新尝试编译（并记日志），与缓存前行为一致
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.compileCount, 2)
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.count, 0,
+                       "无效正则不应进入缓存")
+    }
+
+    // MARK: - Capacity: bounded with FIFO eviction
+
+    func testCacheBoundedByMaxEntries() {
+        let cache = TouchBarController.matchAppIdRegexCache
+        for i in 0..<(MatchAppIdRegexCache.maxEntries + 10) {
+            XCTAssertTrue(TouchBarController.shouldShowItem(
+                makeDefinition(params: [.matchAppId: .matchAppId("com.example.app\(i)")]),
+                frontmostAppId: "com.example.app\(i)"))
+        }
+        XCTAssertEqual(cache.count, MatchAppIdRegexCache.maxEntries,
+                       "缓存容量应封顶在 maxEntries（FIFO 淘汰最旧）")
+        XCTAssertEqual(cache.compileCount, MatchAppIdRegexCache.maxEntries + 10)
+        // 被淘汰的最旧 pattern 再次使用时重新编译，而非命中过期条目
+        XCTAssertTrue(TouchBarController.shouldShowItem(
+            makeDefinition(params: [.matchAppId: .matchAppId("com.example.app0")]),
+            frontmostAppId: "com.example.app0"))
+        XCTAssertEqual(cache.compileCount, MatchAppIdRegexCache.maxEntries + 11)
+        XCTAssertEqual(cache.count, MatchAppIdRegexCache.maxEntries)
+    }
+
+    // MARK: - Concurrency: safe, exactly-once compilation per pattern
+
+    func testConcurrentEvaluationsCompileEachPatternOnce() {
+        let patternCount = 20
+        let iterations = 200
+        let defs = (0..<patternCount).map {
+            makeDefinition(params: [.matchAppId: .matchAppId("com.example.app\($0)")])
+        }
+        var mismatches = 0
+        let resultLock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: iterations) { i in
+            let def = defs[i % patternCount]
+            let ok = TouchBarController.shouldShowItem(def, frontmostAppId: "com.example.app\(i % patternCount)")
+            if !ok {
+                resultLock.lock()
+                mismatches += 1
+                resultLock.unlock()
+            }
+        }
+        XCTAssertEqual(mismatches, 0, "并发评估下所有匹配结果应正确")
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.compileCount, patternCount,
+                       "并发下每个不同 pattern 仍应恰好编译一次（锁串行化编译）")
+        XCTAssertEqual(TouchBarController.matchAppIdRegexCache.count, patternCount)
+    }
+}

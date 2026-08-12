@@ -298,13 +298,19 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     static func shouldShowItem(_ definition: BarItemDefinition, frontmostAppId: String?) -> Bool {
         guard let frontApp = frontmostAppId else { return true }
         guard case let .matchAppId(regexString)? = definition.additionalParameters[.matchAppId] else { return true }
-        guard let regex = try? NSRegularExpression(pattern: regexString) else {
+        guard let regex = matchAppIdRegexCache.regex(for: regexString) else {
             AppLog.error("matchAppId 正则无效，该 item 将始终显示（可在设置面板修正）：\"\(regexString)\"")
             return true
         }
         let range = NSRange(location: 0, length: frontApp.count)
         return regex.firstMatch(in: frontApp, range: range) != nil
     }
+
+    /// Shared compiled-regex cache for the `matchAppId` rules in
+    /// `shouldShowItem` (round-17 performance follow-up to TECHNICAL_DEBT ③).
+    /// Static because `shouldShowItem` is a pure decision function shared by
+    /// the sync (createItems) and async (reloadPresetAsync) evaluation paths.
+    static let matchAppIdRegexCache = MatchAppIdRegexCache()
 
     /// Items that failed to create — tracked so we can log and surface errors
     private(set) var failedItemIds: [NSTouchBarItem.Identifier] = []
@@ -667,10 +673,14 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         items = [:]
         swipeItems = []
 
+        // frontmostApplicationIdentifier is fetched once per pass: it cannot
+        // change inside this synchronous loop, and every shouldShowItem
+        // decision below shares the same value (was re-fetched per item).
+        let frontmostAppId = frontmostApplicationIdentifier
         for (identifier, definition) in itemDefinitions {
             // Hide decision is centralized in shouldShowItem (TECHNICAL_DEBT ③):
             // matchAppId rule → only create while the frontmost app matches.
-            if Self.shouldShowItem(definition, frontmostAppId: frontmostApplicationIdentifier) {
+            if Self.shouldShowItem(definition, frontmostAppId: frontmostAppId) {
                 // Items are constructed synchronously on the calling (main)
                 // thread. AppKit requires view creation on the main thread;
                 // the previous design built items on a background queue while
@@ -886,12 +896,16 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 var newItemsDict: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
                 var newSwipeItems: [SwipeItem] = []
                 var newFailed: [NSTouchBarItem.Identifier] = []
+                // frontmostApplicationIdentifier is fetched once per pass (it
+                // cannot change inside this synchronous loop) and shared by
+                // every shouldShowItem decision below.
+                let frontmostAppId = self.frontmostApplicationIdentifier
                 for (theId, def) in newDefs {
                     // Same hide decision as the sync path (createItems) — see
                     // shouldShowItem / TECHNICAL_DEBT ③. The async path used
                     // to bypass matchAppId, so app-filtered items reappeared
                     // after theme switches; both paths must agree.
-                    guard Self.shouldShowItem(def, frontmostAppId: self.frontmostApplicationIdentifier) else { continue }
+                    guard Self.shouldShowItem(def, frontmostAppId: frontmostAppId) else { continue }
                     if let item = self.createItemSafely(forIdentifier: theId, definition: def) {
                         if let swipe = item as? SwipeItem {
                             newSwipeItems.append(swipe)
@@ -1101,5 +1115,74 @@ extension BarItemDefinition {
             return result
         }
         return .center
+    }
+}
+
+/// Bounded, thread-safe cache of compiled `matchAppId` regular expressions
+/// (round-17 performance follow-up to TECHNICAL_DEBT ③).
+///
+/// Every frontmost-app / theme switch re-evaluates all preset items, and each
+/// `matchAppId` rule used to recompile its regex on every evaluation — pure
+/// waste for a ≤114-item preset that carries only a handful of distinct
+/// patterns. Compiling once per distinct regexString and reusing the result
+/// keeps the decision logic byte-for-byte equivalent.
+///
+/// Only *successful* compilations are cached: an invalid pattern is
+/// re-attempted (and logged) on each evaluation, exactly like before the
+/// cache existed. Capacity is bounded with FIFO eviction so alternating
+/// between many presets cannot grow memory without limit; `maxEntries` covers
+/// one full preset set with headroom for a second one.
+final class MatchAppIdRegexCache {
+
+    /// Hard cap on cached patterns. Presets hold ≤ 114 items; 128 keeps one
+    /// full preset hot plus headroom for a second, alternated one.
+    static let maxEntries = 128
+
+    private var storage: [String: NSRegularExpression] = [:]
+    /// FIFO eviction order (oldest first).
+    private var insertionOrder: [String] = []
+    /// Total NSRegularExpression compile attempts since last reset
+    /// (diagnostics/tests only — not part of the matching semantics).
+    private var compileAttempts = 0
+    private let lock = NSLock()
+
+    /// Returns the compiled regex for `pattern`, compiling and caching it on
+    /// first use. Returns nil for invalid patterns (never cached).
+    func regex(for pattern: String) -> NSRegularExpression? {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = storage[pattern] { return cached }
+        compileAttempts += 1
+        guard let compiled = try? NSRegularExpression(pattern: pattern) else { return nil }
+        if storage.count >= Self.maxEntries, let oldest = insertionOrder.first {
+            storage.removeValue(forKey: oldest)
+            insertionOrder.removeFirst()
+        }
+        storage[pattern] = compiled
+        insertionOrder.append(pattern)
+        return compiled
+    }
+
+    /// Number of currently cached patterns (diagnostics/tests).
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage.count
+    }
+
+    /// Total compile attempts since last reset (diagnostics/tests).
+    var compileCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return compileAttempts
+    }
+
+    /// Empties the cache (diagnostics/tests).
+    func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+        storage.removeAll()
+        insertionOrder.removeAll()
+        compileAttempts = 0
     }
 }
