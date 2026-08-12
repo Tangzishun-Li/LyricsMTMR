@@ -571,6 +571,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## 第 14 轮（功能/优化迭代第 2 轮）
 
 ### 父任务
@@ -592,3 +593,10 @@
   - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r14a-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r14a-test）**TEST SUCCEEDED —— 84 用例 0 失败 0 意外**（72 基线 + 新增 12 全过，金丝雀锚点全绿，警告与第 13 轮基线一致）；
   - 交付：验证报告《验证报告_第14轮_currency恢复.md》（本分支根目录，含变更明细/降级路径清单/风险点）+ 本记录 + file-structure.zh.md 登记；
   - 约束遵守：仅本工作区与 r14/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖。
+- **t_f39b3022 ITEMS_REFERENCE 口径核对（text-processing-agent，分支 r14/docs）**：
+  - a) 源码实测（唯一基准）：Item 类型全集 = **113** = ItemTypeRaw 枚举 97（ItemsParsing.swift:484-581）+ SupportedTypesHolder 预定义 14（:83-254：escape/delete/brightnessUp/brightnessDown/illuminationUp/illuminationDown/volumeUp/volumeDown/mute/previous/play/next/sleep/displaySleep）+ TouchBarController 注册 2（:306 exitTouchbar、:316 close；:332 themeSwitch 与枚举重复不计）；currency 仍在 97 内（:869-871 FIXME 渲染禁用，解析可用，文档 3.6 禁用标注与源码一致）；
+  - b) 修正 ITEMS_REFERENCE.md 共 6 处：:3 与 :59「80+ 种」→「113 种」（:59 补口径说明 97+14+2）；:61-70 八大类统计表重算 12/6/14/4/10/12/8/14=80 → 18/8/15/4/12/15/12/29=113；补充 8 个缺失条目（6.15 apiTester / 7.12 bilibiliFeed / 8.24 latexSymbols / 8.25 citationGen / 8.26 paperProgress / 8.27 paperTags / 8.28 qrCode / 8.29 finderTags，参数取自 decode 段与 Widget 头注释）；速查表删不存在的 `pause`（源码无此 type，MediaRemoteAdapter.pause() 为方法非 item type）+ 补 8 个新条目；脚本复核文档 headings 113 ↔ 速查表 113 ↔ 源码 113 差集为空，零缺失零多余；
+  - c) README 口径统一 3 处：「99 种」→「113 种」（:11/:25/:98）——第 13 轮按 97+2=99 改漏算 SupportedTypesHolder 14 个预定义，本轮统一为全量口径；元素面板（ElementPaletteView）UI 实际注册 94 个快捷元素（不含 close/exitTouchbar/shellScriptTitledButton 等 19 个），README 按全量类型口径表述；
+  - d) 交叉参照：ElementPaletteView 94 元素全部 ∈ 113（8 个补录类型面板均已在位，反证文档遗漏）；Widgets/ 七域与文档八类框架映射一致；其余章节（目录/width/操作指南）零漂移；
+  - e) 纯文档轮零代码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
+  - f) 交付：核对报告 `核对报告_第14轮_ITEMS_REFERENCE口径.md`（本分支根目录）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（第 14 轮报告行）。
