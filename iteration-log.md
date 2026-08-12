@@ -656,3 +656,16 @@
   - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r15a-build）BUILD SUCCEEDED + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r15a-test）TEST SUCCEEDED（84 基线 + 新增 16 全过 = 100 用例 0 失败，金丝雀锚点全绿）；
   - 交付：验证报告《验证报告_第15轮_节假日倒计时widget.md》（本分支根目录，含变更明细/单测清单/边界说明/风险点）+ 本记录 + file-structure.zh.md 登记；
   - 约束遵守：仅本工作区与 r15/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（本轮无回归卡，84+16=100 用例实证已附）。
+
+---
+
+## 第 16 轮（功能/优化迭代第 4 轮）
+
+### 子任务记录
+
+- **t_3e952ce6 add_files.py 锚点修复（code-agent，分支 r16/tooling）**：
+  - 遗留问题⑧落地：`Scripts/add_files.py` 锚点过期修复——旧脚本 SOURCES_ANCHOR/WIDGETS_CHILD_ANCHOR 硬编码「QuickReplyBarItem.swift 是 Sources 阶段最后一个条目 / Widgets 分组最后一个 child」+ 正则 `锚点 + \);` 要求其后紧跟列表收尾，现状已过期（Sources 阶段其后有 HolidayCountdown/NetworkSpeed/GitStatus 等 C0FF* 条目；QuickReplyBarItem 实际在 Productivity 分组、其后还有 ReadTimer/ReadingProgress/StandupTimer）→ 正则匹配不到 → **静默失败**（str.replace 不报错），只写入 BuildFile/FileRef 两段，pbxproj 半注册（第 15 轮 A 卡 HolidayCountdown.swift 即因此需手工补 2 处注册、8 处注册中 6 处靠手工）；
+  - 修复方案（结构化定位，零「末尾条目」假设）：① BuildFile/FileRef 两段改插在各自 section 的 `/* End … section */` 标记前（pbxproj 固有边界，永不失效）；② group child 按 group 名**动态定位真实 PBXGroup**（匹配 `name`/`path` 属性，0/多命中均报错）插在 children 列表末尾；③ Sources 条目经 app 目标（LyricsMTMR）buildPhases 解析出 **app 的** Sources phase（绝不落入单测目标）插在 files 列表末尾；`uuids_for` 不变（C0FE/C0FF + sha1 前缀）→ 确定性 UUID 幂等保持；group 参数从 Widgets/Preferences 白名单扩展为任意组名（Tools/Life/System/…）；失败从静默改为响亮报错且不写盘；
+  - 实证（探针一键注册全链路）：新建 `MTMR/Widgets/Tools/AddFilesProbe.swift` → `add_files.py Tools:AddFilesProbe.swift` → pbxproj 4 处条目全部写入且落点正确（PBXBuildFile :241 段尾 / PBXFileReference :508 段尾 / group child :780 **Tools 分组** children 真实末尾 / Sources phase :1290 **app 目标 B082B24B** files 末尾，QuickReplyBarItem 所在 Productivity 分组与单测 phase 零改动）→ xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16a-build）**BUILD SUCCEEDED**（探针编译进 app）→ 二次运行幂等（skip (present) + nothing to do，pbxproj 零重复写入）→ 未知组失败模式实证（`NoSuchGroup:Probe2.swift` exit=1 且 pbxproj 零改动）→ 清理探针文件与注册条目（rm + git checkout pbxproj），git status 仅剩脚本修复、仓库干净；
+  - 交付：验证报告《验证报告_第16轮_add_files脚本修复.md》（本分支根目录，含故障根因逐锚点分析/修复方案/实证过程/风险点）+ 本记录 + file-structure.zh.md 登记（mindmap 第 7~15 轮→第 7~16 轮 + 报告行）；
+  - 约束遵守：仅本工作区与 r16/tooling 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（父任务已实证 118 用例 0 失败，分支内 build 验证足够）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
