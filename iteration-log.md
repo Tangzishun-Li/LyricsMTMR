@@ -552,3 +552,19 @@
   - d) 仓库卫生：清理 round-12 父卡 t_0c157d69 及 3 张子卡遗留 —— 删除前逐项复核 4 检查全过（4 分支均已在 --merged main 列表 0 ahead + merge-base --is-ancestor 全过 + 4 worktree 工作区 status --porcelain 均空 + 远端 heads 仅 main）；`git worktree remove` ×4（无需 --force）→ `git branch -d` ×4（was c2bed9a/51dfc98/c46d586/6dffa05）→ `git worktree prune`；删除后清点：.worktrees/ 仅剩 round13-parent + round13-A/B/C（4 项，主仓库另计合计 5 项）、本地分支仅剩 main + r13-parent + r13/feature + r13/docs + r13/cleanup（5 项）、远端 refs/heads 仅 main、prune --dry-run 空、for-each-ref 计数 5 无幽灵；
   - 本轮零代码改动（纯维护轮，不触发全量回归）；file-structure.zh.md 登记本卡 2 份报告 + mindmap「第 7~12 轮」→「第 7~13 轮」+ 预登记子任务 A/B 报告名（核验报告_第13轮_issue40_按软件切换bar.md / 文档报告_第13轮_README补全.md，若 A/B 已自行登记则不重复，由父任务收口核对）；
   - 交付：核验报告 `核验报告_第13轮_维护机制健在与文档一致性.md` + 清理报告 `清理报告_第13轮_round12遗留清理.md`（本分支根目录，清理报告含删除前/后命令输出实录）；本记录即 iteration-log 追加；未 push 远端（父任务收口统一合并）。
+
+---
+
+### 父任务
+
+- 目标：【运营者指示】第 13 轮起退出年度维护模式，恢复功能/优化迭代（继续优化、增加功能）—— 本轮 3 张子卡：A（实现卡）issue #40 Per-app bar switching 核验与补齐；B（文档卡）README 补 MediaRemote 风险说明 + 应用专属主题使用文档（遗留④落地）；C（维护面）年度维护核验（第 7 次）+ 仓库卫生（round-12 遗留清理）。回归规则：第 13 轮起有代码改动，改动并入后需 build+test 全绿实证（60 用例基线，A 卡已附 72 用例实证），累积 2~3 轮再全量回归（本轮不触发全量回归）。
+- 合并提交点：main@77faefe → 3 子分支（r13/feature 023a24a / r13/docs e313105 / r13/cleanup 0406b56）依次 merge --no-ff 合入 r13-parent（冲突共 6 处均手工解决：README 1 处取 B 版完整表述、file-structure 3 处并列登记/保留验证版、iteration-log 2 处 A/B/C 记录并列合并；合并 r13/cleanup 时 1 处 `<<<<<<< HEAD` 起始标记遗漏在 patch old_string 外，收口核验 grep 发现后已单独 commit 清除），再并入 main 并 push origin。根目录新增 4 份第 13 轮报告：验证报告_第13轮_issue40_按软件切换bar.md、文档报告_第13轮_README补全.md、核验报告_第13轮_维护机制健在与文档一致性.md、清理报告_第13轮_round12遗留清理.md；file-structure.zh.md 同步（mindmap 第 7~13 轮、第 13 轮 4 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」（round13-A/B/C 预建于 main@77faefe）；② 子任务 A 核验结论：issue #40 四条验收标准全部满足（核心机制自 commit 2b84be3 已实现），补齐 12 个 appTheme 单测（AppThemeRulesTests.swift）+ 提取纯函数 resolveAppThemeMode（唯一生产改动，语义等价）+ ITEMS_REFERENCE/README/file-structure 文档登记，分支 build+test 全绿（72 用例 0 失败），issue #40 已评论证据并关闭（comment 5264408736）；未采纳 MediaRemote 来源 App 依据（验收标准仅要求前台 App 切换，现有实现即兜底形态）；③ 子任务 B 遗留④落地：README 新增「macOS 15.4+ 音乐信息获取机制与已知风险」小节（mediaremote-adapter 架构 + 私有框架风险 + issue #1 关联）+「应用专属主题」使用文档（入口/创建/编辑/删除/激活模式三态表），漂移修正 5 处（widget 数 100+→99、设置 Tab 14+→22 并更新 Tab 名、主题/组件入口路径、Gecimi→咪咕），纯文档轮零代码；④ 子任务 C 核验第 7 次通过（ITER-14 置顶待办健在、2027 段 32 日期+6 补班日星期 Python 复核全对、金丝雀防掩蔽 :195-196 在位、maintenance-notes 零漂移抽查、GitHub 4/4 实测含 origin/main=77faefe、三方交叉核对一致）+ 仓库卫生清理 round-12 全部遗留（4 worktree+4 分支，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 项/远端仅 main/无幽灵）。⑤ 收口：merge r13/docs 冲突 3 处、merge r13/cleanup 冲突 2 处（+1 处标记残留修复），全部手工解决并 grep 清零后提交。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；issue #40 已于本轮关闭（子任务 A 证据评论 + 关闭）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 7 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. ITER-15 相关：ITEMS_REFERENCE.md「80+ 种 Item 类型」旧口径（B 子卡实测 99）留待后续轮次单独核对；
+  5. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；
+  6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
+- 下轮方向：① 继续功能/优化迭代（恢复迭代模式第 2 轮）：候选维度——ITEMS_REFERENCE.md Item 类型口径核对（遗留 4）、ITER-15 镜像窗事件驱动（需用户 4 问确认后实施）、新 widget/体验优化；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 13 轮 A 卡已附 72 用例实证，累积 2~3 轮代码改动后触发全量回归（60 用例基线 → 现为 72）；④ 子任务 B 报告指出 README 已修正的 5 处漂移与 ITEMS_REFERENCE 遗留口径，下轮可核对 ITEMS_REFERENCE。
