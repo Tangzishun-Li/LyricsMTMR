@@ -153,6 +153,8 @@ mindmap
 ├── 核验报告_第18轮_维护机制健在与文档一致性.md # 第 18 轮核验报告（第 12 次年度维护核验，r18/review）
 ├── 清理报告_第18轮_round17遗留清理.md          # 第 18 轮子任务 C 仓库卫生报告（round-17 父卡+子卡遗留 worktree/分支清理，r18/review）
 
+├── 验证报告_第18轮_黑名单隐藏暂停轮询.md # 第 18 轮子任务 B 验证报告（隐藏期间暂停 widget 轮询：TBPollItem/TBMetricPopoverItem 线程安全 pause/resume + TouchBarController dismiss/present 广播，139 用例实证，r18/optimize）
+
 └── .gitignore / .gitattributes / README.md
 ```
 

@@ -239,6 +239,7 @@
 		F946048BC4954FD69E7D447A /* KeyBindingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E934999DE9040A4840FC85D /* KeyBindingModel.swift */; };
 		F2CD90C6DF584F68A5CFAF5B /* VirtualKeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DB90EFEEE348DF848F2161 /* VirtualKeyboardView.swift */; };
 		A88CBE20F8D04BB2A553665A /* KeyBindingTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F48F01FC23F4982AE8C2B17 /* KeyBindingTabView.swift */; };
+		C1FF5E942DC378C6A46AD6E7 /* PollingPauseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5E942DC378C6A46AD6E7 /* PollingPauseTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -506,6 +507,7 @@
 		6E934999DE9040A4840FC85D /* KeyBindingModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyBindingModel.swift; sourceTree = "<group>"; };
 		A6DB90EFEEE348DF848F2161 /* VirtualKeyboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VirtualKeyboardView.swift; sourceTree = "<group>"; };
 		5F48F01FC23F4982AE8C2B17 /* KeyBindingTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeyBindingTabView.swift; sourceTree = "<group>"; };
+		C1FE5E942DC378C6A46AD6E7 /* PollingPauseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PollingPauseTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -647,6 +649,7 @@
 				CA8F2B8E2FC5000000D189D8 /* BarItemFactoryTests.swift */,
 				CA8F2B8C2FC6000000D189D7 /* HolidayCountdownTests.swift */,
 				CA8F2B942FC7000000D189D9 /* BarItemVisibilityTests.swift */,
+				C1FE5E942DC378C6A46AD6E7 /* PollingPauseTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1307,6 +1310,7 @@
 				CA8F2B8F2FC5000000D189D8 /* BarItemFactoryTests.swift in Sources */,
 				CA8F2B8D2FC6000000D189D7 /* HolidayCountdownTests.swift in Sources */,
 				CA8F2B952FC7000000D189D9 /* BarItemVisibilityTests.swift in Sources */,
+				C1FF5E942DC378C6A46AD6E7 /* PollingPauseTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
