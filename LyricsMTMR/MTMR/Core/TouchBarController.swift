@@ -866,9 +866,9 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
         case let .yandexWeather(interval: interval):
             barItem = YandexWeatherBarItem(identifier: identifier, interval: interval)
-        case .currency:
-            // FIXME: Coinbase SSL error, temporarily disabled
-            break
+        case let .currency(interval: interval, from: from, to: to, full: full):
+            // round14: 恢复 currency（Coinbase SSL 错误已随环境消失，父任务实测 API 可用）
+            barItem = CurrencyBarItem(identifier: identifier, interval: interval, from: from, to: to, full: full)
         case .inputsource:
             barItem = InputSourceBarItem(identifier: identifier)
         case let .music(interval: interval, disableMarquee: disableMarquee):

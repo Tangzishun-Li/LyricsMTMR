@@ -568,3 +568,19 @@
   5. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；
   6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
 - 下轮方向：① 继续功能/优化迭代（恢复迭代模式第 2 轮）：候选维度——ITEMS_REFERENCE.md Item 类型口径核对（遗留 4）、ITER-15 镜像窗事件驱动（需用户 4 问确认后实施）、新 widget/体验优化；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 13 轮 A 卡已附 72 用例实证，累积 2~3 轮代码改动后触发全量回归（60 用例基线 → 现为 72）；④ 子任务 B 报告指出 README 已修正的 5 处漂移与 ITEMS_REFERENCE 遗留口径，下轮可核对 ITEMS_REFERENCE。
+
+---
+
+## 第 14 轮（功能/优化迭代第 2 轮）
+
+### 子任务 A：恢复 currency 汇率 widget（Coinbase SSL 禁用项复活）+ 单测/实证（t_753ceac6，code-agent，分支 r14/feature，基于 main@024ec61）
+
+- **t_753ceac6 实现（code-agent，分支 r14/feature）**：
+  - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
+  - 加固（CurrencyBarItem.swift）：提取纯函数 `static parseRate(from:to:)`（Coinbase 响应 data.rates[<to>] 解析，畸形/缺层/非字符串一律返回 nil，原 as!/data! 强转会崩溃）与 `static formatTitle(prefix:postfix:value:decimal:full:)`（full=前缀+后缀‣decimal 位舍入，否则前缀+两位小数）；URL 构造去强制解包；请求失败/解析失败优雅降级为 ⚠︎ 错误态（主线程，不崩溃不残留旧值）；dataTask 闭包改 [weak self]；删除失效状态变量 decimalValue/decimalString；币种符号表/小数位表/涨跌着色/定时刷新不变；
+  - 单测：新增 `MTMRTests/CurrencyBarItemTests.swift`（12 个测试方法：parseRate 7 例——有效/他币种/缺币种/坏 JSON/空数据/缺层/非字符串值；formatTitle 5 例——full 格式/舍入/decimal 生效/短格式/短格式忽略 decimal；浮点断言全部选用 Float32 精确可表示值防抖动），pbxproj 4 处注册（ID CA8F2B8A/8B2FC5000000D189D6）；
+  - 文档：ITEMS_REFERENCE.md §3.6 移除「⚠️ 当前因 Coinbase SSL 错误被禁用」改述已恢复+错误态；file-structure.zh.md 登记报告（mindmap 第 7~13 轮→第 7~14 轮）；本记录即 iteration-log 追加；
+  - 数据源实测：api.coinbase.com 经代理 127.0.0.1:7890 正常返回（CNY 基准全币种 rates），直连 8s 超时（网络环境非证书错误）——SSL 错误已随环境消失，未换源（最小改动）；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r14a-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r14a-test）**TEST SUCCEEDED —— 84 用例 0 失败 0 意外**（72 基线 + 新增 12 全过，金丝雀锚点全绿，警告与第 13 轮基线一致）；
+  - 交付：验证报告《验证报告_第14轮_currency恢复.md》（本分支根目录，含变更明细/降级路径清单/风险点）+ 本记录 + file-structure.zh.md 登记；
+  - 约束遵守：仅本工作区与 r14/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖。
