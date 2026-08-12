@@ -192,7 +192,7 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 - [x] 逐字歌词（卡拉 OK 式跳字高亮）
 - [x] 每个软件自定义类别
 - [x] 加入股市的 api，包括 A 股并加入分时图
-- [ ] 剪切板快捷查看
+- [x] 剪切板快捷查看（第 15 轮核对：已实现——BarItemFactory.swift:210 case .clipboardHistory 创建 ClipboardHistoryItem + ItemsParsing.swift:350 clipboardHistory 类型，详见验证报告_第15轮_barItemFactory提取.md）
 - [ ] ……
 
 ## 数据来源

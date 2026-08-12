@@ -134,6 +134,7 @@ mindmap
 ├── 清理报告_第14轮_round13遗留清理.md          # 第 14 轮子任务 C 仓库卫生报告（round-13 父卡+子卡遗留 worktree/分支清理，r14/review）
 ├── 核验报告_第15轮_维护机制健在与文档一致性.md # 第 15 轮核验报告（第 9 次年度维护核验，r15/review）
 ├── 清理报告_第15轮_round14遗留清理.md          # 第 15 轮子任务 C 仓库卫生报告（round-14 父卡+子卡遗留 worktree/分支清理，r15/review）
+├── 验证报告_第15轮_barItemFactory提取.md # 第 15 轮子任务 B 验证报告（TECHNICAL_DEBT 置顶第 4 条落地：createItemInternal 113 case switch 提取至 BarItemFactory + 18 单测 + README TODO 核对，r15/refactor）
 
 └── .gitignore / .gitattributes / README.md
 ```
