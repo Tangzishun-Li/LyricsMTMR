@@ -571,7 +571,7 @@
 
 ---
 
-## 第 14 轮（功能/优化迭代第 2 轮，进行中）
+## 第 14 轮（功能/优化迭代第 2 轮）
 
 ### 父任务
 
@@ -583,4 +583,12 @@
 
 ### 子任务记录
 
-（待子任务完成后由各自追加）
+- **t_753ceac6 实现（code-agent，分支 r14/feature）**：
+  - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
+  - 加固（CurrencyBarItem.swift）：提取纯函数 `static parseRate(from:to:)`（Coinbase 响应 data.rates[<to>] 解析，畸形/缺层/非字符串一律返回 nil，原 as!/data! 强转会崩溃）与 `static formatTitle(prefix:postfix:value:decimal:full:)`（full=前缀+后缀‣decimal 位舍入，否则前缀+两位小数）；URL 构造去强制解包；请求失败/解析失败优雅降级为 ⚠︎ 错误态（主线程，不崩溃不残留旧值）；dataTask 闭包改 [weak self]；删除失效状态变量 decimalValue/decimalString；币种符号表/小数位表/涨跌着色/定时刷新不变；
+  - 单测：新增 `MTMRTests/CurrencyBarItemTests.swift`（12 个测试方法：parseRate 7 例——有效/他币种/缺币种/坏 JSON/空数据/缺层/非字符串值；formatTitle 5 例——full 格式/舍入/decimal 生效/短格式/短格式忽略 decimal；浮点断言全部选用 Float32 精确可表示值防抖动），pbxproj 4 处注册（ID CA8F2B8A/8B2FC5000000D189D6）；
+  - 文档：ITEMS_REFERENCE.md §3.6 移除「⚠️ 当前因 Coinbase SSL 错误被禁用」改述已恢复+错误态；file-structure.zh.md 登记报告（mindmap 第 7~13 轮→第 7~14 轮）；本记录即 iteration-log 追加；
+  - 数据源实测：api.coinbase.com 经代理 127.0.0.1:7890 正常返回（CNY 基准全币种 rates），直连 8s 超时（网络环境非证书错误）——SSL 错误已随环境消失，未换源（最小改动）；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r14a-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r14a-test）**TEST SUCCEEDED —— 84 用例 0 失败 0 意外**（72 基线 + 新增 12 全过，金丝雀锚点全绿，警告与第 13 轮基线一致）；
+  - 交付：验证报告《验证报告_第14轮_currency恢复.md》（本分支根目录，含变更明细/降级路径清单/风险点）+ 本记录 + file-structure.zh.md 登记；
+  - 约束遵守：仅本工作区与 r14/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖。

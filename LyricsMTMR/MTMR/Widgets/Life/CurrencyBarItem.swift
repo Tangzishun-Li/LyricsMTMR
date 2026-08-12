@@ -16,8 +16,6 @@ class CurrencyBarItem: CustomButtonTouchBarItem {
     private var from: String
     private var to: String
     private var decimal: Int
-    private var decimalValue: Float32!
-    private var decimalString: String!
     private var oldValue: Float32!
     private var full: Bool = false
 
@@ -110,28 +108,48 @@ class CurrencyBarItem: CustomButtonTouchBarItem {
 
     required init?(coder _: NSCoder) { return nil }
 
+    // MARK: - 纯逻辑（round14 提取，可单元测试）
+
+    /// 从 Coinbase 汇率响应 JSON 中解析目标币种汇率（`data.rates[<to>]`）。
+    /// 结构缺失/币种不存在/值为非字符串/JSON 非法时返回 nil（不抛错、不崩溃）。
+    static func parseRate(from data: Data, to: String) -> Float32? {
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let dataDict = json["data"] as? [String: Any],
+              let rates = dataDict["rates"] as? [String: Any],
+              let raw = rates[to] as? String,
+              let value = Float32(raw) else { return nil }
+        return value
+    }
+
+    /// 将汇率值格式化为显示标题：
+    /// full 模式「前缀+后缀‣四舍五入到 decimal 位」；否则「前缀+两位小数」。
+    static func formatTitle(prefix: String, postfix: String, value: Float32, decimal: Int, full: Bool) -> String {
+        if full {
+            let rounded = (value * pow(10, Float(decimal))).rounded() / pow(10, Float(decimal))
+            return String(format: "%@%@‣%@", prefix, postfix, String(rounded))
+        } else {
+            return String(format: "%@%.2f", prefix, value)
+        }
+    }
+
     @objc func updateCurrency() {
-        let urlRequest = URLRequest(url: URL(string: "https://api.coinbase.com/v2/exchange-rates?currency=\(from)")!)
+        guard let url = URL(string: "https://api.coinbase.com/v2/exchange-rates?currency=\(from)") else {
+            showErrorState()
+            return
+        }
 
-        let task = URLSession.shared.dataTask(with: urlRequest) { data, _, error in
-            if error == nil {
-                do {
-                    let json = try JSONSerialization.jsonObject(with: data!, options: .mutableContainers) as! [String: AnyObject]
-                    var value: Float32!
-
-                    if let data_array = json["data"] as? [String: AnyObject] {
-                        if let rates = data_array["rates"] as? [String: AnyObject] {
-                            if let item = rates["\(self.to)"] as? String {
-                                value = Float32(item)
-                            }
-                        }
-                    }
-                    if value != nil {
-                        DispatchQueue.main.async {
-                            self.setCurrency(value: value!)
-                        }
-                    }
-                } catch {}
+        let task = URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, _, error in
+            guard let self = self else { return }
+            if error != nil {
+                showErrorState()
+                return
+            }
+            guard let data = data, let value = CurrencyBarItem.parseRate(from: data, to: self.to) else {
+                showErrorState()
+                return
+            }
+            DispatchQueue.main.async {
+                self.setCurrency(value: value)
             }
         }
 
@@ -150,20 +168,23 @@ class CurrencyBarItem: CustomButtonTouchBarItem {
         }
 
         oldValue = value
-        decimalValue  = (value * pow(10,Float(decimal))).rounded() / pow(10,Float(decimal))
-        decimalString = String(decimalValue)
-
-        var title = ""
-        if full {
-            title = String(format: "%@%@‣%@", prefix, postfix, decimalString)
-        } else {
-            title = String(format: "%@%.2f", prefix, value)
-        }
+        let title = CurrencyBarItem.formatTitle(prefix: prefix, postfix: postfix, value: value, decimal: decimal, full: full)
 
         let regularFont = attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 15)
         let newTitle = NSMutableAttributedString(string: title as String, attributes: [.foregroundColor: color, .font: regularFont, .baselineOffset: 1])
         newTitle.setAlignment(.center, range: NSRange(location: 0, length: title.count))
         attributedTitle = newTitle
+    }
+
+    /// 请求失败/解析失败时的优雅降级：显示 ⚠︎ 错误态（不崩溃、不残留误导旧值）。
+    private func showErrorState() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let regularFont = self.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 15)
+            let newTitle = NSMutableAttributedString(string: "⚠︎", attributes: [.foregroundColor: NSColor.systemOrange, .font: regularFont, .baselineOffset: 1])
+            newTitle.setAlignment(.center, range: NSRange(location: 0, length: newTitle.length))
+            self.attributedTitle = newTitle
+        }
     }
     
     deinit {
