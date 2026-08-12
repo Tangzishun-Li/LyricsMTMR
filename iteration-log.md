@@ -702,3 +702,16 @@
   - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16b-test）**TEST SUCCEEDED —— 129 用例 0 失败 0 意外**（118 基线 + 新增 11 全过，xcresult 实证，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已实证 118 用例基线）；
   - 文档：TECHNICAL_DEBT.md 三条状态标注（① ② 已评估-暂缓附现状与前置条件，③ 已落地）+ 验证报告《验证报告_第16轮_技术债评估与落地.md》（本分支根目录）+ file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r16/techdebt 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；新增测试文件 pbxproj 手工注册（add_files.py 锚点过期，第 15 轮遗留⑧）；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 17 轮（功能/优化迭代第 5 轮）
+
+### 子任务记录
+
+- **t_4227912b add_files.py 测试注册扩展（code-agent，分支 r17/tooling）**：
+  - 遗留问题 9 后半句闭环：add_files.py 新增 `Tests:` 前缀调用形态（`add_files.py Tests:FooTests.swift`），测试文件**一键注册**进单测目标，替代第 13~16 轮每轮手工 4 处 pbxproj 注册（PBXBuildFile/PBXFileReference/group child/Sources phase，且需避 app 目标）；
+  - 注册链（测试模式）：PBXBuildFile/PBXFileReference 仍插各自 section End 标记前，但 UUID 用**单测独立前缀 C1FE（ref）/C1FF（build）**（app 文件保持 C0FE/C0FF，命名空间隔离，同名文件跨模式不撞 UUID）；group child 落 **MTMRTests 分组**（path = MTMRTests）children 末尾；Sources 条目经**单测目标 LyricsMTMRTests**（B082B260）buildPhases 解析出其 Sources phase（B082B25D）files 末尾——**绝不落 app 目标**（app 的 B082B24B phase 零改动）；原 `find_app_sources_files_end` 重构为 `find_target_sources_files_end(text, target)` 按目标名精确匹配；**两阶段写盘**：先对原始文本全量校验（END 标记/分组/目标 phase 全部定位成功）再按 offset 降序批量插入、最后一次性写盘——任何失败都在写盘前 SystemExit，比第 16 轮逐段 replace 更严格，杜绝半注册；
+  - 实证（探针一键注册全链路）：新建 `MTMRTests/AddFilesProbeTests.swift`（2 测试方法）→ `add_files.py Tests:AddFilesProbeTests.swift` → pbxproj 4 处条目落点全对（BuildFile C1FF…:242 段尾 / FileRef C1FE…:510 段尾 / group child :652 **MTMRTests 分组**末尾 / Sources :1313 **单测目标 B082B25D** 末尾，app phase grep 零命中）→ xcodebuild test（UnitTests, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17a-test）**TEST SUCCEEDED —— 131 用例 0 失败 0 意外**（129 基线 + 2 探针全过）+ xcodebuild build（MTMR, Debug，/tmp/LyricsMTMR-dd-r17a-build）**BUILD SUCCEEDED** → 二次运行幂等（skip (present) + nothing to do）→ 混合注册实证（`Tools:MixedProbe.swift Tests:MixedProbeTests.swift` 一次调用双链各归其位：app 文件 C0FE/C0FF + Tools 分组 + app phase，测试文件 C1FE/C1FF + MTMRTests 分组 + 单测 phase）→ 失败模式实证（未知组 exit=1 且 pbxproj 零改动，混合失败场景整体回滚）→ 清理探针文件与注册条目（rm + git checkout pbxproj），git status 仅剩脚本扩展、仓库干净；
+  - 交付：验证报告《验证报告_第17轮_add_files测试注册扩展.md》（本分支根目录，含背景与设计/注册链对照表/实证过程/风险点）+ 本记录 + file-structure.zh.md 登记（mindmap 第 7~16 轮→第 7~17 轮 + 报告行 + Scripts 段 add_files 描述补 Tests: 前缀说明）；
+  - 约束遵守：仅本工作区与 r17/tooling 分支改动，未 push 远端（父任务收口统一合并），未开新分支/新子任务/无 parents 依赖，不触发全量回归（父任务基线 129 用例，分支内 build+test 实证足够）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
