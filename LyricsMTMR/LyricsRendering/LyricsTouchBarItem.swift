@@ -41,11 +41,22 @@ private struct LyricsRenderState {
     let track: EngineTrackInfo
 }
 
-class LyricsTouchBarItem: NSCustomTouchBarItem {
+class LyricsTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     private let stackView = NSStackView()
     private let artworkView = NSImageView()
     private let lyricsLabel = KaraokeLabel(labelWithString: "")
     private let placeholderLabel = NSTextField(labelWithString: "")
+
+    /// round 24 收官审计：marquee 暂停门。60fps 滚动 timer 与 bar 显隐零
+    /// 关联——播放继续时（Combine 事件驱动 0.25s tick）隐藏期仍全速滚动
+    /// 用户看不到的歌词（纯 UI 空转，全库最高频 Timer 之一）；本卡纳入
+    /// 暂停：隐藏期停 timer + 不调度 follow 动画，恢复后由下一次
+    /// onLyricsUpdate（≤0.25s 播放 tick）自然重建滚动。
+    /// round 23 播种：隐藏期重建时初始即暂停。
+    private let marqueePauseGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
+
+    /// round 24 测试缝：marquee timer 当前是否在跑（internal 只读）。
+    var marqueeTimerActive: Bool { marqueeTimer != nil }
 
     private var config: LyricsItemConfig
     private var engine: LyricsEngine { LyricsEngine.shared }
@@ -298,8 +309,23 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
 
     // MARK: - Text Scrolling
 
+    /// round 24：隐藏暂停。bar 隐藏期间停止滚动全链——60fps marquee timer
+    /// 不建、follow 动画不调度（暂停时 setPaused(true) 已停 timer；此处
+    /// guard 拦截隐藏期 onLyricsUpdate 的重建）。恢复时无操作：下一次
+    /// onLyricsUpdate（≤0.25s）自然重建滚动（OPT-16 守卫在 marqueeTimer
+    /// 为 nil 时同样满足重建条件），相位从头开始（循环滚动无实质差异）。
+    func setPaused(_ paused: Bool) {
+        guard marqueePauseGate.setPaused(paused) else { return }
+        if paused {
+            stopMarqueeTimer()
+        }
+    }
+
     private func handleTextScroll(line: SimpleLyrics.Line, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo, lineChanged: Bool) {
         guard config.marqueeEnabled else { return }
+        // round 24：隐藏期间零滚动——60fps timer 不启动、follow 动画不调度；
+        // 恢复后由下一次 tick 自然重建（见 setPaused 注释）。
+        guard !marqueePauseGate.isPaused else { return }
 
         let clipWidth = stackView.bounds.width
         guard clipWidth > 0 else { return }
@@ -367,7 +393,11 @@ class LyricsTouchBarItem: NSCustomTouchBarItem {
         }
     }
 
-    private func startMarquee(overflowWidth: CGFloat, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo) {
+    /// round 24 双保险：暂停期直接调用也零启动（handleTextScroll 入口 guard
+    /// 之外的第二道防线；同时作为单测注入点——internal 同 round 21
+    /// startCapture/stopCapture 惯例）。
+    func startMarquee(overflowWidth: CGFloat, lineIndex: Int, active: SimpleLyrics, track: EngineTrackInfo) {
+        guard !marqueePauseGate.isPaused else { return }
         let nextPosition: TimeInterval
         if lineIndex + 1 < active.lines.count {
             nextPosition = active.lines[lineIndex + 1].position
