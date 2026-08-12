@@ -217,3 +217,28 @@
     分支盘点与合并报告_t12c217be.md；
   - file-structure.zh.md 清单同步（backup/ 计数 16→17、移除根目录调研报告行）；
     清理报告见 `清理报告_第8轮收尾_r8-cleanup.md`，删除明细含哈希清单。
+
+---
+
+## 第 9 轮（本链第 3 轮）
+
+### 子任务 A：全量回归（含内存修复代码验证）（t_d0232788，research-agents，分支 r9/regression）
+
+- **触发背景**：第 8 轮收尾清理 merge（28e65b6）误将 main 工作区未提交的内存修复改动
+  （AppDelegate.swift +65 / UnifiedSettingsWindowController.swift +40，关窗=隐藏复用 +
+  闲置 GC + 内存压力释放）一并合入 main；第 8 轮收口误判「无代码改动」未触发回归。
+  按回归规则（隔代父任务 + 代码改动实际入 main）本轮全量回归。
+- **执行**：main@59a0d24 上按 CI 命令（build-test.yml）执行 xcodebuild build（MTMR,
+  Debug）+ xcodebuild test（UnitTests, Debug），独立 derivedDataPath
+  /tmp/LyricsMTMR-dd-r9reg，CODE_SIGNING_ALLOWED=NO。
+- **结果**：✅ 通过。BUILD SUCCEEDED（~52s）+ TEST SUCCEEDED（~97s），60 用例 0 失败
+  0 意外（8 套件全绿，含易碎点 testGoldenAnchors2026/2027/Makeup2026 金丝雀全过），
+  与第 7 轮基线（60 用例 0 失败）一致。构建告警 10 条构成与第 7 轮持平（WeatherBarItem
+  未用变量 ×4 / onChange 弃用 ×3 / non-sendable ×2 / 元数据跳过 ×1），内存修复文件
+  零警告。已核验 main@59a0d24 两个修复文件与 PR #41（2d2d681）合入版本逐字节一致，
+  回归对象即最终合入代码。
+- **风险点（挂账）**：内存修复属运行时 UI 生命周期行为（窗口隐藏/复用、dispatch_after
+  定时 GC、Dock 显隐联动），现有 60 用例无直接覆盖，建议真机交互冒烟：① 连续开关
+  设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；
+  ③ 复用路径 Dock 图标显隐正确。
+- **产出**：`回归报告_第9轮_t_d0232788.md`（本分支根目录）。本轮只读回归，无代码改动。
