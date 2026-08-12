@@ -702,3 +702,16 @@
   - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16b-test）**TEST SUCCEEDED —— 129 用例 0 失败 0 意外**（118 基线 + 新增 11 全过，xcresult 实证，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已实证 118 用例基线）；
   - 文档：TECHNICAL_DEBT.md 三条状态标注（① ② 已评估-暂缓附现状与前置条件，③ 已落地）+ 验证报告《验证报告_第16轮_技术债评估与落地.md》（本分支根目录）+ file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r16/techdebt 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；新增测试文件 pbxproj 手工注册（add_files.py 锚点过期，第 15 轮遗留⑧）；完成自查 git status 干净 + commit 已提交。
+
+
+---
+
+## 第 17 轮（功能/优化迭代第 5 轮）
+
+### 子任务记录
+
+- **t_157a9cb6 维护三合一（review-agent，分支 r17/review）**：
+  - 年度维护核验（第 11 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=e231128，本地 main 与 origin 同步）；文档一致性三方交叉核对一致（iteration-log 第 16 轮收口 ↔ 提交图 e231128→385e71f→7bc169f ↔ file-structure 登记 4 份报告）、无冲突残留标记；
+  - 仓库卫生：round-16 父卡 t_58d4fa40 + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round16-A/B/C + round16-parent）→ prune → branch -d ×4（r16/tooling r16/techdebt r16/review lyricsmtmr/t_58d4fa40-16-lyricsmtmr-4-15）；删除后清点 .worktrees 仅 round17-A/B/C + round17-parent + 主仓库、本地分支 5 条（main + r17/*×3 + lyricsmtmr/t_7001f2ef-17-lyricsmtmr-5-16 父卡分支）、远端仅 main、prune --dry-run 空；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问 / ITER-14 时间驱动 / 口径统一 32+114 / 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟+跨月窗口 / 隐藏机制真机冒烟 / add_files.py 已闭环+测试注册待工具化 —— 共 9 项均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第17轮_维护机制健在与文档一致性.md / 清理报告_第17轮_round16遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r17/review，零代码改动（未触发构建/测试/全量回归，第 16 轮收口已实证 129 用例 0 失败，下次全量回归预计第 18 轮隔代触发），未 push，未开新分支/子任务。
