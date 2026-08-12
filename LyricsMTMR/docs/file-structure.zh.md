@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~15 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~16 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -136,7 +136,13 @@ mindmap
 ├── 清理报告_第15轮_round14遗留清理.md          # 第 15 轮子任务 C 仓库卫生报告（round-14 父卡+子卡遗留 worktree/分支清理，r15/review）
 ├── 验证报告_第15轮_barItemFactory提取.md # 第 15 轮子任务 B 验证报告（TECHNICAL_DEBT 置顶第 4 条落地：createItemInternal 113 case switch 提取至 BarItemFactory + 18 单测 + README TODO 核对，r15/refactor）
 
+├── 验证报告_第16轮_技术债评估与落地.md    # 第 16 轮子任务 B 验证报告（TECHNICAL_DEBT 剩余 3 条评估：① VC 化暂缓/② 枚举解析暂缓/③ 隐藏机制落地——shouldShowItem 纯函数提取 + 异步路径补过滤 + 11 单测，r16/techdebt）
+
 ├── 验证报告_第15轮_节假日倒计时widget.md   # 第 15 轮子任务 A 验证报告（新 widget holidayCountdown：复用 aShareHolidays 唯一数据源 + 纯逻辑单测 16 例，r15/feature）
+├── 核验报告_第16轮_维护机制健在与文档一致性.md # 第 16 轮核验报告（第 10 次年度维护核验，r16/review）
+├── 清理报告_第16轮_round15遗留清理.md          # 第 16 轮子任务 C 仓库卫生报告（round-15 父卡+子卡遗留 worktree/分支清理，r16/review）
+
+├── 验证报告_第16轮_add_files脚本修复.md # 第 16 轮子任务 A 验证报告（add_files.py 锚点修复：结构化段内定位替代硬编码「末尾条目」假设，探针一键注册 4 处条目 + build + 幂等实证，r16/tooling）
 
 └── .gitignore / .gitattributes / README.md
 ```

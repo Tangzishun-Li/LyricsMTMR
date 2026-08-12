@@ -656,3 +656,49 @@
   - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r15a-build）BUILD SUCCEEDED + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r15a-test）TEST SUCCEEDED（84 基线 + 新增 16 全过 = 100 用例 0 失败，金丝雀锚点全绿）；
   - 交付：验证报告《验证报告_第15轮_节假日倒计时widget.md》（本分支根目录，含变更明细/单测清单/边界说明/风险点）+ 本记录 + file-structure.zh.md 登记；
   - 约束遵守：仅本工作区与 r15/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（本轮无回归卡，84+16=100 用例实证已附）。
+
+---
+
+## 第 16 轮（功能/优化迭代第 4 轮）
+
+### 父任务
+
+- 目标：功能/优化迭代第 4 轮（接第 15 轮收口 main=5d2c4fa）—— ① 实现卡 A：add_files.py 锚点修复（遗留⑧落地，工程规范维度）；② 实现卡 B：TECHNICAL_DEBT.md 置顶 TODO 剩余 3 条评估 + 至少一条落地（代码质量维度）；③ 维护面 C：年度维护核验（第 10 次）+ round-15 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮分解前触发全量回归（隔代规则：第 14 轮全量后隔第 15 轮，累积 holidayCountdown + BarItemFactory 两轮代码改动），118 用例 0 失败基线确认。
+- 分解下发：3 张子卡（t_3e952ce6 A / t_fc7efdb5 B / t_1c8f6931 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round16-A/B/C 预建于 main@5d2c4fa，分支 r16/tooling / r16/techdebt / r16/review）。
+- 合并提交点：main@5d2c4fa → 3 子分支（r16/review f7043d9 快进合入 / r16/tooling edbc0c7 经 ec96ecf 合并 / r16/techdebt e932afc 经 7bc169f 合并）合入父分支 → 再并入 main 并 push origin。冲突共 1 处（iteration-log 第 16 轮子任务记录区：HEAD 侧 C+A 记录与 techdebt 侧 B 记录并列合并；run 180 部分解决时起始标记 `<<<<<<< HEAD` 行已删除、遗留 `=======` 与 `>>>>>>>` 两行，父任务接管后补齐删除——第 11/13/14/15 轮教训变体：起始标记虽缺但收口核验 grep 仍捕获残留，提交前 grep 清零有效）。合并后整体 build+test 实证 129 用例 0 失败 0 意外（118 基线 + 11 BarItemVisibilityTests，含 B 卡代码并入后的交叉验证）。根目录新增 4 份第 16 轮报告：验证报告_第16轮_add_files脚本修复.md、验证报告_第16轮_技术债评估与落地.md、核验报告_第16轮_维护机制健在与文档一致性.md、清理报告_第16轮_round15遗留清理.md；file-structure.zh.md 同步（mindmap 第 7~15 轮→第 7~16 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；② 全量回归（隔代触发）在分解前完成：BUILD/TEST SUCCEEDED 118 用例 0 失败 0 意外（xcresult /tmp/LyricsMTMR-dd-r16-test），基线确认后正常分解；③ 子任务 A（工程规范）add_files.py 锚点修复（遗留⑧落地）：删除 5 个硬编码「末尾条目」锚点，改为结构化段内定位（BuildFile/FileRef 插 section End 标记前、group child 按 name/path 动态定位真实 PBXGroup、Sources 经 app 目标 buildPhases 解析绝不落入单测目标），失败从静默改为响亮报错且不写盘，探针一键注册全链路实证（4 处条目落点正确 + build 成功 + 幂等 + 未知组失败模式），清理后仓库干净；④ 子任务 B（代码质量）TECHNICAL_DEBT 置顶剩余 3 条逐条源码实证评估：① view controllers 化暂缓（全 widget 体系重写 + 工厂/测试/镜像窗联动，收益仅架构整洁风险高）、② 枚举解析暂缓（4 处巨型 switch 依赖编译期穷尽性安全网，纠正旧文「113 case」误述——113/114 是 Item 类型全集口径非枚举 case 数）、③ 隐藏机制落地（实测两层隐藏：per-item matchAppId + 整条黑名单 blacklistAppIdentifiers，第 15 轮「无 hidden 逻辑」侦察不准确）：提取纯函数 shouldShowItem + 异步路径补同一过滤（修复异步主题切换绕过 matchAppId 的不一致 bug）+ 11 单测，分支 129 用例全绿；⑤ 子任务 C（维护面）年度维护核验第 10 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=5d2c4fa）+ 仓库卫生 round-15 全部遗留清理（4 worktree + 4 分支含父卡，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 6 项挂账盘点；⑥ 收口：父卡 run 176 陈旧锁 reclaim、run 180 被 dashboard 置 ready 中途 reclaim（已完成 C 快进 + A 合并，B 合并进行到一半遗留 1 冲突），run 183 接管后先核验无存活并发提交进程（run 180 进程已僵尸化无威胁），解决 iteration-log 冲突（A/B/C 记录并列）完成 7bc169f 合并，grep 冲突标记清零，整体 build+test 129 用例实证，并入 main push origin。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 10 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（113 + holidayCountdown，注释 114 = 97+14+2+1）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件（全 widget 体系重写 / 注册表混合架构需对账测试），③已落地；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射依赖月份惯例，未来年份跨月窗口需随 aShareHolidays 年度维护扩展；
+  8. 隐藏机制修复（shouldShowItem 提取 + 异步路径补过滤）无 Touch Bar 真机冒烟（逻辑由 11 单测覆盖，主题切换一致性问题修复留待真机确认）；
+  9. add_files.py 已修复并探针实证，后续 Widgets 新文件可一键注册（遗留⑧闭环）；新增测试文件仍需 pbxproj 注册（脚本只管 Sources 组文件）。
+- 下轮方向：① 继续功能/优化迭代（第 5 轮）：候选——新 widget/体验优化（README TODO 剩余项评估、代码库残留 FIXME/禁用项排查）、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 16 轮分解前全量回归 118 用例实证 + 收口整体 129 用例实证（基线口径升级为 129 = 118 + 11），累积 2~3 轮代码改动后触发下次全量回归（预计第 18 轮）；④ 收口教训固化：run 中途被 reclaim 会遗留未完成合并态（MERGE_HEAD + 未解决冲突），接管后必须先核验无存活并发提交进程（僵尸进程无威胁）再继续；冲突解决时即使起始标记 `<<<<<<< HEAD` 缺失，残留 `=======`/`>>>>>>>` 仍会被 grep 捕获——提交前 grep 冲突标记清零必须执行（本轮变体重演 1 次）。
+
+### 子任务记录
+
+- **t_1c8f6931 维护三合一（review-agent，分支 r16/review）**：
+  - 年度维护核验（第 10 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=5d2c4fa，本地 main 与 origin 同步）；文档一致性三方交叉核对一致（iteration-log 第 15 轮收口 ↔ 提交图 5d2c4fa→8125ce0→50c5a41→0824f2d ↔ file-structure 登记 4 份报告）、无冲突残留标记；
+  - 仓库卫生：round-15 父卡 t_f67afe50 + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round15-A/B/C + t_f67afe50）→ prune → branch -d ×4（r15/feature r15/refactor r15/review lyricsmtmr/t_f67afe50-15-lyricsmtmr-3-14）；删除后清点 .worktrees 仅 round16-A/B/C + round16-parent + 主仓库、本地分支 5 条（main + r16/tooling + r16/techdebt + r16/review + lyricsmtmr/t_58d4fa40-16-lyricsmtmr-4-15）、远端仅 main、prune --dry-run 空；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问 / ITER-14 时间驱动 / 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟 —— 均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第16轮_维护机制健在与文档一致性.md / 清理报告_第16轮_round15遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 2 份报告登记）；约束遵守：仅动本工作区与 r16/review，零代码改动（未触发构建/测试/全量回归，全量回归由父任务分解前实证 118 用例 0 失败），未 push，未开新分支/子任务。
+
+- **t_3e952ce6 add_files.py 锚点修复（code-agent，分支 r16/tooling）**：
+  - 遗留问题⑧落地：`Scripts/add_files.py` 锚点过期修复——旧脚本 SOURCES_ANCHOR/WIDGETS_CHILD_ANCHOR 硬编码「QuickReplyBarItem.swift 是 Sources 阶段最后一个条目 / Widgets 分组最后一个 child」+ 正则 `锚点 + \);` 要求其后紧跟列表收尾，现状已过期（Sources 阶段其后有 HolidayCountdown/NetworkSpeed/GitStatus 等 C0FF* 条目；QuickReplyBarItem 实际在 Productivity 分组、其后还有 ReadTimer/ReadingProgress/StandupTimer）→ 正则匹配不到 → **静默失败**（str.replace 不报错），只写入 BuildFile/FileRef 两段，pbxproj 半注册（第 15 轮 A 卡 HolidayCountdown.swift 即因此需手工补 2 处注册、8 处注册中 6 处靠手工）；
+  - 修复方案（结构化定位，零「末尾条目」假设）：① BuildFile/FileRef 两段改插在各自 section 的 `/* End … section */` 标记前（pbxproj 固有边界，永不失效）；② group child 按 group 名**动态定位真实 PBXGroup**（匹配 `name`/`path` 属性，0/多命中均报错）插在 children 列表末尾；③ Sources 条目经 app 目标（LyricsMTMR）buildPhases 解析出 **app 的** Sources phase（绝不落入单测目标）插在 files 列表末尾；`uuids_for` 不变（C0FE/C0FF + sha1 前缀）→ 确定性 UUID 幂等保持；group 参数从 Widgets/Preferences 白名单扩展为任意组名（Tools/Life/System/…）；失败从静默改为响亮报错且不写盘；
+  - 实证（探针一键注册全链路）：新建 `MTMR/Widgets/Tools/AddFilesProbe.swift` → `add_files.py Tools:AddFilesProbe.swift` → pbxproj 4 处条目全部写入且落点正确（PBXBuildFile :241 段尾 / PBXFileReference :508 段尾 / group child :780 **Tools 分组** children 真实末尾 / Sources phase :1290 **app 目标 B082B24B** files 末尾，QuickReplyBarItem 所在 Productivity 分组与单测 phase 零改动）→ xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16a-build）**BUILD SUCCEEDED**（探针编译进 app）→ 二次运行幂等（skip (present) + nothing to do，pbxproj 零重复写入）→ 未知组失败模式实证（`NoSuchGroup:Probe2.swift` exit=1 且 pbxproj 零改动）→ 清理探针文件与注册条目（rm + git checkout pbxproj），git status 仅剩脚本修复、仓库干净；
+  - 交付：验证报告《验证报告_第16轮_add_files脚本修复.md》（本分支根目录，含故障根因逐锚点分析/修复方案/实证过程/风险点）+ 本记录 + file-structure.zh.md 登记（mindmap 第 7~15 轮→第 7~16 轮 + 报告行）；
+  - 约束遵守：仅本工作区与 r16/tooling 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（父任务已实证 118 用例 0 失败，分支内 build 验证足够）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+- **t_fc7efdb5 技术债评估与落地（code-agent，分支 r16/techdebt）**：
+  - TECHNICAL_DEBT.md 置顶 TODO 剩余 3 条逐条调研评估（源码实证，非空谈）：
+    - ① try view controllers on NSCustomTouchBarItem —— **暂缓**。现状：全部 item 类直承 `NSCustomTouchBarItem`/`NSPopoverTouchBarItem`（Core 6 个：BasicView/CustomButtonTouchBarItem/ScrollViewItem/SwipeItem 直承 + AppleScript/ShellScript 经 CustomButton 间接承；Widgets 90+ 类：34 个 TBPopoverItem 子类 + 29 个 TBPollItem 子类 + 19 个 CustomButton 子类 + 12 个直承），`BarItemFactory` 98-case 构造 switch 与 18 个工厂单测断言依赖 item 具体类型，镜像窗 TouchBarMirrorWindowController.swift:378 按 `as? NSCustomTouchBarItem` 访问 `.view`；改造 = 全 widget 体系重写 + 工厂/测试/镜像窗联动，收益仅架构整洁、风险高；
+    - ② try move away from enums when parse preset —— **暂缓**。现状：4 处巨型 switch 各 98 case（ItemType ItemsParsing.swift:285-384 / ItemTypeRaw :485-584 / decode :589-981 / identifierBase TouchBarController.swift:24-223 / 工厂 BarItemFactory.swift:54-280）依赖枚举编译期穷尽性——新增 case 漏一处即编译失败，是安全网（注册链 6 处文档化于 internal-apis.zh.md §2.3）；113/114 是「Item 类型全集」口径（98+预定义 14+注册 2）非枚举 case 数，已纠正旧文误述；注册表模式已有 `SupportedTypesHolder`（:82-283）作预定义类型扩展点，混合架构可行但字典驱动会失去编译期检查，需对账测试补回；
+    - ③ find better way to hide bar items —— **✅ 已落地**。隐藏机制实测为两层：per-item `matchAppId` 条件创建（createItems 同步 / reloadPresetAsync 异步）+ 整条 Touch Bar 黑名单 `blacklistAppIdentifiers`→`dismissTouchBar()`（TouchBarController.swift:489/771）；第 15 轮「无 hidden 逻辑」侦察不准确。落地：提取纯函数 `TouchBarController.shouldShowItem(_:frontmostAppId:)`（:298-307，无 AppKit 状态可单测），同步路径改用它（5 分支逐一比对语义等价），异步路径补上同一过滤（修复异步主题切换绕过 matchAppId 的不一致 bug）；新增 `BarItemVisibilityTests` 11 用例（无规则恒显示 2/匹配显示 3/不匹配隐藏 2/nil 前台 1/无效正则降级 1/解码链路 2）；
+  - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16b-test）**TEST SUCCEEDED —— 129 用例 0 失败 0 意外**（118 基线 + 新增 11 全过，xcresult 实证，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已实证 118 用例基线）；
+  - 文档：TECHNICAL_DEBT.md 三条状态标注（① ② 已评估-暂缓附现状与前置条件，③ 已落地）+ 验证报告《验证报告_第16轮_技术债评估与落地.md》（本分支根目录）+ file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 本报告登记）；本记录即 iteration-log 追加；
+  - 约束遵守：仅本工作区与 r16/techdebt 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；新增测试文件 pbxproj 手工注册（add_files.py 锚点过期，第 15 轮遗留⑧）；完成自查 git status 干净 + commit 已提交。
