@@ -577,9 +577,16 @@
 
 - 目标：功能/优化迭代第 2 轮（接第 13 轮收口 main=024ec61）—— ① 实现卡：复活 currency 汇率 widget（TouchBarController.swift:870 FIXME Coinbase SSL 禁用项，父任务侦察实测 API 当前可访问）；② 文档卡：ITEMS_REFERENCE.md「80+ 种 Item 类型」旧口径核对修正（遗留④落地，实测 99）；③ 维护面：全量回归（隔代触发：第 12 轮后隔第 13 轮+累积 2 轮代码改动）+ 年度维护核验（第 8 次）+ round-13 父卡+子卡遗留清理（4 worktree + 4 分支）。
 - 分解下发：3 张子卡（t_753ceac6 A / t_f39b3022 B / t_90f0e74c C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round14-A/B/C 预建于 main@024ec61，分支 r14/feature/r14/docs/r14/review）。
-- 合并提交点：（待收口后补充）
-- 遗留问题：（待收口后补充）
-- 下轮方向：（待收口后补充）
+- 合并提交点：main@024ec61 → 3 子分支（r14/feature 0fff56a / r14/docs 66c5d12 / r14/review a92de3a）依次 merge --no-ff 合入 main（冲突共 4 处均手工解决：iteration-log 3 次 A/B/C 记录与父预登记段并列合并、file-structure 1 次 A/B 报告行并列保留；合并 r14/docs 与 r14/review 时各 1 处 `<<<<<<< HEAD` 起始标记遗漏在 patch old_string 外，收口核验 grep 发现后已分别单独 commit 清除——同第 13 轮教训重演，起始标记行单独成行时极易漏），再 push origin。根目录新增 5 份第 14 轮报告：验证报告_第14轮_currency恢复.md、核对报告_第14轮_ITEMS_REFERENCE口径.md、回归报告_第14轮.md、核验报告_第14轮_维护机制健在与文档一致性.md、清理报告_第14轮_round13遗留清理.md；file-structure.zh.md 同步（mindmap 第 7~14 轮、第 14 轮 5 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」（round14-A/B/C 预建于 main@024ec61）；② 子任务 A（实现卡）currency 汇率 widget 复活：TouchBarController.swift:869 解禁 case .currency 绑定 CurrencyBarItem，CurrencyBarItem 提取纯函数 parseRate/formatTitle + URL/JSON 去强制解包 + 请求失败优雅降级 ⚠︎ 错误态，新增 12 个单测（CurrencyBarItemTests.swift），分支 build+test 全绿（84 用例 = 72 基线 + 12 新增，金丝雀全过）；数据源实测 API 经代理可访问、直连超时属网络环境非证书错误，未换源；③ 子任务 B（文档卡）遗留④落地：以源码为唯一基准实测 Item 类型全集 = 113（ItemTypeRaw 97 + SupportedTypesHolder 预定义 14 + TouchBarController 注册 2），修正 ITEMS_REFERENCE.md 6 处（:3/:59 口径 80+→113、八大类统计表 80→113 重算、补 8 个缺失条目、速查表删不存在的 pause），README 3 处 99→113 口径统一（第 13 轮漏算预定义 14 个），脚本复核文档 headings/速查表/源码三者 113=113=113 零缺失零多余；纯文档轮零代码；④ 子任务 C（维护面）全量回归（隔代触发：第 12 轮后隔第 13 轮+累积 2 轮代码改动）BUILD/TEST SUCCEEDED 72 用例 0 失败 0 意外（xcresult 实证，回归基线口径升级为 72）+ 年度维护核验第 8 次全过（ITER-14 健在、32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4）+ 仓库卫生 round-13 全部遗留清理（4 worktree + 4 分支，删除前复核 4 检查全过，删除后 .worktrees 4 项/分支 4 条/远端仅 main）。⑤ 收口：子任务 B 工作区改动完整但 worker 漏提交，父任务收口时补交 66c5d12 后再合并。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 8 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；Item 类型口径自本轮起统一以 113 为准（含预定义+注册，第 13 轮「99」为漏算预定义的口径，本轮 B 卡已全面修正）；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理（URLSession 遵循系统网络设置），失败自动重试并显示 ⚠︎。
+- 下轮方向：① 继续功能/优化迭代（第 3 轮）：候选——新 widget/体验优化、README TODO 待办评估（剪切板快捷查看等）、TECHNICAL_DEBT 梳理、代码库中残留 FIXME/禁用项排查；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 14 轮 A 卡已附 84 用例实证、C 卡已全量回归（72 用例，基线口径升级为 72），累积 2~3 轮代码改动后触发下次全量回归；④ 收口教训固化：子任务 worker 完成工作后必须自查 commit 已提交（B 卡漏提交由父任务补交）；合并冲突解决时起始标记行 `<<<<<<< HEAD` 单独成行极易遗漏在 patch old_string 外，提交前必须 grep 冲突标记清零（本轮连续 2 次重演，第 11/13 轮同教训）。
 
 ### 子任务记录
 
