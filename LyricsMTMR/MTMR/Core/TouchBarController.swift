@@ -276,6 +276,15 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         appThemesDir + "/\(bundleId).json"
     }
 
+    /// Pure rule lookup: resolves the effective AppThemeMode for an app from a
+    /// rules table (bundleId → AppThemeMode rawValue). Returns nil when no rule
+    /// exists, the stored raw value is invalid, or the rule is `.disabled`
+    /// (rule kept but inactive). Kept free of AppKit/state so it is unit-testable.
+    static func resolveAppThemeMode(rules: [String: Int], appId: String) -> AppThemeMode? {
+        guard let raw = rules[appId], let mode = AppThemeMode(rawValue: raw) else { return nil }
+        return mode == .disabled ? nil : mode
+    }
+
     /// Items that failed to create — tracked so we can log and surface errors
     private(set) var failedItemIds: [NSTouchBarItem.Identifier] = []
 
@@ -458,8 +467,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         let frozen = AppSettings.freezeOnAppSwitch
         if let appId = currentAppId, blacklistAppIdentifiers.contains(appId) {
             dismissTouchBar()
-        } else if let appId = currentAppId, let modeRaw = appThemeRules[appId],
-                  let mode = AppThemeMode(rawValue: modeRaw), mode != .disabled {
+        } else if let appId = currentAppId,
+                  let mode = Self.resolveAppThemeMode(rules: appThemeRules, appId: appId) {
             // App-specific theme rule matched and is active
             handleAppThemeSwitch(appId: appId, mode: mode, appDidChange: appDidChange)
         } else if frozen {
