@@ -23,7 +23,11 @@ struct WeatherTab: View {
     @State private var forecastHours: Double = 0
     @State private var locating = false
     @State private var locationHint: String? = nil
-    @State private var locationManager: CLLocationManager? = nil
+    /// 定位添加城市会话（round 23）：resolve/超时/视图消失三路径停定位。
+    @State private var locationSession: WeatherLocationSession? = nil
+    /// 设置窗口可见性（round 22 关窗=隐藏复用后，窗口关闭/切后台/最小化
+    /// 不会卸载视图树，onDisappear 不触发——用 isVisible 做等价生命周期）。
+    @ObservedObject private var windowState = SettingsWindowState.shared
 
     var body: some View {
         TabTOCScrollView(sections: [
@@ -46,6 +50,17 @@ struct WeatherTab: View {
             .frame(maxWidth: .infinity)
         }
         .onAppear(perform: loadFromJSON)
+        .onDisappear { stopLocationSession() }
+        .onChange(of: windowState.isVisible) { _, visible in
+            // 窗口关闭（隐藏复用）/最小化/切后台/Space 切换：视图树仍在，
+            // onDisappear 不触发，等价生命周期钩子停掉在途定位会话。
+            if !visible { stopLocationSession() }
+        }
+        .onChange(of: windowState.activeTab) { _, tab in
+            // 切页：本 tab 常驻挂载（ZStack + 缓存，onDisappear 不触发），
+            // 离开天气页即停掉在途定位会话。
+            if tab != .weather { stopLocationSession() }
+        }
     }
 
     // MARK: - Data source
@@ -182,53 +197,37 @@ struct WeatherTab: View {
     // MARK: - Location
 
     private func locateAndAddCity() {
+        // 重复点击兜底（按钮已 disabled(locating)）：先停旧会话防多实例并存。
+        locationSession?.stop()
         locating = true
         locationHint = nil
-        let manager = CLLocationManager()
-        locationManager = manager
-
-        // Resolve via a one-shot geocoder after the first location fix.
-        var didResolve = false
-        let geocoder = CLGeocoder()
-        manager.requestLocation()
-        manager.startUpdatingLocation()
-
-        // Poll briefly for the first fix, then reverse-geocode.
-        var attempts = 0
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
-            attempts += 1
-            guard !didResolve else {
-                timer.invalidate()
-                return
-            }
-            if let loc = manager.location, attempts >= 2 {
-                timer.invalidate()
-                didResolve = true
-                geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
-                    DispatchQueue.main.async {
-                        self.locating = false
-                        if let placemark = placemarks?.first,
-                           let city = placemark.locality ?? placemark.administrativeArea {
-                            var name = city
-                            if name.hasSuffix("市") { name = String(name.dropLast()) }
-                            if !self.cities.contains(name) {
-                                self.cities.append(name)
-                                self.saveToJSON()
-                            }
-                            self.locationHint = localized("已添加：\(name)", "Added: \(name)")
-                        } else {
-                            self.locationHint = localized("无法获取定位", "Location unavailable")
-                        }
-                    }
+        let session = WeatherLocationSession { outcome in
+            // 会话已完成（resolve/超时），释放引用；结果在主线程回调。
+            self.locating = false
+            self.locationSession = nil
+            switch outcome {
+            case .city(let name):
+                if !self.cities.contains(name) {
+                    self.cities.append(name)
+                    self.saveToJSON()
                 }
-            } else if attempts > 12 {
-                timer.invalidate()
-                DispatchQueue.main.async {
-                    self.locating = false
-                    self.locationHint = localized("定位超时，请检查权限", "Location timed out — check permission")
-                }
+                self.locationHint = localized("已添加：\(name)", "Added: \(name)")
+            case .noPlacemark:
+                self.locationHint = localized("无法获取定位", "Location unavailable")
+            case .timedOut:
+                self.locationHint = localized("定位超时，请检查权限", "Location timed out — check permission")
             }
         }
+        locationSession = session
+        session.start()
+    }
+
+    /// 停掉在途定位会话（视图消失/窗口隐藏等价生命周期）：停定位 + 释放
+    /// 引用 + 复位按钮态。幂等：无会话时为 no-op。
+    private func stopLocationSession() {
+        locationSession?.stop()
+        locationSession = nil
+        locating = false
     }
 
     // MARK: - Sync
