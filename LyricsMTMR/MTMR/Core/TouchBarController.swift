@@ -706,6 +706,17 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 }
             }
         }
+        // Round 23 rebuild coverage: a rebuild that happens while the whole
+        // bar is hidden (blacklisted app active / exitTouchbar) must not
+        // leave the freshly created items polling. Items that seeded their
+        // pause from the global visibility state at init are already paused
+        // (this broadcast is then an idempotent no-op); the guard catches
+        // anything that was not seeded and closes the "rebuilt while hidden
+        // → new items spin until the next present/dismiss broadcast" gap on
+        // every rebuild path, regardless of whether a broadcast follows.
+        if TouchBarVisibilityState.shared.isBarHidden {
+            setPollingPaused(true)
+        }
     }
 
     /// Gives items that own live resources (timers, observers, lazily
@@ -734,6 +745,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     @objc private func presentTouchBar() {
+        // Round 23: settle the process-wide visibility state before the
+        // resume broadcast, so freshly created items and the rebuild paths
+        // can query "is the bar actually on screen".
+        TouchBarVisibilityState.shared.setBarHidden(false)
         if AppSettings.showControlStripState {
             presentSystemModal(touchBar, systemTrayItemIdentifier: .controlStripItem)
         } else {
@@ -744,6 +759,9 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     @objc private func dismissTouchBar() {
+        // Round 23: settle the process-wide visibility state before the
+        // pause broadcast (see presentTouchBar).
+        TouchBarVisibilityState.shared.setBarHidden(true)
         if touchBarContainsAnyItems() {
             minimizeSystemModal(touchBar)
         }

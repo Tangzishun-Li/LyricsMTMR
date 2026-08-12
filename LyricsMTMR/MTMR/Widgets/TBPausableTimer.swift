@@ -39,7 +39,15 @@ import Cocoa
 /// NSLock so pause/resume may arrive from any thread.
 final class TBPauseGate {
     private let lock = NSLock()
-    private var paused = false
+    private var paused: Bool
+
+    /// - Parameter startPaused: initial flag value. Widgets whose init may
+    ///   run while the whole bar is hidden (round 23) pass the global
+    ///   visibility state so the initial fetch is skipped and the resume
+    ///   broadcast performs the catch-up refresh.
+    init(startPaused: Bool = false) {
+        paused = startPaused
+    }
 
     var isPaused: Bool {
         lock.lock()
@@ -56,6 +64,45 @@ final class TBPauseGate {
         let changed = paused != value
         paused = value
         return changed
+    }
+}
+
+// MARK: - Global bar visibility state
+
+/// Process-wide "is the whole Touch Bar currently on screen" registry
+/// (round 23). `TouchBarController.presentTouchBar` / `dismissTouchBar`
+/// drive it; item inits (synchronous main thread, `createItemSafely`) and
+/// the rebuild paths query it so a rebuild that happens while the bar is
+/// hidden (blacklisted app active / exitTouchbar) starts the new items
+/// already paused instead of spinning until the next present/dismiss
+/// broadcast. Every read/write goes through an NSLock — the flag may be
+/// read from background queues and written from the main thread.
+///
+/// Initial value is `false` (visible): before the first present/dismiss the
+/// bar does not exist yet, there is no "hidden" state to inherit, and the
+/// launch path (`reloadStandardConfig` → `updateActiveApp`) settles the
+/// real state immediately. Keeping the default visible preserves the
+/// pre-round-23 behavior of freshly created items byte-for-byte.
+final class TouchBarVisibilityState {
+    static let shared = TouchBarVisibilityState()
+
+    private let lock = NSLock()
+    private var _isBarHidden = false
+
+    /// True while the Touch Bar is not on screen (dismissed or never
+    /// presented).
+    var isBarHidden: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isBarHidden
+    }
+
+    /// Records a present (false) / dismiss (true). Idempotent — repeated
+    /// broadcasts with the same value are harmless.
+    func setBarHidden(_ hidden: Bool) {
+        lock.lock()
+        _isBarHidden = hidden
+        lock.unlock()
     }
 }
 

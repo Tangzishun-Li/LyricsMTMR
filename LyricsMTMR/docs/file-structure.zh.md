@@ -177,6 +177,7 @@ mindmap
 ├── 验证报告_第22轮_天气widget定位服务隐藏期治理.md # 第 22 轮子任务 B 验证报告（WeatherBarItem/YandexWeatherBarItem 定位服务纳入隐藏暂停：隐藏期 stopUpdatingLocation（GPS 关闭、隐私指示灯熄灭）、恢复重启定位+立即补刷天气；locationPauseGate 广播幂等 + locationTrackingEnabled init 期守卫（城市模式/权限拒绝广播 no-op）+ start/stop 定位接缝 internal 单测注入；TCC 持久授权零重弹风险实证（stop/start 不重弹窗）；WeatherBarItem activity 闭包 [weak self] 断永久循环引用（deinit 可达并停定位，配置热重载旧 item 泄漏放大器根治）；TouchBarController 零改动，177 用例实证，r22/location）
 ├── 核验报告_第23轮_维护机制健在与文档一致性.md # 第 23 轮核验报告（第 17 次年度维护核验，r23/review；行号引用连续三轮零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=8b15f98 同步）
 ├── 清理报告_第23轮_round22遗留清理.md          # 第 23 轮子任务 C 仓库卫生报告（round-22 父卡+子卡遗留 worktree/分支清理，r23/review）
+├── 验证报告_第23轮_全局隐藏态注入与重建覆盖.md # 第 23 轮子任务 A 验证报告（隐藏期重建治理收官：TouchBarVisibilityState 全局隐藏态注册表（present/dismiss 驱动、初始态可见）+ createItems 重建覆盖 guard + init 隐藏态注入——TBPollItem/TBMetricPopoverItem 隐藏期重建零 compute 初始 fetch 跳过、恢复零延迟补刷（runImmediateCycle + _needsInitialRefresh 陈旧补刷丢弃）；Currency/Weather/Yandex/UpNext gate 播种全局态 init fetch 零请求、天气类隐藏期重建 GPS 不亮；广播协议零破坏逐字节等价，192 用例实证，r23/feature；新增测试 MTMRTests/GlobalHiddenStateTests.swift）
 
 └── .gitignore / .gitattributes / README.md
 ```

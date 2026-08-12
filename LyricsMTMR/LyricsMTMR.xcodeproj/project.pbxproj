@@ -243,6 +243,7 @@
 		C0FFB3400C3B5EE0211E19A3 /* TBPausableTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEB3400C3B5EE0211E19A3 /* TBPausableTimer.swift */; };
 		C1FF434F207C11097FC6CA41 /* PausableTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */; };
 		C1FF36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */; };
+		C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -514,6 +515,7 @@
 		C0FEB3400C3B5EE0211E19A3 /* TBPausableTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TBPausableTimer.swift; sourceTree = "<group>"; };
 		C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PausableTimerTests.swift; sourceTree = "<group>"; };
 		C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryTests.swift; sourceTree = "<group>"; };
+		C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHiddenStateTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -658,6 +660,7 @@
 				C1FE5E942DC378C6A46AD6E7 /* PollingPauseTests.swift */,
 				C1FE434F207C11097FC6CA41 /* PausableTimerTests.swift */,
 				C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */,
+				C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1323,6 +1326,7 @@
 				C1FF5E942DC378C6A46AD6E7 /* PollingPauseTests.swift in Sources */,
 				C1FF434F207C11097FC6CA41 /* PausableTimerTests.swift in Sources */,
 				C1FF36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift in Sources */,
+				C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
