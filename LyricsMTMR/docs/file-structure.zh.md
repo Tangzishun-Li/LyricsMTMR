@@ -168,6 +168,7 @@ mindmap
 
 ├── 核验报告_第21轮_维护机制健在与文档一致性.md # 第 21 轮核验报告（第 15 次年度维护核验，r21/review；行号引用第 20 轮修正后零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=bc56985 同步）
 ├── 清理报告_第21轮_round20遗留清理.md          # 第 21 轮子任务 C 仓库卫生报告（round-20 父卡+子卡遗留 worktree/分支清理，r21/review）
+├── 验证报告_第21轮_ClipboardHistory事件驱动化.md # 第 21 轮子任务 A 验证报告（ClipboardHistory 事件驱动化评估：NSPasteboard.observe 公开 SDK 不存在（编译/头文件/官方文档三重证伪）+ 四种替代事件机制实测全灭 → changeCount 轮询为唯一机制；落地变更源抽象 ClipboardChangeSource（测试注入假源直驱捕获路径）+ 浮层打开即时对齐 + pollInterval 可注入，隐藏期零丢失不可达如实记录，169 用例实证，r21/feature；新增测试 MTMRTests/ClipboardHistoryTests.swift）
 
 └── .gitignore / .gitattributes / README.md
 ```
