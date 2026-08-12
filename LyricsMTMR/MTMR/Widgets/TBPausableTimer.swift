@@ -3,6 +3,9 @@
 //  MTMR
 //
 //  Round 19: shared pause machinery for self-driven widgets.
+//  Round 20: added an optional run-loop mode (BrightnessViewController and
+//  ClipboardHistoryItem run their timers in .common so refresh keeps firing
+//  during touch-bar tracking).
 //
 //  Round 18 added thread-safe pause/resume to the polling base classes
 //  (TBPollItem / TBMetricPopoverItem) and made TouchBarController broadcast
@@ -74,6 +77,7 @@ final class TBPausableTimer {
     private var timer: Timer?
     private var _interval: TimeInterval
     private let tolerance: TimeInterval?
+    private let runLoopMode: RunLoop.Mode
     private let immediateFireOnResume: Bool
     private let handler: () -> Void
 
@@ -85,11 +89,18 @@ final class TBPausableTimer {
     ///     handler once right after reinstalling the timer, so data-driven
     ///     widgets repaint immediately instead of showing a stale value for
     ///     another full interval.
+    ///   - mode: run-loop mode the timer is installed in. Defaults to
+    ///     `.default` (identical to `Timer.scheduledTimer`). Items whose
+    ///     original timer was added in `.common` (brightness slider,
+    ///     clipboard watcher) pass it through so refresh keeps firing
+    ///     during touch-bar tracking.
     ///   - handler: the periodic work; runs on the main thread.
     init(interval: TimeInterval, tolerance: TimeInterval? = nil,
-         immediateFireOnResume: Bool, handler: @escaping () -> Void) {
+         immediateFireOnResume: Bool, mode: RunLoop.Mode = .default,
+         handler: @escaping () -> Void) {
         _interval = max(0.1, interval)
         self.tolerance = tolerance
+        self.runLoopMode = mode
         self.immediateFireOnResume = immediateFireOnResume
         self.handler = handler
     }
@@ -173,12 +184,13 @@ final class TBPausableTimer {
         lock.lock()
         let interval = _interval
         lock.unlock()
-        let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.handler()
         }
         if let tolerance = tolerance {
             t.tolerance = tolerance
         }
+        RunLoop.main.add(t, forMode: runLoopMode)
         lock.lock()
         timer = t
         lock.unlock()

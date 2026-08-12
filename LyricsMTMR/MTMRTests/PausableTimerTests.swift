@@ -11,6 +11,11 @@
 //  deallocated timer never fires again. Also covers the CPUBarItem
 //  asyncAfter self-loop, which pauses through the same gate.
 //
+//  Round 20: extends coverage to the remaining self-driven Timer items
+//  (DarkModeBarItem, TimeTouchBarItem, MusicBarItem's refresh chain,
+//  BrightnessViewController), the .common run-loop mode pass-through, and
+//  independent pausing of multiple timers owned by one item.
+//
 //  Hosted tests run on the main thread, so the helpers pump the main
 //  runloop (runloop timers and main-queue blocks only run while pumping).
 //
@@ -280,5 +285,213 @@ class PausableTimerTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.2)
         XCTAssertNil(weakItem,
                      "a pending asyncAfter hop must not resurrect the deallocated item")
+    }
+
+    // MARK: - Round 20: remaining self-driven Timer items
+
+    /// DarkModeBarItem subclass counting refresh() invocations. Uses the
+    /// injectable refreshInterval (0.4s) instead of the production 3s so
+    /// the pause window is short.
+    private final class CountingDarkModeItem: DarkModeBarItem {
+        private let counterLock = NSLock()
+        private var _refreshCount = 0
+
+        var refreshCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _refreshCount
+        }
+
+        override func refresh() {
+            counterLock.lock()
+            _refreshCount += 1
+            counterLock.unlock()
+            super.refresh()
+        }
+    }
+
+    func testDarkModeItemPauseStopsRefreshAndResumeRefreshes() {
+        let item = CountingDarkModeItem(identifier: testIdentifier, refreshInterval: 0.4)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= 2 },
+                      "dark mode item should refresh after init (3s production interval shortened for the test)")
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5) // drain any in-flight fire
+        let pausedCount = item.refreshCount
+        pumpRunLoop(for: 1.0) // >= 2 intervals
+        XCTAssertEqual(item.refreshCount, pausedCount,
+                       "dark mode polling must not run while paused")
+
+        // immediateFireOnResume: the icon must repaint right away on show.
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.refreshCount > pausedCount },
+                      "resume must refresh the icon immediately (dark mode may have changed while hidden)")
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= pausedCount + 2 },
+                      "polling must keep cycling at the original cadence after resume")
+    }
+
+    /// TimeTouchBarItem subclass counting updateTime() invocations.
+    private final class CountingTimeItem: TimeTouchBarItem {
+        private let counterLock = NSLock()
+        private var _updateCount = 0
+
+        var updateCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _updateCount
+        }
+
+        override func updateTime() {
+            counterLock.lock()
+            _updateCount += 1
+            counterLock.unlock()
+            super.updateTime()
+        }
+    }
+
+    func testTimeItemPauseStopsUpdatesAndResumeRefreshes() {
+        let item = CountingTimeItem(identifier: testIdentifier, formatTemplate: "HH:mm:ss")
+        XCTAssertTrue(waitUntil(timeout: 2.5) { item.updateCount >= 2 },
+                      "clock should tick after init (1s cadence)")
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5) // drain any in-flight fire
+        let pausedCount = item.updateCount
+        pumpRunLoop(for: 1.3) // > 1 interval
+        XCTAssertEqual(item.updateCount, pausedCount,
+                       "clock must not tick while hidden")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.updateCount > pausedCount },
+                      "resume must repaint the clock immediately so it is not stale")
+    }
+
+    /// MusicBarItem subclass counting updatePlayer() invocations. Does NOT
+    /// call super (which would run ScriptingBridge IPC against every
+    /// installed player) — the refreshAndSchedule chain itself is what is
+    /// under test here.
+    private final class CountingMusicItem: MusicBarItem {
+        private let counterLock = NSLock()
+        private var _updateCount = 0
+
+        var updateCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _updateCount
+        }
+
+        override func updatePlayer() {
+            counterLock.lock()
+            _updateCount += 1
+            counterLock.unlock()
+        }
+    }
+
+    func testMusicItemPauseStopsChainAndResumeRestarts() {
+        let item = CountingMusicItem(identifier: testIdentifier, interval: 0.4, disableMarquee: true)
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.updateCount >= 2 },
+                      "music refresh chain should keep cycling after init")
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.6) // drain the in-flight hop; the chain dies at the next entry
+        let pausedCount = item.updateCount
+        pumpRunLoop(for: 1.0) // >= 2 intervals
+        XCTAssertEqual(item.updateCount, pausedCount,
+                       "music chain must not advance while hidden")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.updateCount > pausedCount },
+                      "resume must refresh the player immediately (fresh song title on show)")
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.updateCount >= pausedCount + 2 },
+                      "chain must keep cycling at the original cadence after resume")
+    }
+
+    /// BrightnessViewController subclass counting updateBrightnessSlider()
+    /// invocations. The timer runs in .common mode (pass-through).
+    private final class CountingBrightnessItem: BrightnessViewController {
+        private let counterLock = NSLock()
+        private var _refreshCount = 0
+
+        var refreshCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _refreshCount
+        }
+
+        override func updateBrightnessSlider() {
+            counterLock.lock()
+            _refreshCount += 1
+            counterLock.unlock()
+            super.updateBrightnessSlider()
+        }
+    }
+
+    func testBrightnessItemPauseStopsRefresh() {
+        let item = CountingBrightnessItem(identifier: testIdentifier, refreshInterval: 0.4)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= 2 },
+                      "brightness slider should refresh after init")
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5) // drain any in-flight refresh
+        let pausedCount = item.refreshCount
+        pumpRunLoop(for: 1.0) // >= 2 intervals
+        XCTAssertEqual(item.refreshCount, pausedCount,
+                       "brightness polling must not run while hidden")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.refreshCount > pausedCount },
+                      "resume must refresh the slider immediately so it matches the real brightness")
+    }
+
+    // MARK: - Round 20: run-loop mode pass-through + multi-timer ownership
+
+    func testPausableTimerCommonModeFires() {
+        // BrightnessViewController / ClipboardHistoryItem run their timers
+        // in .common (fires during touch-bar tracking, same as before the
+        // round-20 conversion). .default is a member of the common modes
+        // set, so an ordinary runloop pump must drive it.
+        let counter = Counter()
+        let timer = TBPausableTimer(interval: 0.4, tolerance: nil,
+                                    immediateFireOnResume: false,
+                                    mode: .common) { counter.bump() }
+        timer.start()
+        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+                      "a .common-mode pausable timer must fire under a normal runloop pump")
+
+        timer.setPaused(true)
+        pumpRunLoop(for: 0.5)
+        let pausedCount = counter.value
+        pumpRunLoop(for: 1.0)
+        XCTAssertEqual(counter.value, pausedCount,
+                       "a .common-mode pausable timer must still respect pause")
+    }
+
+    func testTwoPausableTimersSameOwnerPauseIndependently() {
+        // MusicBarItem owns two timers (refresh chain + 0.25s marquee).
+        // Pausing one must never touch the other.
+        let counterA = Counter()
+        let counterB = Counter()
+        let timerA = TBPausableTimer(interval: 0.4, tolerance: nil,
+                                     immediateFireOnResume: false) { counterA.bump() }
+        let timerB = TBPausableTimer(interval: 0.4, tolerance: nil,
+                                     immediateFireOnResume: false) { counterB.bump() }
+        timerA.start()
+        timerB.start()
+        XCTAssertTrue(waitUntil(timeout: 2.0) { counterA.value >= 1 && counterB.value >= 1 },
+                      "both timers should fire after start")
+
+        timerA.setPaused(true)
+        pumpRunLoop(for: 0.5)
+        let frozenA = counterA.value
+        let beforeB = counterB.value
+        pumpRunLoop(for: 1.0) // >= 2 intervals
+        XCTAssertEqual(counterA.value, frozenA,
+                       "paused timer A must stay frozen")
+        XCTAssertGreaterThan(counterB.value, beforeB,
+                             "timer B must keep firing while A is paused")
+
+        timerA.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { counterA.value > frozenA },
+                      "timer A must resume independently")
     }
 }
