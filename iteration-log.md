@@ -890,3 +890,13 @@
   - 等价性：callActions 仍调同一 defaultTapAction；scheduler completion 无条件调用满足协议；URLSession 闭包逻辑不变仅弱化捕获——item 存活期间行为无差异，断环后 item 随 NSTouchBar 释放即刻回收；
   - 交付：验证报告《验证报告_第20轮_actions强引用环评估.md》（本分支根目录，含引用图三链+审计链表/结论/改动清单/单测清单/等价性论证/风险遗留）+ 本记录 + file-structure.zh.md（mindmap 第 7~19 轮→第 7~20 轮 + 报告行登记，无重复行）；
   - 约束遵守：仅本工作区与 r20/code-quality 分支改动，未 push 远端，未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+---
+
+## 第 21 轮 / 子任务 C（review-agent，分支 r21/review）
+
+- **t_a87e1676 维护三合一（review-agent，分支 r21/review）**：
+  - 年度维护核验（第 15 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7；待办区行号引用 StockBarItem.swift:391 无新漂移——第 20 轮修正后首轮复查零漂移）；2027 段 32 日期（3+8+3+5+3+3+7 分布断言通过）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对（7/7）；金丝雀防屏蔽直查 :195-196 在位；aShareHolidays/aShareMakeupDates 唯一数据源实证（全仓仅 StockBarItem 定义 :378-402/:407-422 + HolidayCountdown 只读复用 + MTMRTests 表驱动，无第二份定义，isMarketOpen :433 在位）；maintenance-notes 行号引用抽查无新漂移（:372-373/:378-402/:407-422 逐字吻合，第 20 轮修正 4 处后本轮零漂移）；年度流程 4 步骤/周末直查规则 :39-40/修订历史全部在位；GitHub 4/4 实测（先 git fetch origin：#1 OPEN / #40 CLOSED / 0 open PR / origin/main=bc56985，本地 main 与 origin 同步 0/0）；文档一致性三方交叉核对一致（iteration-log 第 20 轮收口 ↔ 提交图 bc56985→6d3c5fe→ca879e2/5d7b572→7572575（C→A→B）↔ file-structure 登记 4 份第 20 轮报告）、无冲突残留标记（git grep 行首锚定 0 命中）；114 口径注释 TouchBarController :1145/:1156 在位，自第 20 轮起无新漂移；
+  - 仓库卫生：round-20 父卡 t_c36b2f62 + 3 子卡（t_b34cb2d0 / t_60cbd9a4 / t_de5320e5）遗留清理 —— 删除前复核 4 检查全过（4 分支 rev-list 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round20-A/B/C + round20-parent）→ prune → branch -d ×4（r20/feature r20/code-quality r20/review lyricsmtmr/t_c36b2f62-20-lyricsmtmr-8-19）；删除后清点 .worktrees 仅 round21-A/B/C + 父卡 t_03c6a8c6 + 主仓库（round21-parent 父卡收口时预建）、本地分支 5 条（main + r21/*×3 + lyricsmtmr/t_03c6a8c6-21-lyricsmtmr-9-20 父卡分支）、远端仅 main、prune --dry-run 空；round21-* 与 t_03c6a8c6 未动（约束遵守）；
+  - 遗留跟踪盘点（round-20 收口 11 项 → 本轮逐项状态确认）：issue #1 OPEN 待真机验证（实测仍 OPEN）/ ITER-15 决策门 4 问（iteration-plan :238-242 条目在位，待用户确认）/ ITER-14 时间驱动（第 15 次核验健在，2026-11 前无动作）/ 口径统一 32+114（114 口径 :1145/:1156 在位无新漂移）/ 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟 / 隐藏机制真机冒烟 / add_files.py 已闭环 / 第 19 轮 A 卡观察①②已闭环（第 20 轮 A/B 卡落地，收口已确认）/ **第 20 轮 A 卡新登记遗留（AudioSpectrum 采集 tap 事件驱动非 Timer + ClipboardHistory 事件驱动化）→ 第 21 轮 B 卡 t_5f002e2d + A 卡 t_275b71be 承接中** —— 结论待父任务收口并入 main 时确认；本轮核验未发现新增遗留项（行号引用零漂移）；
+  - 产出：根目录 2 份报告（核验报告_第21轮_维护机制健在与文档一致性.md / 清理报告_第21轮_round20遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~20 轮→第 7~21 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r21/review，零代码改动（未触发构建/测试/全量回归，第 20 轮收口已实证 163 用例 0 失败，全量回归由父任务按隔代规则安排，预计第 22 轮分解前触发），未 push，未开新分支/子任务；完成自查 git status 干净 + commit 已提交。

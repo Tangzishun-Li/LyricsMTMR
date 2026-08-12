@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~20 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~21 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -165,6 +165,9 @@ mindmap
 ├── 清理报告_第20轮_round19遗留清理.md          # 第 20 轮子任务 C 仓库卫生报告（round-19 父卡+子卡遗留 worktree/分支清理，r20/review）
 
 ├── 验证报告_第20轮_actions强引用环评估.md # 第 20 轮子任务 B 验证报告（CustomButtonTouchBarItem actions 强引用环评估与修复：CPUBarItem/YandexWeatherBarItem 两处 defaultTapAction 方法引用强捕获 self 成环 → [weak self] 闭包，Yandex 另修 scheduler/URLSession 两处同类强捕获，视图/手势链实证无环，157 用例实证，r20/code-quality）
+
+├── 核验报告_第21轮_维护机制健在与文档一致性.md # 第 21 轮核验报告（第 15 次年度维护核验，r21/review；行号引用第 20 轮修正后零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=bc56985 同步）
+├── 清理报告_第21轮_round20遗留清理.md          # 第 21 轮子任务 C 仓库卫生报告（round-20 父卡+子卡遗留 worktree/分支清理，r21/review）
 
 └── .gitignore / .gitattributes / README.md
 ```
