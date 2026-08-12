@@ -661,6 +661,24 @@
 
 ## 第 16 轮（功能/优化迭代第 4 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 4 轮（接第 15 轮收口 main=5d2c4fa）—— ① 实现卡 A：add_files.py 锚点修复（遗留⑧落地，工程规范维度）；② 实现卡 B：TECHNICAL_DEBT.md 置顶 TODO 剩余 3 条评估 + 至少一条落地（代码质量维度）；③ 维护面 C：年度维护核验（第 10 次）+ round-15 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮分解前触发全量回归（隔代规则：第 14 轮全量后隔第 15 轮，累积 holidayCountdown + BarItemFactory 两轮代码改动），118 用例 0 失败基线确认。
+- 分解下发：3 张子卡（t_3e952ce6 A / t_fc7efdb5 B / t_1c8f6931 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round16-A/B/C 预建于 main@5d2c4fa，分支 r16/tooling / r16/techdebt / r16/review）。
+- 合并提交点：main@5d2c4fa → 3 子分支（r16/review f7043d9 快进合入 / r16/tooling edbc0c7 经 ec96ecf 合并 / r16/techdebt e932afc 经 7bc169f 合并）合入父分支 → 再并入 main 并 push origin。冲突共 1 处（iteration-log 第 16 轮子任务记录区：HEAD 侧 C+A 记录与 techdebt 侧 B 记录并列合并；run 180 部分解决时起始标记 `<<<<<<< HEAD` 行已删除、遗留 `=======` 与 `>>>>>>>` 两行，父任务接管后补齐删除——第 11/13/14/15 轮教训变体：起始标记虽缺但收口核验 grep 仍捕获残留，提交前 grep 清零有效）。合并后整体 build+test 实证 129 用例 0 失败 0 意外（118 基线 + 11 BarItemVisibilityTests，含 B 卡代码并入后的交叉验证）。根目录新增 4 份第 16 轮报告：验证报告_第16轮_add_files脚本修复.md、验证报告_第16轮_技术债评估与落地.md、核验报告_第16轮_维护机制健在与文档一致性.md、清理报告_第16轮_round15遗留清理.md；file-structure.zh.md 同步（mindmap 第 7~15 轮→第 7~16 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；② 全量回归（隔代触发）在分解前完成：BUILD/TEST SUCCEEDED 118 用例 0 失败 0 意外（xcresult /tmp/LyricsMTMR-dd-r16-test），基线确认后正常分解；③ 子任务 A（工程规范）add_files.py 锚点修复（遗留⑧落地）：删除 5 个硬编码「末尾条目」锚点，改为结构化段内定位（BuildFile/FileRef 插 section End 标记前、group child 按 name/path 动态定位真实 PBXGroup、Sources 经 app 目标 buildPhases 解析绝不落入单测目标），失败从静默改为响亮报错且不写盘，探针一键注册全链路实证（4 处条目落点正确 + build 成功 + 幂等 + 未知组失败模式），清理后仓库干净；④ 子任务 B（代码质量）TECHNICAL_DEBT 置顶剩余 3 条逐条源码实证评估：① view controllers 化暂缓（全 widget 体系重写 + 工厂/测试/镜像窗联动，收益仅架构整洁风险高）、② 枚举解析暂缓（4 处巨型 switch 依赖编译期穷尽性安全网，纠正旧文「113 case」误述——113/114 是 Item 类型全集口径非枚举 case 数）、③ 隐藏机制落地（实测两层隐藏：per-item matchAppId + 整条黑名单 blacklistAppIdentifiers，第 15 轮「无 hidden 逻辑」侦察不准确）：提取纯函数 shouldShowItem + 异步路径补同一过滤（修复异步主题切换绕过 matchAppId 的不一致 bug）+ 11 单测，分支 129 用例全绿；⑤ 子任务 C（维护面）年度维护核验第 10 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=5d2c4fa）+ 仓库卫生 round-15 全部遗留清理（4 worktree + 4 分支含父卡，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 6 项挂账盘点；⑥ 收口：父卡 run 176 陈旧锁 reclaim、run 180 被 dashboard 置 ready 中途 reclaim（已完成 C 快进 + A 合并，B 合并进行到一半遗留 1 冲突），run 183 接管后先核验无存活并发提交进程（run 180 进程已僵尸化无威胁），解决 iteration-log 冲突（A/B/C 记录并列）完成 7bc169f 合并，grep 冲突标记清零，整体 build+test 129 用例实证，并入 main push origin。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 10 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（113 + holidayCountdown，注释 114 = 97+14+2+1）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件（全 widget 体系重写 / 注册表混合架构需对账测试），③已落地；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射依赖月份惯例，未来年份跨月窗口需随 aShareHolidays 年度维护扩展；
+  8. 隐藏机制修复（shouldShowItem 提取 + 异步路径补过滤）无 Touch Bar 真机冒烟（逻辑由 11 单测覆盖，主题切换一致性问题修复留待真机确认）；
+  9. add_files.py 已修复并探针实证，后续 Widgets 新文件可一键注册（遗留⑧闭环）；新增测试文件仍需 pbxproj 注册（脚本只管 Sources 组文件）。
+- 下轮方向：① 继续功能/优化迭代（第 5 轮）：候选——新 widget/体验优化（README TODO 剩余项评估、代码库残留 FIXME/禁用项排查）、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 16 轮分解前全量回归 118 用例实证 + 收口整体 129 用例实证（基线口径升级为 129 = 118 + 11），累积 2~3 轮代码改动后触发下次全量回归（预计第 18 轮）；④ 收口教训固化：run 中途被 reclaim 会遗留未完成合并态（MERGE_HEAD + 未解决冲突），接管后必须先核验无存活并发提交进程（僵尸进程无威胁）再继续；冲突解决时即使起始标记 `<<<<<<< HEAD` 缺失，残留 `=======`/`>>>>>>>` 仍会被 grep 捕获——提交前 grep 冲突标记清零必须执行（本轮变体重演 1 次）。
+
 ### 子任务记录
 
 - **t_1c8f6931 维护三合一（review-agent，分支 r16/review）**：
