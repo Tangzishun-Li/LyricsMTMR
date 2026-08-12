@@ -22,7 +22,10 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     /// bar 隐藏（黑名单 app / exitTouchbar）期间零 EventKit 查询（等价于
     /// 其余三 widget 的零网络请求），恢复后调度器按原 interval 继续 +
     /// setPaused(false) 立即补刷一次。
-    private let pollGate = TBPauseGate()
+    /// round 23：init 播种全局隐藏态——重建恰发生在 bar 隐藏期间时 gate
+    /// 初始即暂停，init 单次加载（updateView）零 EventKit 查询，恢复广播
+    /// setPaused(false) 负责补刷。
+    private let pollGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
 
     // Settings
     private var futureSearchCutoff: Double

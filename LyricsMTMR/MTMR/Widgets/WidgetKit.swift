@@ -569,6 +569,16 @@ class TBPollItem: NSCustomTouchBarItem, TBPollPausable {
         metric.value = "…"
         view = metric
         queue = DispatchQueue(label: "com.lyricsmtmr.poll." + identifier.rawValue)
+        // Round 23: an item created while the whole bar is hidden (rebuild
+        // during blacklist / exitTouchbar) starts paused so its first
+        // cycle — the initial fetch — never fires. The resume broadcast
+        // (setPaused(false)) performs the skipped fetch immediately
+        // (catch-up, _needsInitialRefresh) and then runs the normal
+        // cadence. Visible creation is byte-identical to before.
+        _isPaused = TouchBarVisibilityState.shared.isBarHidden
+        if _isPaused {
+            _needsInitialRefresh = true
+        }
         scheduleNextCycle()
     }
 
@@ -586,6 +596,10 @@ class TBPollItem: NSCustomTouchBarItem, TBPollPausable {
     /// most one in-flight cycle even when pause/resume races with a cycle
     /// that is currently executing (double-scheduling would double compute).
     private var _cycleScheduled = false
+    /// True when the item was created while the bar was hidden (round 23):
+    /// the initial fetch was skipped at init, so the first resume must run
+    /// it immediately (catch-up) instead of waiting a full interval.
+    private var _needsInitialRefresh = false
 
     deinit {
         flagLock.lock()
@@ -597,13 +611,20 @@ class TBPollItem: NSCustomTouchBarItem, TBPollPausable {
     /// Pauses (true) or resumes (false) the polling loop. While paused the
     /// loop performs no compute() and schedules no further cycles; resume
     /// restarts it. Safe from any thread; repeated calls are idempotent.
+    /// Round 23: an item that started hidden (initial fetch skipped) runs
+    /// the catch-up cycle immediately on the first resume.
     func setPaused(_ paused: Bool) {
         flagLock.lock()
         let changed = _isPaused != paused
         _isPaused = paused
+        let needsInitial = _needsInitialRefresh
         flagLock.unlock()
         if changed && !paused {
-            scheduleNextCycle()
+            if needsInitial {
+                runImmediateCycle()
+            } else {
+                scheduleNextCycle()
+            }
         }
     }
 
@@ -634,6 +655,35 @@ class TBPollItem: NSCustomTouchBarItem, TBPollPausable {
             self.flagLock.lock()
             self._cycleScheduled = false
             self.flagLock.unlock()
+            self.loop()
+        }
+    }
+
+    /// Fires the skipped initial fetch right away (round 23 catch-up for an
+    /// item created while the bar was hidden). Same guards as
+    /// scheduleNextCycle but zero delay. The queued hop re-checks the flags
+    /// and consumes `_needsInitialRefresh` only when the cycle actually
+    /// runs, so a pause that lands while the hop is queued drops the stale
+    /// catch-up and a later resume retries it (same stale-hop-drop pattern
+    /// as the round-21/22 main-thread hops).
+    private func runImmediateCycle() {
+        flagLock.lock()
+        guard !_isCancelled, !_isPaused, !_cycleScheduled else {
+            flagLock.unlock()
+            return
+        }
+        _cycleScheduled = true
+        flagLock.unlock()
+        queue?.async { [weak self] in
+            guard let self = self else { return }
+            self.flagLock.lock()
+            self._cycleScheduled = false
+            let runNow = !self._isPaused && !self._isCancelled && self._needsInitialRefresh
+            if runNow {
+                self._needsInitialRefresh = false
+            }
+            self.flagLock.unlock()
+            guard runNow else { return }
             self.loop()
         }
     }
@@ -708,6 +758,13 @@ class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
         collapsedRepresentation = metric
         popoverTouchBar.delegate = self
         queue = DispatchQueue(label: "com.lyricsmtmr.metricpoll." + identifier.rawValue)
+        // Round 23: same hidden-init seeding as TBPollItem — created while
+        // the bar is hidden, the first cycle (initial fetch) never fires;
+        // the first resume runs the catch-up immediately.
+        _isPaused = TouchBarVisibilityState.shared.isBarHidden
+        if _isPaused {
+            _needsInitialRefresh = true
+        }
         scheduleNextCycle()
     }
     required init?(coder: NSCoder) { return nil }
@@ -717,6 +774,9 @@ class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
     private let flagLock = NSLock()
     private var _isPaused = false
     private var _cycleScheduled = false
+    /// Round 23: initial fetch was skipped because the item was created
+    /// while the bar was hidden — the first resume must catch up at once.
+    private var _needsInitialRefresh = false
 
     deinit {
         flagLock.lock()
@@ -728,13 +788,20 @@ class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
     /// Pauses (true) or resumes (false) the polling loop. While paused the
     /// loop performs no compute() and schedules no further cycles; resume
     /// restarts it. Safe from any thread; repeated calls are idempotent.
+    /// Round 23: an item that started hidden (initial fetch skipped) runs
+    /// the catch-up cycle immediately on the first resume.
     func setPaused(_ paused: Bool) {
         flagLock.lock()
         let changed = _isPaused != paused
         _isPaused = paused
+        let needsInitial = _needsInitialRefresh
         flagLock.unlock()
         if changed && !paused {
-            scheduleNextCycle()
+            if needsInitial {
+                runImmediateCycle()
+            } else {
+                scheduleNextCycle()
+            }
         }
     }
 
@@ -763,6 +830,33 @@ class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
             self.flagLock.lock()
             self._cycleScheduled = false
             self.flagLock.unlock()
+            self.loop()
+        }
+    }
+
+    /// Fires the skipped initial fetch right away (round 23 catch-up for an
+    /// item created while the bar was hidden). Same guards as
+    /// scheduleNextCycle but zero delay; the queued hop consumes
+    /// `_needsInitialRefresh` only when the cycle actually runs (stale-hop
+    /// drop, identical to TBPollItem).
+    private func runImmediateCycle() {
+        flagLock.lock()
+        guard !cancelled, !_isPaused, !_cycleScheduled else {
+            flagLock.unlock()
+            return
+        }
+        _cycleScheduled = true
+        flagLock.unlock()
+        queue?.async { [weak self] in
+            guard let self = self else { return }
+            self.flagLock.lock()
+            self._cycleScheduled = false
+            let runNow = !self._isPaused && !self.cancelled && self._needsInitialRefresh
+            if runNow {
+                self._needsInitialRefresh = false
+            }
+            self.flagLock.unlock()
+            guard runNow else { return }
             self.loop()
         }
     }
