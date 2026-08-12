@@ -3,7 +3,7 @@
 * try view controllers on `NSCustomTouchBarItem` instead of subclassing item itself
 * try move away from enums when parse preset – enums are hard to extend
 * find better way to hide bar items
-* extract bar items creating from TouchBarController to separate class, cover with tests
+* ~~extract bar items creating from TouchBarController to separate class, cover with tests~~ ✅ 已落地（第 15 轮子任务 B：`BarItemFactory` 提取 + `BarItemFactoryTests` 单测，见验证报告_第15轮_barItemFactory提取.md）
 
 
 ### Roadmap

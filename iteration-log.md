@@ -611,3 +611,18 @@
   - 年度维护核验（第 8 次）：ITER-14 置顶待办完好可执行（唯一未勾选项，:388 引用准，检查点与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370/:375-399/:404-419、三函数 :155/:167/:183、年度流程 :22-47、周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=024ec61；本地 main 领先 1 个 docs 提交为父任务预登记）；文档一致性三方交叉核对一致、无冲突残留标记；
   - 仓库卫生：round-13 父卡 t_bdcd677c + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4 → prune → branch -d ×4，删除后清点 .worktrees 仅 round14-A/B/C + 主仓库、本地分支 4 条、远端仅 main、prune --dry-run 空；
   - 产出：根目录 3 份报告（回归报告_第14轮.md / 核验报告_第14轮_维护机制健在与文档一致性.md / 清理报告_第14轮_round13遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~14 轮 + 3 份报告登记）；约束遵守：仅动本工作区与 r14/review，未 push，未开新分支/子任务。
+
+---
+
+## 第 15 轮（功能/优化迭代第 3 轮）
+
+### 子任务记录
+
+- **t_ade25e65 代码质量（code-agent，分支 r15/refactor）**：
+  - 落地 TECHNICAL_DEBT.md 置顶 TODO 第 4 条「extract bar items creating from TouchBarController to separate class, cover with tests」：新建 `MTMR/Core/BarItemFactory.swift`（371 行），`createItemInternal` 的 113 case type→widget switch + 动作/参数后处理整体迁入工厂 `createItem`（语义拷贝，逐行迁移），`createItemSafely`（Swift catch + ObjC MTMRTryOrError 双层隔离）与 `createErrorItem`（⚠︎ 指示 item）一并迁入；TouchBarController.swift 1394→1092 行，控制器新增 `private lazy var itemFactory`，三个私有能力（action(forItem:)/longAction(forItem:)/closure(for:)）以弱引用闭包注入，未传控制器整体——依赖解耦达成；
+  - 等价性：配置解析（ItemsParsing.swift）、identifierBase 映射、identifier 生成逻辑零改动；switch 迁移仅 3 处替换（self.action→actionResolver 等注入闭包）；调用链出入参类型完全一致；controller 侧 failedItemIds/慢创建告警/主线程构造不变；
+  - 单测：新建 `MTMRTests/BarItemFactoryTests.swift`（18 用例，≥12 达标）：八大类代表创建各 1（系统控制 darkMode/媒体 playbackProgress/信息展示 timeButton/布局 group/计时 pomodoro/网络开发 gitStatus/生活 billSplit/工具 uuidGen，均断言类型+identifier 保留）、未知类型安全降级（JSON 未知 type → staticButton "unknown" 不整体失败 + dock 非法正则 → "Bad regex" 降级）、错误隔离路径（子类覆写 createItem 抛错 → createItemSafely 返回 ⚠︎ 错误指示 item）、identifierBase 映射一致性（7 个代表类型抽检，含 clipboardHistory）、动作/参数应用（legacyAction/legacyLongAction/actions 数组/bordered/title 各路径）；pbxproj 两文件各 4 处注册（ID CA8F2B8C~8F/2FC5000000D189D7~D8）；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r15b-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r15b-test）**TEST SUCCEEDED —— 102 用例 0 失败 0 意外**（84 基线 + 新增 18 全过，xcresult 实证 11 套件全过，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；第 15 轮不触发全量回归（上轮第 14 轮已全量，基线 72→84）；
+  - 顺带项：README TODO 区 6 条逐条按源码实测——前 4 条维持 [x]，「剪切板快捷查看」已实现但未勾选（ItemsParsing.swift:350 clipboardHistory 解码 + BarItemFactory.swift:210 case .clipboardHistory 创建 ClipboardHistoryItem，提取前 TouchBarController.swift:986）本轮修正为 [x] 并注明依据，「……」占位符维持；TECHNICAL_DEBT.md 第 4 条勾选标注落地；
+  - 文档：验证报告《验证报告_第15轮_barItemFactory提取.md》（本分支根目录，含提取前后结构对比/依赖处理说明/等价性论证/风险点/README TODO 核对表）+ file-structure.zh.md（mindmap 第 7~14 轮→第 7~15 轮 + 本报告登记）；本记录即 iteration-log 追加；
+  - 约束遵守：仅本工作区与 r15/refactor 分支改动，未 push 远端（父任务收口统一合并），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
