@@ -840,3 +840,15 @@
   - 版本体系观察（如实记录未归因）：git tag v1.0.0（07-30）→ v0.8（08-10）→ pre-opt（08-12），Info.plist 0.27 自 08-08 起，tag 体系与 marketing version 存在历史错位，更新日志 v0.8 与 v0.27 并存——本卡仅置顶补当前版本条目，不编造中间版本史（如需完整版本史需 GitHub Releases/git tag 考古，超出本卡范围）；
   - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
   - 交付：核对报告《核对报告_第19轮_README占位符清理与现状核对.md》（本分支根目录，含占位符处理决策/12 项逐项核对表/改动清单/风险点）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（mindmap 第 7~18 轮→第 7~19 轮 + 报告行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+---
+
+## 第 20 轮（功能/优化迭代第 8 轮）
+
+### 子任务记录
+
+- **t_de5320e5 维护三合一（review-agent，分支 r20/review）**：
+  - 年度维护核验（第 14 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7）；2027 段 32 日期（3+8+3+5+3+3+7 分布断言通过）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对（7/7）；金丝雀防屏蔽直查 :195-196 在位；aShareHolidays/aShareMakeupDates 唯一数据源实证（全仓仅 StockBarItem 定义 :378-402/:407-422 + HolidayCountdown 只读复用 + MTMRTests 表驱动，无第二份定义，isMarketOpen :433 在位）；maintenance-notes 抽查发现 round19-A（95651b7）合入致行号引用 **+3 漂移**（:369-370/:375-399/:404-419 → 实际 :372-373/:378-402/:407-422），本轮修正 3 处 + iteration-plan 待办区 :388→:391 共 4 处（语义零变化，第 13 次核验当时行号准确）；年度流程 4 步骤/周末直查规则 :39-40/修订历史全部在位；GitHub 4/4 实测（先 git fetch origin：#1 OPEN / #40 CLOSED / 0 open PR / origin/main=1a4374d，本地 main 与 origin 同步 0/0）；文档一致性三方交叉核对一致（iteration-log 第 19 轮收口 ↔ 提交图 1a4374d→d994fbe→0965e3c/134e30f/2f3b581（C→A→B）↔ file-structure 登记 4 份第 19 轮报告）、无冲突残留标记（git grep 行首锚定 0 命中）；114 口径注释 TouchBarController :1145/:1156 在位，自第 19 轮起无新漂移；
+  - 仓库卫生：round-19 父卡 t_d5d7d17a + 3 子卡（t_daabd270 / t_d2c57cd5 / t_a03a87e6）遗留清理 —— 删除前复核 4 检查全过（4 分支 rev-list 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round19-A/B/C + round19-parent）→ prune → branch -d ×4（r19/feature r19/docs r19/review lyricsmtmr/t_d5d7d17a-19-lyricsmtmr-7-18）；删除后清点 .worktrees 仅 round20-A/B/C + round20-parent + 主仓库、本地分支 5 条（main + r20/*×3 + lyricsmtmr/t_c36b2f62-20-lyricsmtmr-8-19 父卡分支）、远端仅 main、prune --dry-run 空；round20-* 未动（约束遵守）；
+  - 遗留跟踪盘点（round-19 收口 10 项 → 本轮 11 项）：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问（iteration-log 各轮遗留挂账 :151/:241/:565/:584/:627/:672/:718 + iteration-plan :238-242 条目在位）/ ITER-14 时间驱动（第 14 次核验健在，待办区行号引用已修正）/ 口径统一 32+114（114 口径 :1145/:1156 在位无新漂移）/ 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟 / 隐藏机制真机冒烟 / add_files.py 已闭环 / **第 19 轮 A 卡超范围观察①（DarkModeBarItem 等剩余 Timer item 统一治理）→ 第 20 轮 A 卡 t_b34cb2d0 承接中** / **②（actions 强自引用环）→ 第 20 轮 B 卡 t_60cbd9a4 承接中** —— ①②最终结论待父任务收口并入 main 时确认；
+  - 产出：根目录 2 份报告（核验报告_第20轮_维护机制健在与文档一致性.md / 清理报告_第20轮_round19遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~19 轮→第 7~20 轮 + 2 份报告登记，无重复行）+ 行号引用修正 4 处（docs/maintenance-notes.md ×3 + docs/iteration-plan.md ×1）；约束遵守：仅动本工作区与 r20/review，零代码改动（未触发构建/测试/全量回归，第 19 轮收口已实证 156 用例 0 失败，全量回归由父任务按「第 20 轮分解前触发」规则安排），未 push，未开新分支/子任务；完成自查 git status 干净 + commit 已提交。
