@@ -1037,6 +1037,164 @@ class PausableTimerTests: XCTestCase {
         XCTAssertNil(weakItem,
                      "item must deallocate — the activity scheduler closure must not retain it (round 22 weak-self fix)")
     }
+
+    // MARK: - Round 24: 收官审计修复（NoiseMeter 采集链 / 脚本自循环 / marquee / netstat）
+
+    func testNoiseMeterPauseStopsCaptureAndResumeRestarts() {
+        let item = CountingNoiseItem(identifier: testIdentifier, refreshInterval: 60)
+        XCTAssertEqual(item.startCount, 1, "init must start mic capture exactly once")
+
+        item.setPaused(true)
+        XCTAssertEqual(item.stopCount, 1, "hiding the bar must stop mic capture (privacy light out)")
+        item.setPaused(true)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.stopCount, 1, "repeated pause broadcast must not double-stop")
+        XCTAssertEqual(item.startCount, 1, "pause must not restart capture")
+
+        item.setPaused(false)
+        XCTAssertEqual(item.startCount, 2, "showing the bar must restart mic capture")
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.startCount, 2, "repeated resume broadcast must not restart capture again")
+    }
+
+    func testNoiseMeterHiddenRebuildSkipsCapture() {
+        // Round 23 seeding: an item rebuilt while the bar is hidden must not
+        // start capture; the resume broadcast starts it as catch-up.
+        // Restore the global state afterwards (defer runs on normal return).
+        TouchBarVisibilityState.shared.setBarHidden(true)
+        defer { TouchBarVisibilityState.shared.setBarHidden(false) }
+
+        let item = CountingNoiseItem(identifier: testIdentifier, refreshInterval: 60)
+        XCTAssertEqual(item.startCount, 0, "hidden rebuild must not start mic capture")
+        XCTAssertEqual(item.stopCount, 0, "hidden rebuild must not touch capture")
+
+        item.setPaused(false)
+        XCTAssertEqual(item.startCount, 1, "resume broadcast must start capture as catch-up")
+    }
+
+    func testShellScriptItemPauseFreezesChainAndResumeRefreshes() {
+        let item = CountingShellItem(identifier: testIdentifier, interval: 3600)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount >= 1 },
+                      "init must run the script once (async first hop)")
+        pumpRunLoop(for: 0.3) // let the first hop fully drain
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.6)
+        let frozen = item.execCount
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.execCount, frozen,
+                       "paused chain must not execute the script (next hop gated)")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount == frozen + 1 },
+                      "resume must refresh the script immediately (catch-up)")
+        pumpRunLoop(for: 0.4)
+        XCTAssertEqual(item.execCount, frozen + 1,
+                       "no extra executions after the single catch-up (interval 3600)")
+    }
+
+    func testAppleScriptItemPauseFreezesChainAndResumeRefreshes() {
+        let item = CountingAppleItem(identifier: testIdentifier, interval: 3600)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount >= 1 },
+                      "init must run the script once (async first hop)")
+        pumpRunLoop(for: 0.3)
+
+        item.setPaused(true)
+        pumpRunLoop(for: 0.6)
+        let frozen = item.execCount
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.execCount, frozen,
+                       "paused chain must not execute the script (next hop gated)")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount == frozen + 1 },
+                      "resume must refresh the script immediately (catch-up)")
+        pumpRunLoop(for: 0.4)
+        XCTAssertEqual(item.execCount, frozen + 1,
+                       "no extra executions after the single catch-up (interval 3600)")
+    }
+
+    func testScriptItemsPauseBroadcastIsIdempotent() {
+        let shell = CountingShellItem(identifier: testIdentifier, interval: 3600)
+        let apple = CountingAppleItem(identifier: testIdentifier, interval: 3600)
+        XCTAssertTrue(waitUntil(timeout: 2.0) { shell.execCount >= 1 && apple.execCount >= 1 })
+        pumpRunLoop(for: 0.3)
+        let shellBaseline = shell.execCount
+        let appleBaseline = apple.execCount
+
+        // presentTouchBar broadcasts setPaused(false) even to never-paused items.
+        shell.setPaused(false)
+        apple.setPaused(false)
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(shell.execCount, shellBaseline, "no-op resume broadcast must not re-run the script")
+        XCTAssertEqual(apple.execCount, appleBaseline, "no-op resume broadcast must not re-run the script")
+
+        // Repeated dismiss broadcasts must not double-stop the chains.
+        shell.setPaused(true)
+        apple.setPaused(true)
+        shell.setPaused(true)
+        apple.setPaused(true)
+        pumpRunLoop(for: 0.6)
+        XCTAssertEqual(shell.execCount, shellBaseline, "paused chains must not execute")
+        XCTAssertEqual(apple.execCount, appleBaseline, "paused chains must not execute")
+    }
+
+    func testLyricsMarqueePauseStopsTimerAndResumeRebuilds() {
+        let item = LyricsTouchBarItem(identifier: testIdentifier)
+        // Let the async engine sinks (trackInfo/line updates) settle first —
+        // a late sink may call stopMarqueeTimer() and perturb the assertions.
+        pumpRunLoop(for: 0.3)
+
+        let lyrics = SimpleLyrics(lines: [
+            SimpleLyrics.Line(position: 0, content: "这是一行超长歌词用于触发溢出滚动测试文本",
+                              timetags: [(0.1, 0), (0.2, 1)]),
+            SimpleLyrics.Line(position: 5, content: "第二行", timetags: [])
+        ])
+        let track = EngineTrackInfo(title: "t", artist: "a", album: "", artwork: nil,
+                                    duration: 10, playbackState: .playing,
+                                    playbackTime: 1, bundleIdentifier: nil)
+
+        item.startMarquee(overflowWidth: 200, lineIndex: 0, active: lyrics, track: track)
+        XCTAssertTrue(item.marqueeTimerActive,
+                      "visible-state startMarquee must install the 60fps timer")
+
+        item.setPaused(true)
+        XCTAssertFalse(item.marqueeTimerActive,
+                       "hiding the bar must stop the marquee timer")
+
+        // A hidden-period lyrics tick (onLyricsUpdate → handleTextScroll →
+        // startMarquee) must not reinstall the timer.
+        item.startMarquee(overflowWidth: 200, lineIndex: 0, active: lyrics, track: track)
+        XCTAssertFalse(item.marqueeTimerActive,
+                       "startMarquee while hidden must be gated (zero 60fps spin)")
+
+        // Resume itself installs nothing — the next tick rebuilds the timer.
+        item.setPaused(false)
+        XCTAssertFalse(item.marqueeTimerActive,
+                       "resume alone must not install the timer (next tick rebuilds)")
+        item.startMarquee(overflowWidth: 200, lineIndex: 0, active: lyrics, track: track)
+        XCTAssertTrue(item.marqueeTimerActive,
+                      "the post-resume tick must rebuild the marquee timer")
+    }
+
+    func testNetworkItemPauseStopsProcessAndResumeRestarts() {
+        let item = CountingNetworkItem(identifier: testIdentifier, units: "KB/s")
+        XCTAssertEqual(item.startCount, 1, "init must start the netstat process once")
+
+        item.setPaused(true)
+        XCTAssertEqual(item.stopCount, 1, "hiding the bar must terminate the netstat process")
+        item.setPaused(true)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.stopCount, 1, "repeated pause broadcast must not double-stop")
+        XCTAssertEqual(item.startCount, 1, "pause must not restart the process")
+
+        item.setPaused(false)
+        XCTAssertEqual(item.startCount, 2, "showing the bar must restart the netstat process")
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.startCount, 2, "repeated resume broadcast must not restart the process again")
+    }
 }
 
 // MARK: - Round 22 shared test doubles (file scope so WidgetLeakTests reuses them)
@@ -1195,4 +1353,167 @@ final class CountingUpNextItem: UpNextScrubberTouchBarItem {
     }
 
     required init?(coder _: NSCoder) { return nil }
+}
+
+// MARK: - Round 24 test doubles (file scope)
+
+// The round-24 audit found four active-source classes that were still
+// spinning while the bar is hidden:
+//   - NoiseMeterItem         (AVAudioEngine mic tap — privacy light stays on)
+//   - ShellScriptTouchBarItem / AppleScriptTouchBarItem (asyncAfter chains
+//     spawning user scripts — arbitrary IO/network/process cost)
+//   - LyricsTouchBarItem     (60fps marquee scroll timer during playback)
+//   - NetworkBarItem         (resident `netstat -w1` process + data events)
+// All five now conform to TBPollPausable; the counting doubles below
+// override the hardware/process/script entry points so no real mic,
+// netstat process, or user script is ever touched.
+
+/// Fake SourceProtocol for ShellScriptTouchBarItem construction.
+private struct ShellFakeSource: SourceProtocol {
+    var data: Data? { nil }
+    var string: String? { "echo 1" }
+    var image: NSImage? { nil }
+    var appleScript: NSAppleScript? { nil }
+}
+
+/// Fake SourceProtocol for AppleScriptTouchBarItem construction (a
+/// compileable one-liner; the counting subclass never executes it).
+private struct AppleFakeSource: SourceProtocol {
+    var data: Data? { nil }
+    var string: String? { nil }
+    var image: NSImage? { nil }
+    var appleScript: NSAppleScript? { NSAppleScript(source: "return \"ok\"") }
+}
+
+/// NoiseMeterItem subclass counting engine start/stop without touching
+/// AVFoundation hardware (the base init calls startEngine() through the
+/// override, so nothing real is ever started).
+private final class CountingNoiseItem: NoiseMeterItem {
+    private let counterLock = NSLock()
+    private var _startCount = 0
+    private var _stopCount = 0
+
+    override init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double) {
+        super.init(identifier: identifier, refreshInterval: refreshInterval)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    var startCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _startCount
+    }
+
+    var stopCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _stopCount
+    }
+
+    override func startEngine() {
+        counterLock.lock()
+        _startCount += 1
+        counterLock.unlock()
+    }
+
+    override func stopEngine() {
+        counterLock.lock()
+        _stopCount += 1
+        counterLock.unlock()
+    }
+}
+
+/// ShellScriptTouchBarItem subclass counting execute() calls instead of
+/// running the real script. The base class's asyncAfter chain (the part
+/// under test) runs for real; interval 3600 keeps the test window clear.
+private final class CountingShellItem: ShellScriptTouchBarItem {
+    private let counterLock = NSLock()
+    private var _execCount = 0
+
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
+        super.init(identifier: identifier, source: ShellFakeSource(), interval: interval)!
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    var execCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _execCount
+    }
+
+    override func execute(_ command: String) -> String {
+        counterLock.lock()
+        _execCount += 1
+        counterLock.unlock()
+        return "test"
+    }
+}
+
+/// AppleScriptTouchBarItem subclass counting execute() calls instead of
+/// running the real script (same chain-under-test approach as the shell
+/// double above).
+private final class CountingAppleItem: AppleScriptTouchBarItem {
+    private let counterLock = NSLock()
+    private var _execCount = 0
+
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
+        super.init(identifier: identifier, source: AppleFakeSource(),
+                   interval: interval, alternativeImages: [:])!
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    var execCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _execCount
+    }
+
+    override func execute() -> String {
+        counterLock.lock()
+        _execCount += 1
+        counterLock.unlock()
+        return "ok"
+    }
+}
+
+/// NetworkBarItem subclass counting process start/stop instead of
+/// launching a real `netstat` process (the base init calls
+/// startMonitoringProcess() through the override).
+private final class CountingNetworkItem: NetworkBarItem {
+    private let counterLock = NSLock()
+    private var _startCount = 0
+    private var _stopCount = 0
+
+    init(identifier: NSTouchBarItem.Identifier, units: String) {
+        super.init(identifier: identifier, flip: false, units: units)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    var startCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _startCount
+    }
+
+    var stopCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _stopCount
+    }
+
+    override func startMonitoringProcess() {
+        counterLock.lock()
+        _startCount += 1
+        counterLock.unlock()
+    }
+
+    override func stopMonitoringProcess() {
+        counterLock.lock()
+        _stopCount += 1
+        counterLock.unlock()
+    }
 }

@@ -8,7 +8,7 @@
 
 import Foundation
 
-class NetworkBarItem: CustomButtonTouchBarItem, Widget {
+class NetworkBarItem: CustomButtonTouchBarItem, Widget, TBPollPausable {
     static var name: String = "network"
     static var identifier: String = "com.toxblh.mtmr.network"
     
@@ -16,19 +16,45 @@ class NetworkBarItem: CustomButtonTouchBarItem, Widget {
     private let units: String
     private var bandwidthProcess: Process?
     private var dataObserver: NSObjectProtocol?
+
+    /// round 24 收官审计：隐藏暂停门。netstat 常驻进程（-w1 每秒输出）与 bar
+    /// 显隐零关联——隐藏期进程持续运行、每秒回调解析 + 主线程 attributedTitle
+    /// 重建（事件驱动源在隐藏期持续产生事件，同 round 21 采集链论证）；本卡
+    /// 纳入暂停：隐藏期终止进程 + 移除 observer（零进程零回调），恢复时重启
+    /// 监控（首个数据块即补刷）。round 23 播种：隐藏期重建时 init 不启动。
+    private let pollGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
     
     init(identifier: NSTouchBarItem.Identifier, flip: Bool = false, units: String) {
         self.flip = flip
         self.units = units
         super.init(identifier: identifier, title: " ")
-        startMonitoringProcess()
+        if !pollGate.isPaused {
+            startMonitoringProcess()
+        }
     }
 
     required init?(coder _: NSCoder) { return nil }
 
     deinit {
+        stopMonitoringProcess()
+    }
+
+    /// round 24：隐藏暂停——gate 变更检测（重复广播幂等）；暂停终止进程，
+    /// 恢复重启（重启无副作用：netstat 为系统命令，无授权状态机）。
+    func setPaused(_ paused: Bool) {
+        guard pollGate.setPaused(paused) else { return }
+        if paused {
+            stopMonitoringProcess()
+        } else {
+            startMonitoringProcess()
+        }
+    }
+
+    /// 停止监控进程（幂等；deinit 与隐藏暂停共用）。internal：单测注入点。
+    func stopMonitoringProcess() {
         if let observer = dataObserver {
             NotificationCenter.default.removeObserver(observer)
+            dataObserver = nil
         }
         bandwidthProcess?.terminate()
         bandwidthProcess = nil

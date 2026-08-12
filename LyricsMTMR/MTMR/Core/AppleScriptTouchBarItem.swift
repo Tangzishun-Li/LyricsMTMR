@@ -1,10 +1,17 @@
 import Foundation
 
-class AppleScriptTouchBarItem: CustomButtonTouchBarItem {
+class AppleScriptTouchBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private var script: NSAppleScript!
     private let interval: TimeInterval
     private var forceHideConstraint: NSLayoutConstraint!
     private let alternativeImages: [String: SourceProtocol]
+
+    /// round 24 收官审计：隐藏暂停门。AppleScript 自循环与 bar 显隐零关联
+    /// ——隐藏期仍按 interval 执行用户脚本（任意开销）；本卡纳入暂停：
+    /// 隐藏期链在下一 hop 终结，恢复时立即补刷一次 + 按原节奏继续
+    /// （同 ShellScriptTouchBarItem / MusicBarItem 模式）。
+    /// round 23 播种：隐藏期重建时 init 的首次执行被 guard 拦截。
+    private let pauseGate = TBPauseGate(startPaused: TouchBarVisibilityState.shared.isBarHidden)
 
     init?(identifier: NSTouchBarItem.Identifier, source: SourceProtocol, interval: TimeInterval, alternativeImages: [String: SourceProtocol]) {
         self.interval = interval
@@ -40,7 +47,21 @@ class AppleScriptTouchBarItem: CustomButtonTouchBarItem {
 
     required init?(coder _: NSCoder) { return nil }
 
+    /// round 24：隐藏暂停——gate 变更检测（重复广播幂等）；恢复时补刷跳到
+    /// 脚本队列执行（execute 为阻塞调用，不能放主线程）。
+    func setPaused(_ paused: Bool) {
+        guard pauseGate.setPaused(paused) else { return }
+        if !paused {
+            DispatchQueue.appleScriptQueue.async { [weak self] in
+                self?.refreshAndSchedule()
+            }
+        }
+    }
+
     func refreshAndSchedule() {
+        // round 24：隐藏期间不执行脚本也不调度下一 hop，链在此终结；
+        // 恢复时由 setPaused(false) 重新拉起（立即补刷一次 + 原节奏继续）。
+        guard !pauseGate.isPaused else { return }
         let scriptResult = execute()
         DispatchQueue.main.async {
             self.title = scriptResult
