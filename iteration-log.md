@@ -583,6 +583,7 @@
 
 ### 子任务记录
 
+<<<<<<< HEAD
 - **t_753ceac6 实现（code-agent，分支 r14/feature）**：
   - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
   - 加固（CurrencyBarItem.swift）：提取纯函数 `static parseRate(from:to:)`（Coinbase 响应 data.rates[<to>] 解析，畸形/缺层/非字符串一律返回 nil，原 as!/data! 强转会崩溃）与 `static formatTitle(prefix:postfix:value:decimal:full:)`（full=前缀+后缀‣decimal 位舍入，否则前缀+两位小数）；URL 构造去强制解包；请求失败/解析失败优雅降级为 ⚠︎ 错误态（主线程，不崩溃不残留旧值）；dataTask 闭包改 [weak self]；删除失效状态变量 decimalValue/decimalString；币种符号表/小数位表/涨跌着色/定时刷新不变；
@@ -599,3 +600,8 @@
   - d) 交叉参照：ElementPaletteView 94 元素全部 ∈ 113（8 个补录类型面板均已在位，反证文档遗漏）；Widgets/ 七域与文档八类框架映射一致；其余章节（目录/width/操作指南）零漂移；
   - e) 纯文档轮零代码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
   - f) 交付：核对报告 `核对报告_第14轮_ITEMS_REFERENCE口径.md`（本分支根目录）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（第 14 轮报告行）。
+- **t_90f0e74c 维护三合一（review-agent，分支 r14/review）**：
+  - 全量回归（隔代触发：第 12 轮后隔第 13 轮 + 累积 2 轮代码改动）：main@024ec61（工作区分支快进至 7116d00 含父任务预登记 docs 提交，代码零差异）BUILD SUCCEEDED + TEST SUCCEEDED，xcresult 实测 72 用例 0 失败 0 意外（60 基线 + 第 13 轮新增 12 AppThemeRulesTests），3 金丝雀点名全过；告警 9 代码 + 1 非代码与第 12 轮构成一致；回归基线口径升级为 72；
+  - 年度维护核验（第 8 次）：ITER-14 置顶待办完好可执行（唯一未勾选项，:388 引用准，检查点与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370/:375-399/:404-419、三函数 :155/:167/:183、年度流程 :22-47、周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=024ec61；本地 main 领先 1 个 docs 提交为父任务预登记）；文档一致性三方交叉核对一致、无冲突残留标记；
+  - 仓库卫生：round-13 父卡 t_bdcd677c + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4 → prune → branch -d ×4，删除后清点 .worktrees 仅 round14-A/B/C + 主仓库、本地分支 4 条、远端仅 main、prune --dry-run 空；
+  - 产出：根目录 3 份报告（回归报告_第14轮.md / 核验报告_第14轮_维护机制健在与文档一致性.md / 清理报告_第14轮_round13遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~14 轮 + 3 份报告登记）；约束遵守：仅动本工作区与 r14/review，未 push，未开新分支/子任务。

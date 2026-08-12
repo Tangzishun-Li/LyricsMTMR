@@ -129,6 +129,10 @@ mindmap
 ├── 验证报告_第14轮_currency恢复.md     # 第 14 轮子任务 A 验证报告（currency 汇率 widget 恢复：Coinbase FIXME 解禁 + parseRate/formatTitle 纯函数 + 优雅降级，r14/feature）
 ├── 核对报告_第14轮_ITEMS_REFERENCE口径.md      # 第 14 轮子任务 B 核对报告（Item 类型口径 80+→113：ItemTypeRaw 97+预定义 14+注册 2，补 8 缺失条目删 pause，r14/docs）
 
+├── 回归报告_第14轮.md                        # 第 14 轮子任务 C 全量回归报告（隔代触发：BUILD/TEST SUCCEEDED，72 用例 0 失败，r14/review）
+├── 核验报告_第14轮_维护机制健在与文档一致性.md # 第 14 轮核验报告（第 8 次年度维护核验，r14/review）
+├── 清理报告_第14轮_round13遗留清理.md          # 第 14 轮子任务 C 仓库卫生报告（round-13 父卡+子卡遗留 worktree/分支清理，r14/review）
+
 └── .gitignore / .gitattributes / README.md
 ```
 
