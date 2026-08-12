@@ -796,6 +796,25 @@
 
 ## 第 19 轮（功能/优化迭代第 7 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 7 轮（接第 18 轮收口 main=04d0279）—— ① 实现卡 A：隐藏暂停轮询覆盖缺口补齐（第 18 轮 B 卡只暂停 TBPollItem/TBMetricPopoverItem 子类，8 个自带 Timer/自循环的 item 不在覆盖内，黑名单隐藏期间仍空转；性能维度）；② 文档/工程规范卡 B：README TODO「……」占位符清理评估 + README 现状核对（第 18 轮下轮方向点名，工程规范维度）；③ 维护面 C：年度维护核验（第 13 次）+ round-18 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮不触发全量回归（第 18 轮分解前已全量 134 + 收口整体 147 用例实证，隔代规则下预计第 20 轮触发）。
+- 分解下发：3 张子卡（t_daabd270 A / t_d2c57cd5 B / t_a03a87e6 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round19-A/B/C 预建于 main@04d0279，分支 r19/feature / r19/docs / r19/review）。
+- 合并提交点：main@04d0279 → 3 子分支（r19/review 0965e3c 无冲突合入 / r19/feature 134e30f 经 2 处冲突 / r19/docs 2f3b581 经 2 处冲突）依次 merge --no-ff 合入父分支（冲突共 4 处均为 iteration-log + file-structure 第 19 轮记录并列合并，其中 A 分支 merge 后残留 1 处 `>>>>>>> r19/feature` 起始标记行由 amend 修正、docs 分支 merge 后残留 1 处 `<<<<<<< HEAD` 由 amend 修正——第 11/13/14/15/16/17/18 轮 grep 清零教训重演 2 次，amended 后全仓 grep 清零），合并后整体 build+test 实证后并入 main 并 push origin。根目录新增 4 份第 19 轮报告：验证报告_第19轮_隐藏暂停轮询覆盖缺口补齐.md、核对报告_第19轮_README占位符清理与现状核对.md、核验报告_第19轮_维护机制健在与文档一致性.md、清理报告_第19轮_round18遗留清理.md（A/B 各 1 份 + C 卡 2 份，共 4 份）；file-structure.zh.md 同步（mindmap 第 7~18 轮→第 7~19 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；② 候选取证（已排除）：Swift 源码 FIXME 零残留（第 15 轮起）、#warning/deprecated 零命中、fatalError/assertionFailure 均为合法 guard、WeatherTabView 0.5s 为一次性定位轮询、MirrorWindow syncTimer 已有 hide() invalidate、LyricsEngine playbackTimer 已有生命周期管理、ITER-14/15/21 需用户确认或时间驱动；③ 子任务 A（实现）隐藏暂停轮询覆盖缺口补齐：grep 实证 8 个缺口 item（StockBarItem 默认 items.json 就有 2 个——10s/60s 行情 HTTP + 3s 跑马灯 / CPUBarItem asyncAfter 自循环 / DnDBarItem 1s / UsageBarItem / OpenCodeGoUsageBarItem 3 Timer / DeepseekBalanceBarItem / ExpenseTrackerItem 3s 文件轮询 / TimestampConvertItem 浮层 1s）→ 新增共享封装 TBPausableTimer + TBPauseGate（Widgets/TBPausableTimer.swift 零拷贝 8 item 全复用）：暂停即无效化底层 Timer 零空转、恢复同参重建 + immediateFireOnResume 立即补刷（Stock 恢复即拉行情）、reschedule 承载交易边界 10s↔60s 切换、NSLock + 主线程 hop + 过期操作复查线程安全、8 item conform TBPollPausable、TouchBarController 零改动；新增 PausableTimerTests 9 用例（add_files.py Tests: 一键注册），分支 TEST SUCCEEDED 156 用例（147 基线 + 9 新增，金丝雀全绿）；额外发现并修复 CPUBarItem deinit 潜伏 libdispatch 崩溃（suspend 队列释放即 EXC_BREAKPOINT），并登记 2 项超出范围观察（DarkModeBarItem/Media/Productivity 类 widget 也带 Timer 待父任务决策是否纳入统一治理 / CustomButtonTouchBarItem actions 强自引用环 pre-existing）；④ 子任务 B（文档）README TODO「……」占位符清理评估：占位符删除（自 54fb753 引入 3 个月未填充，真实待办已被 iteration-plan 置顶待办 + iteration-log 遗留挂账 + TECHNICAL_DEBT 承接，README TODO 区语义为用户可见功能路线图）+ 12 项现状核对 grep 实证（114 widget / 15 主题 / 22 Tab 等 10 项一致，2 处修正：holidayCountdown 补登功能列表、更新日志置顶补 v0.27 条目——Info.plist=0.27 与更新日志最高 v0.8 脱节，内容全部来自第 13~18 轮实证记录未虚构中间版本史）；⑤ 子任务 C（维护面）年度维护核验第 13 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀 7 锚点 7/7、防屏蔽直查 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=04d0279 本地同步、文档三方交叉核对一致）+ 仓库卫生 round-18 全部遗留清理（4 worktree + 4 分支含父卡，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 9 项挂账盘点（114 口径注释行号漂移至 :1145/:1156 语义无漂移）；⑥ 收口：3 分支依次合并冲突共 4 处（iteration-log 3 次 + file-structure 1 次，均为第 19 轮子任务记录并列合并），2 处残留标记 amend 修正，grep 清零后提交，合并后整体 build+test 实证（156 用例预期 = 147 基线 + 9 新增，BUILD/TEST SUCCEEDED 0 失败 0 意外），main=d994fbe 已 push origin。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 13 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（注释行号已漂移至 :1145/:1156，语义无漂移）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件，③已落地 + 第 17 轮正则缓存 + 第 18 轮轮询暂停 + 第 19 轮覆盖缺口补齐；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射跨月/重叠窗口健壮化已落地（第 18 轮 A 卡），未来年份随 aShareHolidays 年度维护加入即可；
+  8. 隐藏机制修复（shouldShowItem + 异步路径补过滤 + 正则缓存 + 轮询暂停 + 第 19 轮覆盖缺口补齐）无 Touch Bar 真机冒烟（逻辑由 11+5+5+9 单测覆盖，主题切换一致性与暂停/恢复行为留待真机确认）；
+  9. add_files.py 已闭环（第 16 轮 Sources 组 + 第 17 轮 Tests: 前缀），第 18/19 轮新测试文件均脚本注册实证；
+  10. 第 19 轮 A 卡登记 2 项超出范围观察待父任务决策：① DarkModeBarItem/Media/Productivity 类 widget 也带 Timer，是否纳入「隐藏零空转」统一治理；② CustomButtonTouchBarItem actions 强自引用环（pre-existing，deinit 单测打破环后暴露 CPUBarItem 崩溃已修，环本身未动）。
+- 下轮方向：① 继续功能/优化迭代（第 8 轮）：候选——遗留 10 决策（DarkModeBarItem 等剩余 Timer item 纳入隐藏零空转统一治理 / actions 强自引用环修复评估）、新 widget/体验优化（README 已闭环，代码库 FIXME 零残留）、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制/轮询暂停真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 19 轮收口整体 156 用例实证（基线口径升级为 156 = 147 + 9），**第 20 轮分解前触发全量回归**（第 18 轮全量后隔第 19 轮，累积第 19 轮代码改动，届时基线口径 156）；④ 收口教训固化：本轮冲突 4 处均为迭代记录并列合并（iteration-log 3 + file-structure 1），按 C→A→B 顺序合并冲突逐次线性出现；**残留标记清理教训重演 2 次**——A 分支 merge 后 `>>>>>>> r19/feature` 行残留（patch 只替换了起始标记与 `=======`，末行 `>>>>>>>` 在第二处 patch 后才删）、docs 分支 merge 后 `<<<<<<< HEAD` 起始标记残留（第二个冲突块的起始标记独立存在，patch 时未含入 old_string）——均 amend 修正，教训：**同一 merge 的多块冲突，每块的三行标记（起始/分隔/结束）必须各自完整包含在 patch old_string 内，或统一用「grep 全部标记行号 → 逐块处理 → grep 清零」流程，commit 前必须全仓 grep 清零**。
+
 ### 子任务记录
 
 - **t_a03a87e6 维护三合一（review-agent，分支 r19/review）**：
