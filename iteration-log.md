@@ -611,3 +611,18 @@
   - 年度维护核验（第 8 次）：ITER-14 置顶待办完好可执行（唯一未勾选项，:388 引用准，检查点与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370/:375-399/:404-419、三函数 :155/:167/:183、年度流程 :22-47、周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=024ec61；本地 main 领先 1 个 docs 提交为父任务预登记）；文档一致性三方交叉核对一致、无冲突残留标记；
   - 仓库卫生：round-13 父卡 t_bdcd677c + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4 → prune → branch -d ×4，删除后清点 .worktrees 仅 round14-A/B/C + 主仓库、本地分支 4 条、远端仅 main、prune --dry-run 空；
   - 产出：根目录 3 份报告（回归报告_第14轮.md / 核验报告_第14轮_维护机制健在与文档一致性.md / 清理报告_第14轮_round13遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~14 轮 + 3 份报告登记）；约束遵守：仅动本工作区与 r14/review，未 push，未开新分支/子任务。
+
+---
+
+## 第 15 轮（功能/优化迭代第 3 轮）
+
+### 子任务记录
+
+- **t_1f0724c1 节假日倒计时 widget（code-agent，分支 r15/feature）**：
+  - 新 widget `holidayCountdown`：复用 `StockBarItem.aShareHolidays`（2026 国办发明电〔2025〕7 号 + 2027 预估，65 日期）为**唯一数据源**（零拷贝日期表、未改 StockBarItem 语义），展示距下一个法定节假日首日的天数 + 假期名（元旦/春节/清明/劳动节/端午/中秋/国庆节）；假期窗口内显示「X 第 N 天」，≤7 天或假期中金色高亮；数据表尽头（2027-10-07 后）优雅降级「无假期」；
+  - 实现（新文件 `MTMR/Widgets/Life/HolidayCountdown.swift`）：纯逻辑 `HolidayCountdownLogic`（makeWindows 连续日期并窗 / holidayName 按月映射含 1 月日期区分 / window(containing:) 第 N 天 / nextHoliday 天数，全部 Asia/Shanghai 日粒度可单测）+ `HolidayCountdownItem: TBPollItem`；注册链路 6 处：ItemsParsing（ItemTypeRaw + ItemType 关联值 + decode 默认 refreshInterval=3600）、TouchBarController（identifier 映射 com.lyricsmtmr.holidayCountdown. + 绑定构造）、EditorSchema（健康分类 palette + ItemSchema + Meta）、ElementPaletteView（健康分组条目）；
+  - 单测：新增 `MTMRTests/HolidayCountdownTests.swift`（16 个测试方法：真实数据 2026/2027 窗口名+长度、全表覆盖零丢失、合成数据并窗/断窗/空集、假期名映射表、下一假期 4 例含跨年 2026→2027=85 天、假期内第 N 天/末日/首日、假期后首日、数据表前后边界），pbxproj 8 处注册（widget 经 add_files.py + 手工补 2 处过期锚点、测试文件 ID CA8F2B8C/8D2FC6000000D189D7）；
+  - 文档：ITEMS_REFERENCE.md 口径 113→114（:3/:59 含 97+14+2+1 说明、八大类统计表计时/提醒 12→13、新增 5.13 条目、速查表补 holidayCountdown），README 3 处 113→114，file-structure.zh.md 登记（mindmap 第 7~14 轮→第 7~15 轮 + 报告行）；本记录即 iteration-log 追加；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r15a-build）BUILD SUCCEEDED + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r15a-test）TEST SUCCEEDED（84 基线 + 新增 16 全过 = 100 用例 0 失败，金丝雀锚点全绿）；
+  - 交付：验证报告《验证报告_第15轮_节假日倒计时widget.md》（本分支根目录，含变更明细/单测清单/边界说明/风险点）+ 本记录 + file-structure.zh.md 登记；
+  - 约束遵守：仅本工作区与 r15/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，不触发全量回归（本轮无回归卡，84+16=100 用例实证已附）。

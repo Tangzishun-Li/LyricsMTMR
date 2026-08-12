@@ -8,7 +8,7 @@
 
 ## 这是什么
 
-LyricsMTMR 是一款 macOS Touch Bar 增强工具。它把 LyricsX 的多平台歌词引擎集成进 MTMR 的 Touch Bar 组件体系中，让你在 Touch Bar 上实时看到正在播放歌曲的歌词（支持逐字卡拉 OK 高亮），同时保留了 MTMR 完整的组件生态：113 种内置 widget、可视化布局编辑器、多主题、脚本集成等。
+LyricsMTMR 是一款 macOS Touch Bar 增强工具。它把 LyricsX 的多平台歌词引擎集成进 MTMR 的 Touch Bar 组件体系中，让你在 Touch Bar 上实时看到正在播放歌曲的歌词（支持逐字卡拉 OK 高亮），同时保留了 MTMR 完整的组件生态：114 种内置 widget、可视化布局编辑器、多主题、脚本集成等。
 
 **核心定位**：一个"能显示歌词的 MTMR"——歌词只是开始，Touch Bar 上的任何信息都可以自定义。
 
@@ -22,7 +22,7 @@ LyricsMTMR 是一款 macOS Touch Bar 增强工具。它把 LyricsX 的多平台�
 - **翻译显示**：外文歌曲可同时显示译文
 - **多播放器支持**：Music、Spotify、Vox、Swinsian、Audirvana 等（通过 MusicPlayer 框架）
 
-### 🧩 Widget 组件库（113 种）
+### 🧩 Widget 组件库（114 种）
 - **系统监控**：CPU / 内存 / 磁盘 / 网络 / 电池 / 风扇
 - **音乐与媒体**：专辑封面、播放控制、音量、进度条
 - **效率工具**：天气、时钟、日历、备忘录、剪贴板
@@ -95,7 +95,7 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 1. **选择主题**：设置 → 编辑器，在顶部「配置」下拉中选择 15 套预设主题（theme1–15），或导入 `examples/presets/` 下的示例；也可通过 Touch Bar 上的 `themeSwitch` 组件或状态栏菜单切换
 2. **添加歌词组件**：设置 → 编辑器，拖入 `LyricsTouchBarItem` / `KaraokeLabel` 组件，播放任意音乐即可看到歌词
-3. **自定义组件**：设置 → 编辑器，从左侧元素面板的 113 种 widget 中选择；或使用 AppleScript / Shell 脚本显示任意内容
+3. **自定义组件**：设置 → 编辑器，从左侧元素面板的 114 种 widget 中选择；或使用 AppleScript / Shell 脚本显示任意内容
 4. **配置数据源**：股票、天气、快递等外部数据组件的配置方法见文档
 
 ### 应用专属主题（Per-app bar switching）

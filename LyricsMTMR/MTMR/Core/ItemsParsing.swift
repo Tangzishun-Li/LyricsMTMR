@@ -340,6 +340,7 @@ enum ItemType: Decodable {
     case postureReminder(refreshInterval: Double, intervalMin: Double)
     case travelCountdown(refreshInterval: Double, calendarFilter: String)
     case birthdayCountdown(refreshInterval: Double, dataPath: String)
+    case holidayCountdown(refreshInterval: Double)
     case dailyQuote(refreshInterval: Double)
     case screenLock
     case emailBadge(refreshInterval: Double)
@@ -539,6 +540,7 @@ enum ItemType: Decodable {
         case postureReminder
         case travelCountdown
         case birthdayCountdown
+        case holidayCountdown
         case dailyQuote
         case screenLock
         case emailBadge
@@ -852,6 +854,9 @@ enum ItemType: Decodable {
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
             let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
             self = .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        case .holidayCountdown:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            self = .holidayCountdown(refreshInterval: refreshInterval)
         case .dailyQuote:
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
             self = .dailyQuote(refreshInterval: refreshInterval)

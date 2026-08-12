@@ -1,6 +1,6 @@
 # LyricsMTMR Items 完整参考手册
 
-> 本文档基于源码 `ItemsParsing.swift`、`TouchBarController.swift` 及 `MTMR/Widgets/` 目录下所有 Widget 文件整理，涵盖 **全部 113 种 Item 类型**，详细说明每种 Item 的 **类型名（type）**、**宽度（width）**、**作用**、**操作方式** 及 **JSON 配置示例**。
+> 本文档基于源码 `ItemsParsing.swift`、`TouchBarController.swift` 及 `MTMR/Widgets/` 目录下所有 Widget 文件整理，涵盖 **全部 114 种 Item 类型**，详细说明每种 Item 的 **类型名（type）**、**宽度（width）**、**作用**、**操作方式** 及 **JSON 配置示例**。
 
 ---
 
@@ -56,7 +56,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 ### 全量 Item 类型统计
 
-源码 `ItemsParsing.swift` 中共定义了 **113 种 Item 类型**（ItemTypeRaw 枚举 97 种 + `SupportedTypesHolder` 预定义 14 种 + `TouchBarController` 注册 2 种，含被禁用的 currency 类型），分为以下八大类：
+源码 `ItemsParsing.swift` 中共定义了 **114 种 Item 类型**（ItemTypeRaw 枚举 98 种 + `SupportedTypesHolder` 预定义 14 种 + `TouchBarController` 注册 2 种，含被禁用的 currency 类型；其中 holidayCountdown 为第 15 轮新增，即 97+14+2+1=114），分为以下八大类：
 
 | 分类 | 数量 | 说明 |
 |:---|:---:|:---|
@@ -64,7 +64,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 | 媒体播放 | 8 | 播放/上一首/下一首/音乐/歌词/翻译/进度条/频谱 |
 | 信息展示 | 15 | 电池/CPU/时间/天气/Yandex天气/汇率/输入法/股票/网络/网速/AI额度/系统温度/磁盘IO等 |
 | 布局容器 | 4 | 分组/可展开/关闭/退出 |
-| 计时/提醒 | 12 | 番茄钟/站会/阅读/久坐/呼吸/出行/生日/会议/课程/DDL/订阅/信用卡 |
+| 计时/提醒 | 13 | 番茄钟/站会/阅读/久坐/呼吸/出行/生日/节假日/会议/课程/DDL/订阅/信用卡 |
 | 网络/开发 | 15 | Git/API延迟/SSH/服务器/端口/HTTP/Docker/CI/正则/RSS/邮件/Slack/打印机/API测试等 |
 | 生活/娱乐 | 12 | 记账/AA/储蓄/个税/外卖/快递/天气穿衣/像素宠物/每日一言/噪音/读书/B站动态 |
 | 工具 | 29 | Base64/JSON/UUID/哈希/颜色/时间戳/单词/截图/剪贴板/二维码/LaTeX/引用/论文/标签等 |
@@ -865,6 +865,20 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 **作用**：显示最近一期账单的卡名、剩余天数与金额，临期提醒。
 **操作**：自动刷新。
+
+---
+
+#### 5.13 `holidayCountdown` — 节假日倒计时
+
+```json
+{
+  "type": "holidayCountdown",
+  "refreshInterval": 3600
+}
+```
+
+**作用**：复用 A 股交易日历法定节假日表（`StockBarItem.aShareHolidays`，2026 国办发明电〔2025〕7 号 + 2027 预估）作为唯一数据源，显示距下一个法定节假日首日的天数与假期名（元旦/春节/清明/劳动节/端午/中秋/国庆节）；假期窗口内显示「X 第 N 天」，临近（≤7 天）或假期中金色高亮。
+**操作**：自动刷新；数据随 aShareHolidays 年度维护同步更新。
 
 ---
 
@@ -1736,7 +1750,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 | **媒体播放** | `play`, `next`, `previous`, `music`, `lyrics`, `lyricsTranslate`, `playbackProgress`, `audioSpectrum` |
 | **信息展示** | `battery`, `cpu`, `timeButton`, `weather`, `yandexWeather`, `currency`, `inputsource`, `stock`, `network`, `networkSpeed`, `usage`, `deepseekBalance`, `opencodeGoUsage`, `systemTemp`, `diskIO` |
 | **布局容器** | `group`, `expandable`, `close`, `exitTouchbar` |
-| **计时/提醒** | `pomodoro`, `standupTimer`, `readTimer`, `postureReminder`, `breathingGuide`, `travelCountdown`, `birthdayCountdown`, `meetingCountdown`, `classCountdown`, `ddlList`, `subscriptionCountdown`, `creditCardDue` |
+| **计时/提醒** | `pomodoro`, `standupTimer`, `readTimer`, `postureReminder`, `breathingGuide`, `travelCountdown`, `birthdayCountdown`, `holidayCountdown`, `meetingCountdown`, `classCountdown`, `ddlList`, `subscriptionCountdown`, `creditCardDue` |
 | **网络/开发** | `gitStatus`, `apiLatency`, `sshStatus`, `serverMonitor`, `portChecker`, `httpCodes`, `dockerStatus`, `ciPipeline`, `regexTester`, `regexReference`, `rssUnread`, `emailBadge`, `slackUnread`, `printerStatus`, `apiTester` |
 | **生活/娱乐** | `expenseTracker`, `billSplit`, `savingsGoal`, `taxEstimate`, `foodDelivery`, `packageTracker`, `weatherOutfit`, `pixelPet`, `dailyQuote`, `noiseMeter`, `readingProgress`, `bilibiliFeed` |
 | **工具** | `staticButton`, `appleScriptTitledButton`, `shellScriptTitledButton`, `base64Tool`, `jsonFormatter`, `hashCalc`, `colorConvert`, `timestampConvert`, `uuidGen`, `wordLookup`, `noteCapture`, `quickScreenshot`, `screenPicker`, `windowSnap`, `shortcutHints`, `homekitScene`, `aiSelectedText`, `quickReply`, `clipboardHistory`, `themeSwitch`, `upnext`, `dock`, `swipe`, `latexSymbols`, `citationGen`, `paperProgress`, `paperTags`, `qrCode`, `finderTags` |

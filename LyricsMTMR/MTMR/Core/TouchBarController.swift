@@ -137,6 +137,8 @@ extension ItemType {
             return "com.lyricsmtmr.travelCountdown."
         case .birthdayCountdown(refreshInterval: _, dataPath: _):
             return "com.lyricsmtmr.birthdayCountdown."
+        case .holidayCountdown(refreshInterval: _):
+            return "com.lyricsmtmr.holidayCountdown."
         case .dailyQuote(refreshInterval: _):
             return "com.lyricsmtmr.dailyQuote."
         case .screenLock:
@@ -969,6 +971,8 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             barItem = TravelCountdownItem(identifier: identifier, refreshInterval: refreshInterval, calendarFilter: calendarFilter)
         case let .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath):
             barItem = BirthdayCountdownItem(identifier: identifier, refreshInterval: refreshInterval, dataPath: dataPath)
+        case let .holidayCountdown(refreshInterval: refreshInterval):
+            barItem = HolidayCountdownItem(identifier: identifier, refreshInterval: refreshInterval)
         case let .dailyQuote(refreshInterval: refreshInterval):
             barItem = DailyQuoteItem(identifier: identifier, refreshInterval: refreshInterval)
         case .screenLock:
