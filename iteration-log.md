@@ -294,7 +294,6 @@
     （代码已核对一致，建议父任务收口时并入以闭环文档）；⑤【可选】D1 注释修正；
   - 交付：核对报告 `核对报告_第9轮_子任务C_内存修复文档代码一致性.md`（本分支根目录）；本记录即 iteration-log 追加。
 
-<<<<<<< HEAD
 ---
 
 ## 第 10 轮（本链第 4 轮）
@@ -308,6 +307,24 @@
   - d) 0 open PR（gh pr list 实测）；origin/main = 487415e（ls-remote 实证，第 9 轮收口已 push）；
   - 文档一致性抽查：iteration-log 第 9 轮收口 ↔ iteration-plan 第八节收敛结论 ↔ main 提交图（47c9f28 r9-regression → 68459d1 r9-review 冲突解决 → 8f7ac13 带入 r9/issue 内容[第二父 27a4bdb] → 99d3cd4 清理冲突标记 → 487415e 父收口）三者交叉核对一致，无漂移；A/B/C 子任务记录并列保留无冲突残留；提交信息标签与内容轻微错位 2 处（8f7ac13 标 r9-review 实合 r9-issue 内容；99d3cd4 标 r9-issue 实为单父去重提交）均信息性无内容影响；
   - 遗留观察：① 沿袭「15 个 2027 节日日期」口径 vs 实际 27 日期（本轮全覆盖复核星期全对，历史数字口径差异）；② 沿袭 D1 低危注释陈旧（UnifiedSettingsWindowController.swift:113-114「默认 10 分钟」vs 实际 1h）建议下次改代码顺手修正；③ 沿袭 issue #1/#40 维持 OPEN、ITER-15 决策门 4 问待用户、README MediaRemote 风险说明待补；④ ITER-14 2026-11 前无动作符合预期。报告见 `核验报告_第10轮_维护机制健在与文档一致性.md`（本分支根目录）。
+
+### 子任务 B：收尾核对 — 遗留问题清单复核 + D1 注释陈旧项处置（t_49ced5b0，merge-agent，分支 r10/check）
+
+- **t_49ced5b0 收尾核对（merge-agent，分支 r10/check，基于 main@487415e）**：
+  - GitHub 状态复核 4/4 符合：issue #1 OPEN + 1 条评论（=第 8 轮回复，无新动态）；issue #40 OPEN（backlog）；
+    open PR 0；origin/main = 487415e（ls-remote 实证 487415ee1c02…）；「2d2d681 文档并入 main 已闭环」属实
+    （merge-base --is-ancestor 2d2d681 main = YES）；
+  - 遗留 6 项逐一复核：① issue #1 待用户 15.7 真机验证 → 待用户确认；② ITER-15 使用场景 4 问（评估报告 §5.3 在案）
+    → 待用户确认；③ ITER-14 第 4 次核验由子任务 A（t_216edb49，review-agent）覆盖，已确认卡存在 → 已闭环；
+    ④ README 补 MediaRemote 风险说明仍未实施（README 无 FAQ 章节/15.4+ 段落）→ 继续跟踪；
+    ⑤ D1 注释陈旧 → **本轮修正**（见下）；⑥ 内存修复真机冒烟 3 项挂账（无真机执行条件）→ 继续跟踪；
+    分类汇总：已闭环 2（③⑤）/ 待用户确认 2（①②）/ 继续跟踪 2（④⑥）；
+  - **D1 处置（本轮唯一代码改动）**：`UnifiedSettingsWindowController.swift:113-116` 注释「默认 10 分钟」
+    →「默认 1 小时（时长见 AppDelegate.settingsWindowIdleGCSeconds = 3600）」；xcodebuild build（Debug，
+    独立 derivedDataPath /tmp/r10b-derived）**BUILD SUCCEEDED** + make test **TEST SUCCEEDED（60 用例 0 失败）**；
+  - 归档一致性抽查：backup/ 17 份 ✅、docs/ 5 文件 ✅、根目录 vs backup/ 无重复 ✅；
+    file-structure.zh.md 目录树缺登记 `回归报告_第9轮_t_d0232788.md`（第 9 轮预登记漏项）→ 已就地补登记（纯文档）；
+  - 交付：核对报告 `核对报告_第10轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
 
 ### 子任务 C：仓库卫生 — round-9 父卡遗留 worktree/分支清理（t_2a476d89，merge-agent，分支 r10/cleanup）
 
