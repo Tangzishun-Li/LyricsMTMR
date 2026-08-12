@@ -126,3 +126,30 @@
   （kanban_db.py 三处 git 输出解析改 rstrip("\n")，dispatcher 重启后生效）并以预建
   worktree + dir 工作区绕过重发。修复前被归档的 4 张卡在 dispatcher 重启后自动重派并
   各自完成（产生重复交付物，内容与本批一致，未并入 main；分支/工作区由父任务统一清理）。
+
+---
+
+## 第 8 轮（本链第 2 轮）
+
+### 子任务 A：issue #1「Why Apple why?」收口（t_62df37b8，research-agents，工作区分支 r8/issue）
+
+- 交付 1 — 回复用户：已在 issue #1 发布中文回复（草稿源自第 7 轮分诊报告 e 节，微调：backlog
+  引用改为实际编号 #40）。回复如实说明：根因（macOS 15.4+ mediaremoted entitlements 校验）、
+  现状（b2e24aa 集成 mediaremote-adapter 方案随 v0.27 发布，曲目信息+播放控制+四源歌词）、
+  心愿单 4/5 已实现、验证请求（15.7 真机跑最新版，有问题发日志继续跟进）。
+  链接：https://github.com/Tangzishun-Li/LyricsMTMR/issues/1#issuecomment-5262846270
+- 交付 2 — 关闭策略决策：**保持 issue #1 OPEN**（未关闭）。理由：① 回复正文已承诺"如果一切
+  正常我就关闭"，headless 无法代用户做真机 15.7 验证，立即关闭与回复承诺矛盾；② MediaRemote
+  桥接依赖私有框架+平台二进制特权，不同系统版本行为有差异（LyricFever#94 有 26.2 封堵先例），
+  验证门槛应由用户本人（issue 作者即项目所有者）把关；③ 未实现项已由 #40 承接，挂起无信息
+  损失；④ 关闭动作留给用户确认后由下一轮执行，路径清晰。
+- 交付 3 — backlog issue：#40「[Feature Request] Per-app bar switching（按软件切换 Touch Bar
+  布局）」已创建（中英双语 body，引用 #1 为来源，含需求描述/建议验收标准/优先级 P2/风险备注），
+  https://github.com/Tangzishun-Li/LyricsMTMR/issues/40
+- 交付 4 — README/FAQ 补说明评估结论：**建议后续补，但不强制**。README 现无 FAQ/风险章节，
+  仅在功能清单提及 MediaRemote 集成；"macOS 15.4+ 音乐信息获取机制与已知风险"说明可减少同类
+  issue 重复（本轮即第 2 次被问），但属文档增强、低优先，可作为 backlog 项择机并入 README
+  （本轮未改 README，遵守"无实现卡"约束）。
+- 验证：gh issue view 1 复核 comment 在位（1 条，OPEN）；gh issue view 40 复核已建（OPEN）。
+- 遗留：① 待用户 15.7 真机验证后手动关闭 issue #1（或下一轮代关）；② 根目录调研报告与
+  backup/ 重复副本清理仍挂账；③ dispatcher 尾空格缺陷修复生效后的遗留 worktree 收口确认。
