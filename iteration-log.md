@@ -446,3 +446,34 @@
   - 文档一致性三方交叉核对：iteration-log 第 11 轮收口 ↔ iteration-plan 第八节收敛结论（剩余未结项仅时间驱动 ITER-14/21 + 可选观察 ITER-15，与遗留①④一致）↔ main 提交图（c2539d6 r11-review → b51dd4c r11-check → 4a76c91 r11-cleanup → a1daf87 父收口 → bfcecd0 r11-parent 收口合入，祖先 0727066 为第 10 轮收口）三者一致，无漂移；A/B/C 子任务记录并列齐全，无冲突残留标记（`<<<<<<<` 仅 1 处为记录内引述历史冲突文字，非残留）；
   - 全量回归（隔代触发：第 9 轮后已隔第 10/11 两代）：build/test 并行、独立 derivedDataPath，**BUILD SUCCEEDED + TEST SUCCEEDED**，60 用例 0 失败 0 意外（xcresult 实证 passedTests=60），3 金丝雀全过，9 条代码 warning 与第 9 轮基线构成一致（+1 非代码 appintents 提示 +1 并行构建 destination 噪音）；第 10 轮 D1 注释修正 + 第 11 轮纯文档维护后主干无回归；
   - 遗留观察：① 沿袭 issue #1/#40 维持 OPEN、ITER-15 决策门 4 问待用户、README MediaRemote 风险说明待补；② 沿袭内存修复真机冒烟 3 项挂账（无真机条件）；③ ITER-14 2026-11 前无动作符合预期（第 6 次核验：完好可执行）。报告见 `回归报告_第12轮.md` + `核验报告_第12轮_维护机制健在与文档一致性.md`（本分支根目录）。
+
+---
+
+### 子任务 B：收尾核对 — GitHub 状态复核 + 遗留问题清单复核 + 归档抽查（t_0494d174，merge-agent，分支 r12/check）
+
+- **t_0494d174 收尾核对（merge-agent，分支 r12/check，基于 main@bfcecd0）**：
+  - GitHub 状态复核 4/4 符合：issue #1 OPEN + 1 条评论（=第 8 轮回复 issuecomment-5262846270，
+    无新动态）；issue #40 OPEN（backlog「Per-app bar switching」，0 评论）；open PR 0
+    （gh pr list 实测 `[]`）；origin/main = bfcecd0（ls-remote 实证 bfcecd091ce636fb22dee47c7bad46120483bc83，
+    第 11 轮收口 push 完好）；
+  - 遗留 6 项逐一复核（与第 11 轮分类逐项一致，状态零变化）：① issue #1 待用户 15.7 真机验证
+    → 待用户确认；② ITER-15 使用场景 4 问（iteration-plan :242/:393/:406「可选项/维持可选项/
+    可选观察」实测在案）→ 待用户确认；③ ITER-14 第 5 次核验由第 11 轮子任务 A（t_8a25938b）覆盖
+    已入 main → 已闭环；④ README 补 MediaRemote 风险说明仍未实施（README 仅 :49 集成列表提及，
+    无 FAQ/15.4+ 段落）→ 继续跟踪；⑤ D1 注释陈旧 → main@bfcecd0 实测已修正
+    （UnifiedSettingsWindowController.swift:108-119「默认 1 小时…settingsWindowIdleGCSeconds = 3600」）
+    → 已闭环；⑥ 内存修复真机冒烟 3 项（出处：回归报告_第9轮 :89-92）挂账（无真机执行条件）
+    → 继续跟踪；分类汇总：已闭环 2 / 待用户确认 2 / 继续跟踪 2；
+  - 第 12 轮新增/变化事项：① origin/main 0727066 → bfcecd0（第 11 轮收口）；② 2027 节日口径
+    统一建议（实际 32 日期）第 11 轮已采纳，本轮沿用 32 口径无漂移；
+  - 归档一致性抽查：backup/ 17 份 ✅、docs/ 5 文件 ✅（backup-note/iteration-plan/maintenance-notes/
+    memory-rendering-audit/optimization-plan）、根目录 15 份报告 vs backup/ 无同名且 md5 内容级
+    抽查 0 重复 ✅，均与第 11 轮结论一致；
+  - 本轮零代码改动（纯文档交付：核对报告 + iteration-log 追加），按第 11 轮下轮方向④不触发
+    全量回归（60 用例基线保持）；未 push（父任务收口统一合并）；
+  - 下轮预期：第 13 轮起退出年度维护模式（运营者已指示继续优化/增加功能），遗留事项重心从
+    「跟踪+核验」转向「实现」，待用户确认事项（issue #1 关闭 / ITER-15 决策门 4 问）与
+    backlog #40（Per-app bar switching）可能成为首轮实现候选；
+  - 交付：核对报告 `核对报告_第12轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+---
