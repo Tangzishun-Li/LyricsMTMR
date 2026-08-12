@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~18 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~19 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -154,6 +154,8 @@ mindmap
 ├── 清理报告_第18轮_round17遗留清理.md          # 第 18 轮子任务 C 仓库卫生报告（round-17 父卡+子卡遗留 worktree/分支清理，r18/review）
 
 ├── 验证报告_第18轮_黑名单隐藏暂停轮询.md # 第 18 轮子任务 B 验证报告（隐藏期间暂停 widget 轮询：TBPollItem/TBMetricPopoverItem 线程安全 pause/resume + TouchBarController dismiss/present 广播，139 用例实证，r18/optimize）
+
+├── 核对报告_第19轮_README占位符清理与现状核对.md # 第 19 轮子任务 B 核对报告（README TODO「……」占位符删除 + 12 项现状核对 + holidayCountdown 补登 + v0.27 更新日志条目，r19/docs）
 
 └── .gitignore / .gitattributes / README.md
 ```

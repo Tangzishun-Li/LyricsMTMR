@@ -791,3 +791,17 @@
   - 等价性：新建未暂停/显示期间调度节奏（interval 不变、asyncAfter 一次）/取消语义/deinit/异常捕获/overlay 全部与改动前一致，行为差异仅「整条 bar 隐藏期间轮询暂停」一处；
   - 交付：验证报告《验证报告_第18轮_黑名单隐藏暂停轮询.md》（本分支根目录，含实证结论/方案设计/变更明细/等价性论证/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~17 轮→第 7~18 轮 + 报告行登记）；
   - 约束遵守：仅本工作区与 r18/optimize 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 19 轮（功能/优化迭代第 7 轮）
+
+### 子任务记录
+
+- **t_d2c57cd5 README TODO「……」占位符清理评估（text-processing-agent，分支 r19/docs）**：
+  - 占位符处理决策：README TODO 区末行 `- [ ] ……`（引入自 54fb753，2026-05-26，历轮未动）**删除**——理由：① 自引入 3 个月从未填充，无历史线索表明曾有具体待办挂载；② 真实待办已被既有跟踪体系承接（docs/iteration-plan.md 置顶待办 + iteration-log 遗留 9 项挂账 + TECHNICAL_DEBT.md），README TODO 区语义是用户可见功能路线图，内部工程挂账不入该区；③ 删除后 TODO 区 5 项勾选 + 0 空占位，语义自洽（与「第 15 轮起 Swift 源码零 FIXME 残留」现状一致）；备选「替换为真实待办」不采纳（候选均系内部挂账项，重复登记无增量价值）；
+  - 现状核对（grep 实证 12 项）：✅ 114 种 widget（ITEMS_REFERENCE.md:59 口径 114=98+14+2 含 holidayCountdown）/ ✅ 15 套主题（examples/presets theme1-15.json 实存）/ ✅ 22 个设置 Tab（SettingsTab enum 22 case，第 13 轮结论复核通过）/ ✅ 剪贴板已勾选+第 15 轮注记 / ✅ OpenCode Go / ✅ BeeCount / ✅ 中国天气网 / ✅ 应用专属主题（issue #40）/ ✅ MediaRemote 机制段 / ❌ **holidayCountdown 缺失**（代码 6 文件实证：Widgets/Life/HolidayCountdown.swift + ItemsParsing :343/:543/:857 + BarItemFactory :196 + TouchBarController + EditorSchema + ElementPaletteView，README 零提及）/ ⚠️ 轮询暂停（第 18 轮）属内部性能细节不入功能列表（更新日志补记）/ ❌ **版本脱节**（Info.plist=0.27 实证，更新日志最高只到 v0.8，MediaRemote 段早已声明「随 v0.27 发布」）；
+  - README.md 共 3 处改动：① TODO 区删除 `- [ ] ……` 占位符行；② 功能特性·效率工具行补登「节假日倒计时（holidayCountdown，复用法定节假日表）」；③ 更新日志区置顶新增「v0.27（当前开发版本）」条目（新增 3 项：holidayCountdown / 应用专属主题 / currency 恢复；改进 3 项：MediaRemote 桥接 / 隐藏机制完善含正则缓存+轮询暂停 / 假期名映射健壮化——全部来自第 13~18 轮 iteration-log 实证记录，均晚于 v0.8 tag 08-10，未虚构 v0.9~v0.26 历史版本内容）；
+  - 版本体系观察（如实记录未归因）：git tag v1.0.0（07-30）→ v0.8（08-10）→ pre-opt（08-12），Info.plist 0.27 自 08-08 起，tag 体系与 marketing version 存在历史错位，更新日志 v0.8 与 v0.27 并存——本卡仅置顶补当前版本条目，不编造中间版本史（如需完整版本史需 GitHub Releases/git tag 考古，超出本卡范围）；
+  - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
+  - 交付：核对报告《核对报告_第19轮_README占位符清理与现状核对.md》（本分支根目录，含占位符处理决策/12 项逐项核对表/改动清单/风险点）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（mindmap 第 7~18 轮→第 7~19 轮 + 报告行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
