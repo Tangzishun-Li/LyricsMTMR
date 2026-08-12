@@ -124,6 +124,11 @@ mindmap
 ├── 验证报告_第13轮_issue40_按软件切换bar.md # 第 13 轮子任务 A 验证报告（issue #40 Per-app bar switching 核验+补齐：4 条验收全满足 + 12 单测 + 文档登记，r13/feature）
 ├── 文档报告_第13轮_README补全.md  # 第 13 轮子任务 B 文档报告（README 补 MediaRemote 风险说明 + 应用专属主题使用文档 + 漂移核对，r13/docs）
 
+├── 核验报告_第13轮_维护机制健在与文档一致性.md # 第 13 轮核验报告（第 7 次年度维护核验，r13/cleanup，预登记）
+├── 清理报告_第13轮_round12遗留清理.md          # 第 13 轮子任务 C 仓库卫生报告（round-12 父卡+子卡遗留 worktree/分支清理，r13/cleanup，预登记）
+├── 核验报告_第13轮_issue40_按软件切换bar.md    # 第 13 轮子任务 A 实现核验报告（issue #40 Per-app bar switching 验收核验+补齐，r13/feature，预登记）
+├── 文档报告_第13轮_README补全.md               # 第 13 轮子任务 B 文档报告（README 补 MediaRemote 风险说明 + 应用专属主题说明，r13/docs，预登记）
+
 └── .gitignore / .gitattributes / README.md
 ```
 

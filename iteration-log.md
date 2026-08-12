@@ -515,6 +515,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## 第 13 轮（退出年度维护模式，恢复功能/优化迭代第 1 轮）
 
 ### 子任务 A：issue #40 Per-app bar switching 核验与补齐（t_441906a7，code-agent，分支 r13/feature，基于 main@77faefe）
@@ -542,3 +543,13 @@
   - e) 未改动：ITEMS_REFERENCE「80+ 种 Item 类型」旧口径（实测 99，留待下轮单独核对，本报告已记录）；README 数据来源章节对上游 LyricsKit「Gecimi」能力的描述（准确陈述，保留）；
   - 纯文档轮零代码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
   - 交付：文档报告 `文档报告_第13轮_README补全.md`（本分支根目录，含改动明细/依据/核对结论）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记 + mindmap 更新。
+
+### 子任务 C：年度维护核验（第 7 次）+ 仓库卫生（round-12 父卡+子卡遗留清理）（t_18421cae，review-agent，分支 r13/cleanup）
+
+- **t_18421cae 维护核验 + 仓库卫生（review-agent，分支 r13/cleanup，基于 main@77faefe）**：
+  - a) 年度维护核验（第 7 次）：ITER-14 置顶待办完好可执行（待办区唯一未完成项，grep 实测仅 :7 一行未勾销；:388 行号引用准确——2027 段注释行实测命中；检查点清单与代码注释一致：春节 2/5~2/12 共 8 天 + 补班 1/30、2/13，端午 6/7~6/9 + 6/5，中秋 9/13~9/15 + 9/11）；2027 段实际 **32 个日期**（元旦 3 + 春节 8 + 清明 3 + 劳动 5 + 端午 3 + 中秋 3 + 国庆 7）星期断言 Python 复核 0 不符 + 6 个补班日（全周六）全对 + 金丝雀 7 锚点星期全对（口径沿用 32，不引用旧口径）；金丝雀防掩蔽直查 :195-196（2027-02-06/05-01 两周六锚点 contains）在位；maintenance-notes 零漂移抽查（:369-370/:375-399/:404-419、金丝雀三函数 :155/:167/:183、:22-47 年度流程、:39-40 周末直查规则）全部实测命中；
+  - b) GitHub 状态 4/4 实测：issue #1 OPEN（待用户 15.7 真机验证）+ issue #40 OPEN（本轮子任务 A t_441906a7 进行中未关闭，以实测为准）+ 0 open PR（gh pr list 实测 []）+ origin/main = 77faefe（ls-remote 实证 77faefe794b1d905e77a80244e21e30a68f4cf41，第 12 轮收口 push 完好）；
+  - c) 文档一致性三方交叉核对：iteration-log 第 12 轮收口 ↔ iteration-plan 第八节收敛结论（剩余未结项仅时间驱动 ITER-14/21 + 可选观察 ITER-15）↔ main 提交图（77faefe = merge r12-parent 第二父 c2bed9a，祖先链与日志一致）三者一致，无冲突残留标记；
+  - d) 仓库卫生：清理 round-12 父卡 t_0c157d69 及 3 张子卡遗留 —— 删除前逐项复核 4 检查全过（4 分支均已在 --merged main 列表 0 ahead + merge-base --is-ancestor 全过 + 4 worktree 工作区 status --porcelain 均空 + 远端 heads 仅 main）；`git worktree remove` ×4（无需 --force）→ `git branch -d` ×4（was c2bed9a/51dfc98/c46d586/6dffa05）→ `git worktree prune`；删除后清点：.worktrees/ 仅剩 round13-parent + round13-A/B/C（4 项，主仓库另计合计 5 项）、本地分支仅剩 main + r13-parent + r13/feature + r13/docs + r13/cleanup（5 项）、远端 refs/heads 仅 main、prune --dry-run 空、for-each-ref 计数 5 无幽灵；
+  - 本轮零代码改动（纯维护轮，不触发全量回归）；file-structure.zh.md 登记本卡 2 份报告 + mindmap「第 7~12 轮」→「第 7~13 轮」+ 预登记子任务 A/B 报告名（核验报告_第13轮_issue40_按软件切换bar.md / 文档报告_第13轮_README补全.md，若 A/B 已自行登记则不重复，由父任务收口核对）；
+  - 交付：核验报告 `核验报告_第13轮_维护机制健在与文档一致性.md` + 清理报告 `清理报告_第13轮_round12遗留清理.md`（本分支根目录，清理报告含删除前/后命令输出实录）；本记录即 iteration-log 追加；未 push 远端（父任务收口统一合并）。
