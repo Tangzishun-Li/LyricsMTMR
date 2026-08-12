@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~24 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~25 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -183,6 +183,7 @@ mindmap
 ├── 清理报告_第24轮_round23遗留清理.md          # 第 24 轮子任务 C 仓库卫生报告（round-23 父卡+子卡遗留 worktree/分支清理，r23 全清 4 worktree+4 分支，r24/review）
 ├── 验证报告_第24轮_隐藏期零空转治理收官审计.md # 第 24 轮子任务 A 验证报告（隐藏期零空转收官审计：全库活跃源覆盖矩阵约 60 源逐源判定「已纳入/合理不纳入（证据）/遗漏（修复）」，发现并修复 5 项真遗漏——NoiseMeterItem 麦克风采集链（AVAudioEngine tap 隐藏期隐私灯常亮，micPauseGate+startEngine/stopEngine 拆分）、ShellScript/AppleScriptTouchBarItem 脚本自循环（pauseGate+链终结+恢复拉起）、LyricsTouchBarItem marquee 60fps 滚动（marqueePauseGate+handleTextScroll/startMarquee 双 guard）、NetworkBarItem netstat 常驻进程（pollGate+停/重启进程）；遗留挂账「NSBackgroundActivityScheduler 隐藏期零网络」实证收口（pollTick 门控+全部旁路入口独立 guard，零网络/零 EventKit 查询成立，关闭挂账）；第 20 轮「不纳入 5 项/排除 1 项」决策复核全部成立；TouchBarController 零改动，208 用例实证（201 基线+7 新增，两轮独立全量），r24/feature）
 ├── 核对报告_第24轮_README更新日志与现状核对.md # 第 24 轮子任务 B 核对报告（README 更新日志补登 v0.28：第 20~23 轮功能/优化条目——隐藏零空转收官（8 常驻定时器 + 4 后台调度组件）/采集链与定位暂停（隐私保护）/全局隐藏态注入/剪贴板浮层即时对齐/天气定位添加城市生命周期/强引用环修复，12 项现状核对 + 条目→轮次→iteration-log 出处对照表；版本号建议升 0.28 不擅改，r24/docs）
+├── 考古报告_第25轮_版本体系考古.md         # 第 25 轮子任务 B 考古报告（Releases API 全量仅 2 枚 v1.0.0/v0.8 + git tag 3 枚 + Info.plist 264 提交全量扫描版本号仅 0.27/452→0.28/453 两状态；v0.9~v0.26 缺失段结论=从未以 Release/tag/Info.plist 存在过（编号空洞，fork 继承上游 MTMR v0.27.0 所致两编号体系脱节）；README 方案甲补「版本史说明」段，r25/version-history）
 
 └── .gitignore / .gitattributes / README.md
 ```
