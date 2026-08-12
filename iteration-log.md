@@ -293,3 +293,29 @@
     ③ README 补 MediaRemote 风险说明（建议后续补、不强制）；④【新增】2d2d681 文档并入 main 决策依据
     （代码已核对一致，建议父任务收口时并入以闭环文档）；⑤【可选】D1 注释修正；
   - 交付：核对报告 `核对报告_第9轮_子任务C_内存修复文档代码一致性.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+---
+
+## 第 10 轮（本链第 4 轮）
+
+### 子任务 C：仓库卫生 — round-9 父卡遗留 worktree/分支清理（t_2a476d89，merge-agent，分支 r10/cleanup）
+
+- **t_2a476d89 仓库卫生（merge-agent，分支 r10/cleanup）**：
+  - 清理对象：round-9 父卡 t_a62af223 遗留 —— worktree `.worktrees/t_a62af223`（@ 487415e，检出分支
+    lyricsmtmr/t_a62af223-9-lyricsmtmr-8）+ 本地分支 lyricsmtmr/t_a62af223-9-lyricsmtmr-8（@ 487415e，无远端对应）；
+  - 删除前复核（全部通过）：`git log main..分支` 输出为空（0 ahead，已完全并入 main）+ `merge-base --is-ancestor`
+    通过（分支为 main 祖先）+ worktree 工作区 `status --porcelain` 为空（干净）+ 远端 heads 仅 main；
+  - 删除动作：`git worktree remove --force` → `git worktree prune` → `git branch -d`（was 487415e）；
+  - 删除后复核（与任务预期逐一吻合）：worktree list 仅剩主仓库 + round10-A/B/C + round10-parent（5 项）；
+    本地分支仅剩 main / r10-parent / r10/review / r10/check / r10/cleanup（6 项）；远端 refs/heads 仅 main；
+  - 卫生抽査：.worktrees/ 磁盘内容仅 round10-A/B/C/parent（t_a62af223 已物理删除）；仓库根扫描无
+    r7-*/t_*/_ws/temp 残留子卡工作区或临时目录（第 7 轮 r7-*-ws 已于第 8 轮收尾清除，本轮无新增）；
+    无空格报告工作区 `/Users/litz/codespace/MTMR with LyricsX`（非 git，尾带空格仓库根的区分对象）为历轮
+    报告暂存区，现存 5 份第 7~9 轮报告，非残留，未动；
+  - 观察项：file-structure.zh.md 报告树缺 `回归报告_第9轮_t_d0232788.md` 一行（头部声明「第 7~9 轮报告」但
+    树内缺第 9 轮回归行，第 9 轮子任务 B 仅预登记 3 份），建议子任务 B 核验时补登记；本轮已就地把
+    `清理报告_第10轮卫生_r10-cleanup.md` 登记入树（1 行）；
+  - 约束遵守：未动 round10-parent/round10-A/B/C 工作区与 r10-* 分支；未 push 远端（收口由父任务统一推送）；
+    未开新分支/新子任务；
+  - 交付：清理报告 `清理报告_第10轮卫生_r10-cleanup.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录
+    （iteration-log 追加）+ file-structure.zh.md 登记 1 行。
