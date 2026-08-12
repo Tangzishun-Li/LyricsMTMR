@@ -702,3 +702,46 @@
   - 分支验证：xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r16b-test）**TEST SUCCEEDED —— 129 用例 0 失败 0 意外**（118 基线 + 新增 11 全过，xcresult 实证，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（父任务已实证 118 用例基线）；
   - 文档：TECHNICAL_DEBT.md 三条状态标注（① ② 已评估-暂缓附现状与前置条件，③ 已落地）+ 验证报告《验证报告_第16轮_技术债评估与落地.md》（本分支根目录）+ file-structure.zh.md（mindmap 第 7~15 轮→第 7~16 轮 + 本报告登记）；本记录即 iteration-log 追加；
   - 约束遵守：仅本工作区与 r16/techdebt 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；新增测试文件 pbxproj 手工注册（add_files.py 锚点过期，第 15 轮遗留⑧）；完成自查 git status 干净 + commit 已提交。
+
+---
+
+## 第 17 轮（功能/优化迭代第 5 轮）
+
+### 父任务
+
+- 目标：功能/优化迭代第 5 轮（接第 16 轮收口 main=e231128）—— ① 实现卡 A：add_files.py 扩展支持测试文件一键注册（遗留 9 后半句闭环，工程规范维度）；② 实现卡 B：隐藏机制性能跟进——matchAppId 正则编译缓存（第 16 轮 shouldShowItem 落地后的性能细节优化，代码质量/性能维度）；③ 维护面 C：年度维护核验（第 11 次）+ round-16 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮不触发全量回归（第 16 轮分解前已全量 118 + 收口整体 129 实证，隔代规则下预计第 18 轮触发）。
+- 分解下发：3 张子卡（t_4227912b A / t_9c0de9ca B / t_157a9cb6 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round17-A/B/C 预建于 main@e231128，分支 r17/tooling / r17/feature / r17/review）。
+- 合并提交点：main@e231128 → 3 子分支（r17/review a4252bc 经 23f30cb / r17/tooling c6c360c+14abb9e 经 bd57681 / r17/feature f626b30 经 26e806d）依次 merge --no-ff 合入父分支（冲突共 3 处均手工解决：iteration-log 2 处 A/B/C 记录并列合并——C 合入后与 A、B 各并一次、file-structure 2 处 C+A、C+A+B 报告行并列保留，标记行完整包含在 patch old_string 内，提交前 grep 清零确认——第 11/13/14/15/16 轮教训遵守），合并后整体 build+test 实证后并入 main 并 push origin。根目录新增 3 份第 17 轮报告：验证报告_第17轮_add_files测试注册扩展.md、验证报告_第17轮_隐藏机制正则缓存优化.md、核验报告_第17轮_维护机制健在与文档一致性.md、清理报告_第17轮_round16遗留清理.md（C 卡 2 份 + A/B 各 1 份，共 4 份）；file-structure.zh.md 同步（mindmap 第 7~16 轮→第 7~17 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；② 子任务 A（工程规范）add_files.py 测试注册扩展（遗留 9 后半句闭环）：Tests: 前缀一键注册测试文件进单测目标——UUID 单测独立前缀 C1FE/C1FF（app 保持 C0FE/C0FF 命名空间隔离）、group child 落 MTMRTests 分组、Sources 经单测目标 LyricsMTMRTests buildPhases 解析绝不含 app 目标、两阶段校验写盘（全量定位成功后一次性写盘，失败零写入），探针全链路实证（4 处落点全对 + TEST SUCCEEDED 131 用例 0 失败 = 129 基线 + 2 探针 + BUILD SUCCEEDED + 幂等 + 混合注册 + 失败回滚），清理后仓库干净；③ 子任务 B（实现/优化）隐藏机制性能跟进：新增有界线程安全 MatchAppIdRegexCache（128 封顶 FIFO + NSLock，无效正则不做负缓存仍每次记日志，行为严格等价）+ shouldShowItem 一行接入 + 双路径 frontmostApplicationIdentifier 提出循环（同步/异步各自每轮只取一次），新增 5 缓存单测（命中复用/不同 pattern 各自编译/无效不缓存/容量封顶淘汰重编译/200 次并发恰好编译一次），分支 TEST SUCCEEDED 134 用例 0 失败（129 基线 + 5 新增，金丝雀全绿），TECHNICAL_DEBT ③ 条目追加跟进标注；④ 子任务 C（维护面）年度维护核验第 11 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=e231128）+ 仓库卫生 round-16 全部遗留清理（4 worktree + 4 分支含父卡，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 9 项挂账盘点；⑤ 收口：3 分支依次合并冲突共 3 处（iteration-log 2 + file-structure 2 计数含重复文件，实际手工解决 4 块），全部手工解决并 grep 清零后提交，合并后整体 build+test 实证（134 用例预期 = 129 基线 + 5 新增）。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 11 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（113 + holidayCountdown，注释 114 = 97+14+2+1）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件，③已落地 + 第 17 轮性能跟进（正则缓存）；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射依赖月份惯例，未来年份跨月窗口需随 aShareHolidays 年度维护扩展；
+  8. 隐藏机制修复（shouldShowItem 提取 + 异步路径补过滤 + 第 17 轮正则缓存）无 Touch Bar 真机冒烟（逻辑由 11+5 单测覆盖，主题切换一致性问题修复留待真机确认）；
+  9. add_files.py 已闭环（第 16 轮 Sources 组一键注册 + 第 17 轮 Tests: 测试文件一键注册），后续 Widgets/测试新文件均可脚本注册。
+- 下轮方向：① 继续功能/优化迭代（第 6 轮）：候选——新 widget/体验优化（README TODO 剩余「……」占位符清理评估）、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 17 轮 A/B 卡已附 131/134 用例实证、收口整体 134 用例实证（基线口径升级为 134 = 129 + 5），累积 2~3 轮代码改动后触发下次全量回归（**预计第 18 轮分解前触发**——第 16 轮全量后隔第 17 轮，累积 A/B 两轮代码改动）；④ 收口教训固化：本轮冲突 3 处均为迭代记录并列合并，标记行完整包含在 patch old_string 内即一次通过，grep 清零确认后提交；子任务并行改同一文档（iteration-log/file-structure）是每轮冲突必然来源，收口时按 C→A→B 顺序合并可让冲突逐次线性出现、每次只解决一个分支的记录。
+
+### 子任务记录
+
+- **t_157a9cb6 维护三合一（review-agent，分支 r17/review）**：
+  - 年度维护核验（第 11 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，:388 引用准，检查点清单与代码注释一致）；2027 段 32 日期（3+8+3+5+3+3+7）星期断言 Python 复核 0 不符 + 6 补班日全周六 + 金丝雀 7 锚点星期全对；金丝雀防屏蔽直查 :195-196 在位；maintenance-notes 零漂移（:369-370 文号+URL、:375-399/:404-419 区间、三函数 :155/:167/:183、年度流程与周末直查规则 :39-40）；GitHub 4/4 实测（#1 OPEN / #40 CLOSED / 0 open PR / origin/main=e231128，本地 main 与 origin 同步）；文档一致性三方交叉核对一致（iteration-log 第 16 轮收口 ↔ 提交图 e231128→385e71f→7bc169f ↔ file-structure 登记 4 份报告）、无冲突残留标记；
+  - 仓库卫生：round-16 父卡 t_58d4fa40 + 3 子卡遗留清理 —— 删除前复核 4 检查全过（4 分支 --merged main 0 ahead + merge-base 祖先 + 4 worktree 干净 + 远端仅 main），删除动作 worktree remove ×4（round16-A/B/C + round16-parent）→ prune → branch -d ×4（r16/tooling r16/techdebt r16/review lyricsmtmr/t_58d4fa40-16-lyricsmtmr-4-15）；删除后清点 .worktrees 仅 round17-A/B/C + round17-parent + 主仓库、本地分支 5 条（main + r17/*×3 + lyricsmtmr/t_7001f2ef-17-lyricsmtmr-5-16 父卡分支）、远端仅 main、prune --dry-run 空；
+  - 遗留跟踪盘点：issue #1 OPEN 待真机验证 / ITER-15 决策门 4 问 / ITER-14 时间驱动 / 口径统一 32+114 / 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟+跨月窗口 / 隐藏机制真机冒烟 / add_files.py 已闭环+测试注册待工具化 —— 共 9 项均保持挂账，仅盘点确认；
+  - 产出：根目录 2 份报告（核验报告_第17轮_维护机制健在与文档一致性.md / 清理报告_第17轮_round16遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r17/review，零代码改动（未触发构建/测试/全量回归，第 16 轮收口已实证 129 用例 0 失败，下次全量回归预计第 18 轮隔代触发），未 push，未开新分支/子任务。
+- **t_4227912b add_files.py 测试注册扩展（code-agent，分支 r17/tooling）**：
+  - 遗留问题 9 后半句闭环：add_files.py 新增 `Tests:` 前缀调用形态（`add_files.py Tests:FooTests.swift`），测试文件**一键注册**进单测目标，替代第 13~16 轮每轮手工 4 处 pbxproj 注册（PBXBuildFile/PBXFileReference/group child/Sources phase，且需避 app 目标）；
+  - 注册链（测试模式）：PBXBuildFile/PBXFileReference 仍插各自 section End 标记前，但 UUID 用**单测独立前缀 C1FE（ref）/C1FF（build）**（app 文件保持 C0FE/C0FF，命名空间隔离，同名文件跨模式不撞 UUID）；group child 落 **MTMRTests 分组**（path = MTMRTests）children 末尾；Sources 条目经**单测目标 LyricsMTMRTests**（B082B260）buildPhases 解析出其 Sources phase（B082B25D）files 末尾——**绝不落 app 目标**（app 的 B082B24B phase 零改动）；原 `find_app_sources_files_end` 重构为 `find_target_sources_files_end(text, target)` 按目标名精确匹配；**两阶段写盘**：先对原始文本全量校验（END 标记/分组/目标 phase 全部定位成功）再按 offset 降序批量插入、最后一次性写盘——任何失败都在写盘前 SystemExit，比第 16 轮逐段 replace 更严格，杜绝半注册；
+  - 实证（探针一键注册全链路）：新建 `MTMRTests/AddFilesProbeTests.swift`（2 测试方法）→ `add_files.py Tests:AddFilesProbeTests.swift` → pbxproj 4 处条目落点全对（BuildFile C1FF…:242 段尾 / FileRef C1FE…:510 段尾 / group child :652 **MTMRTests 分组**末尾 / Sources :1313 **单测目标 B082B25D** 末尾，app phase grep 零命中）→ xcodebuild test（UnitTests, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17a-test）**TEST SUCCEEDED —— 131 用例 0 失败 0 意外**（129 基线 + 2 探针全过）+ xcodebuild build（MTMR, Debug，/tmp/LyricsMTMR-dd-r17a-build）**BUILD SUCCEEDED** → 二次运行幂等（skip (present) + nothing to do）→ 混合注册实证（`Tools:MixedProbe.swift Tests:MixedProbeTests.swift` 一次调用双链各归其位：app 文件 C0FE/C0FF + Tools 分组 + app phase，测试文件 C1FE/C1FF + MTMRTests 分组 + 单测 phase）→ 失败模式实证（未知组 exit=1 且 pbxproj 零改动，混合失败场景整体回滚）→ 清理探针文件与注册条目（rm + git checkout pbxproj），git status 仅剩脚本扩展、仓库干净；
+  - 交付：验证报告《验证报告_第17轮_add_files测试注册扩展.md》（本分支根目录，含背景与设计/注册链对照表/实证过程/风险点）+ 本记录 + file-structure.zh.md 登记（mindmap 第 7~16 轮→第 7~17 轮 + 报告行 + Scripts 段 add_files 描述补 Tests: 前缀说明）；
+  - 约束遵守：仅本工作区与 r17/tooling 分支改动，未 push 远端（父任务收口统一合并），未开新分支/新子任务/无 parents 依赖，不触发全量回归（父任务基线 129 用例，分支内 build+test 实证足够）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+- **t_9c0de9ca 隐藏机制性能跟进（code-agent，分支 r17/feature）**：
+  - 落地第 16 轮隐藏机制（TECHNICAL_DEBT ③）的性能细节跟进：`shouldShowItem(_:frontmostAppId:)` 原对每个带 matchAppId 的 item、每次评估（前台应用切换/主题切换全量评估）都执行 `try? NSRegularExpression(pattern:)` 重编译正则——同一 regexString 反复编译纯浪费。新增有界、线程安全的 `MatchAppIdRegexCache`（TouchBarController.swift 文件尾，未开新文件零 pbxproj 注册）：按 regexString 缓存编译结果（`maxEntries` 128 封顶 + FIFO 淘汰最旧，128 ≈ 一份 114 全集预设 + 第二份交替余量；NSLock 全临界区串行化——`shouldShowItem` 为静态纯函数测试可任意线程调用，锁代价远小于编译且可断言「并发下每 pattern 恰好编译一次」；**不做负缓存**——无效正则仍每次评估重新尝试编译并记日志，与缓存前日志频次逐字节一致）；`shouldShowItem` 仅一行替换接入缓存（静态共享实例 `matchAppIdRegexCache`）；顺带把两条调用路径（同步 createItems :673 / 异步 reloadPresetAsync :894）循环体内重复取值的 `frontmostApplicationIdentifier` 提出循环（同步循环内该值不可能变，取一次与 114 次等价）——两条路径各自每轮评估只取一次；
+  - 等价性：无规则/nil 前台/有效匹配/不匹配/无效降级 5 分支逐一比对语义不变，仅编译频次下降；缓存淘汰后复用重新编译（编译是无状态纯操作）结果等价；
+  - 单测：`BarItemVisibilityTests.swift` 同文件新增 `MatchAppIdRegexCacheTests` 类 5 用例（同文件免 pbxproj 注册）：重复评估编译一次（compileCount==1 命中复用）/不同 pattern 各自编译/无效正则不缓存仍降级显示（compileCount==2 证明无负缓存）/容量封顶 128 + 淘汰后重编译/200 次并发评估 × 20 pattern（concurrentPerform）结果全对且 compileCount==20（锁串行化恰好一次）；setUp/tearDown reset 隔离，既有 11 用例不受影响；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r17b-test）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug）**TEST SUCCEEDED —— 134 用例 0 失败 0 意外**（129 基线 + 新增 5 全过，BarItemVisibilityTests 11 / BarItemFactoryTests 18 全绿，金丝雀锚点全绿）；本轮不触发全量回归（父任务未安排回归卡，基线 129 用例）；
+  - 文档：TECHNICAL_DEBT.md ③ 条目追加第 17 轮跟进标注 + 验证报告《验证报告_第17轮_隐藏机制正则缓存优化.md》（本分支根目录，含热点分析/形态选择表/变更明细/等价性论证表/单测清单/风险点）+ file-structure.zh.md（mindmap 第 7~16 轮→第 7~17 轮 + 本报告登记）；本记录即 iteration-log 追加；
+  - 约束遵守：仅本工作区与 r17/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
