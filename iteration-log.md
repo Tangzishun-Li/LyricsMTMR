@@ -431,3 +431,84 @@
     本记录（iteration-log 追加）+ file-structure.zh.md 登记 1 行；
   - 约束遵守：未动 round11-A/B/C/parent 工作区与 r11-* 分支；未 push 远端（收口由父任务统一推送）；
     未开新分支/新子任务。
+
+---
+
+## 第 12 轮（本链第 6 轮）
+
+### 子任务 A：年度维护核验（第 6 次）+ 全量回归（隔代触发）（t_33fa28c8，review-agent，分支 r12/review）
+
+- **t_33fa28c8 核验 + 回归（review-agent，分支 r12/review，基于 main@bfcecd0）**：
+  - a) ITER-14 置顶待办完好可执行（第 6 次核验）：待办区唯一待办（grep 实测仅 1 项未勾销）；:388 行号引用准确（2027 段注释行实测命中）；检查点清单与代码注释一致（春节 2/5~2/12 共 8 天 + 补班 1/30、2/13；端午 6/7~6/9 + 6/5；中秋 9/13~9/15 + 9/11）；2027 段实际 **32 个日期**（元旦 3 + 春节 8 + 清明 3 + 劳动 5 + 端午 3 + 中秋 3 + 国庆 7）星期断言 Python 复核 0 不符 + 6 个补班日（全周六）全对 + 金丝雀 7 锚点星期全对 + 2026 官方段 33 日期星期全对（口径统一：历轮「15/27 个」为计数误差，自本轮起统一以 32 为准，不再引用旧口径）；金丝雀防掩蔽直查 :195-196（2027-02-06/05-01 两周六锚点 contains）在位；
+  - b) maintenance-notes 年度流程（:22-47）与代码零漂移（:369-370/:375-399/:404-419、:39-40 周末直查规则、金丝雀三函数 :155/:167/:183、SUPublicEDKey Info.plist:113、publish.yml:90-97 交叉自检、signing-check.yml:8 paths 注释）8 处引用全部实测命中；
+  - c) file-structure.zh.md：第 11 轮 3 份报告（核对/核验/清理）均已登记，无漂移需补；本分支就地修正：mindmap「第 7~11 轮」→「第 7~12 轮」+ 预登记 回归报告_第12轮 + 核验报告_第12轮（核对/清理报告按第 11 轮先例由子任务 B/C 自行登记，不预登记、不重复）；
+  - d) 0 open PR（gh pr list + gh api 实测均 0）；origin/main = bfcecd0（ls-remote 实证 bfcecd091ce…，第 11 轮收口 push 完好）；
+  - 文档一致性三方交叉核对：iteration-log 第 11 轮收口 ↔ iteration-plan 第八节收敛结论（剩余未结项仅时间驱动 ITER-14/21 + 可选观察 ITER-15，与遗留①④一致）↔ main 提交图（c2539d6 r11-review → b51dd4c r11-check → 4a76c91 r11-cleanup → a1daf87 父收口 → bfcecd0 r11-parent 收口合入，祖先 0727066 为第 10 轮收口）三者一致，无漂移；A/B/C 子任务记录并列齐全，无冲突残留标记（`<<<<<<<` 仅 1 处为记录内引述历史冲突文字，非残留）；
+  - 全量回归（隔代触发：第 9 轮后已隔第 10/11 两代）：build/test 并行、独立 derivedDataPath，**BUILD SUCCEEDED + TEST SUCCEEDED**，60 用例 0 失败 0 意外（xcresult 实证 passedTests=60），3 金丝雀全过，9 条代码 warning 与第 9 轮基线构成一致（+1 非代码 appintents 提示 +1 并行构建 destination 噪音）；第 10 轮 D1 注释修正 + 第 11 轮纯文档维护后主干无回归；
+  - 遗留观察：① 沿袭 issue #1/#40 维持 OPEN、ITER-15 决策门 4 问待用户、README MediaRemote 风险说明待补；② 沿袭内存修复真机冒烟 3 项挂账（无真机条件）；③ ITER-14 2026-11 前无动作符合预期（第 6 次核验：完好可执行）。报告见 `回归报告_第12轮.md` + `核验报告_第12轮_维护机制健在与文档一致性.md`（本分支根目录）。
+
+---
+
+### 子任务 B：收尾核对 — GitHub 状态复核 + 遗留问题清单复核 + 归档抽查（t_0494d174，merge-agent，分支 r12/check）
+
+- **t_0494d174 收尾核对（merge-agent，分支 r12/check，基于 main@bfcecd0）**：
+  - GitHub 状态复核 4/4 符合：issue #1 OPEN + 1 条评论（=第 8 轮回复 issuecomment-5262846270，
+    无新动态）；issue #40 OPEN（backlog「Per-app bar switching」，0 评论）；open PR 0
+    （gh pr list 实测 `[]`）；origin/main = bfcecd0（ls-remote 实证 bfcecd091ce636fb22dee47c7bad46120483bc83，
+    第 11 轮收口 push 完好）；
+  - 遗留 6 项逐一复核（与第 11 轮分类逐项一致，状态零变化）：① issue #1 待用户 15.7 真机验证
+    → 待用户确认；② ITER-15 使用场景 4 问（iteration-plan :242/:393/:406「可选项/维持可选项/
+    可选观察」实测在案）→ 待用户确认；③ ITER-14 第 5 次核验由第 11 轮子任务 A（t_8a25938b）覆盖
+    已入 main → 已闭环；④ README 补 MediaRemote 风险说明仍未实施（README 仅 :49 集成列表提及，
+    无 FAQ/15.4+ 段落）→ 继续跟踪；⑤ D1 注释陈旧 → main@bfcecd0 实测已修正
+    （UnifiedSettingsWindowController.swift:108-119「默认 1 小时…settingsWindowIdleGCSeconds = 3600」）
+    → 已闭环；⑥ 内存修复真机冒烟 3 项（出处：回归报告_第9轮 :89-92）挂账（无真机执行条件）
+    → 继续跟踪；分类汇总：已闭环 2 / 待用户确认 2 / 继续跟踪 2；
+  - 第 12 轮新增/变化事项：① origin/main 0727066 → bfcecd0（第 11 轮收口）；② 2027 节日口径
+    统一建议（实际 32 日期）第 11 轮已采纳，本轮沿用 32 口径无漂移；
+  - 归档一致性抽查：backup/ 17 份 ✅、docs/ 5 文件 ✅（backup-note/iteration-plan/maintenance-notes/
+    memory-rendering-audit/optimization-plan）、根目录 15 份报告 vs backup/ 无同名且 md5 内容级
+    抽查 0 重复 ✅，均与第 11 轮结论一致；
+  - 本轮零代码改动（纯文档交付：核对报告 + iteration-log 追加），按第 11 轮下轮方向④不触发
+    全量回归（60 用例基线保持）；未 push（父任务收口统一合并）；
+  - 下轮预期：第 13 轮起退出年度维护模式（运营者已指示继续优化/增加功能），遗留事项重心从
+    「跟踪+核验」转向「实现」，待用户确认事项（issue #1 关闭 / ITER-15 决策门 4 问）与
+    backlog #40（Per-app bar switching）可能成为首轮实现候选；
+  - 交付：核对报告 `核对报告_第12轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+---
+
+### 子任务 C：仓库卫生 — round-11 父卡+子卡遗留 worktree/分支清理（t_9b478368，merge-agent，分支 r12/cleanup）
+
+- **t_9b478368 仓库卫生（merge-agent，分支 r12/cleanup）**：
+  - 清理对象：round-11 父卡 t_3bf28bf5 及 3 张子卡遗留 —— worktree `.worktrees/round11-parent`（@ a1daf87，
+    检出分支 r11-parent）+ `.worktrees/round11-A`（r11/review @ 04d3cb8）+ `.worktrees/round11-B`（r11/check
+    @ 72ab579）+ `.worktrees/round11-C`（r11/cleanup @ 1da6ff2），及对应本地分支 4 条（均无远端对应）；
+  - 删除前复核（每项 4 检查，全部通过）：`git branch --merged main` 含全部 4 个 r11 分支（0 ahead，已随
+    bfcecd0 并入 main）+ `merge-base --is-ancestor` 4 分支均通过（r11/* 经 r11-parent 合并，r11-parent 是
+    bfcecd0 的父提交）+ 4 个 worktree 工作区 `status --porcelain` 均为空（干净）+ 远端 heads 仅 main；
+  - 删除动作：`git worktree remove` ×4（无需 --force）→ `git branch -d` ×4（was a1daf87/04d3cb8/72ab579/
+    1da6ff2）→ `git worktree prune`；
+  - 删除后清点（与任务预期逐一吻合）：.worktrees/ 仅剩 round12-parent + round12-A/B/C（4 项，主仓库另计，
+    合计 5 项）；本地分支仅剩 main / r12-parent / r12/review / r12/check / r12/cleanup（5 项）；远端 refs/heads
+    仅 main；`prune --dry-run` 空、`for-each-ref refs/heads` 计数 5（无幽灵）；
+  - 产出：清理报告 `清理报告_第12轮.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录（iteration-log
+    追加）+ file-structure.zh.md 登记 1 行；
+  - 约束遵守：未动 round12-parent/A/B/C 任何工作区与 r12-* 分支；未 push 远端（收口由父任务统一推送）；
+    未开新分支/新子任务。
+
+---
+
+### 父任务
+
+- 目标：年度维护模式第 6 轮（纯维护轮，无实现卡）—— ① 全量回归（隔代规则触发：第 9 轮回归后已隔第 10/11 两代，本轮触发 60 用例基线）+ 年度维护核验（第 6 次）；② 收尾核对（GitHub 状态 4/4 + 遗留 6 项分类复核 + 归档抽查）；③ 仓库卫生（round-11 父卡+3 子卡遗留 worktree/分支清理）。
+- 合并提交点：main@bfcecd0 → 3 子分支（r12/review 51dfc98 / r12/check c46d586 / r12/cleanup 6dffa05）依次 merge --no-ff 合入 r12-parent（iteration-log 冲突 2 次 + file-structure 冲突 1 次均手工解决，A/B/C 子任务记录并列保留；file-structure 合并时补登记 B 漏登记的核对报告_第12轮），再并入 main 并 push origin。根目录新增 4 份第 12 轮报告：回归报告_第12轮.md、核验报告_第12轮_维护机制健在与文档一致性.md、核对报告_第12轮_收尾核对.md、清理报告_第12轮.md；file-structure.zh.md 同步（mindmap 第 7~12 轮、第 12 轮 4 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」（round12-A/B/C 预建于 main@bfcecd0）；② 子任务 A 全量回归通过（BUILD/TEST SUCCEEDED，60 用例 0 失败 0 意外，xcresult 实证）+ 核验第 6 次通过（ITER-14 置顶待办健在可执行、2027 段 32 日期 + 6 补班日星期 Python 复核全对、金丝雀防掩蔽 :195-196 在位、maintenance-notes 零漂移 8 处引用命中、file-structure 无漂移需补、mindmap 更新、三方交叉核对一致、0 open PR）；③ 子任务 B 核对 4/4 符合（issue #1 OPEN+1 评论 / #40 OPEN / open PR 0 / origin/main=bfcecd0）+ 遗留 6 项分类与第 11 轮逐项一致（已闭环 2：ITER-14 覆盖、D1 已在 main 实测 / 待用户确认 2：issue #1、ITER-15 4 问 / 继续跟踪 2：README MediaRemote 说明、真机冒烟 3 项）+ 归档抽查一致（backup/ 17 份、docs/ 5 文件、根目录 vs backup/ 无重复）；④ 子任务 C 清理 round-11 全部遗留（4 worktree + 4 分支，删除前复核 4 项全过，删除后 worktree 5 项/分支 5 项/远端仅 main，卫生抽查无残留）。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；backlog #40 已承接「Per-app bar switching」；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 6 次核验健在，2026-11 前无动作；
+  4. README/FAQ 补「macOS 15.4+ 音乐信息获取机制与已知风险」说明：继续跟踪（不强制）；
+  5. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；
+  6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
+- 下轮方向：【运营者指示】第 13 轮起**退出年度维护模式，恢复功能/优化迭代**（继续优化、增加功能），迭代维度参考：后端服务 / 前端体验 / UI 迭代维度 / 数据与存储 / 安全与合规 / 代码质量与工程规范 / 功能与业务更新迭代。待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问 / README 补 MediaRemote 风险说明）与 backlog #40（Per-app bar switching）为首轮实现候选；ITER-14 时间驱动项第 7 次核验跟踪可并入维护面；回归规则：第 13 轮起有代码改动，改动并入后需 build+test 全绿实证（60 用例基线），累积 2~3 轮再全量回归。
