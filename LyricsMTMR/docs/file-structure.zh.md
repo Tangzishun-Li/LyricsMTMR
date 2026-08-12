@@ -30,6 +30,7 @@ mindmap
       LyricsAnalysis
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
+      第 7 轮回归/核验报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -86,6 +87,7 @@ mindmap
 │   │   ├── Info.plist / MTMR.entitlements / defaultPreset.json / ChinaCityCodes.json   # 中国天气网城市码表（917983f 起）
 │   │   └── MTMRExceptionCatcher.h    # ObjC 异常捕获（被桥接头引用，勿移动）
 │   ├── MTMRTests/                    # 单元测试套件（随新增用例增长）
+│   ├── Sparkle.framework/            # 本地依赖（e8f2c63 起入库跟踪供 CI 构建，FRAMEWORK_SEARCH_PATHS 引用）
 │   ├── Scripts/                      # 开发脚本
 │   │   ├── build.sh / test.sh / archive.sh   # 一键构建（Makefile 调用）
 │   │   ├── embed-entitlements.sh             # 重新签名脚本
@@ -98,6 +100,8 @@ mindmap
 ├── backup/                          # 优化前调研文档归档（16 份，存档点 pre-opt-20260812-0114）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
 ├── 调研报告_生命周期窗口保留_t_705ecd03.md   # 存档点遗留（与 backup/ 内同名文件为副本，收口时评估清理）
+├── 回归报告_第7轮_t_eeddbbf0.md             # 第 7 轮回归报告（main 全量构建+单测：60 用例 0 失败）
+├── 核验报告_第7轮_维护机制健在性与文档一致性.md # 第 7 轮核验报告（维护机制健在性 + 文档一致性）
 └── .gitignore / .gitattributes / README.md
 ```
 
@@ -145,7 +149,7 @@ flowchart TD
 | `LyricsMTMR/MTMR/Resources/run.pl` | 构建阶段脚本拷贝进 app Bundle，运行时由 `MediaRemoteAdapter` 从 `Bundle.main` 读取 |
 | `LyricsMTMR/MTMR/Info.plist`、`defaultPreset.json` | `INFOPLIST_FILE` / Copy Bundle Resources 引用 |
 | `LyricsMTMR/MTMR/Assets.xcassets`、`AppleScripts/`、`Base.lproj/` | 资源拷贝阶段引用 |
-| `LyricsMTMR/Sparkle.framework` | 本地依赖（gitignored），`FRAMEWORK_SEARCH_PATHS` 引用 |
+| `LyricsMTMR/Sparkle.framework` | 本地依赖（e8f2c63 起入库跟踪供 CI 构建，非 gitignore；勿删），`FRAMEWORK_SEARCH_PATHS` 引用 |
 | `.secrets.env` | 本地密钥文件（gitignored，不入库） |
 
 ## 六、构建与产物
