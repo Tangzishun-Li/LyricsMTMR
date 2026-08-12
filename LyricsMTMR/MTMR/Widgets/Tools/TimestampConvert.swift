@@ -7,16 +7,27 @@
 
 import Cocoa
 
-class TimestampConvertItem: TBPopoverItem {
+class TimestampConvertItem: TBPopoverItem, TBPollPausable {
     private weak var resultLabel: NSTextField?
-    private var timer: Timer?
+    /// 浮层 1s 当前时间戳刷新（仅浮层打开期间运行；round 19：隐藏期间一并暂停）。
+    private var overlayTick: TBPausableTimer?
 
     override init(identifier: NSTouchBarItem.Identifier) {
         super.init(identifier: identifier)
         configureButton(title: localized("时间戳", "Epoch"), symbol: "clock.arrow.circlepath", tint: TB.gold)
     }
     required init?(coder: NSCoder) { return nil }
-    deinit { timer?.invalidate() }
+
+    /// 隐藏（黑名单/exitTouchbar）时暂停浮层计时；显示时若浮层仍打开则恢复并立即刷新。
+    func setPaused(_ paused: Bool) {
+        guard let overlayTick = overlayTick else { return }
+        if paused {
+            overlayTick.stop()
+        } else if isShowing {
+            tick()
+            overlayTick.start()
+        }
+    }
 
     override func buildOverlay() -> NSView {
         let root = TBOverlay.rootView()
@@ -24,9 +35,9 @@ class TimestampConvertItem: TBPopoverItem {
         let close = TBOverlay.closeButton(in: card, target: self, action: #selector(closeOverlay))
         resultLabel = TBOverlay.resultLabel(in: card, text: "…", tint: TB.textPrimary)
         tick()
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
-        timer?.tolerance = 0.1
+        overlayTick?.stop()
+        overlayTick = TBPausableTimer(interval: 1, tolerance: 0.1, immediateFireOnResume: true) { [weak self] in self?.tick() }
+        overlayTick?.start()
         let now = TBOverlay.pillButton(title: localized("复制现在", "Now"), tag: 0, target: self, action: #selector(act(_:)), tint: TB.gold)
         let toHuman = TBOverlay.pillButton(title: localized("Unix→日期", "→Date"), tag: 1, target: self, action: #selector(act(_:)), tint: TB.sky)
         let toUnix = TBOverlay.pillButton(title: localized("日期→Unix", "→Unix"), tag: 2, target: self, action: #selector(act(_:)), tint: TB.mint)
