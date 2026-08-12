@@ -12,13 +12,23 @@
 import Cocoa
 import CoreLocation
 
-class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
-    private let activity: NSBackgroundActivityScheduler
+class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPollPausable {
+    /// 周期刷新调度器（系统合并调度）。internal：单测注入点——计数子类
+    /// init 后 invalidate 隔离调度器（其首次触发不遵守 interval 下限，
+    /// 会污染刷新计数断言）。
+    let activity: NSBackgroundActivityScheduler
     private var units: String
     private var api_key: String
     private var units_str = "°F"
     private var prev_location: CLLocation!
     private var location: CLLocation!
+
+    /// round 22：隐藏暂停门。NSBackgroundActivityScheduler 无 pause API，
+    /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
+    /// bar 隐藏（黑名单 app / exitTouchbar）期间零网络请求（含定位回调、
+    /// 授权变更触发的刷新入口，全部经 updateWeather 顶部守卫拦截），
+    /// 恢复后调度器按原 interval 继续 + setPaused(false) 立即补刷一次。
+    private let pollGate = TBPauseGate()
     private let iconsImages = ["01d": "☀️", "01n": "☀️", "02d": "⛅️", "02n": "⛅️", "03d": "☁️", "03n": "☁️", "04d": "☁️", "04n": "☁️", "09d": "⛅️", "09n": "⛅️", "10d": "🌦", "10n": "🌦", "11d": "🌩", "11n": "🌩", "13d": "❄️", "13n": "❄️", "50d": "🌫", "50n": "🌫"]
     private let iconsText = ["01d": "☀", "01n": "☀", "02d": "☁", "02n": "☁", "03d": "☁", "03n": "☁", "04d": "☁", "04n": "☁", "09d": "☂", "09n": "☂", "10d": "☂", "10n": "☂", "11d": "☈", "11n": "☈", "13d": "☃", "13n": "☃", "50d": "♨", "50n": "♨"]
     private var iconsSource: Dictionary<String, String>
@@ -39,6 +49,20 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
     ]
 
     private var manager: CLLocationManager!
+
+    /// 该实例是否追踪定位（init 期决定：权限可用且非中国模式固定城市）。
+    /// setPaused 的守卫——true 才响应隐藏暂停广播。独立于 manager 对象：
+    /// 单测计数子类 override startLocationUpdates 时 manager 不创建，
+    /// 但标志由 init 直接置位，广播语义不受测试注入影响。
+    private var locationTrackingEnabled = false
+
+    /// 定位暂停门（round 22）：整条 bar 隐藏（黑名单 app / exitTouchbar）时
+    /// 停止定位更新——GPS 关闭、隐私指示灯熄灭；恢复时重启定位并立即补刷
+    /// 天气。独立 gate 而非复用 update 循环——presentTouchBar 广播会对从未
+    /// 暂停过的 item 也调 setPaused(false)，必须按「状态实际变化」决定是否
+    /// 重启定位（重复广播零副作用，同 round 21 capturePauseGate 模式）。
+    private let locationPauseGate = TBPauseGate()
+
     private var isChinaMode: Bool { apiSource == "china" }
 
     init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, units: String, api_key: String, icon_type: String? = "text", apiSource: String = "openweather", cities: [String] = [], showHumidity: Bool = false, showWind: Bool = false) {
@@ -79,17 +103,8 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
             ]
         }
 
-        let status = CLLocationManager().authorizationStatus
-        if status == .restricted || status == .denied {
-            print("User permission not given")
+        if !locationServicesUsable() {
             // China mode with explicit cities doesn't need location.
-            if !(isChinaMode && !cities.isEmpty) {
-                return
-            }
-        }
-
-        if !CLLocationManager.locationServicesEnabled() {
-            print("Location services not enabled")
             if !(isChinaMode && !cities.isEmpty) {
                 return
             }
@@ -97,8 +112,12 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
 
         activity.repeats = true
         activity.qualityOfService = .utility
-        activity.schedule { (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self.updateWeather()
+        // [weak self]：round 22 修复——原闭包强捕获 self 与 self.activity 构成
+        // 永久循环引用，deinit 永不执行（配置热重载后旧 item + 旧 manager 泄漏，
+        // GPS 持续活跃）；弱引用后 deinit 可达，由 deinit 统一 invalidate + 停定位。
+        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
+            // 门控回调：bar 隐藏期间过门拦截（零网络请求），恢复后按原 interval 继续。
+            self?.pollTick()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateWeather()
@@ -108,15 +127,25 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
             return
         }
 
-        manager = CLLocationManager()
-        manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        manager.startUpdatingLocation()
+        locationTrackingEnabled = true
+        startLocationUpdates()
     }
 
     required init?(coder _: NSCoder) { return nil }
 
+    // MARK: - 隐藏暂停（round 22）
+
+    /// 调度器触发入口（background 队列）：bar 隐藏期间过门拦截，
+    /// 零网络请求；隐藏期可能已累积多个触发，全部被门挡掉。
+    func pollTick() {
+        guard !pollGate.isPaused else { return }
+        updateWeather()
+    }
+
     @objc func updateWeather() {
+        // round 22：隐藏期零网络请求——任何入口（调度器/补刷/定位回调/
+        // 授权变更/城市切换）在 bar 隐藏期间一律拦截，不发天气请求。
+        guard !pollGate.isPaused else { return }
         if isChinaMode {
             updateWeatherChina()
             return
@@ -235,6 +264,9 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
 
     /// Reverse-geocode the current location into a city name for china mode.
     private func resolveLocationCity() {
+        // round 22：隐藏期零网络请求——反地理编码走 Apple 网络服务，
+        // bar 隐藏期间同样拦截（恢复后 updateWeather 用最新已知定位补刷）。
+        guard !pollGate.isPaused else { return }
         guard let location = location else { return }
         let geocoder = CLGeocoder()
         geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, _ in
@@ -251,6 +283,71 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
         }
     }
 
+    // MARK: - Location service lifecycle (round 22)
+
+    /// 定位可用性门（权限 + 服务开关）。internal：单测注入点——子类
+    /// override 恒 true，隔离真实 TCC 授权状态（测试宿主授权不可控）。
+    func locationServicesUsable() -> Bool {
+        let status = CLLocationManager().authorizationStatus
+        if status == .restricted || status == .denied {
+            print("User permission not given")
+            return false
+        }
+        if !CLLocationManager.locationServicesEnabled() {
+            print("Location services not enabled")
+            return false
+        }
+        return true
+    }
+
+    /// 启动定位更新（manager 惰性创建，复用既有实例）。internal：单测
+    /// 注入点——子类 override 计数，不触碰真实 CoreLocation 硬件（同
+    /// round 21 startCapture/stopCapture 模式）。
+    func startLocationUpdates() {
+        if manager == nil {
+            manager = CLLocationManager()
+            manager.delegate = self
+            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        }
+        manager.startUpdatingLocation()
+    }
+
+    /// 停止定位更新（GPS 关闭、隐私指示灯熄灭）。幂等；manager 未创建
+    /// （中国模式固定城市 / 权限拒绝实例）时为 no-op。
+    func stopLocationUpdates() {
+        manager?.stopUpdatingLocation()
+    }
+
+    /// 隐藏（黑名单 app / exitTouchbar）时暂停轮询与定位；显示时恢复并立即
+    /// 补刷天气。双门控融合（round 22 A/B 卡）：pollGate 管网络轮询（所有
+    /// 实例），locationPauseGate 管定位服务（仅 locationTrackingEnabled 实例，
+    /// 中国模式固定城市 / 权限拒绝的实例 init 早退标志 false 不参与）。
+    /// 启停经主线程 hop + gate 状态复查（同 round 21 TBPausableTimer 模式），
+    /// 快速 pause/resume 序列以最后一次状态为准；重复广播幂等。
+    func setPaused(_ paused: Bool) {
+        let pollChanged = pollGate.setPaused(paused)
+        let locationChanged = locationTrackingEnabled && locationPauseGate.setPaused(paused)
+        guard pollChanged || locationChanged else { return }
+        if paused {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if self.locationTrackingEnabled && self.locationPauseGate.isPaused {
+                    self.stopLocationUpdates()
+                }
+            }
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if self.locationTrackingEnabled && !self.locationPauseGate.isPaused {
+                    self.startLocationUpdates()
+                }
+                if !self.pollGate.isPaused {
+                    self.updateWeather()
+                }
+            }
+        }
+    }
+
     func locationManager(_: CLLocationManager, didFailWithError error: Error) {
         print(error)
     }
@@ -262,5 +359,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
     
     deinit {
         activity.invalidate()
+        // 配置热重载 / bar 销毁时停定位，防旧 manager 泄漏后 GPS 常亮。
+        stopLocationUpdates()
     }
 }
