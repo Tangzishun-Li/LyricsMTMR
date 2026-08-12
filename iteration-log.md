@@ -120,6 +120,15 @@
   Operation not permitted（LyricFever#94 多方确认）。建议：回复用户（草稿见分诊报告）→
   真机 15.7 验证后关闭 issue → 另开 backlog 承接「按软件切换 bar」；跟进上游 adapter 防
   再封堵。报告见 `r7-triage-ws/triage-report.md`。
+- **t_5e363548 设置窗口内存泄漏（用户直报，2026-08-12）**：关设置后内存回不到基线
+  （35→135→80MB，且继续涨）。实测：OPT-1 关窗释放有效（窗口树 0 残留、CoreAnimation
+  2.2MB），但「每轮开窗 +~10MB 线性累积、无平台」（连开 8 次 48→103MB）——根因是每次
+  开窗重建整棵树，CoreSVG 符号缓存按窗口实例去重失败 + malloc zone 不可归还碎片
+  （`pressure_relief` 实测 0）。修复：**关窗=隐藏复用**（重开零重建）+ **闲置 GC**
+  （1h 未用整树释放）+ 内存压力即时释放。验证：5 轮开/关 phys_footprint 51.9MB 全平
+  （修复前 +10MB/轮），内存警告回落 38.2MB，重开正常；60 单测全绿。代码经 28e65b6
+  合并带入 main（本次为收尾清理合并，误将工作区未提交改动一并合入——提交信息未含本
+  修复说明，特此记录）；完整报告见 `内存修复报告_t5e363548_设置窗口复用.md`。
 - 说明：本批 4 张子卡执行期间，因项目仓库路径含末尾空格触发 hermes dispatcher worktree
   解析缺陷（`_git_toplevel` 对 git 输出做 .strip() 吞掉有意义尾空格，指向非 git 的同名
   兄弟目录），首轮 4 张 worktree 卡 spawn 失败；已修复 hermes-agent 源码
