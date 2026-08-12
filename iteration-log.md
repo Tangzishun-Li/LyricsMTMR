@@ -362,7 +362,6 @@
   - 交付：清理报告 `清理报告_第10轮卫生_r10-cleanup.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录
     （iteration-log 追加）+ file-structure.zh.md 登记 1 行。
 
-<<<<<<< HEAD
 ## 第 11 轮（本链第 5 轮）
 
 ### 子任务 A：年度维护核验（第 5 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（t_8a25938b，review-agent，分支 r11/review）
@@ -396,3 +395,25 @@
     （第 10 轮预登记 3 份仅落实 2 份）→ 已就地补登记（纯文档，第 10 轮三份报告现已连续成组）；
   - 本轮零代码改动（纯文档交付）；未 push（父任务收口统一合并）；
   - 交付：核对报告 `核对报告_第11轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+---
+
+### 子任务 C：仓库卫生 — round-10 父卡遗留 worktree/分支清理（t_8673022d，merge-agent，分支 r11/cleanup）
+
+- **t_8673022d 仓库卫生（merge-agent，分支 r11/cleanup）**：
+  - 清理对象：round-10 父卡 t_28daa138 遗留 —— worktree `.worktrees/round10-parent`（@ 565a8eb，检出分支
+    r10-parent）+ 本地分支 r10-parent（@ 565a8eb，无远端对应）；
+  - 删除前复核（全部通过）：`git log main..r10-parent` 输出为空（0 ahead，已完全并入 main）+ `merge-base
+    --is-ancestor` 通过（分支为 main 祖先）+ worktree 工作区 `status --porcelain` 为空（干净）+
+    远端 heads 仅 main（0727066）；
+  - 删除动作：`git worktree remove --force` → `git worktree prune` → `git branch -d`（was 565a8eb）；
+  - 删除后复核（与任务预期逐一吻合）：worktree list 仅剩主仓库 + round11-A/B/C + round11-parent（5 项，
+    任务 body 写「6 项」系笔误）；本地分支仅剩 main / r11-parent / r11/review / r11/check / r11/cleanup
+    （5 项）；远端 refs/heads 仅 main；
+  - 卫生抽查：.worktrees/ 磁盘内容仅 round11-A/B/C/parent（round10-parent 已物理删除）；仓库根扫描无
+    r7-*/t_*/_ws/temp 残留子卡工作区或临时目录；无空格报告工作区 `/Users/litz/codespace/MTMR with LyricsX`
+    （非 git）仍为历轮报告暂存区（5 份第 7~9 轮报告），非残留，未动；
+  - 产出：清理报告 `清理报告_第11轮卫生_r11-cleanup.md`（本分支根目录，含删除前/后命令输出实录）+
+    本记录（iteration-log 追加）+ file-structure.zh.md 登记 1 行；
+  - 约束遵守：未动 round11-A/B/C/parent 工作区与 r11-* 分支；未 push 远端（收口由父任务统一推送）；
+    未开新分支/新子任务。
