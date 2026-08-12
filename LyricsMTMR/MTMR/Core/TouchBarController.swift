@@ -740,6 +740,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             presentSystemModal(touchBar, placement: 1, systemTrayItemIdentifier: .controlStripItem)
         }
         updateControlStripPresence()
+        setPollingPaused(false)
     }
 
     @objc private func dismissTouchBar() {
@@ -747,6 +748,24 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             minimizeSystemModal(touchBar)
         }
         updateControlStripPresence()
+        setPollingPaused(true)
+    }
+
+    /// Pauses (bar hidden) or resumes (bar shown) the polling loops of all
+    /// live TBPollItem / TBMetricPopoverItem widgets (round 18).
+    ///
+    /// dismissTouchBar only hides the UI — items stay alive in `items`, so
+    /// without this their loops would keep computing (network requests /
+    /// process calls / file IO) at every interval while the bar is hidden
+    /// (blacklist app / exitTouchbar item). presentTouchBar resumes them.
+    /// The items themselves re-check their flags on their own queues.
+    private func setPollingPaused(_ paused: Bool) {
+        for item in items.values {
+            (item as? TBPollPausable)?.setPaused(paused)
+        }
+        for item in swipeItems {
+            (item as? TBPollPausable)?.setPaused(paused)
+        }
     }
 
     /// Rebuilds the touch bar layout using the already-created items,

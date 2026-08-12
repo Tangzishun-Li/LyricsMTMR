@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~17 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~18 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -148,6 +148,12 @@ mindmap
 ├── 清理报告_第17轮_round16遗留清理.md          # 第 17 轮子任务 C 仓库卫生报告（round-16 父卡+子卡遗留 worktree/分支清理，r17/review）
 ├── 验证报告_第17轮_add_files测试注册扩展.md # 第 17 轮子任务 A 验证报告（add_files.py 扩展 Tests: 前缀一键注册测试文件：group/phase 落单测目标 LyricsMTMRTests 绝不含 app、UUID 独立前缀 C1FE/C1FF、两阶段校验写盘，r17/tooling）
 ├── 验证报告_第17轮_隐藏机制正则缓存优化.md # 第 17 轮子任务 B 验证报告（matchAppId 正则编译缓存：MatchAppIdRegexCache 有界线程安全缓存 + 双路径 frontmostAppId 提出循环，行为严格等价，134 用例实证，r17/feature）
+├── 验证报告_第18轮_假期名映射健壮化.md   # 第 18 轮子任务 A 验证报告（holidayCountdown 假期名映射跨月/重叠窗口健壮化：窗口特征判定——含 1/1→元旦跨年、含 10/1→国庆、10 月首日中秋、1 月下旬春节，makeWindows 两遍式，142 用例实证，r18/feature）
+
+├── 核验报告_第18轮_维护机制健在与文档一致性.md # 第 18 轮核验报告（第 12 次年度维护核验，r18/review）
+├── 清理报告_第18轮_round17遗留清理.md          # 第 18 轮子任务 C 仓库卫生报告（round-17 父卡+子卡遗留 worktree/分支清理，r18/review）
+
+├── 验证报告_第18轮_黑名单隐藏暂停轮询.md # 第 18 轮子任务 B 验证报告（隐藏期间暂停 widget 轮询：TBPollItem/TBMetricPopoverItem 线程安全 pause/resume + TouchBarController dismiss/present 广播，139 用例实证，r18/optimize）
 
 └── .gitignore / .gitattributes / README.md
 ```
