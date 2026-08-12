@@ -8,12 +8,15 @@
 import Cocoa
 import Foundation
 
-class DeepseekBalanceBarItem: CustomButtonTouchBarItem {
+class DeepseekBalanceBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let apiKey: String
     private let displayMode: String
     private let showRemaining: Bool
     private let refreshInterval: TimeInterval
-    private var timer: Timer?
+    /// 余额刷新定时器（round 19：隐藏期间整体暂停，恢复后立即刷新一次；仅 apiKey 非空时启停，与原实现一致）。
+    private lazy var pausableTimer = TBPausableTimer(interval: refreshInterval, tolerance: refreshInterval * 0.1, immediateFireOnResume: true) { [weak self] in
+        self?.refreshBalance()
+    }
     private var balanceData: String = "--"
 
     init(identifier: NSTouchBarItem.Identifier, apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double) {
@@ -29,18 +32,16 @@ class DeepseekBalanceBarItem: CustomButtonTouchBarItem {
         refreshBalance()
 
         if !apiKey.isEmpty {
-            timer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
-                self?.refreshBalance()
-            }
-            timer?.tolerance = self.refreshInterval * 0.1
+            pausableTimer.start()
         }
     }
 
     required init?(coder: NSCoder) { return nil }
 
-
-    deinit {
-        timer?.invalidate()
+    /// 隐藏（黑名单/exitTouchbar）时暂停余额轮询；显示时恢复。未配置 key 时无定时器，行为同原实现。
+    func setPaused(_ paused: Bool) {
+        guard !apiKey.isEmpty else { return }
+        pausableTimer.setPaused(paused)
     }
 
     private func refreshBalance() {

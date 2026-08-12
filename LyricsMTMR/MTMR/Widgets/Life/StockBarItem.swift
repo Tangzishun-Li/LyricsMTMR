@@ -17,7 +17,7 @@ struct StockMinuteData {
 
 // MARK: - StockBarItem
 
-class StockBarItem: CustomButtonTouchBarItem {
+class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let stockSymbols: [String]
     private let apiSource: String
     private let refreshInterval: TimeInterval
@@ -29,8 +29,22 @@ class StockBarItem: CustomButtonTouchBarItem {
 
     private var stocks: [StockMinuteData] = []
     private var marqueeIndex = 0
-    private var timer: Timer?
-    private var marqueeTimer: Timer?
+
+    /// 行情刷新定时器（round 19：隐藏期间整体暂停，恢复后立即刷新一次避免陈旧显示；
+    /// 休市/交易时段边界仍走 reschedule 即时切换频率）。
+    private lazy var refreshPausable = TBPausableTimer(interval: effectiveRefreshInterval, tolerance: nil, immediateFireOnResume: true) { [weak self] in
+        guard let self = self else { return }
+        self.refreshData()
+        self.refreshBoundaryCheck()
+    }
+    /// 跑马灯 3s 定时器（数据到达后由 startMarquee 启停，行为与原实现一致）。
+    private lazy var marqueePausable = TBPausableTimer(interval: 3, tolerance: nil, immediateFireOnResume: false) { [weak self] in
+        guard let self = self, !self.stocks.isEmpty else { return }
+        self.marqueeIndex = (self.marqueeIndex + 1) % self.stocks.count
+        DispatchQueue.main.async {
+            self.updateDisplay()
+        }
+    }
 
     private static let emUT = "fa5fd1943c7b386f172d6893dbfd32bb"  // 东方财富公开 UT，非个人密钥
 
@@ -59,24 +73,12 @@ class StockBarItem: CustomButtonTouchBarItem {
         }
 
         refreshData()
-        scheduleRefresh()
+        refreshPausable.start()
     }
 
     required init?(coder _: NSCoder) { return nil }
 
-    deinit {
-        timer?.invalidate()
-        marqueeTimer?.invalidate()
-    }
-
     // MARK: - 定时刷新
-
-    private func scheduleRefresh() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.rescheduleRefreshTimer()
-        }
-    }
 
     /// 当前应使用的刷新间隔：A 股交易时段用配置值，休市时段降频到至少 60s
     /// （分钟线数据休市时恒定，降频可省 2×HTTP/10s 与主线程全图重绘；OPT-11）
@@ -84,15 +86,16 @@ class StockBarItem: CustomButtonTouchBarItem {
         isMarketOpen() ? refreshInterval : max(refreshInterval, 60)
     }
 
-    private func rescheduleRefreshTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: effectiveRefreshInterval, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            self.refreshData()
-            // 交易时段边界（如 9:15 开盘 / 15:00 收盘）切换时立即调整频率，不必等下一次 tick
-            if self.timer?.timeInterval != self.effectiveRefreshInterval {
-                self.rescheduleRefreshTimer()
-            }
+    /// 隐藏（黑名单/exitTouchbar）时暂停行情与跑马灯轮询；显示时恢复并立即刷新一次。
+    func setPaused(_ paused: Bool) {
+        refreshPausable.setPaused(paused)
+        marqueePausable.setPaused(paused)
+    }
+
+    /// 交易时段边界（如 9:15 开盘 / 15:00 收盘）切换时立即调整频率，不必等下一次 tick。
+    private func refreshBoundaryCheck() {
+        if refreshPausable.currentInterval != effectiveRefreshInterval {
+            refreshPausable.reschedule(interval: effectiveRefreshInterval)
         }
     }
 
@@ -119,7 +122,7 @@ class StockBarItem: CustomButtonTouchBarItem {
         }
 
         group.notify(queue: .main) { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, !self.refreshPausable.isPaused else { return }
             self.stocks = fetched
             if self.displayMode == "marquee" {
                 self.startMarquee()
@@ -455,14 +458,7 @@ class StockBarItem: CustomButtonTouchBarItem {
     // MARK: - 跑马灯
 
     private func startMarquee() {
-        marqueeTimer?.invalidate()
-        marqueeTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            guard let self = self, !self.stocks.isEmpty else { return }
-            self.marqueeIndex = (self.marqueeIndex + 1) % self.stocks.count
-            DispatchQueue.main.async {
-                self.updateDisplay()
-            }
-        }
+        marqueePausable.start()
     }
 
     // MARK: - 更新显示

@@ -8,9 +8,11 @@
 
 import Foundation
 
-class CPUBarItem: CustomButtonTouchBarItem {
+class CPUBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let refreshInterval: TimeInterval
     private var refreshQueue: DispatchQueue? = DispatchQueue(label: "mtmr.cpu")
+    /// 隐藏期间暂停自循环（round 19）：暂停后已触发的 hop 直接返回且不再调度下一 hop。
+    private let pauseGate = TBPauseGate()
     private let defaultSingleTapScript: NSAppleScript! = "activate application \"Activity Monitor\"\rtell application \"System Events\"\r\ttell process \"Activity Monitor\"\r\t\ttell radio button \"CPU\" of radio group 1 of group 2 of toolbar 1 of window 1 to perform action \"AXPress\"\r\tend tell\rend tell".appleScript
 
     init(identifier: NSTouchBarItem.Identifier, refreshInterval: TimeInterval) {
@@ -36,6 +38,9 @@ class CPUBarItem: CustomButtonTouchBarItem {
     required init?(coder _: NSCoder) { return nil }
     
     func refreshAndSchedule() {
+        // 隐藏（黑名单/exitTouchbar）期间：既不采样也不调度下一 hop，链在此终结；
+        // 恢复时由 setPaused(false) 重新拉起（立即采样一次 + 按原节奏继续）。
+        guard !pauseGate.isPaused else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             // Get CPU load
@@ -73,9 +78,19 @@ class CPUBarItem: CustomButtonTouchBarItem {
             self?.defaultSingleTapScript.executeAndReturnError(nil)
         }
     }
-    
+
+    /// 隐藏时暂停自循环（链在下一 hop 处终结）；显示时恢复（立即采样一次再按原间隔继续）。
+    func setPaused(_ paused: Bool) {
+        if pauseGate.setPaused(paused), !paused {
+            refreshAndSchedule()
+        }
+    }
+
     deinit {
-        refreshQueue?.suspend()
+        // 不能在这里 suspend 队列：libdispatch 会以「Refusing to dispose of a
+        // dispatch queue with pending suspension count」EXC_BREAKPOINT 崩溃
+        // （潜伏缺陷，round 19 单测暴露）。链上所有 block 均 [weak self]，
+        // 释放队列即安全，无需挂起。
         refreshQueue = nil
     }
 }

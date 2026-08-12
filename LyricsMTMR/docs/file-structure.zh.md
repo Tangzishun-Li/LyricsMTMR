@@ -157,6 +157,7 @@ mindmap
 
 ├── 核验报告_第19轮_维护机制健在与文档一致性.md # 第 19 轮核验报告（第 13 次年度维护核验，r19/review）
 ├── 清理报告_第19轮_round18遗留清理.md          # 第 19 轮子任务 C 仓库卫生报告（round-18 父卡+子卡遗留 worktree/分支清理，r19/review）
+├── 验证报告_第19轮_隐藏暂停轮询覆盖缺口补齐.md # 第 19 轮子任务 A 验证报告（TBPollPausable 扩展至自驱动 Timer item：TBPausableTimer/TBPauseGate 共享可暂停定时器封装覆盖 8 个缺口 item + CPUBarItem asyncAfter 链接入，恢复立即刷新，156 用例实证，r19/feature；新增源码 Widgets/TBPausableTimer.swift + 测试 MTMRTests/PausableTimerTests.swift）
 
 └── .gitignore / .gitattributes / README.md
 ```
