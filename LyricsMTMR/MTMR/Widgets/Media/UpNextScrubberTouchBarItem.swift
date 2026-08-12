@@ -10,12 +10,19 @@
 import Foundation
 import EventKit
 
-class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
+class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     // Dependencies
     private let scrollView = NSScrollView()
     private let activity: NSBackgroundActivityScheduler // Update scheduler
     private var eventSources : [IUpNextSource] = []
     private var items: [UpNextItem] = []
+
+    /// round 22：隐藏暂停门。NSBackgroundActivityScheduler 无 pause API，
+    /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
+    /// bar 隐藏（黑名单 app / exitTouchbar）期间零 EventKit 查询（等价于
+    /// 其余三 widget 的零网络请求），恢复后调度器按原 interval 继续 +
+    /// setPaused(false) 立即补刷一次。
+    private let pollGate = TBPauseGate()
 
     // Settings
     private var futureSearchCutoff: Double
@@ -30,8 +37,16 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
     ///   - interval: Update view interval in seconds
     ///   - from: Relative to current time, how far back we search for events in hours
     ///   - to: Relative to current time, how far forward we search for events in hours
-    ///   - maxToShow:  Which event to show (1 is first, 2 is second, and so on)
-    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, from: Double, to: Double, maxToShow: Int, autoResize: Bool) {
+    /// - maxToShow:  Which event to show (1 is first, 2 is second, and so on)
+    convenience init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, from: Double, to: Double, maxToShow: Int, autoResize: Bool) {
+        self.init(identifier: identifier, interval: interval, from: from, to: to,
+                  maxToShow: maxToShow, autoResize: autoResize, eventSources: nil)
+    }
+
+    /// round 22 测试缝：显式传入 eventSources 时跳过真实 EventKit 源
+    /// （单测不触发 TCC 日历授权弹窗），生产路径（eventSources == nil）
+    /// 与原先逐字节等价。
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, from: Double, to: Double, maxToShow: Int, autoResize: Bool, eventSources: [IUpNextSource]?) {
         // Initialise member properties
         activity = NSBackgroundActivityScheduler(identifier: "\(identifier.rawValue).updateCheck")
         pastSearchCutoff = from * 3600
@@ -48,13 +63,17 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
         view = scrollView
         // Add event sources
         // Can optionally pass an update view callback to an event source to redraw element
-        self.eventSources.append(UpNextCalenderSource(updateCallback: { [weak self] in self?.updateView() }))
+        if let injected = eventSources {
+            self.eventSources = injected
+        } else {
+            self.eventSources.append(UpNextCalenderSource(updateCallback: { [weak self] in self?.updateView() }))
+        }
         // Fallback interactivity via interval
         activity.interval = interval
         activity.repeats = true
         activity.qualityOfService = .utility
         activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self?.updateView()
+            self?.pollTick()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateView()
@@ -66,7 +85,33 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem {
         activity.invalidate()
     }
 
+    // MARK: - 隐藏暂停（round 22）
+
+    /// 调度器触发入口（background 队列）：bar 隐藏期间过门拦截，
+    /// 零 EventKit 查询；隐藏期可能已累积多个触发，全部被门挡掉。
+    func pollTick() {
+        guard !pollGate.isPaused else { return }
+        updateView()
+    }
+
+    /// 隐藏（黑名单 app / exitTouchbar）时暂停轮询；显示时恢复：
+    /// 主线程 hop + 状态复查（同 TBPausableTimer 模式），快速
+    /// pause/resume 序列下最后一次状态为准；恢复立即补刷一次，
+    /// 随后调度器按原 interval 继续。
+    func setPaused(_ paused: Bool) {
+        guard pollGate.setPaused(paused) else { return }
+        if !paused {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, !self.pollGate.isPaused else { return }
+                self.updateView()
+            }
+        }
+    }
+
     private func updateView() -> Void {
+        // round 22：隐藏期零查询——调度器/EKEventStoreChanged 事件在
+        // bar 隐藏期间一律拦截（恢复时 setPaused(false) 统一补刷）。
+        guard !pollGate.isPaused else { return }
         items = []
         var upcomingEvents = self.getUpcomingEvents()
         upcomingEvents.sort(by: {$0.startDate.compare($1.startDate) == .orderedAscending})

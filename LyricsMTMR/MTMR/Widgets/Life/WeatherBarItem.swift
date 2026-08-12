@@ -12,13 +12,20 @@
 import Cocoa
 import CoreLocation
 
-class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
+class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPollPausable {
     private let activity: NSBackgroundActivityScheduler
     private var units: String
     private var api_key: String
     private var units_str = "°F"
     private var prev_location: CLLocation!
     private var location: CLLocation!
+
+    /// round 22：隐藏暂停门。NSBackgroundActivityScheduler 无 pause API，
+    /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
+    /// bar 隐藏（黑名单 app / exitTouchbar）期间零网络请求（含定位回调、
+    /// 授权变更触发的刷新入口，全部经 updateWeather 顶部守卫拦截），
+    /// 恢复后调度器按原 interval 继续 + setPaused(false) 立即补刷一次。
+    private let pollGate = TBPauseGate()
     private let iconsImages = ["01d": "☀️", "01n": "☀️", "02d": "⛅️", "02n": "⛅️", "03d": "☁️", "03n": "☁️", "04d": "☁️", "04n": "☁️", "09d": "⛅️", "09n": "⛅️", "10d": "🌦", "10n": "🌦", "11d": "🌩", "11n": "🌩", "13d": "❄️", "13n": "❄️", "50d": "🌫", "50n": "🌫"]
     private let iconsText = ["01d": "☀", "01n": "☀", "02d": "☁", "02n": "☁", "03d": "☁", "03n": "☁", "04d": "☁", "04n": "☁", "09d": "☂", "09n": "☂", "10d": "☂", "10n": "☂", "11d": "☈", "11n": "☈", "13d": "☃", "13n": "☃", "50d": "♨", "50n": "♨"]
     private var iconsSource: Dictionary<String, String>
@@ -97,8 +104,8 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
 
         activity.repeats = true
         activity.qualityOfService = .utility
-        activity.schedule { (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            self.updateWeather()
+        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
+            self?.pollTick()
             completion(NSBackgroundActivityScheduler.Result.finished)
         }
         updateWeather()
@@ -116,7 +123,33 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
 
     required init?(coder _: NSCoder) { return nil }
 
+    // MARK: - 隐藏暂停（round 22）
+
+    /// 调度器触发入口（background 队列）：bar 隐藏期间过门拦截，
+    /// 零网络请求；隐藏期可能已累积多个触发，全部被门挡掉。
+    func pollTick() {
+        guard !pollGate.isPaused else { return }
+        updateWeather()
+    }
+
+    /// 隐藏（黑名单 app / exitTouchbar）时暂停轮询；显示时恢复：
+    /// 主线程 hop + 状态复查（同 TBPausableTimer 模式），快速
+    /// pause/resume 序列下最后一次状态为准；恢复立即补刷一次，
+    /// 随后调度器按原 interval 继续。
+    func setPaused(_ paused: Bool) {
+        guard pollGate.setPaused(paused) else { return }
+        if !paused {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, !self.pollGate.isPaused else { return }
+                self.updateWeather()
+            }
+        }
+    }
+
     @objc func updateWeather() {
+        // round 22：隐藏期零网络请求——任何入口（调度器/补刷/定位回调/
+        // 授权变更/城市切换）在 bar 隐藏期间一律拦截，不发天气请求。
+        guard !pollGate.isPaused else { return }
         if isChinaMode {
             updateWeatherChina()
             return
@@ -235,6 +268,9 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate {
 
     /// Reverse-geocode the current location into a city name for china mode.
     private func resolveLocationCity() {
+        // round 22：隐藏期零网络请求——反地理编码走 Apple 网络服务，
+        // bar 隐藏期间同样拦截（恢复后 updateWeather 用最新已知定位补刷）。
+        guard !pollGate.isPaused else { return }
         guard let location = location else { return }
         let geocoder = CLGeocoder()
         geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, _ in

@@ -170,6 +170,7 @@ mindmap
 ├── 清理报告_第21轮_round20遗留清理.md          # 第 21 轮子任务 C 仓库卫生报告（round-20 父卡+子卡遗留 worktree/分支清理，r21/review）
 ├── 验证报告_第21轮_ClipboardHistory事件驱动化.md # 第 21 轮子任务 A 验证报告（ClipboardHistory 事件驱动化评估：NSPasteboard.observe 公开 SDK 不存在（编译/头文件/官方文档三重证伪）+ 四种替代事件机制实测全灭 → changeCount 轮询为唯一机制；落地变更源抽象 ClipboardChangeSource（测试注入假源直驱捕获路径）+ 浮层打开即时对齐 + pollInterval 可注入，隐藏期零丢失不可达如实记录，169 用例实证，r21/feature；新增测试 MTMRTests/ClipboardHistoryTests.swift）
 ├── 验证报告_第21轮_AudioSpectrum采集链隐藏期治理.md # 第 21 轮子任务 B 验证报告（AudioSpectrum 采集链纳入隐藏暂停：SCK system tap / mic engine 隐藏期零采集、恢复重启采集并立即补刷，SystemAudioTap stopped 取消标记防孤儿流，独立 capturePauseGate 广播幂等，TCC 持久授权零重弹风险实证，166 用例实证，r21/audio）
+├── 验证报告_第22轮_NSBackgroundActivityScheduler隐藏期轮询治理.md # 第 22 轮子任务 A 验证报告（NSBackgroundActivityScheduler 类 widget 隐藏期轮询治理：Currency/Weather/Yandex/UpNext 4 widget 纳入隐藏暂停——门控回调路径（调度器保持存活 + pollTick 过 TBPauseGate，invalidate+重建因同 identifier 注册竞态否决），隐藏期零网络请求/零 EventKit 查询、恢复按原节奏继续并立即补刷；顺带修复 Currency/Weather schedule 块强捕获保留环，181 用例实证，r22/feature）
 
 ├── 核验报告_第22轮_维护机制健在与文档一致性.md # 第 22 轮核验报告（第 16 次年度维护核验，r22/review；行号引用连续两轮零新漂移，GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=b46116b 同步）
 ├── 清理报告_第22轮_round21遗留清理.md          # 第 22 轮子任务 C 仓库卫生报告（round-21 父卡+子卡遗留 worktree/分支清理，r22/review）
