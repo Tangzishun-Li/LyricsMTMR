@@ -186,6 +186,7 @@ mindmap
 ├── 核验报告_第25轮_维护机制健在与文档一致性.md # 第 25 轮核验报告（第 19 次年度维护核验，r25/review；行号引用连续五轮零新漂移，114 口径 :1163/:1174 更新后首轮复查零新漂移（第 25 轮 A 卡未合并无触碰源），第 24 轮 A/B 卡落地 5 项遗漏修复全部在位（micPauseGate/marqueePauseGate/pollGate/脚本 pauseGate×2），GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=82d2dc1 同步，本轮零新增发现）
 ├── 清理报告_第25轮_round24遗留清理.md          # 第 25 轮子任务 C 仓库卫生报告（round-24 父卡+子卡遗留 worktree/分支清理，r24 全清 4 worktree+4 分支，r25/review）
 ├── 验证报告_第25轮_注册表混合架构对账测试.md # 第 25 轮子任务 A 验证报告（注册表混合架构对账测试落地：测试侧唯一基准「规范清单」98 条（generate_registry_test.py 从 ItemTypeRaw/identifierBase 源码提取生成）+ 16 注册表专属键，五层断言 L1~L5——ItemTypeRaw 枚举全集（新增 CaseIterable）/最小 JSON 全量解码 + 逐条 identifierBase 期望值/工厂全量真实构造/注册表键集精确对账（含控制器 exitTouchbar/close）/114 路径口径；生产最小增量 2 处（CaseIterable + registeredTypeNames 只读快照）零行为变更；覆盖边界诚实声明（switch 不可反射 → 编译期穷尽性 + 运行时行为取证双保险）；对账发现：源码四层一致零漂移，夹具自身 1 处修正（sleep/displaySleep 预设标题 ☕️）即机制生效证据；214 用例实证（208 基线+6 新增）0 失败，r25/registry；新增测试 MTMRTests/RegistryReconciliationTests.swift）
+├── 考古报告_第25轮_版本体系考古.md         # 第 25 轮子任务 B 考古报告（Releases API 全量仅 2 枚 v1.0.0/v0.8 + git tag 3 枚 + Info.plist 264 提交全量扫描版本号仅 0.27/452→0.28/453 两状态；v0.9~v0.26 缺失段结论=从未以 Release/tag/Info.plist 存在过（编号空洞，fork 继承上游 MTMR v0.27.0 所致两编号体系脱节）；README 方案甲补「版本史说明」段，r25/version-history）
 
 └── .gitignore / .gitattributes / README.md
 ```
