@@ -568,3 +568,17 @@
   5. 【口径统一】2027 节日日期统一以 32 为准（历轮「15/27 个」为计数误差，第 11 轮建议、第 12 轮起不再引用旧口径）；
   6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
 - 下轮方向：① 继续功能/优化迭代（恢复迭代模式第 2 轮）：候选维度——ITEMS_REFERENCE.md Item 类型口径核对（遗留 4）、ITER-15 镜像窗事件驱动（需用户 4 问确认后实施）、新 widget/体验优化；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 13 轮 A 卡已附 72 用例实证，累积 2~3 轮代码改动后触发全量回归（60 用例基线 → 现为 72）；④ 子任务 B 报告指出 README 已修正的 5 处漂移与 ITEMS_REFERENCE 遗留口径，下轮可核对 ITEMS_REFERENCE。
+
+---
+
+## 第 14 轮
+
+### 子任务 B：ITEMS_REFERENCE.md Item 类型口径核对修正（遗留③落地）（t_f39b3022，text-processing-agent，分支 r14/docs，基于 main@024ec61）
+
+- **t_f39b3022 ITEMS_REFERENCE 口径核对（text-processing-agent，分支 r14/docs）**：
+  - a) 源码实测（唯一基准）：Item 类型全集 = **113** = ItemTypeRaw 枚举 97（ItemsParsing.swift:484-581）+ SupportedTypesHolder 预定义 14（:83-254：escape/delete/brightnessUp/brightnessDown/illuminationUp/illuminationDown/volumeUp/volumeDown/mute/previous/play/next/sleep/displaySleep）+ TouchBarController 注册 2（:306 exitTouchbar、:316 close；:332 themeSwitch 与枚举重复不计）；currency 仍在 97 内（:869-871 FIXME 渲染禁用，解析可用，文档 3.6 禁用标注与源码一致）；
+  - b) 修正 ITEMS_REFERENCE.md 共 6 处：:3 与 :59「80+ 种」→「113 种」（:59 补口径说明 97+14+2）；:61-70 八大类统计表重算 12/6/14/4/10/12/8/14=80 → 18/8/15/4/12/15/12/29=113；补充 8 个缺失条目（6.15 apiTester / 7.12 bilibiliFeed / 8.24 latexSymbols / 8.25 citationGen / 8.26 paperProgress / 8.27 paperTags / 8.28 qrCode / 8.29 finderTags，参数取自 decode 段与 Widget 头注释）；速查表删不存在的 `pause`（源码无此 type，MediaRemoteAdapter.pause() 为方法非 item type）+ 补 8 个新条目；脚本复核文档 headings 113 ↔ 速查表 113 ↔ 源码 113 差集为空，零缺失零多余；
+  - c) README 口径统一 3 处：「99 种」→「113 种」（:11/:25/:98）——第 13 轮按 97+2=99 改漏算 SupportedTypesHolder 14 个预定义，本轮统一为全量口径；元素面板（ElementPaletteView）UI 实际注册 94 个快捷元素（不含 close/exitTouchbar/shellScriptTitledButton 等 19 个），README 按全量类型口径表述；
+  - d) 交叉参照：ElementPaletteView 94 元素全部 ∈ 113（8 个补录类型面板均已在位，反证文档遗漏）；Widgets/ 七域与文档八类框架映射一致；其余章节（目录/width/操作指南）零漂移；
+  - e) 纯文档轮零代码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
+  - f) 交付：核对报告 `核对报告_第14轮_ITEMS_REFERENCE口径.md`（本分支根目录）+ 本记录（iteration-log 追加）+ file-structure.zh.md 登记（第 14 轮报告行）。

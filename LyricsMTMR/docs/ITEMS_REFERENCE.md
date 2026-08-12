@@ -1,6 +1,6 @@
 # LyricsMTMR Items 完整参考手册
 
-> 本文档基于源码 `ItemsParsing.swift`、`TouchBarController.swift` 及 `MTMR/Widgets/` 目录下所有 Widget 文件整理，涵盖 **全部 80+ 种 Item 类型**，详细说明每种 Item 的 **类型名（type）**、**宽度（width）**、**作用**、**操作方式** 及 **JSON 配置示例**。
+> 本文档基于源码 `ItemsParsing.swift`、`TouchBarController.swift` 及 `MTMR/Widgets/` 目录下所有 Widget 文件整理，涵盖 **全部 113 种 Item 类型**，详细说明每种 Item 的 **类型名（type）**、**宽度（width）**、**作用**、**操作方式** 及 **JSON 配置示例**。
 
 ---
 
@@ -56,18 +56,18 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 ### 全量 Item 类型统计
 
-源码 `ItemsParsing.swift` 中共定义了 **80+ 种 Item 类型**，分为以下八大类：
+源码 `ItemsParsing.swift` 中共定义了 **113 种 Item 类型**（ItemTypeRaw 枚举 97 种 + `SupportedTypesHolder` 预定义 14 种 + `TouchBarController` 注册 2 种，含被禁用的 currency 类型），分为以下八大类：
 
 | 分类 | 数量 | 说明 |
 |:---|:---:|:---|
-| 系统控制 | 12 | 亮度/音量/键盘灯/静音/睡眠/显示睡眠/锁屏/蓝牙等 |
-| 媒体播放 | 6 | 播放/暂停/上一首/下一首/音乐/歌词/翻译/进度条 |
-| 信息展示 | 14 | 电池/CPU/天气/网络/时间/输入法/汇率/股票等 |
+| 系统控制 | 18 | Esc/亮度/键盘灯/音量/静音/睡眠/显示睡眠/锁屏/蓝牙/夜览/深色/勿扰等 |
+| 媒体播放 | 8 | 播放/上一首/下一首/音乐/歌词/翻译/进度条/频谱 |
+| 信息展示 | 15 | 电池/CPU/时间/天气/Yandex天气/汇率/输入法/股票/网络/网速/AI额度/系统温度/磁盘IO等 |
 | 布局容器 | 4 | 分组/可展开/关闭/退出 |
-| 计时/提醒 | 10 | 番茄钟/站会/阅读/久坐/生日/DDL/订阅/旅行/会议等 |
-| 网络/开发 | 12 | Git/API/CI/Docker/SSH/端口/正则/HTTP/RSS/服务器等 |
-| 生活/娱乐 | 8 | 记账/储蓄/外卖/快递/天气穿衣/像素宠物/呼吸/每日一言 |
-| 工具 | 14 | Base64/JSON/UUID/哈希/颜色/时间戳/单词/截图/剪贴板等 |
+| 计时/提醒 | 12 | 番茄钟/站会/阅读/久坐/呼吸/出行/生日/会议/课程/DDL/订阅/信用卡 |
+| 网络/开发 | 15 | Git/API延迟/SSH/服务器/端口/HTTP/Docker/CI/正则/RSS/邮件/Slack/打印机/API测试等 |
+| 生活/娱乐 | 12 | 记账/AA/储蓄/个税/外卖/快递/天气穿衣/像素宠物/每日一言/噪音/读书/B站动态 |
+| 工具 | 29 | Base64/JSON/UUID/哈希/颜色/时间戳/单词/截图/剪贴板/二维码/LaTeX/引用/论文/标签等 |
 
 ---
 
@@ -1052,6 +1052,21 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 ---
 
+#### 6.15 `apiTester` — API 测试器
+
+```json
+{ "type": "apiTester", "defaultUrl": "https://api.example.com" }
+```
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `defaultUrl` | "" | 预填的请求 URL |
+
+**作用**：快速发送 GET/POST 请求，显示响应状态码和前 80 字符。
+**操作**：点击打开浮层，输入/确认 URL 后发送请求。
+
+---
+
 ### 7. 生活/娱乐类
 
 #### 7.1 `expenseTracker` — 记账
@@ -1202,6 +1217,21 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 **作用**：显示当前书名/页码/总页数与阅读百分比。
 **操作**：自动刷新。
+
+---
+
+#### 7.12 `bilibiliFeed` — B 站动态
+
+```json
+{ "type": "bilibiliFeed", "refreshInterval": 300 }
+```
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `refreshInterval` | 300 | 刷新间隔（秒） |
+
+**作用**：显示关注 UP 主最新视频/未读动态数；Cookie 存 `SecretsManager`（`.bilibiliCookie`），无 Cookie 时显示未配置。
+**操作**：点击查看动态详情。
 
 ---
 
@@ -1499,6 +1529,89 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 ---
 
+#### 8.24 `latexSymbols` — LaTeX 符号速查
+
+```json
+{ "type": "latexSymbols" }
+```
+
+**作用**：浮层分页展示常用数学符号，点击复制到剪贴板，也支持直接输出到焦点。
+**操作**：点击符号复制 / 输出。
+
+---
+
+#### 8.25 `citationGen` — 引用格式生成
+
+```json
+{ "type": "citationGen", "style": "both" }
+```
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `style` | both | `APA` / `GB-T7714` / `both` |
+
+**作用**：读取剪贴板 DOI/URL，调用 CrossRef API 解析元数据，生成 APA 7th / GB/T 7714-2015 格式引用，点击复制。
+**操作**：点击生成并复制引用。
+
+---
+
+#### 8.26 `paperProgress` — 论文阅读进度
+
+```json
+{
+  "type": "paperProgress",
+  "refreshInterval": 5,
+  "dataPath": "~/paper-progress.json"
+}
+```
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `refreshInterval` | 5 | 刷新间隔（秒） |
+| `dataPath` | 默认路径 | 进度数据文件路径（可空） |
+
+**作用**：浮层内手动调整当前页码/总页数，数据持久化到 `paper-progress.json`；主按钮显示 `p.12/30` 进度。
+**操作**：点击打开浮层调整进度。
+
+---
+
+#### 8.27 `paperTags` — 文献标签管理
+
+```json
+{ "type": "paperTags", "dataPath": "~/paper-tags.json" }
+```
+
+| 属性 | 默认值 | 说明 |
+|:---|:---|:---|
+| `dataPath` | 默认路径 | 标签记录路径（可空） |
+
+**作用**：快速给当前论文打标签（精读/略读/待引），笔记写入本地 Markdown；与 Finder 颜色标签无关。
+**操作**：点击打开浮层打标签。
+
+---
+
+#### 8.28 `qrCode` — 二维码生成
+
+```json
+{ "type": "qrCode" }
+```
+
+**作用**：读取剪贴板文本生成二维码，浮层显示。
+**操作**：点击打开浮层查看二维码。
+
+---
+
+#### 8.29 `finderTags` — Finder 标签入口
+
+```json
+{ "type": "finderTags" }
+```
+
+**作用**：动态读取 macOS Finder 标签（`com.apple.finder.plist` → `FavoriteTagNames`），点击标签按钮打开 Finder 该标签的搜索视图；支持 `finder-tag-folders.json` 自定义路径映射。
+**操作**：点击标签按钮打开 Finder。
+
+---
+
 ## 四、JSON 文件结构总览
 
 ### 主配置文件：items.json
@@ -1620,13 +1733,13 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 | 分类 | 可用 type |
 |:---|:---|
 | **系统控制** | `escape`, `delete`, `brightnessUp`, `brightnessDown`, `illuminationUp`, `illuminationDown`, `volumeUp`, `volumeDown`, `mute`, `volume`, `brightness`, `sleep`, `displaySleep`, `screenLock`, `bluetoothToggle`, `nightShift`, `darkMode`, `dnd` |
-| **媒体播放** | `play`, `pause`, `next`, `previous`, `music`, `lyrics`, `lyricsTranslate`, `playbackProgress`, `audioSpectrum` |
+| **媒体播放** | `play`, `next`, `previous`, `music`, `lyrics`, `lyricsTranslate`, `playbackProgress`, `audioSpectrum` |
 | **信息展示** | `battery`, `cpu`, `timeButton`, `weather`, `yandexWeather`, `currency`, `inputsource`, `stock`, `network`, `networkSpeed`, `usage`, `deepseekBalance`, `opencodeGoUsage`, `systemTemp`, `diskIO` |
 | **布局容器** | `group`, `expandable`, `close`, `exitTouchbar` |
 | **计时/提醒** | `pomodoro`, `standupTimer`, `readTimer`, `postureReminder`, `breathingGuide`, `travelCountdown`, `birthdayCountdown`, `meetingCountdown`, `classCountdown`, `ddlList`, `subscriptionCountdown`, `creditCardDue` |
-| **网络/开发** | `gitStatus`, `apiLatency`, `sshStatus`, `serverMonitor`, `portChecker`, `httpCodes`, `dockerStatus`, `ciPipeline`, `regexTester`, `regexReference`, `rssUnread`, `emailBadge`, `slackUnread`, `printerStatus` |
-| **生活/娱乐** | `expenseTracker`, `billSplit`, `savingsGoal`, `taxEstimate`, `foodDelivery`, `packageTracker`, `weatherOutfit`, `pixelPet`, `dailyQuote`, `noiseMeter`, `readingProgress` |
-| **工具** | `staticButton`, `appleScriptTitledButton`, `shellScriptTitledButton`, `base64Tool`, `jsonFormatter`, `hashCalc`, `colorConvert`, `timestampConvert`, `uuidGen`, `wordLookup`, `noteCapture`, `quickScreenshot`, `screenPicker`, `windowSnap`, `shortcutHints`, `homekitScene`, `aiSelectedText`, `quickReply`, `clipboardHistory`, `themeSwitch`, `upnext`, `dock`, `swipe` |
+| **网络/开发** | `gitStatus`, `apiLatency`, `sshStatus`, `serverMonitor`, `portChecker`, `httpCodes`, `dockerStatus`, `ciPipeline`, `regexTester`, `regexReference`, `rssUnread`, `emailBadge`, `slackUnread`, `printerStatus`, `apiTester` |
+| **生活/娱乐** | `expenseTracker`, `billSplit`, `savingsGoal`, `taxEstimate`, `foodDelivery`, `packageTracker`, `weatherOutfit`, `pixelPet`, `dailyQuote`, `noiseMeter`, `readingProgress`, `bilibiliFeed` |
+| **工具** | `staticButton`, `appleScriptTitledButton`, `shellScriptTitledButton`, `base64Tool`, `jsonFormatter`, `hashCalc`, `colorConvert`, `timestampConvert`, `uuidGen`, `wordLookup`, `noteCapture`, `quickScreenshot`, `screenPicker`, `windowSnap`, `shortcutHints`, `homekitScene`, `aiSelectedText`, `quickReply`, `clipboardHistory`, `themeSwitch`, `upnext`, `dock`, `swipe`, `latexSymbols`, `citationGen`, `paperProgress`, `paperTags`, `qrCode`, `finderTags` |
 
 ---
 
