@@ -1061,6 +1061,18 @@ final class CountingCurrencyItem: CurrencyBarItem {
     private let counterLock = NSLock()
     private var _refreshCount = 0
 
+    override init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval,
+         from: String, to: String, full: Bool) {
+        super.init(identifier: identifier, interval: interval,
+                   from: from, to: to, full: full)
+        // NSBackgroundActivityScheduler's first fire ignores the interval
+        // floor (round-22 B finding) — invalidate so a real fire can never
+        // pollute the refresh counters. pollTick() is driven directly.
+        activity.invalidate()
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
     var refreshCount: Int {
         counterLock.lock()
         defer { counterLock.unlock() }
@@ -1080,6 +1092,19 @@ final class CountingCurrencyItem: CurrencyBarItem {
 final class CountingWeatherItem: WeatherBarItem {
     private let counterLock = NSLock()
     private var _refreshCount = 0
+
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval,
+         units: String, api_key: String, icon_type: String,
+         apiSource: String, cities: [String]) {
+        super.init(identifier: identifier, interval: interval, units: units,
+                   api_key: api_key, icon_type: icon_type,
+                   apiSource: apiSource, cities: cities)
+        // Same isolation as CountingCurrencyItem: the real scheduler's
+        // first fire ignores the interval floor and would pollute counts.
+        activity.invalidate()
+    }
+
+    required init?(coder: NSCoder) { return nil }
 
     var refreshCount: Int {
         counterLock.lock()
@@ -1105,6 +1130,14 @@ final class CountingWeatherItem: WeatherBarItem {
 final class CountingYandexItem: YandexWeatherBarItem {
     private let counterLock = NSLock()
     private var _refreshCount = 0
+
+    override init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
+        super.init(identifier: identifier, interval: interval)
+        // Same isolation as CountingCurrencyItem / CountingWeatherItem.
+        activity.invalidate()
+    }
+
+    required init?(coder: NSCoder) { return nil }
 
     var refreshCount: Int {
         counterLock.lock()
@@ -1157,6 +1190,8 @@ final class CountingUpNextItem: UpNextScrubberTouchBarItem {
     init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, source: CountingUpNextSource) {
         super.init(identifier: identifier, interval: interval, from: 1, to: 4,
                    maxToShow: 1, autoResize: false, eventSources: [source])
+        // Same isolation as the other round-22 counting subclasses.
+        activity.invalidate()
     }
 
     required init?(coder _: NSCoder) { return nil }

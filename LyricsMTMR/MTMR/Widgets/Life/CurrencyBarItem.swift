@@ -10,7 +10,7 @@ import Cocoa
 import CoreLocation
 
 class CurrencyBarItem: CustomButtonTouchBarItem, TBPollPausable {
-    private let activity: NSBackgroundActivityScheduler
+    let activity: NSBackgroundActivityScheduler
     private var prefix: String
     private var postfix: String
     private var from: String

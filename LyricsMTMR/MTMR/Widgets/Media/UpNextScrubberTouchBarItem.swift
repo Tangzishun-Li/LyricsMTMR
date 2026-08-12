@@ -13,7 +13,7 @@ import EventKit
 class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     // Dependencies
     private let scrollView = NSScrollView()
-    private let activity: NSBackgroundActivityScheduler // Update scheduler
+    let activity: NSBackgroundActivityScheduler // Update scheduler
     private var eventSources : [IUpNextSource] = []
     private var items: [UpNextItem] = []
 
