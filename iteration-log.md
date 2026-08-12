@@ -616,6 +616,23 @@
 
 ## 第 15 轮（功能/优化迭代第 3 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 3 轮（接第 14 轮收口 main=1f4b1ca）—— ① 实现卡 A：新 widget「节假日倒计时」（复用 StockBarItem.aShareHolidays 唯一数据源做用户可见的假期倒计时展示）；② 实现卡 B：TECHNICAL_DEBT.md 置顶 TODO 第 4 条落地——bar item 创建逻辑提取独立工厂类 + 测试覆盖（代码质量维度）；③ 维护面 C：年度维护核验（第 9 次）+ round-14 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮不触发全量回归（第 14 轮已全量，基线 72→84，下次预计 16~17 轮）。
+- 分解下发：3 张子卡（t_1f0724c1 A / t_ade25e65 B / t_979458b4 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round15-A/B/C 预建于 main@1f4b1ca，分支 r15/feature/r15/refactor/r15/review）。
+- 合并提交点：main@1f4b1ca → 3 子分支（r15/review 4cb826f / r15/refactor 47209c3 / r15/feature 680ebea）依次 merge --no-ff 合入 main（冲突共 7 处均手工解决：iteration-log 2 次 C+B、C+B+A 记录并列合并、file-structure 1 次 C+B 报告行并列、TouchBarController 1 次取 B 版工厂委托并手工将 A 的 holidayCountdown case 迁入 BarItemFactory、pbxproj 4 次 B/A 测试文件注册 ID 无碰撞并列保留；合并 r15/feature 时 1 处 `<<<<<<< HEAD` 起始标记遗漏在 patch old_string 外，收口核验 grep 发现后单独 patch 清除——第 11/13/14 轮同教训），合并后整体 build+test 实证 118 用例 0 失败（84 基线 + 16 HolidayCountdown + 18 BarItemFactory，含迁入 case 的交叉验证），再 push origin。根目录新增 4 份第 15 轮报告：验证报告_第15轮_节假日倒计时widget.md、验证报告_第15轮_barItemFactory提取.md、核验报告_第15轮_维护机制健在与文档一致性.md、清理报告_第15轮_round14遗留清理.md；file-structure.zh.md 同步（mindmap 第 7~15 轮、第 15 轮 4 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」（round15-A/B/C 预建于 main@1f4b1ca）；② 子任务 A（实现卡）新 widget holidayCountdown：复用 StockBarItem.aShareHolidays 为唯一数据源（零拷贝日期表、未改 StockBarItem 语义），HolidayCountdownLogic 纯函数收敛窗口推导/假期名映射/天数计算（Asia/Shanghai 日粒度），注册链路 6 处（ItemTypeRaw+decode+TouchBarController identifier/绑定+EditorSchema+ElementPaletteView，refreshInterval 默认 3600），新增 16 单测，分支 build+test 全绿（100 用例 = 84 基线 + 16 新增，金丝雀全过），文档口径 113→114 全量联动；③ 子任务 B（实现卡）TECHNICAL_DEBT 置顶第 4 条落地：113 case 的 createItemInternal switch + createItemSafely 双层隔离 + createErrorItem 整体迁入新类 BarItemFactory（371 行），TouchBarController 1394→1092 行，控制器三个私有能力以弱引用闭包注入（未传控制器整体），语义等价（机械比对仅 3 处 self.action→注入闭包替换），新增 18 单测（八大类代表创建各 1 + 未知类型降级 + 抛错→⚠︎ 错误指示 + identifier 映射一致性 + 动作/参数应用），分支 build+test 全绿（102 用例），顺带 README TODO「剪切板快捷查看」按源码实测修正为已实现（[x]）+ TECHNICAL_DEBT 第 4 条勾选；④ 子任务 C（维护面）年度维护核验第 9 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=1f4b1ca）+ 仓库卫生 round-14 全部遗留清理（3 worktree + 3 分支 + 父卡预建空壳目录，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 5 项挂账盘点 + 文档一致性三方交叉核对一致。⑤ 收口：merge r15/refactor 冲突 2 处、merge r15/feature 冲突 4 处（+1 处标记残留修复），全部手工解决并 grep 清零后提交；merge r15/feature 时 TouchBarController 冲突取 B 版工厂委托（A 的 case 因 switch 已迁出控制器，手工迁入 BarItemFactory.swift:196-197），合并后整体 build+test 118 用例 0 失败实证通过。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 9 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径自本轮起统一以 114 为准（113 + holidayCountdown，含预定义+注册，注释 114 = 97+14+2+1）；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射依赖月份惯例，未来年份跨月窗口需随 aShareHolidays 年度维护扩展；
+  8. add_files.py 锚点过期（QuickReplyBarItem 不在组/编译末尾），Widgets 新文件需手工补 2 处 pbxproj 注册（本轮 A 卡已手工处理，脚本待更新）。
+- 下轮方向：① 继续功能/优化迭代（第 4 轮）：候选——新 widget/体验优化（README TODO 剩余项评估、add_files.py 锚点修复、代码库残留 FIXME/禁用项排查——第 15 轮侦察 Swift 源码已零残留仅 archive 死代码）、TECHNICAL_DEBT 剩余 3 条评估（try view controllers on NSCustomTouchBarItem / move away from enums / find better way to hide bar items）；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 15 轮 A/B 卡已附 100/102 用例实证、收口整体 118 用例实证（基线口径升级为 84），累积 2~3 轮代码改动后触发下次全量回归（预计 16~17 轮）；④ 收口教训固化：合并冲突解决时起始标记行 `<<<<<<< HEAD` 单独成行极易遗漏在 patch old_string 外（本轮 1 次重演），提交前必须 grep 冲突标记清零；合并跨子任务的同文件改动时注意逻辑迁移（A 的 switch case 因 B 提取工厂而需手工迁入新文件，合并后必须整体 build+test 实证）。
+
 ### 子任务记录
 
 - **t_979458b4 维护三合一（review-agent，分支 r15/review）**：
