@@ -246,6 +246,7 @@
 		C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */; };
 		C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */; };
 		C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */; };
+		C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -520,6 +521,7 @@
 		C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHiddenStateTests.swift; sourceTree = "<group>"; };
 		C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSession.swift; sourceTree = "<group>"; };
 		C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSessionTests.swift; sourceTree = "<group>"; };
+		C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistryReconciliationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -666,6 +668,7 @@
 				C1FE36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift */,
 				C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */,
 				C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */,
+				C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1335,6 +1338,7 @@
 				C1FF36D5E36C38BDB1728772 /* ClipboardHistoryTests.swift in Sources */,
 				C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */,
 				C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */,
+				C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
