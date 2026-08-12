@@ -3,11 +3,19 @@ import AVFoundation
 import Cocoa
 import CoreAudio
 
-class BrightnessViewController: NSCustomTouchBarItem {
+class BrightnessViewController: NSCustomTouchBarItem, TBPollPausable {
     private(set) var sliderItem: CustomSlider!
-    private var timer: Timer?
+
+    /// 亮度轮询（round 20：隐藏期间整体暂停——每次刷新都调显示私有 API；
+    /// .common 模式保持与改动前一致，拖动跟踪期间也照常刷新；恢复立即补刷）。
+    private lazy var pausableTimer = TBPausableTimer(interval: refreshInterval, tolerance: refreshInterval * 0.1,
+                                                     immediateFireOnResume: true, mode: .common) { [weak self] in
+        self?.updateBrightnessSlider()
+    }
+    private let refreshInterval: TimeInterval
 
     init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double, image: NSImage? = nil) {
+        self.refreshInterval = refreshInterval
         super.init(identifier: identifier)
 
         if image == nil {
@@ -23,19 +31,18 @@ class BrightnessViewController: NSCustomTouchBarItem {
 
         view = sliderItem
 
-        let refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
-            self?.updateBrightnessSlider()
-        }
-        refreshTimer.tolerance = refreshInterval * 0.1
-        RunLoop.current.add(refreshTimer, forMode: RunLoop.Mode.common)
-        timer = refreshTimer
+        pausableTimer.start()
     }
 
     required init?(coder _: NSCoder) { return nil }
 
     deinit {
-        timer?.invalidate()
         sliderItem.unbind(NSBindingName.value)
+    }
+
+    /// 隐藏（黑名单/exitTouchbar）时暂停刷新轮询；显示时恢复并立即补刷。
+    func setPaused(_ paused: Bool) {
+        pausableTimer.setPaused(paused)
     }
 
     @objc func updateBrightnessSlider() {

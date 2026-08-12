@@ -8,9 +8,14 @@
 
 import Foundation
 
-class NightShiftBarItem: CustomButtonTouchBarItem {
+class NightShiftBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let nsclient = CBBlueLightClient()
-    private var timer: Timer?
+
+    /// 1s 状态轮询（round 20：隐藏期间整体暂停——每次 refresh 都走
+    /// CoreBrightness 私有 API 查询，隐藏期空转成本高；恢复后立即补刷）。
+    private lazy var pausableTimer = TBPausableTimer(interval: 1, tolerance: 0.1, immediateFireOnResume: true) { [weak self] in
+        self?.refresh()
+    }
 
     private var blueLightStatus: Status {
         var status: Status = Status()
@@ -33,18 +38,16 @@ class NightShiftBarItem: CustomButtonTouchBarItem {
         
         actions.append(ItemAction(trigger: .singleTap) { [weak self] in self?.nightShiftAction() })
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.refresh()
-        }
-        timer?.tolerance = 0.1
+        pausableTimer.start()
 
         refresh()
     }
 
     required init?(coder _: NSCoder) { return nil }
 
-    deinit {
-        timer?.invalidate()
+    /// 隐藏（黑名单/exitTouchbar）时暂停 1s 轮询；显示时恢复并立即刷新。
+    func setPaused(_ paused: Bool) {
+        pausableTimer.setPaused(paused)
     }
 
     func nightShiftAction() {
