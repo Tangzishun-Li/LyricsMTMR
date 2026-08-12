@@ -890,3 +890,18 @@
   - 等价性：callActions 仍调同一 defaultTapAction；scheduler completion 无条件调用满足协议；URLSession 闭包逻辑不变仅弱化捕获——item 存活期间行为无差异，断环后 item 随 NSTouchBar 释放即刻回收；
   - 交付：验证报告《验证报告_第20轮_actions强引用环评估.md》（本分支根目录，含引用图三链+审计链表/结论/改动清单/单测清单/等价性论证/风险遗留）+ 本记录 + file-structure.zh.md（mindmap 第 7~19 轮→第 7~20 轮 + 报告行登记，无重复行）；
   - 约束遵守：仅本工作区与 r20/code-quality 分支改动，未 push 远端，未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+---
+
+## 第 21 轮（功能/优化迭代第 9 轮）
+
+### 子任务记录
+
+- **t_275b71be ClipboardHistory 事件驱动化（default，分支 r21/feature）**：
+  - 实证（步骤①，前提证伪）：NSPasteboard.observe(_:block:) 在公开 SDK 中**不存在**——三重独立证据：① `swiftc -typecheck` 编译实证（macOS 15.5 SDK/Xcode 16.4，编译器解析为 KVO observe 报签名不匹配）；② NSPasteboard.h 及整个 AppKit 头目录 grep observePasteboard 零命中；③ Apple 官方文档 NSPasteboard 完整成员清单无观察类 API（WWDC23 实际引入的是 detectedPatterns 模式检测非观察 API）。部署目标核查：工程级 11.0、**目标级生效 15.0**（≥14.0，若 API 存在本可直接事件驱动无需 @available 分支，但前提不成立故无分支方案）；四种替代事件机制 macOS 15.7.7 真机实测全灭——分布式通知 com.apple.pasteboard.changed（block+selector 双 API，进程间投递自证本环境整体不可达）/ KVO changeCount（非 KVO 合规属性）/ 全局键事件监测（需辅助功能权限）/ CFNotification Darwin 通知（具名投递管线自证正常，但 pbs 对剪贴板变更不发任何通知——log stream 实证写入路径为 XPC 无公开事件面）；log stream 佐证用户自装 OneClip 亦在轮询读取——**changeCount 轮询是公开 API 下唯一机制（业界一致：Maccy/Flycut/OneClip）**；
+  - 结论与产品决策：① 机制保留 1s 轮询（隐藏期零空转第 20 轮已清零；可见期 1s 一次 changeCount 读微秒级与全库时钟轮询同级）；② 隐藏期中间条目丢失系平台能力边界（剪贴板只保留当前内容、无事件 API 无从回读中间态），维持第 20 轮取舍语义并如实记录「零丢失」不可达；③ 落地可改进 3 项——浮层打开即时对齐（buildOverlay 顶部 poll()，查看时刻零延迟收录最新，消除「打开时最新复制还在 tick 路上」≤1s 陈旧窗口）/ 变更源抽象（ClipboardChangeSource 协议 + RealClipboardChangeSource，单测注入假源直接驱动捕获路径，未来 macOS 提供事件 API 时一处注入即切换）/ pollInterval 可注入（init 默认参数 1.0 生产不变）；
+  - 变更明细（TouchBarController 零改动）：ClipboardHistory.swift ① 新增协议+默认实现（原 currentPasteboardText 迁入）② static changeSource + persistHistory（测试关写盘钩子）③ poll() private→internal（单测直调 handler 路径）④ init pollInterval 默认参数 ⑤ buildOverlay 顶部 Self.poll() ⑥ append 加 persistHistory 门 ⑦ 测试钩子 resetForTesting/historySnapshotForTesting ⑧ 文件头注释更新评估结论；新增 MTMRTests/ClipboardHistoryTests.swift 6 用例（add_files.py Tests: 一键注册，C1FE/C1FF 前缀，pbxproj 4 处落点实证）：变更驱动收录+去重/空内容跳过+计数基准推进/隐藏期暂停零收录+恢复补收最新/浮层对齐任意时刻即时收录（暂停中亦生效）/seed 仅一次/上限 20 裁剪；
+  - 分支验证：xcodebuild build（MTMR, Debug, CODE_SIGNING_ALLOWED=NO，独立 derivedDataPath /tmp/LyricsMTMR-dd-r21a-build）**BUILD SUCCEEDED** + xcodebuild test（UnitTests, Debug，/tmp/LyricsMTMR-dd-r21a-test）**TEST SUCCEEDED —— 169 用例 0 失败 0 意外**（163 基线 + 新增 6 全过，金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿）；本轮不触发全量回归（第 20 轮收口已实证 163 用例，隔代规则预计第 22 轮触发）；
+  - 等价性：可见期收录节奏（1s 同参重建）/隐藏期停转/恢复补收/首次 seed/去重置顶/上限 20/持久化全部与改动前一致；行为差异仅「浮层打开即时对齐」一处（改进）；TouchBarController 零改动（卡约束满足）；
+  - 交付：验证报告《验证报告_第21轮_ClipboardHistory事件驱动化.md》（本分支根目录，含前提三重证伪/替代机制实测表/结论与产品决策/变更明细/等价性论证/单测清单/风险点）+ 本记录 + file-structure.zh.md（mindmap 第 7~20 轮→第 7~21 轮 + 本报告登记，无重复行）；
+  - 约束遵守：仅本工作区与 r21/feature 分支改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
