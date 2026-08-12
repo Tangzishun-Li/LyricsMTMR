@@ -92,7 +92,7 @@ mindmap
 │   ├── Scripts/                      # 开发脚本
 │   │   ├── build.sh / test.sh / archive.sh   # 一键构建（Makefile 调用）
 │   │   ├── embed-entitlements.sh             # 重新签名脚本
-│   │   ├── add_files.py / fix_files.py       # pbxproj 增删文件工具（幂等）
+│   │   ├── add_files.py / fix_files.py       # pbxproj 增删文件工具（幂等；add_files 支持 Tests: 前缀一键注册测试文件至单测目标）
 │   │   ├── gen_themes.py / gen_functional_themes.py / update_slots.py  # 主题生成
 │   │   └── fix_createitem.py                 # 一次性补 createItem 分支
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
@@ -146,6 +146,7 @@ mindmap
 
 ├── 核验报告_第17轮_维护机制健在与文档一致性.md # 第 17 轮核验报告（第 11 次年度维护核验，r17/review）
 ├── 清理报告_第17轮_round16遗留清理.md          # 第 17 轮子任务 C 仓库卫生报告（round-16 父卡+子卡遗留 worktree/分支清理，r17/review）
+├── 验证报告_第17轮_add_files测试注册扩展.md # 第 17 轮子任务 A 验证报告（add_files.py 扩展 Tests: 前缀一键注册测试文件：group/phase 落单测目标 LyricsMTMRTests 绝不含 app、UUID 独立前缀 C1FE/C1FF、两阶段校验写盘，r17/tooling）
 
 └── .gitignore / .gitattributes / README.md
 ```
