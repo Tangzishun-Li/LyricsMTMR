@@ -515,7 +515,6 @@
 
 ---
 
-<<<<<<< HEAD
 ## 第 13 轮（退出年度维护模式，恢复功能/优化迭代第 1 轮）
 
 ### 子任务 A：issue #40 Per-app bar switching 核验与补齐（t_441906a7，code-agent，分支 r13/feature，基于 main@77faefe）
