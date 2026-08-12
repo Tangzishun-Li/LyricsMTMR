@@ -373,7 +373,7 @@ enum OpenCodeGoClient {
 
 // MARK: - Bar Item
 
-class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
+class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate, TBPollPausable {
 
     // MARK: Configuration
 
@@ -407,9 +407,18 @@ class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
     private var discoveredWorkspaces: [[String: Any]] = []
     private var workspaceTryIndex = 0
 
-    private var refreshTimer: Timer?
-    private var popupRefreshTimer: Timer?
-    private var tickTimer: Timer?
+    /// 折叠态用量刷新定时器（round 19：隐藏期间整体暂停，恢复后立即刷新一次）。
+    private lazy var refreshPausable = TBPausableTimer(interval: refreshInterval, tolerance: refreshInterval * 0.1, immediateFireOnResume: true) { [weak self] in
+        self?.refreshData()
+    }
+    /// 浮层 1s 秒表刷新（仅在浮层打开期间运行；隐藏期间随浮层一起暂停）。
+    private lazy var popupTickPausable = TBPausableTimer(interval: 1, tolerance: 0.1, immediateFireOnResume: false) { [weak self] in
+        self?.renderPopup()
+    }
+    /// 浮层 25s 数据刷新（仅在浮层打开期间运行；隐藏期间随浮层一起暂停）。
+    private lazy var popupRefreshPausable = TBPausableTimer(interval: OpenCodeGoUsageBarItem.popupRefreshInterval, tolerance: OpenCodeGoUsageBarItem.popupRefreshInterval * 0.1, immediateFireOnResume: false) { [weak self] in
+        self?.refreshData()
+    }
 
     // MARK: Popup views
 
@@ -459,19 +468,10 @@ class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
         updateCollapsedTitle()
         refreshData()
 
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: self.refreshInterval, repeats: true) { [weak self] _ in
-            self?.refreshData()
-        }
-        refreshTimer?.tolerance = self.refreshInterval * 0.1
+        refreshPausable.start()
     }
 
     required init?(coder: NSCoder) { return nil }
-
-    deinit {
-        refreshTimer?.invalidate()
-        popupRefreshTimer?.invalidate()
-        tickTimer?.invalidate()
-    }
 
     // MARK: Credentials
 
@@ -750,23 +750,28 @@ class OpenCodeGoUsageBarItem: CustomButtonTouchBarItem, NSTouchBarDelegate {
 
     // MARK: Popup timers
 
+    /// 隐藏（黑名单/exitTouchbar）时暂停全部轮询：折叠态刷新立即停表，
+    /// 浮层计时器也一并暂停（若浮层仍处于打开状态，恢复时由控制器统一重启）。
+    func setPaused(_ paused: Bool) {
+        refreshPausable.setPaused(paused)
+        guard isPopupVisible else { return }
+        if paused {
+            popupTickPausable.stop()
+            popupRefreshPausable.stop()
+        } else {
+            popupTickPausable.start()
+            popupRefreshPausable.start()
+        }
+    }
+
     private func startPopupTimers() {
-        stopPopupTimers()
-        tickTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.renderPopup()
-        }
-        tickTimer?.tolerance = 0.1
-        popupRefreshTimer = Timer.scheduledTimer(withTimeInterval: OpenCodeGoUsageBarItem.popupRefreshInterval, repeats: true) { [weak self] _ in
-            self?.refreshData()
-        }
-        popupRefreshTimer?.tolerance = OpenCodeGoUsageBarItem.popupRefreshInterval * 0.1
+        popupTickPausable.start()
+        popupRefreshPausable.start()
     }
 
     private func stopPopupTimers() {
-        tickTimer?.invalidate()
-        tickTimer = nil
-        popupRefreshTimer?.invalidate()
-        popupRefreshTimer = nil
+        popupTickPausable.stop()
+        popupRefreshPausable.stop()
     }
 
     // MARK: Overlay construction

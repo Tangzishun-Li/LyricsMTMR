@@ -20,11 +20,14 @@ import Cocoa
 private struct TBExpense: Codable { let amount: Double; let category: String; let date: String }
 private struct TBExpenseFile: Codable { var expenses: [TBExpense] }
 
-class ExpenseTrackerItem: TBPopoverItem {
+class ExpenseTrackerItem: TBPopoverItem, TBPollPausable {
     private let dataPath: String
     private let categories: [String]
     private weak var resultLabel: NSTextField?
-    private var syncTimer: Timer?
+    /// 3s 文件变更轮询（round 19：隐藏期间整体暂停，恢复后立即探查一次文件变更）。
+    private lazy var pausableTimer = TBPausableTimer(interval: 3, tolerance: 0.3, immediateFireOnResume: true) { [weak self] in
+        self?.pollExternalFile()
+    }
     private var lastModified: Date?
     private static let filename = "expenses.json"
     private static let sample = "{\"expenses\":[{\"amount\":18.5,\"category\":\"\u{9910}\u{996e}\",\"date\":\"2026-07-27\"},{\"amount\":6,\"category\":\"\u{4ea4}\u{901a}\",\"date\":\"2026-07-27\"}]}"
@@ -40,16 +43,16 @@ class ExpenseTrackerItem: TBPopoverItem {
     }
     required init?(coder: NSCoder) { return nil }
 
-    deinit { syncTimer?.invalidate() }
+    /// 隐藏（黑名单/exitTouchbar）时暂停文件轮询；显示时恢复。
+    func setPaused(_ paused: Bool) {
+        pausableTimer.setPaused(paused)
+    }
 
     // MARK: - External sync (read-only)
 
     private func startExternalSync() {
         lastModified = Self.modifiedAt(Self.resolve(dataPath))
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            self?.pollExternalFile()
-        }
-        syncTimer?.tolerance = 0.3
+        pausableTimer.start()
     }
 
     private func pollExternalFile() {

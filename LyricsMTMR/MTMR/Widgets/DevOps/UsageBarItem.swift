@@ -38,7 +38,7 @@ struct ProviderUsage {
 
 // MARK: - UsageBarItem
 
-class UsageBarItem: CustomButtonTouchBarItem {
+class UsageBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let providers: [ProviderConfig]
     private let refreshInterval: TimeInterval
     private let displayMode: String   // "compact" | "expanded"
@@ -47,7 +47,10 @@ class UsageBarItem: CustomButtonTouchBarItem {
     private var usageData: [ProviderUsage] = []
     private var currentProviderIndex: Int = 0
     private var isExpanded: Bool = false
-    private var refreshTimer: Timer?
+    /// 用量刷新定时器（round 19：隐藏期间整体暂停，恢复后立即刷新一次避免陈旧显示）。
+    private lazy var pausableTimer = TBPausableTimer(interval: refreshInterval, tolerance: refreshInterval * 0.1, immediateFireOnResume: true) { [weak self] in
+        self?.refreshData()
+    }
 
     private static let providerIcons: [String: String] = [
         "deepseek": "deepseek-icon",
@@ -71,25 +74,14 @@ class UsageBarItem: CustomButtonTouchBarItem {
         })
 
         refreshData()
-        scheduleRefresh()
+        pausableTimer.start()
     }
 
     required init?(coder _: NSCoder) { return nil }
 
-    deinit {
-        refreshTimer?.invalidate()
-    }
-
-    // MARK: - Timer
-
-    private func scheduleRefresh() {
-        DispatchQueue.main.async { [weak self] in
-            self?.refreshTimer?.invalidate()
-            self?.refreshTimer = Timer.scheduledTimer(withTimeInterval: self?.refreshInterval ?? 300, repeats: true) { [weak self] _ in
-                self?.refreshData()
-            }
-            self?.refreshTimer?.tolerance = (self?.refreshInterval ?? 300) * 0.1
-        }
+    /// 隐藏（黑名单/exitTouchbar）时暂停用量轮询；显示时恢复。
+    func setPaused(_ paused: Bool) {
+        pausableTimer.setPaused(paused)
     }
 
     // MARK: - Data Fetching
@@ -114,7 +106,7 @@ class UsageBarItem: CustomButtonTouchBarItem {
         }
 
         group.notify(queue: .main) { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, !self.pausableTimer.isPaused else { return }
             self.usageData = fetched
             self.updateDisplay()
         }

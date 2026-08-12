@@ -25,7 +25,7 @@ LyricsMTMR 是一款 macOS Touch Bar 增强工具。它把 LyricsX 的多平台�
 ### 🧩 Widget 组件库（114 种）
 - **系统监控**：CPU / 内存 / 磁盘 / 网络 / 电池 / 风扇
 - **音乐与媒体**：专辑封面、播放控制、音量、进度条
-- **效率工具**：天气、时钟、日历、备忘录、剪贴板
+- **效率工具**：天气、时钟、日历、节假日倒计时（holidayCountdown，复用法定节假日表）、备忘录、剪贴板
 - **数据面板**：股票（A 股 + 分时图，按主题统计）、天气（中国天气网国内数据源，免 Key、多城市）、快递、OpenCode Go 用量、BeeCount 记账同步
 - **开发相关**：Git 状态、Docker、AppleScript、Shell 脚本、API 测试器、二维码、Latex 符号、论文进度等
 - **AI 助手**：内置对话组件，API Key / 服务地址 / 模型名完全自由填写（自带模型，不锁定厂商）
@@ -147,6 +147,20 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 ## 📝 更新日志
 
+### v0.27（当前开发版本）
+
+> 自 v0.8（预发布）以来的迭代能力，均已随当前构建 0.27 提供。
+
+#### 新增
+- **节假日倒计时 widget（holidayCountdown）**：以 A 股交易日历的法定节假日表（`aShareHolidays`）为唯一数据源，展示距下一个假期首日的天数与假期名；假期窗口内显示「X 第 N 天」
+- **应用专属主题（Per-app bar switching）**：为指定 App 绑定独立 Touch Bar 布局，切换应用自动换主题（对应 [issue #40](https://github.com/Tangzishun-Li/LyricsMTMR/issues/40)，用法见[使用指南](#应用专属主题per-app-bar-switching)）
+- **货币汇率 widget（currency）**：Coinbase API 恢复启用，网络异常自动重试并降级显示
+
+#### 改进
+- **macOS 15.4+ 音乐信息获取**：mediaremote-adapter 子进程桥接方案解决私有框架权限封堵（机制与风险见上文）
+- **隐藏机制完善**：组件按前台应用过滤补齐异步路径、matchAppId 正则编译缓存；黑名单 App 隐藏期间自动暂停全部 widget 轮询（零空转）
+- **节假日名映射健壮化**：假期窗口按特征判定，跨年元旦 / 中秋国庆重叠窗口不再误判
+
 ### v0.8（预发布）
 #### 新增
 - **记账 BeeCount 同步**：SecretsManager 新增 `beecountURL` / `beecountPAT` 配置 + 连通性测试
@@ -193,7 +207,6 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 - [x] 每个软件自定义类别
 - [x] 加入股市的 api，包括 A 股并加入分时图
 - [x] 剪切板快捷查看（第 15 轮核对：已实现——BarItemFactory.swift:210 case .clipboardHistory 创建 ClipboardHistoryItem + ItemsParsing.swift:350 clipboardHistory 类型，详见验证报告_第15轮_barItemFactory提取.md）
-- [ ] ……
 
 ## 数据来源
 
