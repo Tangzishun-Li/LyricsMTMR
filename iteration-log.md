@@ -750,6 +750,24 @@
 
 ## 第 18 轮（功能/优化迭代第 6 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 6 轮（接第 17 轮收口 main=7690ac7）—— ① 实现卡 A：holidayCountdown 假期名映射跨月/重叠窗口健壮化（遗留 7 后半句闭环，功能健壮性维度）；② 实现/优化卡 B：黑名单隐藏期间暂停 widget 轮询（TBPollItem 空转性能优化，性能维度）；③ 维护面 C：年度维护核验（第 12 次）+ round-17 父卡+子卡遗留清理 + 遗留跟踪盘点。本轮分解前触发全量回归（隔代规则：第 16 轮全量后隔第 17 轮，累积 add_files 测试注册 + 正则缓存两轮代码改动）。
+- 分解下发：3 张子卡（t_e610d199 A / t_ebbd96e5 B / t_c0d544d7 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round18-A/B/C 预建于 main@7690ac7，分支 r18/feature / r18/optimize / r18/review）。
+- 合并提交点：main@7690ac7 → 3 子分支（r18/review aa5be3d 无冲突合入 / r18/feature 27da95d 经 73230a8 合并 / r18/optimize 74fd8d1 经 e08acd5 合并）依次 merge --no-ff 合入父分支（冲突共 2 处均手工解决：iteration-log 2 次 A/B/C 记录并列合并——C+A、C+A+B，标记行完整包含在 patch old_string 内一次通过，提交前 grep 清零确认——第 11/13/14/15/16/17 轮教训遵守），合并后整体 build+test 实证后并入 main 并 push origin。根目录新增 4 份第 18 轮报告：验证报告_第18轮_假期名映射健壮化.md、验证报告_第18轮_黑名单隐藏暂停轮询.md、核验报告_第18轮_维护机制健在与文档一致性.md、清理报告_第18轮_round17遗留清理.md（A/B 各 1 份 + C 卡 2 份，共 4 份）；file-structure.zh.md 同步（mindmap 第 7~17 轮→第 7~18 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；② 全量回归（隔代触发）在分解前完成：main@7690ac7 上 BUILD SUCCEEDED（/tmp/LyricsMTMR-dd-r18）+ TEST SUCCEEDED 134 用例 0 失败 0 意外（xcresult /tmp/LyricsMTMR-dd-r18-test/Logs/Test/Test-UnitTests-2026.08.12_22-19-36-+0800.xcresult，金丝雀 StockMarketHoursTests 16 用例含 golden anchors 2026/2027/Makeup2026 全绿），基线确认后正常分解；③ 子任务 A（实现）holidayCountdown 假期名映射健壮化（遗留 7 后半句闭环）：holidayName 由「窗口首日月份惯例」改为「窗口特征判定」9 级优先级（含 1/1 → 元旦覆盖 12 月末跨年窗口 / 含 10/1 → 国庆节含中秋+国庆合并窗口 / 首日 12 月 → 元旦双保险 / 首日 10 月未含 10/1 → 中秋如 2028-10-03 / 1 月下旬 ≥1/20 → 春节日期边界 / 其余回退节假日宁缺毋滥），makeWindows 改两遍式（先空名建窗成型后统一判定）+ 签名变更 holidayName(window:calendar:)，零拷贝日期表约束保持（aShareHolidays 唯一数据源），2026/2027 现有数据映射 100% 不变，新增 8 单测（12/30 跨年元旦/12/31 跨年/10/3 中秋不误判/10/1 国庆/10/1~10/8 合并窗口/1/25 春节/1 月中旬空档/12 月末双保险），分支 TEST SUCCEEDED 142 用例（134 基线 + 8 新增，HolidayCountdownTests 24 全绿）；④ 子任务 B（实现/优化）黑名单隐藏暂停轮询：实证确认问题成立（controller items 字典强持有 + dismissTouchBar 仅隐藏 UI 不销毁，用户停留黑名单 app 期间 34 个 TBPollItem + 4 个 TBMetricPopoverItem 子类持续每 interval 空转 compute）→ 实现线程安全 pause/resume（NSLock 标志 + 调度处检查 + _cycleScheduled 单在途防双循环 + 消除原 _isCancelled 裸读写 data race），新协议 TBPollPausable，dismissTouchBar 广播暂停 / presentTouchBar 广播恢复（覆盖黑名单/exitTouchbar/fast-path/重建兜底/resetControlStrip 7 类路径），新建 item 默认未暂停行为严格等价；新增 PollingPauseTests 5 用例（add_files.py Tests: 一键注册实证），分支 TEST SUCCEEDED 139 用例（134 基线 + 5 新增，WidgetLeakTests 4 仍绿无新泄漏）；⑤ 子任务 C（维护面）年度维护核验第 12 次全过（ITER-14 健在、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀防屏蔽 :195-196 在位、maintenance-notes 零漂移、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=7690ac7 本地同步）+ 仓库卫生 round-17 全部遗留清理（4 worktree + 4 分支含父卡，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 9 项挂账盘点；⑥ 收口：3 分支依次合并冲突共 2 处（均为 iteration-log 第 18 轮子任务记录区 A/B/C 记录并列合并，file-structure.zh.md 自动合并无冲突），标记行完整包含在 patch old_string 内一次通过，grep 清零后提交，合并后整体 build+test 实证（147 用例预期 = 134 基线 + 8 + 5）。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问（是否常驻镜像窗/用途/快照实时性要求/电量敏感度），仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 12 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（113 + holidayCountdown，注释 114 = 97+14+2+1）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件，③已落地 + 第 17 轮性能跟进（正则缓存）+ 第 18 轮轮询暂停（B 卡）；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射跨月/重叠窗口健壮化已落地（本轮 A 卡：窗口特征判定 9 级优先级，2028+ 元旦跨年/中秋国庆重叠不再误判），未来年份随 aShareHolidays 年度维护加入即可；
+  8. 隐藏机制修复（shouldShowItem + 异步路径补过滤 + 正则缓存 + 本轮黑名单隐藏暂停轮询）无 Touch Bar 真机冒烟（逻辑由 11+5+5 单测覆盖，主题切换一致性与暂停/恢复行为留待真机确认）；
+  9. add_files.py 已闭环（第 16 轮 Sources 组一键注册 + 第 17 轮 Tests: 测试文件一键注册），本轮 B 卡 PollingPauseTests 即用脚本注册实证，后续 Widgets/测试新文件均可脚本注册。
+- 下轮方向：① 继续功能/优化迭代（第 7 轮）：候选——新 widget/体验优化（README TODO 剩余项评估、代码库残留 FIXME/禁用项排查——第 15 轮起 Swift 源码已零残留）、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制/轮询暂停真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 18 轮分解前全量回归 134 用例实证 + 收口整体 147 用例实证（基线口径升级为 147 = 134 + 8 + 5），累积 2~3 轮代码改动后触发下次全量回归（预计第 20 轮，第 19 轮不触发）；④ 收口教训固化：本轮 3 分支合并冲突 2 处均为迭代记录并列合并（C+A、C+A+B），按 C→A→B 顺序合并冲突逐次线性出现、每次只解决一个分支的记录，标记行完整包含在 patch old_string 内即一次通过，grep 清零确认后提交；子任务并行改同一文档（iteration-log/file-structure）是每轮冲突必然来源，file-structure 因各行独立追加本轮自动合并零冲突。
+
 ### 子任务记录
 
 - **t_c0d544d7 维护三合一（review-agent，分支 r18/review）**：
