@@ -583,7 +583,6 @@
 
 ### 子任务记录
 
-<<<<<<< HEAD
 - **t_753ceac6 实现（code-agent，分支 r14/feature）**：
   - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
   - 加固（CurrencyBarItem.swift）：提取纯函数 `static parseRate(from:to:)`（Coinbase 响应 data.rates[<to>] 解析，畸形/缺层/非字符串一律返回 nil，原 as!/data! 强转会崩溃）与 `static formatTitle(prefix:postfix:value:decimal:full:)`（full=前缀+后缀‣decimal 位舍入，否则前缀+两位小数）；URL 构造去强制解包；请求失败/解析失败优雅降级为 ⚠︎ 错误态（主线程，不崩溃不残留旧值）；dataTask 闭包改 [weak self]；删除失效状态变量 decimalValue/decimalString；币种符号表/小数位表/涨跌着色/定时刷新不变；
