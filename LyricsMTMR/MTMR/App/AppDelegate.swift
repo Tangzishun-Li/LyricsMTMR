@@ -76,6 +76,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         CoverCache.shared.clearMemoryCache()
         URLCache.shared.removeAllCachedResponses()
         NetEaseProvider.clearLyricsCache() // ITER-2: 内存警告兜底语义覆盖歌词 LRU
+        // 窗口复用补充：隐藏状态的设置窗口整树直接释放（可见时不打扰用户）
+        releaseSettingsWindowIfHidden()
     }
 
     // MARK: - Popover
@@ -155,9 +157,50 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Strong ref is intentional: AppKit's windowController/delegate are both
     /// weak, so nothing else would keep the controller alive while the window
-    /// is open. OPT-1 releases it in `windowWillClose` (via onWindowWillClose)
-    /// so the window + SwiftUI tree deallocate as soon as the user closes it.
+    /// is open. OPT-1 released it in `windowWillClose`; since 2026-08-12 the
+    /// window is reused across opens (hide-on-close) instead, and this ref is
+    /// dropped only by the idle GC (`settingsWindowIdleGCSeconds`) or the
+    /// memory-pressure handler — see `scheduleSettingsWindowGC()`.
     private var unifiedSettingsController: UnifiedSettingsWindowController?
+
+    /// How long a hidden settings window may stay cached before being
+    /// released so its memory returns to baseline. Deliberately long: each
+    /// rebuild permanently costs ~10MB of unreclaimable allocator/framework
+    /// retention, so the window should outlive typical open/close workflows
+    /// (an hour of disuse means the user is done with settings). The
+    /// memory-pressure handler releases it immediately regardless.
+    static let settingsWindowIdleGCSeconds: TimeInterval = 3600   // 1 h
+
+    private var settingsWindowGCWorkItem: DispatchWorkItem?
+
+    /// Called by the controller when the settings window is hidden (closed).
+    /// The window tree stays alive for instant reopen, but is scheduled for
+    /// release after `settingsWindowIdleGCSeconds` of disuse — a hidden
+    /// window's ~15-20MB tree then returns to the system instead of being
+    /// held forever. Reopening cancels the pending release.
+    func scheduleSettingsWindowGC() {
+        settingsWindowGCWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.settingsWindowGCWorkItem = nil
+            self.unifiedSettingsController = nil
+        }
+        settingsWindowGCWorkItem = item
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.settingsWindowIdleGCSeconds,
+            execute: item
+        )
+    }
+
+    /// Releases the cached settings window immediately (memory-pressure path).
+    /// Only when hidden — a visible window is in active use.
+    private func releaseSettingsWindowIfHidden() {
+        settingsWindowGCWorkItem?.cancel()
+        settingsWindowGCWorkItem = nil
+        if unifiedSettingsController?.window?.isVisible != true {
+            unifiedSettingsController = nil
+        }
+    }
 
     /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
     private lazy var updaterController = SPUStandardUpdaterController(
@@ -171,15 +214,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings(_: Any?) {
+        // Reopening cancels any pending idle-GC so the cached window is reused.
+        settingsWindowGCWorkItem?.cancel()
+        settingsWindowGCWorkItem = nil
         if unifiedSettingsController == nil || unifiedSettingsController?.window == nil {
             let controller = UnifiedSettingsWindowController()
-            // OPT-1: release on close — the window and its SwiftUI tree are
-            // deallocated as soon as the user closes settings, instead of
-            // lingering as a ghost window (~15% CPU + ~170MB memory).
+            // Release on real close (app termination path). Normal closes are
+            // intercepted by hideWindow() and only release via idle GC.
             controller.onWindowWillClose = { [weak self] in
                 self?.unifiedSettingsController = nil
             }
+            // Hide-on-close: schedule release after the window has been
+            // closed for a while (see settingsWindowIdleGCSeconds).
+            controller.onWindowHidden = { [weak self] in
+                self?.scheduleSettingsWindowGC()
+            }
             unifiedSettingsController = controller
+        }
+        // Re-register Dock-tracking observers (idempotent) on every open —
+        // hide-on-close tore them down when the window was hidden.
+        if let window = unifiedSettingsController?.window {
+            DockVisibilityManager.shared.track(window: window)
         }
         unifiedSettingsController?.showWindow(nil)
         unifiedSettingsController?.window?.makeKeyAndOrderFront(nil)

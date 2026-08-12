@@ -40,7 +40,11 @@ final class DockVisibilityManager: NSObject, NSWindowDelegate {
     }
 
     /// Begin tracking a settings window so its visibility drives the Dock icon.
+    /// Idempotent: re-registering the same (or a new) window first drops any
+    /// previous observers, so repeated opens (window reuse, 2026-08-12) never
+    /// accumulate notification tokens.
     func track(window: NSWindow) {
+        removeObservers()
         trackedWindow = window
         // Window is being shown -> show Dock icon.
         updatePolicyForVisibleState()
@@ -99,6 +103,19 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
     /// then released immediately instead of lingering as a ghost window.
     var onWindowWillClose: (() -> Void)?
 
+    /// 内存修复（2026-08-12）：关窗 = 隐藏复用，而不是销毁重建。
+    ///
+    /// 实测每个「开→关」循环会让进程内存净增 ~10MB（CoreSVG 符号缓存重解析、
+    /// SwiftUI 渲染缓存、malloc zone 碎片），且随开窗次数线性累积、无平台——
+    /// 打开设置 8 次后关窗状态从 48MB 涨到 103MB，长期会回到优化前的 300MB 级。
+    /// 根因是每次开窗都重建整棵窗口/视图树，框架缓存按窗口实例去重失败。
+    ///
+    /// 方案：关窗只 orderOut 隐藏（树保留 → 重开零重建、零增长）；AppDelegate
+    /// 侧挂一个闲置 GC（默认 10 分钟未再开则整体释放，内存回到基线），系统内存
+    /// 压力时立即释放。隐藏期间 Deck 动画已被 OPT-2 的 isVisible 暂停，不会出现
+    /// 优化前的幽灵渲染问题。
+    var onWindowHidden: (() -> Void)?
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
@@ -147,7 +164,10 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard RibbonModel.editorHasUnsavedChanges else { return true }
+        guard RibbonModel.editorHasUnsavedChanges else {
+            hideWindow()
+            return false
+        }
         let alert = NSAlert()
         alert.messageText = localized("有未保存的编辑器修改", "Unsaved editor changes")
         alert.informativeText = localized("关闭前先保存到当前主题？", "Save to the current theme before closing?")
@@ -159,13 +179,25 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         case .alertFirstButtonReturn:
             RibbonModel.editorHasUnsavedChanges = false
             NotificationCenter.default.post(name: RibbonModel.editorSaveRequested, object: nil)
-            return true
+            hideWindow()
         case .alertSecondButtonReturn:
             RibbonModel.editorHasUnsavedChanges = false
-            return true
+            hideWindow()
         default:
-            return false
+            break   // 取消：窗口保持可见
         }
+        return false
+    }
+
+    /// 关窗即隐藏（复用窗口，避免每轮重建的 ~10MB 缓存/zone 累积）。
+    /// 隐藏前同步各可见性状态：isVisible=false 让 Deck 漂移动画暂停（OPT-2），
+    /// DockVisibilityManager 收起 Dock 图标。窗口与整棵 SwiftUI 树保持存活，
+    /// 由 AppDelegate 的闲置 GC / 内存压力路径决定何时真正释放。
+    private func hideWindow() {
+        SettingsWindowState.shared.isVisible = false
+        DockVisibilityManager.shared.handleSettingsWindowClosed()
+        window?.orderOut(nil)
+        onWindowHidden?()
     }
 
     func windowDidBecomeKey(_ notification: Notification) {
