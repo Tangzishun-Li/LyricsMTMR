@@ -298,6 +298,20 @@
 
 ## 第 10 轮（本链第 4 轮）
 
+### 父任务
+
+- 目标：年度维护模式第 4 轮（纯维护轮，无实现卡）—— ① 年度维护核验（第 4 次）+ 文档一致性抽查；② 收尾核对（第 9 轮遗留 6 项复核 + D1 注释陈旧项处置）；③ 仓库卫生（round-9 父卡遗留 worktree/分支清理）。回归规则：第 9 轮已含内存修复代码全量回归，本轮仅 D1 注释一处代码改动且子任务 B 已附带 xcodebuild build + make test（60 用例 0 失败）实证，不触发独立全量回归。
+- 合并提交点：main@487415e → 3 子分支（r10/review 6ea3163 / r10/check 0aa7d49 / r10/cleanup 7770182）依次 merge --no-ff 合入 r10-parent（iteration-log 冲突 2 次 + file-structure 冲突 1 次均手工解决，A/B/C 子任务记录并列保留；B 的 D1 注释修正与 A 的 file-structure 补登记互不冲突），再并入 main 并 push origin。根目录新增 3 份第 10 轮报告：核验报告_第10轮_维护机制健在与文档一致性.md、核对报告_第10轮_收尾核对.md、清理报告_第10轮卫生_r10-cleanup.md；file-structure.zh.md 同步（回归报告_第9轮补登记、mindmap 第 7~10 轮、第 10 轮 3 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」；② 子任务 A 核验第 4 次通过（ITER-14 :388 引用准、2027 全部 27 休市日期 + 6 补班日星期 Python 复核全对、金丝雀防掩蔽 :195-196 在位、maintenance-notes 零漂移、file-structure 1 处漂移修正、三方交叉核对一致、0 open PR）；③ 子任务 B 核对 4/4 符合（issue #1 OPEN+1 评论 / #40 OPEN / open PR 0 / origin/main=487415e）+ 遗留 6 项分类：已闭环 2（ITER-14 覆盖、D1）/ 待用户确认 2（issue #1、ITER-15 4 问）/ 继续跟踪 2（README MediaRemote 说明、真机冒烟 3 项）+ D1 注释修正（10 分钟→1 小时，BUILD SUCCEEDED + 60 用例全绿）；④ 子任务 C 清理 round-9 父卡遗留（worktree t_a62af223 + 分支 lyricsmtmr/t_a62af223-9-lyricsmtmr-8，删除前复核 0 ahead/干净，删除后 worktree 5 项/分支 6 项/远端仅 main）。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；backlog #40 已承接未实现项；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 4 次核验健在，2026-11 前无动作；
+  4. README/FAQ 补「macOS 15.4+ 音乐信息获取机制与已知风险」说明：继续跟踪（不强制）；
+  5. 【已闭环】D1 低危注释陈旧已修正：UnifiedSettingsWindowController.swift:113-116 注释「默认 10 分钟」→「默认 1 小时（settingsWindowIdleGCSeconds = 3600）」，随本轮合入 main；
+  6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
+- 下轮方向：① 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问 / README 补 MediaRemote 风险说明）；② 维持年度维护模式（无实现卡），ITER-14 时间驱动项第 5 次核验跟踪 + 文档一致性抽查；③ 无新实现项，除非用户明确要求；④ 回归规则：本轮 D1 注释改动已附带 build+test 全绿实证，下轮如无代码改动可不触发全量回归，累积代码改动时再次全量回归（60 用例基线）。
+
 ### 子任务 A：年度维护核验（第 4 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（t_216edb49，review-agent，分支 r10/review）
 
 - **t_216edb49 核验：年度维护核验（第 4 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（review-agent）**：
