@@ -293,3 +293,71 @@
     ③ README 补 MediaRemote 风险说明（建议后续补、不强制）；④【新增】2d2d681 文档并入 main 决策依据
     （代码已核对一致，建议父任务收口时并入以闭环文档）；⑤【可选】D1 注释修正；
   - 交付：核对报告 `核对报告_第9轮_子任务C_内存修复文档代码一致性.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+---
+
+## 第 10 轮（本链第 4 轮）
+
+### 父任务
+
+- 目标：年度维护模式第 4 轮（纯维护轮，无实现卡）—— ① 年度维护核验（第 4 次）+ 文档一致性抽查；② 收尾核对（第 9 轮遗留 6 项复核 + D1 注释陈旧项处置）；③ 仓库卫生（round-9 父卡遗留 worktree/分支清理）。回归规则：第 9 轮已含内存修复代码全量回归，本轮仅 D1 注释一处代码改动且子任务 B 已附带 xcodebuild build + make test（60 用例 0 失败）实证，不触发独立全量回归。
+- 合并提交点：main@487415e → 3 子分支（r10/review 6ea3163 / r10/check 0aa7d49 / r10/cleanup 7770182）依次 merge --no-ff 合入 r10-parent（iteration-log 冲突 2 次 + file-structure 冲突 1 次均手工解决，A/B/C 子任务记录并列保留；B 的 D1 注释修正与 A 的 file-structure 补登记互不冲突），再并入 main 并 push origin。根目录新增 3 份第 10 轮报告：核验报告_第10轮_维护机制健在与文档一致性.md、核对报告_第10轮_收尾核对.md、清理报告_第10轮卫生_r10-cleanup.md；file-structure.zh.md 同步（回归报告_第9轮补登记、mindmap 第 7~10 轮、第 10 轮 3 份报告登记）。
+- 过程事项：① 分解 3 条主线并行、无 parents 依赖（惯例保持）；子任务统一「预建 worktree + dir 工作区」；② 子任务 A 核验第 4 次通过（ITER-14 :388 引用准、2027 全部 27 休市日期 + 6 补班日星期 Python 复核全对、金丝雀防掩蔽 :195-196 在位、maintenance-notes 零漂移、file-structure 1 处漂移修正、三方交叉核对一致、0 open PR）；③ 子任务 B 核对 4/4 符合（issue #1 OPEN+1 评论 / #40 OPEN / open PR 0 / origin/main=487415e）+ 遗留 6 项分类：已闭环 2（ITER-14 覆盖、D1）/ 待用户确认 2（issue #1、ITER-15 4 问）/ 继续跟踪 2（README MediaRemote 说明、真机冒烟 3 项）+ D1 注释修正（10 分钟→1 小时，BUILD SUCCEEDED + 60 用例全绿）；④ 子任务 C 清理 round-9 父卡遗留（worktree t_a62af223 + 分支 lyricsmtmr/t_a62af223-9-lyricsmtmr-8，删除前复核 0 ahead/干净，删除后 worktree 5 项/分支 6 项/远端仅 main）。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；backlog #40 已承接未实现项；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 4 次核验健在，2026-11 前无动作；
+  4. README/FAQ 补「macOS 15.4+ 音乐信息获取机制与已知风险」说明：继续跟踪（不强制）；
+  5. 【已闭环】D1 低危注释陈旧已修正：UnifiedSettingsWindowController.swift:113-116 注释「默认 10 分钟」→「默认 1 小时（settingsWindowIdleGCSeconds = 3600）」，随本轮合入 main；
+  6. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确。
+- 下轮方向：① 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问 / README 补 MediaRemote 风险说明）；② 维持年度维护模式（无实现卡），ITER-14 时间驱动项第 5 次核验跟踪 + 文档一致性抽查；③ 无新实现项，除非用户明确要求；④ 回归规则：本轮 D1 注释改动已附带 build+test 全绿实证，下轮如无代码改动可不触发全量回归，累积代码改动时再次全量回归（60 用例基线）。
+
+### 子任务 A：年度维护核验（第 4 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（t_216edb49，review-agent，分支 r10/review）
+
+- **t_216edb49 核验：年度维护核验（第 4 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（review-agent）**：
+  - a) ITER-14 置顶待办完好可执行（第 4 次核验）：待办区唯一待办；:388 行号引用准确（2027 段注释行实测命中）；检查点清单与代码注释一致（春节 2/5~2/12 共 8 天 + 补班 1/30、2/13；端午 6/7~6/9 + 6/5；中秋 9/13~9/15 + 9/11）；2027 全部 27 个休市日期 + 6 个补班日（全周六）星期 Python 复核全对、金丝雀 7 锚点星期断言全对、2026 官方段抽查 16 日期全对；金丝雀防掩蔽直查 :195-196（2027-02-06/05-01 两周六锚点 contains）在位；
+  - b) maintenance-notes 年度流程与代码零漂移（:369-370/:375-399/:404-419、:22-47 年度步骤、:39-40 周末直查规则、金丝雀三函数 :155/:167/:183、SUPublicEDKey Info.plist:113、publish.yml:90-97 交叉自检、signing-check.yml:8 paths 注释）全部实测吻合；
+  - c) file-structure.zh.md 计数健康（backup/ 17 份、docs/ 5 文件目录树、theme 15、Widgets 7 域、archive/tools 抽样全对）；清单 1 处新漂移已就地修正——第 9 轮子任务 A 的回归报告（回归报告_第9轮_t_d0232788.md，47c9f28 已合入 main）未登记（第 9 轮预登记 3 份时该分支未见、收口亦未补登）；另 mindmap「第 7~9 轮」→「第 7~10 轮」并预登记第 10 轮核验报告；第 9 轮预登记 3 份全部随 main 落实（内存修复报告[PR #41] / 子任务C核对报告[md5 与 27a4bdb 一致] / 核验报告第9轮）且清单已登记；
+  - d) 0 open PR（gh pr list 实测）；origin/main = 487415e（ls-remote 实证，第 9 轮收口已 push）；
+  - 文档一致性抽查：iteration-log 第 9 轮收口 ↔ iteration-plan 第八节收敛结论 ↔ main 提交图（47c9f28 r9-regression → 68459d1 r9-review 冲突解决 → 8f7ac13 带入 r9/issue 内容[第二父 27a4bdb] → 99d3cd4 清理冲突标记 → 487415e 父收口）三者交叉核对一致，无漂移；A/B/C 子任务记录并列保留无冲突残留；提交信息标签与内容轻微错位 2 处（8f7ac13 标 r9-review 实合 r9-issue 内容；99d3cd4 标 r9-issue 实为单父去重提交）均信息性无内容影响；
+  - 遗留观察：① 沿袭「15 个 2027 节日日期」口径 vs 实际 27 日期（本轮全覆盖复核星期全对，历史数字口径差异）；② 沿袭 D1 低危注释陈旧（UnifiedSettingsWindowController.swift:113-114「默认 10 分钟」vs 实际 1h）建议下次改代码顺手修正；③ 沿袭 issue #1/#40 维持 OPEN、ITER-15 决策门 4 问待用户、README MediaRemote 风险说明待补；④ ITER-14 2026-11 前无动作符合预期。报告见 `核验报告_第10轮_维护机制健在与文档一致性.md`（本分支根目录）。
+
+### 子任务 B：收尾核对 — 遗留问题清单复核 + D1 注释陈旧项处置（t_49ced5b0，merge-agent，分支 r10/check）
+
+- **t_49ced5b0 收尾核对（merge-agent，分支 r10/check，基于 main@487415e）**：
+  - GitHub 状态复核 4/4 符合：issue #1 OPEN + 1 条评论（=第 8 轮回复，无新动态）；issue #40 OPEN（backlog）；
+    open PR 0；origin/main = 487415e（ls-remote 实证 487415ee1c02…）；「2d2d681 文档并入 main 已闭环」属实
+    （merge-base --is-ancestor 2d2d681 main = YES）；
+  - 遗留 6 项逐一复核：① issue #1 待用户 15.7 真机验证 → 待用户确认；② ITER-15 使用场景 4 问（评估报告 §5.3 在案）
+    → 待用户确认；③ ITER-14 第 4 次核验由子任务 A（t_216edb49，review-agent）覆盖，已确认卡存在 → 已闭环；
+    ④ README 补 MediaRemote 风险说明仍未实施（README 无 FAQ 章节/15.4+ 段落）→ 继续跟踪；
+    ⑤ D1 注释陈旧 → **本轮修正**（见下）；⑥ 内存修复真机冒烟 3 项挂账（无真机执行条件）→ 继续跟踪；
+    分类汇总：已闭环 2（③⑤）/ 待用户确认 2（①②）/ 继续跟踪 2（④⑥）；
+  - **D1 处置（本轮唯一代码改动）**：`UnifiedSettingsWindowController.swift:113-116` 注释「默认 10 分钟」
+    →「默认 1 小时（时长见 AppDelegate.settingsWindowIdleGCSeconds = 3600）」；xcodebuild build（Debug，
+    独立 derivedDataPath /tmp/r10b-derived）**BUILD SUCCEEDED** + make test **TEST SUCCEEDED（60 用例 0 失败）**；
+  - 归档一致性抽查：backup/ 17 份 ✅、docs/ 5 文件 ✅、根目录 vs backup/ 无重复 ✅；
+    file-structure.zh.md 目录树缺登记 `回归报告_第9轮_t_d0232788.md`（第 9 轮预登记漏项）→ 已就地补登记（纯文档）；
+  - 交付：核对报告 `核对报告_第10轮_收尾核对.md`（本分支根目录）；本记录即 iteration-log 追加。
+
+### 子任务 C：仓库卫生 — round-9 父卡遗留 worktree/分支清理（t_2a476d89，merge-agent，分支 r10/cleanup）
+
+- **t_2a476d89 仓库卫生（merge-agent，分支 r10/cleanup）**：
+  - 清理对象：round-9 父卡 t_a62af223 遗留 —— worktree `.worktrees/t_a62af223`（@ 487415e，检出分支
+    lyricsmtmr/t_a62af223-9-lyricsmtmr-8）+ 本地分支 lyricsmtmr/t_a62af223-9-lyricsmtmr-8（@ 487415e，无远端对应）；
+  - 删除前复核（全部通过）：`git log main..分支` 输出为空（0 ahead，已完全并入 main）+ `merge-base --is-ancestor`
+    通过（分支为 main 祖先）+ worktree 工作区 `status --porcelain` 为空（干净）+ 远端 heads 仅 main；
+  - 删除动作：`git worktree remove --force` → `git worktree prune` → `git branch -d`（was 487415e）；
+  - 删除后复核（与任务预期逐一吻合）：worktree list 仅剩主仓库 + round10-A/B/C + round10-parent（5 项）；
+    本地分支仅剩 main / r10-parent / r10/review / r10/check / r10/cleanup（6 项）；远端 refs/heads 仅 main；
+  - 卫生抽査：.worktrees/ 磁盘内容仅 round10-A/B/C/parent（t_a62af223 已物理删除）；仓库根扫描无
+    r7-*/t_*/_ws/temp 残留子卡工作区或临时目录（第 7 轮 r7-*-ws 已于第 8 轮收尾清除，本轮无新增）；
+    无空格报告工作区 `/Users/litz/codespace/MTMR with LyricsX`（非 git，尾带空格仓库根的区分对象）为历轮
+    报告暂存区，现存 5 份第 7~9 轮报告，非残留，未动；
+  - 观察项：file-structure.zh.md 报告树缺 `回归报告_第9轮_t_d0232788.md` 一行（头部声明「第 7~9 轮报告」但
+    树内缺第 9 轮回归行，第 9 轮子任务 B 仅预登记 3 份），建议子任务 B 核验时补登记；本轮已就地把
+    `清理报告_第10轮卫生_r10-cleanup.md` 登记入树（1 行）；
+  - 约束遵守：未动 round10-parent/round10-A/B/C 工作区与 r10-* 分支；未 push 远端（收口由父任务统一推送）；
+    未开新分支/新子任务；
+  - 交付：清理报告 `清理报告_第10轮卫生_r10-cleanup.md`（本分支根目录，含删除前/后命令输出实录）+ 本记录
+    （iteration-log 追加）+ file-structure.zh.md 登记 1 行。
