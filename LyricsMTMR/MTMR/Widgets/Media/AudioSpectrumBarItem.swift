@@ -17,6 +17,14 @@
 //  When no source is feeding but LyricsEngine reports playback, a
 //  bass-weighted synth animation keeps the bars dancing.
 //
+//  Round 21: the capture chain (SCK system tap / mic engine) joins the
+//  pause semantics — while the whole bar is hidden (blacklist app /
+//  exitTouchbar item) the audio stream is stopped, so no audio hardware
+//  stays hot and no FFT work runs; resume restarts the capture and the
+//  display timer repaints immediately. TCC authorization (Screen
+//  Recording / Microphone) is persistent: stop+restart of the capture
+//  session never re-prompts (see 验证报告_第21轮_AudioSpectrum采集链隐藏期治理.md).
+//
 
 import Cocoa
 import AVFoundation
@@ -149,6 +157,11 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
 
     private var stream: SCStream?
     private var failed = false
+    /// Round 21: set by stop(); a start() that was already in flight (the
+    /// SCShareableContent query / startCapture await) must not resurrect a
+    /// stream after the tap was stopped — otherwise a quick hide/show
+    /// sequence could leave an orphan stream capturing audio.
+    private var stopped = false
     private let queue = DispatchQueue(label: "com.lyricsmtmr.spectrum.systemaudio")
 
     func start() {
@@ -156,6 +169,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
             guard let self = self else { return }
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+                guard !self.stopped else { return } // stopped while querying
                 guard let display = content.displays.first else { return self.fail() }
                 let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
                 let config = SCStreamConfiguration()
@@ -165,6 +179,10 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
                 let stream = SCStream(filter: filter, configuration: config, delegate: self)
                 try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: self.queue)
                 try await stream.startCapture()
+                guard !self.stopped else { // stopped while starting
+                    try? await stream.stopCapture()
+                    return
+                }
                 self.stream = stream
             } catch {
                 AppLog.error("AudioSpectrum: system audio capture unavailable: \(error.localizedDescription)")
@@ -174,6 +192,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
     }
 
     func stop() {
+        stopped = true
         if let stream = stream {
             try? stream.removeStreamOutput(self, type: .audio)
             stream.stopCapture()
@@ -182,7 +201,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
     }
 
     private func fail() {
-        guard !failed else { return }
+        guard !failed, !stopped else { return }
         failed = true
         DispatchQueue.main.async { self.onFailed?() }
     }
@@ -245,6 +264,13 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
     private var rolling = [Float]()     // rolling window of system-audio samples
     private var lastAudibleSystem: TimeInterval = 0
 
+    /// 采集链暂停门（round 21）：整条 bar 隐藏时不仅停 0.04s 显示轮转，
+    /// 也停音频采集（SCK stream / mic engine）——隐藏期零采集、无音频硬件
+    /// 热占用；恢复时重启采集。单独的 gate 而非复用 display timer 的——
+    /// presentTouchBar 广播会对从未暂停过的 item 也调用 setPaused(false)，
+    /// 必须按「状态实际变化」决定是否重启采集（重复广播零副作用）。
+    private let capturePauseGate = TBPauseGate()
+
     private var fftSetup: FFTSetup?
     private var smoothedLevels: [CGFloat] = []
     /// 0.04s 显示定时器（round 20：隐藏期间整体暂停——25fps 轮转隐藏期
@@ -305,16 +331,30 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
         if let observer = defaultsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        stopSystem()
-        stopMic()
+        stopCapture()
         if let setup = fftSetup {
             vDSP_destroy_fftsetup(setup)
         }
     }
 
-    /// 隐藏（黑名单/exitTouchbar）时暂停 0.04s 显示轮转；显示时恢复并立即补刷一帧。
+    /// 隐藏（黑名单/exitTouchbar）时暂停 0.04s 显示轮转与音频采集；
+    /// 显示时恢复：重启采集 + 显示立即补刷一帧。
+    /// 采集启停经主线程 hop + 状态复查（同 TBPausableTimer 模式），
+    /// 快速 pause/resume 序列下最后一次状态为准。
     func setPaused(_ paused: Bool) {
         pausableDisplayTimer.setPaused(paused)
+        guard capturePauseGate.setPaused(paused) else { return }
+        if paused {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.capturePauseGate.isPaused else { return }
+                self.stopCapture()
+            }
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, !self.capturePauseGate.isPaused else { return }
+                self.startCapture()
+            }
+        }
     }
 
     // MARK: - Source selection
@@ -324,13 +364,16 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
         let source = TBSpectrumSettings.source
         guard source != lastAppliedSource else { return }
         requestedSource = source
-        stopSystem()
-        stopMic()
-        lastRealFeed = 0
-        startCapture()
+        stopCapture()
+        // 隐藏期间只记最新 source，不重启采集（恢复时 setPaused(false) 统一重启）。
+        if !capturePauseGate.isPaused {
+            startCapture()
+        }
     }
 
-    private func startCapture() {
+    /// 按当前 requestedSource 启动采集链。internal：单测注入点（子类
+    /// override 计数，避免触碰真实 SCK/AVAudioEngine 硬件）。
+    func startCapture() {
         lastAppliedSource = requestedSource
         switch requestedSource {
         case "mic":
@@ -347,6 +390,16 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
             // only hears the room — the bars look frozen while music plays.
             startSystem()
         }
+    }
+
+    /// 停止全部采集链（SCK system tap + mic engine）并重置实时音源时间戳，
+    /// 隐藏期零采集；恢复时由 startCapture() 按当前 requestedSource 重建。
+    /// internal：单测注入点。
+    func stopCapture() {
+        stopSystem()
+        stopMic()
+        lastRealFeed = 0
+        lastAudibleMic = 0
     }
 
     private func startSystem() {
@@ -375,6 +428,9 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
             tap.stop()
         }
         systemTap = nil
+        // 丢弃跨采集会话的陈旧滚动窗口：恢复后首批 FFT 窗口全部为新鲜样本，
+        // 避免新旧样本混合产生 1-2 帧过渡失真。
+        rolling.removeAll()
     }
 
     private func startMic() {
@@ -573,7 +629,8 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
 
     /// 0.04s 轮转：实时音源（system tap / 可闻麦克风）直接驱动光柱；
     /// 否则按 LyricsEngine 播放状态走合成或衰减。隐藏期间整体暂停。
-    private func spectrumTick() {
+    /// internal：单测注入点（子类 override 计数，避免触碰 LyricsEngine）。
+    func spectrumTick() {
         let now = Date().timeIntervalSince1970
         // A live audible source (system tap, or mic above the noise
         // gate) drives the bars directly.

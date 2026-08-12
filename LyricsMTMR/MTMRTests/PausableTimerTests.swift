@@ -16,6 +16,13 @@
 //  BrightnessViewController), the .common run-loop mode pass-through, and
 //  independent pausing of multiple timers owned by one item.
 //
+//  Round 21: extends coverage to the AudioSpectrumBarItem capture chain —
+//  while the bar is hidden the SCK system tap / mic engine is stopped
+//  (zero collection, no hot audio hardware), resume restarts the capture
+//  and repaints immediately; pause/resume broadcasts are idempotent (no
+//  capture churn on repeated present/dismiss); a source change while
+//  hidden defers the capture restart to resume.
+//
 //  Hosted tests run on the main thread, so the helpers pump the main
 //  runloop (runloop timers and main-queue blocks only run while pumping).
 //
@@ -491,5 +498,147 @@ class PausableTimerTests: XCTestCase {
         timerA.setPaused(false)
         XCTAssertTrue(waitUntil(timeout: 2.0) { counterA.value > frozenA },
                       "timer A must resume independently")
+    }
+
+    // MARK: - Round 21: AudioSpectrumBarItem capture-chain pause
+
+    /// AudioSpectrumBarItem subclass counting the capture lifecycle and
+    /// display ticks. startCapture()/stopCapture()/spectrumTick() are
+    /// overridden to count only — no real SCK stream, AVAudioEngine or
+    /// LyricsEngine is touched (the seams are internal since round 21).
+    private final class CountingSpectrumItem: AudioSpectrumBarItem {
+        private let counterLock = NSLock()
+        private var _startCount = 0
+        private var _stopCount = 0
+        private var _tickCount = 0
+
+        var startCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _startCount
+        }
+
+        var stopCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _stopCount
+        }
+
+        var tickCount: Int {
+            counterLock.lock()
+            defer { counterLock.unlock() }
+            return _tickCount
+        }
+
+        override func startCapture() {
+            counterLock.lock()
+            _startCount += 1
+            counterLock.unlock()
+        }
+
+        override func stopCapture() {
+            counterLock.lock()
+            _stopCount += 1
+            counterLock.unlock()
+        }
+
+        override func spectrumTick() {
+            counterLock.lock()
+            _tickCount += 1
+            counterLock.unlock()
+        }
+    }
+
+    func testAudioSpectrumItemPauseStopsCaptureAndTicksResumeRestarts() {
+        let item = CountingSpectrumItem(identifier: testIdentifier, barCount: 8, source: "system")
+        XCTAssertEqual(item.startCount, 1,
+                       "init must start the capture chain exactly once")
+        XCTAssertTrue(waitUntil(timeout: 2.0) { item.tickCount >= 2 },
+                      "the 25fps display timer (0.1s test cadence) should tick after init")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+                      "hiding the bar must stop the capture chain (SCK stream / mic engine)")
+        pumpRunLoop(for: 0.3) // drain any in-flight tick
+        let frozenTicks = item.tickCount
+        pumpRunLoop(for: 1.0) // >= 2 intervals
+        XCTAssertEqual(item.tickCount, frozenTicks,
+                       "the display timer must not tick while hidden")
+        XCTAssertEqual(item.startCount, 1,
+                       "pause must not restart capture")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+                      "showing the bar must restart the capture chain")
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.tickCount > frozenTicks },
+                      "resume must repaint the bars immediately (immediateFireOnResume)")
+    }
+
+    func testAudioSpectrumPauseBroadcastIsIdempotent() {
+        let item = CountingSpectrumItem(identifier: testIdentifier, barCount: 8, source: "system")
+        XCTAssertEqual(item.startCount, 1)
+
+        // presentTouchBar broadcasts setPaused(false) to every item, even
+        // ones that were never paused — that must not restart capture.
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.startCount, 1,
+                       "resume broadcast on a never-paused item must not restart capture")
+        XCTAssertEqual(item.stopCount, 0,
+                       "resume broadcast must not stop capture either")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+                      "first pause must stop the capture chain")
+        // A repeated dismiss broadcast must not double-stop.
+        item.setPaused(true)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.stopCount, 1,
+                       "repeated pause broadcast must not double-stop")
+        XCTAssertEqual(item.startCount, 1,
+                       "repeated pause broadcast must not restart capture")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+                      "first real resume must restart capture")
+        // A second present broadcast stays a no-op.
+        item.setPaused(false)
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(item.startCount, 2,
+                       "repeated resume broadcast must not restart capture again")
+    }
+
+    func testAudioSpectrumSettingsChangeWhilePausedDefersRestart() {
+        // Drive the settings-driven item through the real UserDefaults
+        // notification; restore the original value whatever happens.
+        let sourceKey = TBSpectrumSettings.sourceKey
+        let original = UserDefaults.standard.string(forKey: sourceKey)
+        UserDefaults.standard.set("system", forKey: sourceKey)
+        defer {
+            if let original = original {
+                UserDefaults.standard.set(original, forKey: sourceKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: sourceKey)
+            }
+        }
+
+        // source: "" → settingsDriven item, follows 设置 → 工具 → 音量律动 live.
+        let item = CountingSpectrumItem(identifier: testIdentifier, barCount: 8, source: "")
+        XCTAssertEqual(item.startCount, 1, "init must start the capture chain")
+
+        item.setPaused(true)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+                      "pause must stop the capture chain")
+
+        // The user switches source while the bar is hidden: the new source
+        // is remembered, but capture must not restart until resume.
+        UserDefaults.standard.set("mic", forKey: sourceKey)
+        pumpRunLoop(for: 0.5) // let didChangeNotification + applySettingsSourceChange land
+        XCTAssertEqual(item.startCount, 1,
+                       "settings change while hidden must not restart capture")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+                      "resume must restart capture with the latest source")
     }
 }
