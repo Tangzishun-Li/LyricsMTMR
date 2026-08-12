@@ -845,6 +845,26 @@
 
 ## 第 20 轮（功能/优化迭代第 8 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 8 轮（接第 19 轮收口 main=1a4374d）—— ① 实现卡 A：隐藏零空转统一治理收官（第 19 轮 A 卡登记超范围观察①：DarkModeBarItem/Media/Productivity 类 widget 也带 Timer，是否纳入统一治理，性能维度）；② 代码质量卡 B：CustomButtonTouchBarItem actions 强自引用环评估与修复（观察②，内存维度）；③ 维护面 C：年度维护核验（第 14 次）+ round-19 父卡+子卡遗留清理 + 遗留跟踪盘点。**本轮分解前触发全量回归**（隔代规则：第 18 轮全量后隔第 19 轮，累积第 19 轮代码改动——TBPausableTimer 共享封装 + 8 item conform + 9 单测，届时基线口径 156）。
+- 分解下发：3 张子卡（t_b34cb2d0 A / t_60cbd9a4 B / t_de5320e5 C），无 parents 依赖，子任务统一「预建 worktree + dir 工作区」（round20-A/B/C 预建于 main@1a4374d，分支 r20/feature / r20/code-quality / r20/review）。
+- 合并提交点：main@1a4374d → 3 子分支（r20/review 7572575 无冲突合入 / r20/feature 0275921 经 1 处冲突 / r20/code-quality cd0c116 经 1 处冲突）依次 merge --no-ff 合入父分支（冲突共 2 处均为 iteration-log 第 20 轮记录并列合并：A 分支冲突为 C/A 两卡记录并列、B 分支冲突为 B 卡自建「第 20 轮（代码质量轮）」小节并入统一主标题——均整块含三行标记替换并列保留，grep 清零后提交），合并后整体 build+test 实证后并入 main 并 push origin。根目录新增 4 份第 20 轮报告：验证报告_第20轮_隐藏零空转统一治理收官.md、验证报告_第20轮_actions强引用环评估.md、核验报告_第20轮_维护机制健在与文档一致性.md、清理报告_第20轮_round19遗留清理.md（A/B/C 各 1 份 + C 卡 2 份共 4 份）；file-structure.zh.md 同步（mindmap 第 7~19 轮→第 7~20 轮 + 4 份报告登记，无重复行）。
+- 过程事项：① 分解前全量回归触发并通过——make test **TEST SUCCEEDED 156 用例 0 失败 0 意外**（基线口径 156 = 147 + 第 19 轮 9，与预期完全一致），随后进入正常分解；② 候选取证（已排除）：WidgetKit.swift:632/:761 asyncAfter 为 _cycleScheduled 节流模式（weak self + guard + flagLock）非持续空转；ITER-14/15/21 均需用户确认或时间驱动（2026-11）；issue #1 / 内存冒烟 / widget 真机冒烟均为真机交互项不可自动化；③ 子任务 A（实现）隐藏零空转统一治理收官：grep 实证 13 项未纳入 Timer/自循环（System 持续轮询 4：DarkMode 3s/NightShift 1s/Time 1s/Brightness；Media 播放器 4：Music/PlaybackProgress/AudioSpectrum/LyricsTranslate；Productivity 5：Pomodoro/ReadTimer/StandupTimer/BreathingGuide/ClipboardHistory）→ 分类决策：**纳入 8 项**（持续轮询/播放器类全部迁移 TBPausableTimer 共享封装，immediateFireOnResume=true 恢复立即补刷，TBPausableTimer 新增 mode 参数透传 .common 保持拖动跟踪刷新，TouchBarController 零改动，Music 双定时器 marqueeStarted 守卫防凭空安装空转 timer）/ **不纳入 5 项**（用户主动激活/浮层作用域：Pomodoro/ReadTimer/StandupTimer/BreathingGuide 计时承诺与可见性无关暂停会吞通知、LyricsTranslate 浮层单发非轮询）/ 排除 1（WidgetKit 节流已覆盖）；新增 PausableableTimerTests 「Round 20」节 6 用例，分支 BUILD/TEST SUCCEEDED 162 用例 0 失败（156+6）；登记遗留：AudioSpectrum 采集 tap 事件驱动非 Timer 不纳入（SCK 重启权限风险）、ClipboardHistory 隐藏期丢中间条目可改 NSPasteboard.observe；④ 子任务 B（代码质量）actions 强自引用环评估：三条指定链逐一实证——① item→actions→closure：全库 23 处 ItemAction 构造点中 **CPUBarItem:29-32 与 YandexWeatherBarItem:68-71 两处传 defaultTapAction 实例方法引用强捕获 self 成经典保留环（deinit 永不可达，round-19 测试 actions.removeAll() 绕开即直接证据）**；② item→button→cell→parentItem：CustomButtonCell.parentItem 原即 weak 无环；③ item→view→gesture→target：AppKit 头文件实证 target weak 无环；修复最小改动 2 文件 4 处（两处 actions 方法引用→[weak self] 闭包 + Yandex scheduler 块/URLSession 完成闭包同缺陷类一并弱化），CustomButtonTouchBarItem.swift 零改动；单测去绕开（断言 actions 原样时 deinit 可达）+ WidgetLeakTests 新增 YandexWeather 泄漏测试，分支 TEST SUCCEEDED 157 用例 0 失败（156+1）；⑤ 子任务 C（维护面）年度维护核验第 14 次全过（ITER-14 置顶待办完好、2027 段 32 日期+6 补班日 Python 复核 0 不符、金丝雀 7 锚点 7/7、防屏蔽直查 :195-196 在位、唯一数据源实证、GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=1a4374d 同步）+ 发现并修正 round19-A 合入致 maintenance-notes/iteration-plan 行号引用 +3 漂移 4 处（语义零变化）+ 仓库卫生 round-19 全部遗留清理（4 worktree + 4 分支，删除前复核 4 检查全过，删除后 .worktrees 5 项/分支 5 条/远端仅 main）+ 遗留 11 项挂账盘点；⑥ 收口：3 分支依次合并冲突共 2 处（iteration-log 2 次，均为第 20 轮子任务记录并列合并：第一处 C/A 并列、第二处 B 卡自建小节并入统一主标题），整块含三行标记替换，grep 清零后提交，合并后整体 build+test 实证（**163 用例预期 = 156 基线 + A 6 + B 1，TEST SUCCEEDED 0 失败 0 意外**），main 已 push origin。
+- 遗留问题：
+  1. issue #1 保持 OPEN，待用户 macOS 15.7 真机验证后关闭（第 8 轮回复已承诺「验证后关闭」）；
+  2. ITER-15 镜像窗事件驱动刷新评估结论「有条件值得实现」，第一决策门 = 用户使用场景 4 问，仍待用户确认；
+  3. ITER-14（2026-11 国办 2027 节假日通知核对）置顶待办第 14 次核验健在，2026-11 前无动作（时间驱动，可并入维护面跟踪）；
+  4. 【口径统一】2027 节日日期统一以 32 为准；Item 类型口径以 114 为准（注释行号 :1145/:1156 在位无新漂移）；TECHNICAL_DEBT 评估结论：①②暂缓附前置条件，③已落地 + 第 17 轮正则缓存 + 第 18 轮轮询暂停 + 第 19 轮覆盖缺口补齐；
+  5. 内存修复无单测覆盖（运行时 UI 生命周期行为），真机交互冒烟 3 项仍挂账：① 连续开关设置窗口 8+ 次内存不再 ~10MB/轮线性增长；② 隐藏 1h 或内存压力后整树释放回基线；③ 复用路径 Dock 图标显隐正确；
+  6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理，失败自动重试并显示 ⚠︎；
+  7. holidayCountdown 无 Touch Bar 真机冒烟（渲染留待用户验证）；假期名映射跨月/重叠窗口健壮化已落地（第 18 轮 A 卡），未来年份随 aShareHolidays 年度维护加入即可；
+  8. 隐藏机制修复（shouldShowItem + 异步路径补过滤 + 正则缓存 + 轮询暂停 + 第 19/20 轮覆盖补齐）无 Touch Bar 真机冒烟（逻辑由 11+5+5+9+6+1 单测覆盖，主题切换一致性与暂停/恢复行为留待真机确认）；
+  9. add_files.py 已闭环（第 16 轮 Sources 组 + 第 17 轮 Tests: 前缀），第 18/19/20 轮新测试文件均脚本注册实证（第 20 轮新增用例沿用既有测试文件无需注册）；
+  10. 第 19 轮 A 卡登记观察①（剩余 Timer item 统一治理）已由第 20 轮 A 卡落地闭合：纳入 8 / 不纳入 5（产品决策：用户激活计时语义与可见性无关）/ 排除 1；观察②（actions 强自引用环）已由第 20 轮 B 卡落地闭合：属实并修复（CPUBarItem/YandexWeatherBarItem 方法引用 + Yandex scheduler/URLSession 共 4 处），视图/手势链实证无环；
+  11. 第 20 轮 A 卡新登记遗留：AudioSpectrum 采集 tap 事件驱动非 Timer 不纳入（SCK/AVAudioEngine 重启有权限风险）；ClipboardHistory 隐藏期丢中间复制条目可改 NSPasteboard.observe 事件驱动（当前取舍：恢复后 changeCount 变更即收录最新一条，已收历史零损失）。
+- 下轮方向：① 继续功能/优化迭代（第 9 轮）：候选——ClipboardHistory 事件驱动化（NSPasteboard.observe，消除 1s 轮询）、AudioSpectrum 采集 tap 权限风险评估、TECHNICAL_DEBT 已评估暂缓项前置条件跟踪（① VC 化需全体系重写、② 注册表混合架构需对账测试，均依赖大块重构决策）、隐藏机制/轮询暂停真机冒烟；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 20 轮收口整体 163 用例实证（基线口径升级为 163 = 156 + 6 + 1），下轮（第 21 轮）分解前不触发全量回归（第 20 轮分解前刚全量 156 + 收口整体 163 实证，隔代规则下预计第 22 轮触发，届时基线口径 163）；④ 收口教训：本轮 2 处冲突均为 iteration-log 子任务记录并列合并（C/A 并列 + B 卡自建小节并入统一主标题——B 卡 worker 自开「## 第 20 轮（代码质量轮）」重复小节，父收口统一并入），整块含三行标记替换一次到位，无残留标记重演；file-structure 各报告登记恰 1 行无重复。
+
 ### 子任务记录
 
 - **t_de5320e5 维护三合一（review-agent，分支 r20/review）**：
