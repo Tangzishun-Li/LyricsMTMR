@@ -127,6 +127,7 @@
   worktree + dir 工作区绕过重发。修复前被归档的 4 张卡在 dispatcher 重启后自动重派并
   各自完成（产生重复交付物，内容与本批一致，未并入 main；分支/工作区由父任务统一清理）。
 
+<<<<<<< HEAD
 ---
 
 ## 第 8 轮（本链第 2 轮）
@@ -173,3 +174,13 @@
     （镜像窗默认关闭，AppSettings.showMirrorWindow=false；是否常驻/用途/快照实时性
     要求/电量敏感度 4 问）。报告见
     `评估报告_第8轮_ITER15镜像窗事件驱动刷新.md`（本分支根目录）。
+
+### 子任务 C：年度维护核验（第 2 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（t_7950c432，review-agent，分支 r8/review）
+
+- **t_7950c432 核验：年度维护核验（第 2 次）— ITER-14 时间驱动项跟踪 + 文档一致性抽查（review-agent）**：
+  - a) ITER-14 置顶待办完好可执行：:388 行号引用准确，17 个 2027 日期星期 Python 复核与代码注释断言全对，金丝雀防掩蔽直查（:194-195）在位；
+  - b) maintenance-notes 年度流程与代码零漂移（:369-370/:375-399/:404-419、SUPublicEDKey Info.plist:113、金丝雀三函数 :155/:167/:183、publish.yml:90-97）；
+  - c) file-structure.zh.md 计数健康（60 用例 / 8 文件，无硬编码）；清单 3 处漂移已就地修正——2 处新漂移（第 7 轮自身合入的回归报告_第7轮_t_eeddbbf0.md、核验报告_第7轮_维护机制健在性与文档一致性.md 未登记）+ 1 处旧漂移（Sparkle.framework「gitignored」表述过时，e8f2c63 起已入库跟踪 185 项；历轮漏检）；子任务 B 仅清分支/worktree 未动文件，清单不受影响；
+  - d) 0 open PR；#37→a6ed575 / #38→e5f52d7 / #39→76778ad 均在 main 历史，远端 main=本地 main=9cac48d；
+  - 文档一致性抽查：iteration-log 第 7 轮收口 ↔ iteration-plan 第八节收敛结论 ↔ main 提交图（9cac48d = 763bd73 + 5040322(=427972c+2b29039)）三者交叉核对一致，无漂移。
+  - 遗留观察：调研报告重复副本仍未删（待收口评估）；r7 两 worktree 已确认清理；main 工作区有未提交的 UnifiedSettingsWindowController.swift 内存修复改动（+36/-4，非本链交付物，收口前请确认去向）；issue #1 待用户确认。
