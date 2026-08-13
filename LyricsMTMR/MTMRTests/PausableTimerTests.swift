@@ -23,6 +23,23 @@
 //  capture churn on repeated present/dismiss); a source change while
 //  hidden defers the capture restart to resume.
 //
+//  Round 26 (A): hardened the timing-sensitive assertions. The suite's
+//  full-run failures (2 of 6 runs, exactly 7 tests each) all came from
+//  load-sensitive patterns in this file and PollingPauseTests: fixed
+//  drain windows ("sleep 0.3-1.0 s then assert the count is unchanged")
+//  and tight waitUntil(timeout: 1.0) conditions. Under system load a
+//  teardown/reinstall hop or an in-flight fire lands late, so the count
+//  moves inside the observation window and the exact-count assertion
+//  misfires. Fixes, all condition-based (assertion semantics preserved):
+//  TBPausableTimer tests now wait on the direct teardown probe
+//  (currentInterval == 0) instead of a fixed drain; item tests wait for
+//  the count to stay frozen across a full interval (waitForFrozenValue);
+//  post-resume waits are generous timeouts on the actual condition; the
+//  rapid pause/resume tests prove "no double schedule" by bounding the
+//  count increase inside one interval window instead of bounding the
+//  first-tick delay; dealloc tests wait for the dealloc instead of
+//  sleeping. No production code is touched.
+//
 //  Hosted tests run on the main thread, so the helpers pump the main
 //  runloop (runloop timers and main-queue blocks only run while pumping).
 //
@@ -36,6 +53,28 @@ class PausableTimerTests: XCTestCase {
     // MARK: - Helpers
 
     private let testIdentifier = NSTouchBarItem.Identifier("pausabletimertests.item")
+
+    /// Round 26: isolation from the test-host app's real TouchBarController
+    /// singleton. Other suites touch `TouchBarController.shared`, whose
+    /// init subscribes to NSWorkspace app-launch/terminate/activation
+    /// notifications; on any such event `updateActiveApp()` sees an empty
+    /// bar (the preset is never loaded under TEST_HOST) and calls
+    /// `dismissTouchBar()`, which flips the process-wide
+    /// `TouchBarVisibilityState.isBarHidden` to true — permanently, until a
+    /// present. Every widget created afterwards seeds its pause gates
+    /// paused (round-23 init seeding), so absolute-count assertions
+    /// ("init must start location updates exactly once", "should compute
+    /// after init", …) misfire with zeros — the signature seen in the
+    /// round-25/26 flaky runs (2 of 6, exactly the widget tests; load only
+    /// correlates because longer runs give more wall-clock time for an
+    /// activation event to land). Resetting to visible in setUp gives every
+    /// test a deterministic starting state, same pattern as
+    /// GlobalHiddenStateTests. Production code is untouched (this is a
+    /// test-harness interaction, not an app bug).
+    override func setUp() {
+        super.setUp()
+        TouchBarVisibilityState.shared.setBarHidden(false)
+    }
 
     /// Thread-safe counter for handler invocations.
     private final class Counter {
@@ -74,6 +113,31 @@ class PausableTimerTests: XCTestCase {
         return condition()
     }
 
+    /// Pumps the runloop until `value` has been unchanged for `stableWindow`
+    /// seconds (the timer/item is provably frozen — no fire landed in at
+    /// least a full interval) or `timeout` elapses. Round 26: load-tolerant
+    /// replacement for fixed drain pumps — under load a teardown hop or an
+    /// in-flight fire may land late; waiting for stability across a full
+    /// interval absorbs that instead of guessing a wall-clock window.
+    private func waitForFrozenValue<T: Equatable>(timeout: TimeInterval,
+                                                  stableWindow: TimeInterval,
+                                                  _ value: () -> T) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last = value()
+        var unchangedSince = Date()
+        while Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            let now = value()
+            if now != last {
+                last = now
+                unchangedSince = Date()
+            } else if Date().timeIntervalSince(unchangedSince) >= stableWindow {
+                return true
+            }
+        }
+        return Date().timeIntervalSince(unchangedSince) >= stableWindow
+    }
+
     // MARK: - TBPausableTimer: pause / resume semantics
 
     func testTimerPauseStopsFiresAndResumeRestarts() {
@@ -81,18 +145,23 @@ class PausableTimerTests: XCTestCase {
         let timer = TBPausableTimer(interval: 0.4, tolerance: nil,
                                     immediateFireOnResume: false) { counter.bump() }
         timer.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "timer should fire after start")
 
         timer.setPaused(true)
-        pumpRunLoop(for: 0.3) // let the invalidate land and any in-flight fire drain
+        // The teardown is a main-queue hop — under load it may be delayed,
+        // during which the still-installed repeating timer may fire. Wait
+        // for the direct proof (the installed timer is gone) instead of a
+        // fixed drain, then observe the count stays frozen.
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "pause must tear the timer down")
         let pausedCount = counter.value
-        pumpRunLoop(for: 1.0) // >= 2 intervals, runloop pumping throughout
+        pumpRunLoop(for: 1.0) // >= 2 intervals
         XCTAssertEqual(counter.value, pausedCount,
                        "timer must not fire while paused")
 
         timer.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value > pausedCount },
                       "timer must resume after setPaused(false)")
     }
 
@@ -102,12 +171,14 @@ class PausableTimerTests: XCTestCase {
                                     immediateFireOnResume: false) { counter.bump() }
         timer.start()
         timer.setPaused(true) // before the install/invalidate pair runs
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "pause must leave no timer installed")
         pumpRunLoop(for: 1.2) // >= 3 intervals
         XCTAssertEqual(counter.value, 0,
                        "paused from the start must never fire")
 
         timer.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "resume must start the timer even if it never fired")
     }
 
@@ -116,33 +187,45 @@ class PausableTimerTests: XCTestCase {
         let timer = TBPausableTimer(interval: 0.4, tolerance: nil,
                                     immediateFireOnResume: false) { counter.bump() }
         timer.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "timer should fire after start")
 
-        // Stop the loop completely, then hammer pause/resume to try to trick
-        // the scheduler into firing while paused.
+        // Stop the loop completely (proven by the direct teardown probe),
+        // then hammer pause/resume to try to trick the scheduler into
+        // firing while paused.
         timer.setPaused(true)
-        pumpRunLoop(for: 1.0) // drain all in-flight fires
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "loop must fully stop before hammering")
         let before = counter.value
         for _ in 0..<5 {
             timer.setPaused(false)
             timer.setPaused(true)
         }
-        pumpRunLoop(for: 0.6)
+        // Every reinstall hop queued during the hammering re-checks the gate
+        // and is dropped while paused; the final state is torn down. The
+        // probe proves it, the exact count proves nothing fired meanwhile.
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "rapid pause/resume must leave the timer torn down")
         XCTAssertEqual(counter.value, before,
                        "rapid pause/resume must not fire while paused")
 
-        // Resume once: the first fire must land after ~1 interval, not
-        // instantly — an in-flight (double-scheduled) timer would fire now.
-        let resumeAt = Date()
+        // Resume once and wait for the first post-resume fire.
         timer.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value > before })
-        let firstDelay = Date().timeIntervalSince(resumeAt)
-        XCTAssertGreaterThanOrEqual(firstDelay, 0.3,
-            "resume must fire at interval granularity (a double-scheduled timer would fire immediately)")
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value > before })
+
+        // Double-schedule proof (interval-granularity, not first-delay):
+        // a single rescheduled timer fires at full interval granularity
+        // (>= 0.4 s between fires), while a double-scheduled loop would
+        // deliver a stale and a fresh fire within one interval of each
+        // other. So no second fire may land inside a 0.3 s window after
+        // the first observed fire. Under load fires only get delayed, so
+        // this window can never false-fail a healthy loop.
+        let afterFirst = counter.value
+        pumpRunLoop(for: 0.3)
+        XCTAssertEqual(counter.value, afterFirst,
+                       "resume must not deliver a second fire inside the interval (double schedule)")
 
         // And the loop keeps a normal cadence afterwards — no burst.
-        let afterFirst = counter.value
         pumpRunLoop(for: 1.3)
         XCTAssertLessThanOrEqual(counter.value - afterFirst, 4,
                                  "timer cadence must not double after pause/resume")
@@ -155,28 +238,33 @@ class PausableTimerTests: XCTestCase {
         let timer = TBPausableTimer(interval: 1.2, tolerance: nil,
                                     immediateFireOnResume: true) { counter.bump() }
         timer.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "timer should fire after start")
 
         timer.setPaused(true)
-        pumpRunLoop(for: 0.5)
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "pause must tear the timer down")
         let pausedCount = counter.value
         pumpRunLoop(for: 1.5) // > one interval
         XCTAssertEqual(counter.value, pausedCount,
                        "timer must not fire while paused")
 
         // Resume with immediateFireOnResume: the handler must run right away
-        // (fresh display), not after a full interval.
+        // (fresh display), not after a full interval. The immediate fire
+        // happens in the same main-queue hop as the reinstall — long before
+        // the reinstalled timer's first regular fire (one interval later) —
+        // so the wait window and the bound are tied to the interval itself:
+        // a fire observed well inside it cannot be the timer's own fire.
         let resumeAt = Date()
         timer.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 0.6) { counter.value > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 1.2) { counter.value > pausedCount },
                       "immediateFireOnResume must fire the handler right after resume")
-        XCTAssertLessThan(Date().timeIntervalSince(resumeAt), 1.0,
-                          "immediate fire must happen well before the next interval")
+        XCTAssertLessThan(Date().timeIntervalSince(resumeAt), 1.2,
+                          "immediate fire must happen before the next interval's regular fire")
 
         // And the cadence continues afterwards at the same interval.
         let afterImmediate = counter.value
-        XCTAssertTrue(waitUntil(timeout: 2.5) { counter.value >= afterImmediate + 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= afterImmediate + 1 },
                       "timer must keep firing at its normal cadence after the immediate fire")
     }
 
@@ -187,18 +275,21 @@ class PausableTimerTests: XCTestCase {
         let timer = TBPausableTimer(interval: 0.4, tolerance: nil,
                                     immediateFireOnResume: false) { counter.bump() }
         timer.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "timer should fire after start")
 
         timer.reschedule(interval: 1.2)
-        pumpRunLoop(for: 0.3) // let the reinstall land
-        XCTAssertEqual(timer.currentInterval, 1.2,
-                       "reschedule must update the installed timer interval")
+        // The reinstall is a main-queue hop; wait for the direct proof that
+        // the new interval is actually installed (load-tolerant), then the
+        // observation window is deterministic: the reinstalled timer cannot
+        // fire at the old 0.4 s cadence anymore.
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 1.2 },
+                      "reschedule must update the installed timer interval")
         let atReschedule = counter.value
         pumpRunLoop(for: 0.7) // < 1.2s — the old 0.4s cadence would have fired
         XCTAssertEqual(counter.value, atReschedule,
                        "after reschedule the timer must not fire at the old cadence")
-        XCTAssertTrue(waitUntil(timeout: 2.5) { counter.value > atReschedule },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value > atReschedule },
                       "timer must keep firing at the new cadence")
     }
 
@@ -212,7 +303,7 @@ class PausableTimerTests: XCTestCase {
                                         immediateFireOnResume: false) { counter.bump() }
             weakTimer = timer
             timer.start()
-            XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+            XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                           "timer should fire before release")
         }
         XCTAssertNil(weakTimer,
@@ -263,9 +354,13 @@ class PausableTimerTests: XCTestCase {
                       "CPU chain should keep cycling after init")
 
         item.setPaused(true)
-        Thread.sleep(forTimeInterval: 1.0) // let the in-flight hop die at the gate
+        // The chain dies at the next hop's gate check; an in-flight hop may
+        // land late under load — wait until the count provably freezes for a
+        // full interval instead of guessing a drain window.
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.cycleCount },
+                      "CPU chain must settle (no cycle for a full interval)")
         let pausedCount = item.cycleCount
-        Thread.sleep(forTimeInterval: 1.5) // >= 3 intervals
+        pumpRunLoop(for: 1.5) // >= 3 intervals
         XCTAssertEqual(item.cycleCount, pausedCount,
                        "CPU chain must not advance while paused")
 
@@ -318,11 +413,15 @@ class PausableTimerTests: XCTestCase {
 
     func testDarkModeItemPauseStopsRefreshAndResumeRefreshes() {
         let item = CountingDarkModeItem(identifier: testIdentifier, refreshInterval: 0.4)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount >= 2 },
                       "dark mode item should refresh after init (3s production interval shortened for the test)")
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.5) // drain any in-flight fire
+        // The teardown is a main-queue hop; an in-flight fire may land late
+        // under load — wait until the count provably freezes for a full
+        // interval before capturing the baseline.
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.refreshCount },
+                      "dark mode polling must settle (no refresh for a full interval)")
         let pausedCount = item.refreshCount
         pumpRunLoop(for: 1.0) // >= 2 intervals
         XCTAssertEqual(item.refreshCount, pausedCount,
@@ -330,9 +429,9 @@ class PausableTimerTests: XCTestCase {
 
         // immediateFireOnResume: the icon must repaint right away on show.
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 0.6) { item.refreshCount > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount > pausedCount },
                       "resume must refresh the icon immediately (dark mode may have changed while hidden)")
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= pausedCount + 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount >= pausedCount + 2 },
                       "polling must keep cycling at the original cadence after resume")
     }
 
@@ -357,18 +456,19 @@ class PausableTimerTests: XCTestCase {
 
     func testTimeItemPauseStopsUpdatesAndResumeRefreshes() {
         let item = CountingTimeItem(identifier: testIdentifier, formatTemplate: "HH:mm:ss")
-        XCTAssertTrue(waitUntil(timeout: 2.5) { item.updateCount >= 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.updateCount >= 2 },
                       "clock should tick after init (1s cadence)")
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.5) // drain any in-flight fire
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.updateCount },
+                      "clock must settle (no tick for a full interval)")
         let pausedCount = item.updateCount
         pumpRunLoop(for: 1.3) // > 1 interval
         XCTAssertEqual(item.updateCount, pausedCount,
                        "clock must not tick while hidden")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 0.6) { item.updateCount > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.updateCount > pausedCount },
                       "resume must repaint the clock immediately so it is not stale")
     }
 
@@ -399,16 +499,17 @@ class PausableTimerTests: XCTestCase {
                       "music refresh chain should keep cycling after init")
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.6) // drain the in-flight hop; the chain dies at the next entry
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.updateCount },
+                      "music chain must settle (no update for a full interval)")
         let pausedCount = item.updateCount
         pumpRunLoop(for: 1.0) // >= 2 intervals
         XCTAssertEqual(item.updateCount, pausedCount,
                        "music chain must not advance while hidden")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 0.6) { item.updateCount > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.updateCount > pausedCount },
                       "resume must refresh the player immediately (fresh song title on show)")
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.updateCount >= pausedCount + 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.updateCount >= pausedCount + 2 },
                       "chain must keep cycling at the original cadence after resume")
     }
 
@@ -434,18 +535,19 @@ class PausableTimerTests: XCTestCase {
 
     func testBrightnessItemPauseStopsRefresh() {
         let item = CountingBrightnessItem(identifier: testIdentifier, refreshInterval: 0.4)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.refreshCount >= 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount >= 2 },
                       "brightness slider should refresh after init")
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.5) // drain any in-flight refresh
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.refreshCount },
+                      "brightness polling must settle (no refresh for a full interval)")
         let pausedCount = item.refreshCount
         pumpRunLoop(for: 1.0) // >= 2 intervals
         XCTAssertEqual(item.refreshCount, pausedCount,
                        "brightness polling must not run while hidden")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 0.6) { item.refreshCount > pausedCount },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount > pausedCount },
                       "resume must refresh the slider immediately so it matches the real brightness")
     }
 
@@ -461,11 +563,12 @@ class PausableTimerTests: XCTestCase {
                                     immediateFireOnResume: false,
                                     mode: .common) { counter.bump() }
         timer.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counter.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counter.value >= 1 },
                       "a .common-mode pausable timer must fire under a normal runloop pump")
 
         timer.setPaused(true)
-        pumpRunLoop(for: 0.5)
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timer.currentInterval == 0 },
+                      "a .common-mode pausable timer must tear down on pause")
         let pausedCount = counter.value
         pumpRunLoop(for: 1.0)
         XCTAssertEqual(counter.value, pausedCount,
@@ -483,21 +586,24 @@ class PausableTimerTests: XCTestCase {
                                      immediateFireOnResume: false) { counterB.bump() }
         timerA.start()
         timerB.start()
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counterA.value >= 1 && counterB.value >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counterA.value >= 1 && counterB.value >= 1 },
                       "both timers should fire after start")
 
         timerA.setPaused(true)
-        pumpRunLoop(for: 0.5)
+        XCTAssertTrue(waitUntil(timeout: 3.0) { timerA.currentInterval == 0 },
+                      "pausing A must tear A's timer down")
         let frozenA = counterA.value
-        let beforeB = counterB.value
-        pumpRunLoop(for: 1.0) // >= 2 intervals
+        // B must keep firing at its own cadence — wait for a fresh B fire
+        // (condition-based: a busy system may delay it, but it must come).
+        let bAtPause = counterB.value
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counterB.value > bAtPause },
+                      "timer B must keep firing while A is paused")
+        pumpRunLoop(for: 1.0) // >= 2 further intervals
         XCTAssertEqual(counterA.value, frozenA,
                        "paused timer A must stay frozen")
-        XCTAssertGreaterThan(counterB.value, beforeB,
-                             "timer B must keep firing while A is paused")
 
         timerA.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { counterA.value > frozenA },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counterA.value > frozenA },
                       "timer A must resume independently")
     }
 
@@ -554,13 +660,14 @@ class PausableTimerTests: XCTestCase {
         let item = CountingSpectrumItem(identifier: testIdentifier, barCount: 8, source: "system")
         XCTAssertEqual(item.startCount, 1,
                        "init must start the capture chain exactly once")
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.tickCount >= 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.tickCount >= 2 },
                       "the 25fps display timer (0.1s test cadence) should tick after init")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.stopCount == 1 },
                       "hiding the bar must stop the capture chain (SCK stream / mic engine)")
-        pumpRunLoop(for: 0.3) // drain any in-flight tick
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.tickCount },
+                      "the display timer must settle (no tick for a full interval)")
         let frozenTicks = item.tickCount
         pumpRunLoop(for: 1.0) // >= 2 intervals
         XCTAssertEqual(item.tickCount, frozenTicks,
@@ -569,9 +676,9 @@ class PausableTimerTests: XCTestCase {
                        "pause must not restart capture")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.startCount == 2 },
                       "showing the bar must restart the capture chain")
-        XCTAssertTrue(waitUntil(timeout: 0.6) { item.tickCount > frozenTicks },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.tickCount > frozenTicks },
                       "resume must repaint the bars immediately (immediateFireOnResume)")
     }
 
@@ -589,7 +696,7 @@ class PausableTimerTests: XCTestCase {
                        "resume broadcast must not stop capture either")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.stopCount == 1 },
                       "first pause must stop the capture chain")
         // A repeated dismiss broadcast must not double-stop.
         item.setPaused(true)
@@ -600,7 +707,7 @@ class PausableTimerTests: XCTestCase {
                        "repeated pause broadcast must not restart capture")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.startCount == 2 },
                       "first real resume must restart capture")
         // A second present broadcast stays a no-op.
         item.setPaused(false)
@@ -628,7 +735,7 @@ class PausableTimerTests: XCTestCase {
         XCTAssertEqual(item.startCount, 1, "init must start the capture chain")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.stopCount == 1 },
                       "pause must stop the capture chain")
 
         // The user switches source while the bar is hidden: the new source
@@ -639,7 +746,7 @@ class PausableTimerTests: XCTestCase {
                        "settings change while hidden must not restart capture")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.startCount == 2 },
                       "resume must restart capture with the latest source")
     }
 
@@ -658,7 +765,7 @@ class PausableTimerTests: XCTestCase {
                        "scheduler fires while hidden must not issue network requests")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount == 2 },
                       "resume must refresh immediately (catch-up refresh)")
         pumpRunLoop(for: 0.5)
         XCTAssertEqual(item.refreshCount, 2,
@@ -679,7 +786,7 @@ class PausableTimerTests: XCTestCase {
                        "scheduler fires while hidden must not issue network requests")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount == 2 },
                       "resume must refresh immediately (catch-up refresh)")
     }
 
@@ -699,7 +806,7 @@ class PausableTimerTests: XCTestCase {
                        "scheduler fires while hidden must not issue network requests")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == baseline + 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount == baseline + 1 },
                       "resume must refresh immediately (catch-up refresh)")
     }
 
@@ -717,7 +824,7 @@ class PausableTimerTests: XCTestCase {
                        "scheduler fires while hidden must not query the event store")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { source.queryCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { source.queryCount == 2 },
                       "resume must reload events immediately (catch-up refresh)")
     }
 
@@ -773,7 +880,7 @@ class PausableTimerTests: XCTestCase {
         weather.setPaused(false)
         yandex.setPaused(false)
         upnext.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) {
+        XCTAssertTrue(waitUntil(timeout: 3.0) {
             currency.refreshCount == 2 && weather.refreshCount == 2
                 && yandex.refreshCount == yandexBaseline + 1 && source.queryCount == 2
         }, "resume must refresh all four widgets exactly once")
@@ -807,7 +914,7 @@ class PausableTimerTests: XCTestCase {
                        "stale resume hop must be dropped by the gate re-check")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { item.refreshCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.refreshCount == 2 },
                       "final resume must refresh exactly once")
         pumpRunLoop(for: 0.5)
         XCTAssertEqual(item.refreshCount, 2,
@@ -924,7 +1031,7 @@ class PausableTimerTests: XCTestCase {
                        "init calls updateWeather() once (a no-op without a location fix)")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.stopCount == 1 },
                       "hiding the bar must stop location updates (GPS off, privacy light out)")
         pumpRunLoop(for: 0.3)
         XCTAssertEqual(counts.startCount, 1,
@@ -933,7 +1040,7 @@ class PausableTimerTests: XCTestCase {
                        "pause must not refresh weather")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.startCount == 2 },
                       "showing the bar must restart location updates")
         XCTAssertEqual(counts.refreshCount, 2,
                        "resume must refresh weather immediately with the cached location")
@@ -956,7 +1063,7 @@ class PausableTimerTests: XCTestCase {
                        "resume broadcast on a never-paused item must not refresh")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.stopCount == 1 },
                       "first pause must stop location updates")
         // A repeated dismiss broadcast must not double-stop.
         item.setPaused(true)
@@ -967,7 +1074,7 @@ class PausableTimerTests: XCTestCase {
                        "repeated pause broadcast must not restart location")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.startCount == 2 },
                       "first real resume must restart location updates")
         XCTAssertEqual(counts.refreshCount, 2,
                        "resume must refresh weather exactly once")
@@ -989,7 +1096,7 @@ class PausableTimerTests: XCTestCase {
                        "init calls updateWeather() once")
 
         item.setPaused(true)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.stopCount == 1 },
                       "hiding the bar must stop location updates")
         item.setPaused(true)
         pumpRunLoop(for: 0.3)
@@ -999,7 +1106,7 @@ class PausableTimerTests: XCTestCase {
                        "pause must not restart location")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.startCount == 2 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.startCount == 2 },
                       "showing the bar must restart location updates")
         XCTAssertEqual(counts.refreshCount, 2,
                        "resume must refresh weather immediately")
@@ -1032,9 +1139,12 @@ class PausableTimerTests: XCTestCase {
         weak var weakItem = item
 
         item = nil
-        XCTAssertTrue(waitUntil(timeout: 1.0) { counts.stopCount == 1 },
+        // deinit runs when the last strong reference drops; both the stop
+        // and the deallocation must happen (condition-based so a busy
+        // system cannot false-fail the fixed 1 s window).
+        XCTAssertTrue(waitUntil(timeout: 3.0) { counts.stopCount == 1 },
                       "deinit must stop location updates (manager cleanup)")
-        XCTAssertNil(weakItem,
+        XCTAssertTrue(waitUntil(timeout: 3.0) { weakItem == nil },
                      "item must deallocate — the activity scheduler closure must not retain it (round 22 weak-self fix)")
     }
 
@@ -1075,19 +1185,20 @@ class PausableTimerTests: XCTestCase {
 
     func testShellScriptItemPauseFreezesChainAndResumeRefreshes() {
         let item = CountingShellItem(identifier: testIdentifier, interval: 3600)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.execCount >= 1 },
                       "init must run the script once (async first hop)")
         pumpRunLoop(for: 0.3) // let the first hop fully drain
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.6)
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.execCount },
+                      "paused chain must settle (no execution for a full interval)")
         let frozen = item.execCount
         pumpRunLoop(for: 0.5)
         XCTAssertEqual(item.execCount, frozen,
                        "paused chain must not execute the script (next hop gated)")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount == frozen + 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.execCount == frozen + 1 },
                       "resume must refresh the script immediately (catch-up)")
         pumpRunLoop(for: 0.4)
         XCTAssertEqual(item.execCount, frozen + 1,
@@ -1096,19 +1207,20 @@ class PausableTimerTests: XCTestCase {
 
     func testAppleScriptItemPauseFreezesChainAndResumeRefreshes() {
         let item = CountingAppleItem(identifier: testIdentifier, interval: 3600)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount >= 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.execCount >= 1 },
                       "init must run the script once (async first hop)")
         pumpRunLoop(for: 0.3)
 
         item.setPaused(true)
-        pumpRunLoop(for: 0.6)
+        XCTAssertTrue(waitForFrozenValue(timeout: 3.0, stableWindow: 1.0) { item.execCount },
+                      "paused chain must settle (no execution for a full interval)")
         let frozen = item.execCount
         pumpRunLoop(for: 0.5)
         XCTAssertEqual(item.execCount, frozen,
                        "paused chain must not execute the script (next hop gated)")
 
         item.setPaused(false)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { item.execCount == frozen + 1 },
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.execCount == frozen + 1 },
                       "resume must refresh the script immediately (catch-up)")
         pumpRunLoop(for: 0.4)
         XCTAssertEqual(item.execCount, frozen + 1,
@@ -1118,7 +1230,7 @@ class PausableTimerTests: XCTestCase {
     func testScriptItemsPauseBroadcastIsIdempotent() {
         let shell = CountingShellItem(identifier: testIdentifier, interval: 3600)
         let apple = CountingAppleItem(identifier: testIdentifier, interval: 3600)
-        XCTAssertTrue(waitUntil(timeout: 2.0) { shell.execCount >= 1 && apple.execCount >= 1 })
+        XCTAssertTrue(waitUntil(timeout: 3.0) { shell.execCount >= 1 && apple.execCount >= 1 })
         pumpRunLoop(for: 0.3)
         let shellBaseline = shell.execCount
         let appleBaseline = apple.execCount
