@@ -590,7 +590,7 @@ enum ItemType: Decodable {
         case opencodeGoUsage
     }
 
-    // MARK: - 字典驱动解码注册表（第 30 轮 A 卡试点：注册表混合架构 decode 迁移）
+    // MARK: - 字典驱动解码注册表（第 30 轮 A 卡试点 + 第 31 轮 A 卡批量迁移：注册表混合架构 decode 迁移）
 
     /// 试点结论（详见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》）：
     /// 混合架构可行且值得落地——decode 分支可逐步迁入字典驱动注册表，
@@ -599,18 +599,28 @@ enum ItemType: Decodable {
     ///
     /// 机制：`init(from:)` 先查本注册表，命中则走闭包解码（参数解析逻辑与
     /// 下方 switch 分支逐字节等价）；未命中回退 98 分支 switch（穷尽性兜底）。
-    /// 试点三类型覆盖三种参数形态：
-    ///   - `cpu`    参数全部 decodeIfPresent + 默认值（最常见形态，TBPollItem 族）；
-    ///   - `battery` 无参类型（最简形态）；
-    ///   - `swipe`  必填字段 decode（抛错路径——注册表闭包抛错经既有 try?
-    ///     容错降级为 unknown，与 switch 路径行为一致）。
-    /// 试点类型在下方 switch 中的分支**保留**：运行时经注册表先行拦截不可达，
-    /// 但删除会破坏穷尽性并要求 default 兜底——试点期不承担该损失，且保留
+    ///
+    /// 第 30 轮试点 3 类型覆盖三种参数形态（cpu=decodeIfPresent+默认值 /
+    /// battery=无参 / swipe=必填字段抛错路径）。
+    /// 第 31 轮批量迁移再迁 20 类型（适配性分类见《验证报告_第31轮_decode迁移扩大化.md》）：
+    ///   - 形态 A「全 decodeIfPresent + 默认值」12 类：timeButton/brightness/music/
+    ///     pomodoro/network/upnext/lyrics/stock/usage/deepseekBalance/networkSpeed/uuidGen；
+    ///   - 形态 B「无参」6 类：volume/inputsource/nightShift/darkMode/lyricsTranslate/windowSnap；
+    ///   - 形态 C「必填字段 decode（抛错路径）」2 类：appleScriptTitledButton/
+    ///     shellScriptTitledButton（source 必填，缺字段经既有 try? 降级 unknown）。
+    /// 保留 switch 分支的类型及理由（不迁入）：staticButton（unknown 降级目标语义特殊）、
+    /// group/expandable（嵌套递归解码）、themeSwitch（SupportedTypesHolder 预注册重复键，
+    /// 运行时经 lookup 先行拦截、ItemType 分支仅测试可达，迁入零收益）、audioSpectrum
+    /// （含 width→barCount 密度派生计算与注释语义）。其余分支均可按同一模板迁入。
+    ///
+    /// 已迁移类型在下方 switch 中的分支**保留**：运行时经注册表先行拦截不可达，
+    /// 但删除会破坏穷尽性并要求 default 兜底——迁移期不承担该损失，且保留
     /// 分支使对账测试 L2 全量解码断言继续对 switch 语义生效（双路径等价钉）。
     /// 注册表为 static let 不可变初始化：无注册时序/线程安全问题。
     private typealias TypeDecoder = (KeyedDecodingContainer<CodingKeys>) throws -> ItemType
 
     private static let registeredTypeDecoders: [ItemTypeRaw: TypeDecoder] = [
+        // ── 第 30 轮试点（3 类，覆盖三种参数形态）──
         .cpu: { container in
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
             return .cpu(refreshInterval: refreshInterval)
@@ -625,6 +635,116 @@ enum ItemType: Decodable {
             let fingers = try container.decode(Int.self, forKey: .fingers)
             let minOffset = try container.decodeIfPresent(Float.self, forKey: .minOffset) ?? 0.0
             return .swipe(direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
+        },
+        // ── 第 31 轮批量迁移 · 形态 A：全 decodeIfPresent + 默认值（12 类）──
+        .timeButton: { container in
+            let template = try container.decodeIfPresent(String.self, forKey: .formatTemplate) ?? "HH:mm"
+            let timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone) ?? nil
+            let locale = try container.decodeIfPresent(String.self, forKey: .locale) ?? nil
+            return .timeButton(formatTemplate: template, timeZone: timeZone, locale: locale)
+        },
+        .brightness: { container in
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 0.5
+            return .brightness(refreshInterval: interval)
+        },
+        .music: { container in
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            let disableMarquee = try container.decodeIfPresent(Bool.self, forKey: .disableMarquee) ?? false
+            return .music(interval: interval, disableMarquee: disableMarquee)
+        },
+        .pomodoro: { container in
+            let workTime = try container.decodeIfPresent(Double.self, forKey: .workTime) ?? 1500.0
+            let restTime = try container.decodeIfPresent(Double.self, forKey: .restTime) ?? 600.0
+            return .pomodoro(workTime: workTime, restTime: restTime)
+        },
+        .network: { container in
+            let flip = try container.decodeIfPresent(Bool.self, forKey: .flip) ?? false
+            let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "dynamic"
+            return .network(flip: flip, units: units)
+        },
+        .upnext: { container in
+            let from = try container.decodeIfPresent(Double.self, forKey: .from) ?? 0 // Lower bounds of period of time in hours to search for events
+            let to = try container.decodeIfPresent(Double.self, forKey: .to) ?? 12 // Upper bounds of period of time in hours to search for events
+            let maxToShow = try container.decodeIfPresent(Int.self, forKey: .maxToShow) ?? 3 // 1 indexed array.  Get the 1st, 2nd, 3rd event to display multiple notifications
+            let autoResize = try container.decodeIfPresent(Bool.self, forKey: .autoResize) ?? false
+            _ = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) // .upnext 无 interval 字段，保留解析兼容旧配置
+            return .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
+        },
+        .lyrics: { container in
+            let style = try container.decodeIfPresent(String.self, forKey: .style) ?? "karaoke"
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "karaoke"
+            let karaokeStyle = try container.decodeIfPresent(String.self, forKey: .karaokeStyle) ?? "progressive"
+            let showArtwork = try container.decodeIfPresent(Bool.self, forKey: .showArtwork) ?? true
+            let clickAction = try container.decodeIfPresent(String.self, forKey: .clickAction) ?? "original"
+            let marqueeEnabled = try container.decodeIfPresent(Bool.self, forKey: .marqueeEnabled) ?? true
+            let marqueeStyle = try container.decodeIfPresent(String.self, forKey: .marqueeStyle) ?? "marquee"
+            return .lyrics(style: style, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle)
+        },
+        .stock: { container in
+            let stocks = try container.decodeIfPresent([String].self, forKey: .stocks) ?? ["sh600519"]
+            let apiSource = try container.decodeIfPresent(String.self, forKey: .apiSource) ?? "tencent"
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
+            let textWidth = try container.decodeIfPresent(CGFloat.self, forKey: .textWidth) ?? 70
+            let chartWidth = try container.decodeIfPresent(CGFloat.self, forKey: .chartWidth) ?? 130
+            let showChart = try container.decodeIfPresent(Bool.self, forKey: .showChart) ?? true
+            let chartMode = try container.decodeIfPresent(String.self, forKey: .chartMode) ?? "fenzhong"
+            return .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
+        },
+        .usage: { container in
+            let providers = try container.decodeIfPresent([ProviderConfig].self, forKey: .providers) ?? []
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "compact"
+            let widgetWidth = try container.decodeIfPresent(CGFloat.self, forKey: .widgetWidth) ?? 120
+            return .usage(providers: providers, refreshInterval: interval, displayMode: displayMode, widgetWidth: widgetWidth)
+        },
+        .deepseekBalance: { container in
+            let apiKey = try container.decodeIfPresent(String.self, forKey: .apiKey) ?? ""
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "both"
+            let showRemaining = try container.decodeIfPresent(Bool.self, forKey: .showRemaining) ?? true
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            return .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: refreshInterval)
+        },
+        .networkSpeed: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 2.0
+            let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "auto"
+            return .networkSpeed(refreshInterval: refreshInterval, units: units)
+        },
+        .uuidGen: { container in
+            let length = try container.decodeIfPresent(Int.self, forKey: .length) ?? 16
+            let includeSymbols = try container.decodeIfPresent(Bool.self, forKey: .includeSymbols) ?? true
+            return .uuidGen(length: length, includeSymbols: includeSymbols)
+        },
+        // ── 第 31 轮批量迁移 · 形态 B：无参（6 类）──
+        .volume: { _ in
+            return .volume
+        },
+        .inputsource: { _ in
+            return .inputsource
+        },
+        .nightShift: { _ in
+            return .nightShift
+        },
+        .darkMode: { _ in
+            return .darkMode
+        },
+        .lyricsTranslate: { _ in
+            return .lyricsTranslate
+        },
+        .windowSnap: { _ in
+            return .windowSnap
+        },
+        // ── 第 31 轮批量迁移 · 形态 C：必填字段 decode（2 类，抛错路径）──
+        .appleScriptTitledButton: { container in
+            let source = try container.decode(Source.self, forKey: .source)
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            let alternativeImages = try container.decodeIfPresent([String: Source].self, forKey: .alternativeImages) ?? [:]
+            return .appleScriptTitledButton(source: source, refreshInterval: interval, alternativeImages: alternativeImages)
+        },
+        .shellScriptTitledButton: { container in
+            let source = try container.decode(Source.self, forKey: .source)
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            return .shellScriptTitledButton(source: source, refreshInterval: interval)
         },
     ]
 

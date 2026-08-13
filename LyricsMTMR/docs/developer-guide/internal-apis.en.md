@@ -74,12 +74,12 @@ flowchart LR
   F --> G[7. Rerun generate_registry_test.py<br/>refresh canonical list]
 ```
 
-The six registration points (line numbers measured in round 30 — only #2 decode switch moved, +47 lines from the round-30 A registry insertion; the rest unchanged since round 26; paths relative to `LyricsMTMR/MTMR/`):
+The six registration points (line numbers measured in round 31 — #2 decode switch moved +47 lines from the round-30 A registry insertion and another +120 lines from the round-31 A batch migration; the rest unchanged since round 26; paths relative to `LyricsMTMR/MTMR/`):
 
 | # | Registration point | Location | Notes |
 |:--|:--|:--|:--|
 | 1 | `ItemTypeRaw` enum case | `Core/ItemsParsing.swift:492-591` (`case staticButton` :493 … `case opencodeGoUsage` :590, 98 cases) | String source of truth for the type name (rawValue = JSON `type` field) |
-| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:643-1041` (`switch type {` :643, `case .appleScriptTitledButton:` :644 … `case .opencodeGoUsage:` :1035) | `ItemTypeRaw` → `ItemType` decode branches, parses config params; `ItemType` case list at :293-390 (compiler exhaustiveness keeps this switch in sync with the enum) |
+| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:763-1161` (`switch type {` :763, `case .appleScriptTitledButton:` :764 … `case .opencodeGoUsage:` :1155) | `ItemTypeRaw` → `ItemType` decode branches, parses config params; `ItemType` case list at :293-390 (compiler exhaustiveness keeps this switch in sync with the enum); types hitting the registry (`registeredTypeDecoders` :622-748, 3 pilot + 20 batch-migrated = 23 keys) are decoded by closure first, switch branches kept as exhaustiveness fallback |
 | 3 | `identifierBase` switch | `Core/TouchBarController.swift:24-223` (`case .staticButton` :26 … `case .opencodeGoUsage` :220) | Touch Bar item identifier prefix (`com.lyricsmtmr.<type>.`); missing this branch → compile error (exhaustiveness) |
 | 4 | `BarItemFactory` create switch | `Core/BarItemFactory.swift:52-280` (`createItem` :52, `switch item.type` :54, `case let .staticButton` :55 … `case let .opencodeGoUsage` :276) | Factory instantiates the widget class; missing this branch → compile error (exhaustiveness) |
 | 5 | `SupportedTypesHolder` predefined registry | `Core/ItemsParsing.swift:83-254` (`"escape"` :84 … `"displaySleep"` :244, 14 keys, dict closes :254) | Only needed for "predefined types without JSON config" (e.g. system control keys); regular configured types are **not** registered here |
@@ -93,7 +93,7 @@ Real example — `weatherOutfit`:
 // 1. ItemsParsing.swift:542 → enum ItemTypeRaw (within :492-591)
 case weatherOutfit
 
-// 2. ItemsParsing.swift:878-882 → decode switch (within :643-1041)
+// 2. ItemsParsing.swift:998-1002 → decode switch (within :763-1161)
 case .weatherOutfit:
     let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
     let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
@@ -121,9 +121,9 @@ python3 generate_registry_test.py
 - The hardcoded counts in the script (98 cases / 16 keys) are drift guards: adding/removing a type makes the count assert fire first, as intended (a prompt to confirm and update).
 - After refreshing, run the reconciliation suite: `xcodebuild test -project LyricsMTMR.xcodeproj -scheme UnitTests` (`RegistryReconciliationTests`, 6 cases). Missing any of the six registration points: compile-time exhaustiveness blocks it for #2/#3/#4 (exhaustive switches); registry misses (#5/#6) and renames/deletions are caught by the L1/L5 assertions.
 
-#### 2.3.2 Dictionary-driven decode registry (round-30 A pilot, optional path)
+#### 2.3.2 Dictionary-driven decode registry (round-30 A pilot + round-31 A batch migration, optional path)
 
-`ItemType.init(from:)` consults a **dictionary-driven decode registry** before the #2 decode switch (`ItemType.registeredTypeDecoders` in `ItemsParsing.swift`; immutable `static let` dict, key = `ItemTypeRaw`, value = param-parsing closure): hit → closure, miss → switch. Currently 3 pilot types are registered (`cpu` / `battery` / `swipe`, covering the three parameter shapes: defaults / parameterless / required-field throwing). Their switch branches are **kept** (runtime-unreachable but preserve compile-time exhaustiveness; the L2 full-decode assertions keep guarding both paths). The migration contract is pinned by `MTMRTests/ItemTypeDecodeRegistryTests.swift` (7 hand-written cases — do NOT merge into the generated file): exactly-3 registered keys / field-level equivalence / unregistered types still decode via switch / missing required field degrades to `unknown`. Evaluation & selection rationale: 《评估报告_第30轮_注册表混合架构decode迁移评估.md》 at repo root. New types still follow the six-point flow above; migrating param parsing into the registry is **optional** — skipping it changes nothing, and any migration is double-guarded by reconciliation L2 + equivalence tests.
+`ItemType.init(from:)` consults a **dictionary-driven decode registry** before the #2 decode switch (`ItemType.registeredTypeDecoders` in `ItemsParsing.swift`; immutable `static let` dict, key = `ItemTypeRaw`, value = param-parsing closure): hit → closure, miss → switch. Currently **23 types** are registered: the 3 round-30 pilot types (`cpu` / `battery` / `swipe`, covering the three parameter shapes: defaults / parameterless / required-field throwing) plus 20 batch-migrated in round 31 (shape A "all decodeIfPresent + defaults" ×12: `timeButton`/`brightness`/`music`/`pomodoro`/`network`/`upnext`/`lyrics`/`stock`/`usage`/`deepseekBalance`/`networkSpeed`/`uuidGen`; shape B "parameterless" ×6: `volume`/`inputsource`/`nightShift`/`darkMode`/`lyricsTranslate`/`windowSnap`; shape C "required-field decode" ×2: `appleScriptTitledButton`/`shellScriptTitledButton`), closures byte-equivalent to their switch branches. Their switch branches are **kept** (runtime-unreachable but preserve compile-time exhaustiveness; the L2 full-decode assertions keep guarding both paths). Types deliberately kept on the switch branch: `staticButton` (the `unknown` downgrade target, special semantics), `group`/`expandable` (nested recursive decoding), `themeSwitch` (duplicate key pre-registered in `SupportedTypesHolder` — runtime is intercepted by `lookup` first, the `ItemType` branch is only test-reachable, zero benefit), `audioSpectrum` (width→barCount density derivation with comment semantics). The migration contract is pinned by `MTMRTests/ItemTypeDecodeRegistryTests.swift` (41 hand-written cases — do NOT merge into the generated file): exactly-23 registered keys / field-level equivalence (defaults + explicit values) / unregistered types still decode via switch / missing required field degrades to `unknown`. Evaluation & selection rationale: 《评估报告_第30轮_注册表混合架构decode迁移评估.md》 and 《验证报告_第31轮_decode迁移扩大化.md》 at repo root. New types still follow the six-point flow above; migrating param parsing into the registry is **optional** — skipping it changes nothing, and any migration is double-guarded by reconciliation L2 + equivalence tests.
 
 ### 2.4 Visual Cell `TBMetricView`
 

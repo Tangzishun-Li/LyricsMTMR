@@ -74,12 +74,12 @@ flowchart LR
   F --> G[7. 重跑 generate_registry_test.py<br/>刷新规范清单]
 ```
 
-六处注册点逐一列出（行号为第 30 轮实测，`LyricsMTMR/MTMR/` 相对路径；#2 decode switch 行号于第 30 轮 A 卡注册表插入 +47 行后更新，其余行号自第 26 轮实测未变）：
+六处注册点逐一列出（行号为第 31 轮实测，`LyricsMTMR/MTMR/` 相对路径；#2 decode switch 行号于第 30 轮 A 卡注册表插入 +47 行、第 31 轮 A 卡批量迁移再插入 +120 行后更新，其余行号自第 26 轮实测未变）：
 
 | # | 注册点 | 位置 | 说明 |
 |:--|:--|:--|:--|
 | 1 | `ItemTypeRaw` 枚举 case | `Core/ItemsParsing.swift:492-591`（`case staticButton` :493 … `case opencodeGoUsage` :590，98 case） | 类型名的字符串真相源（rawValue = JSON `type` 字段） |
-| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:643-1041`（`switch type {` :643，`case .appleScriptTitledButton:` :644 … `case .opencodeGoUsage:` :1035） | `ItemTypeRaw` → `ItemType` 解码分支，解析配置参数；`ItemType` 枚举 case 表在 :293-390（编译器穷尽性保证此 switch 与枚举同步） |
+| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:763-1161`（`switch type {` :763，`case .appleScriptTitledButton:` :764 … `case .opencodeGoUsage:` :1155） | `ItemTypeRaw` → `ItemType` 解码分支，解析配置参数；`ItemType` 枚举 case 表在 :293-390（编译器穷尽性保证此 switch 与枚举同步）；命中注册表（`registeredTypeDecoders` :622-748，试点 3 + 第 31 轮批量迁移 20 = 23 键）的类型由闭包先行解码，switch 分支保留为穷尽性兜底 |
 | 3 | `identifierBase` switch | `Core/TouchBarController.swift:24-223`（`case .staticButton` :26 … `case .opencodeGoUsage` :220） | 触摸条 item 标识前缀（`com.lyricsmtmr.<type>.`）；新增 case 漏改此处 → 编译失败（穷尽性） |
 | 4 | `BarItemFactory` 创建 switch | `Core/BarItemFactory.swift:52-280`（`createItem` :52，`switch item.type` :54，`case let .staticButton` :55 … `case let .opencodeGoUsage` :276） | 工厂实例化 widget 类；新增 case 漏改此处 → 编译失败（穷尽性） |
 | 5 | `SupportedTypesHolder` 预定义注册表 | `Core/ItemsParsing.swift:83-254`（`"escape"` :84 … `"displaySleep"` :244，14 键，字典闭合 :254） | 仅「无 JSON 配置的预定义类型」需要（如系统控制键）；带配置的普通类型**不**登记此处 |
@@ -93,7 +93,7 @@ flowchart LR
 // 1. ItemsParsing.swift:542 → enum ItemTypeRaw（:492-591 内）
 case weatherOutfit
 
-// 2. ItemsParsing.swift:878-882 → decode switch（:643-1041 内）
+// 2. ItemsParsing.swift:998-1002 → decode switch（:763-1161 内）
 case .weatherOutfit:
     let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
     let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
@@ -121,9 +121,9 @@ python3 generate_registry_test.py
 - 脚本内硬编码计数（98 case / 16 键）是防漂移护栏：类型增删时计数变化会让脚本自身 assert 失败，属预期（提示人工确认后同步更新）。
 - 刷新后跑对账测试：`xcodebuild test -project LyricsMTMR.xcodeproj -scheme UnitTests`（套件 `RegistryReconciliationTests` 6 用例）。漏改六处注册点任意一处：编译期穷尽性直接拦截（#2/#3/#4 为 exhaustive switch）；注册表漏登（#5/#6）与改名/删除由 L1/L5 断言拦截。
 
-#### 2.3.2 decode 字典驱动注册表（第 30 轮 A 卡试点，可选路径）
+#### 2.3.2 decode 字典驱动注册表（第 30 轮 A 卡试点 + 第 31 轮 A 卡批量迁移，可选路径）
 
-`ItemType.init(from:)` 在走 #2 decode switch 之前先查一个**字典驱动解码注册表**（`ItemsParsing.swift` 内 `ItemType.registeredTypeDecoders`，static let 不可变字典，键=`ItemTypeRaw`，值=参数解析闭包）：命中走闭包，未命中回退 switch。当前注册试点 3 类型（`cpu` / `battery` / `swipe`，覆盖「默认值等价 / 无参 / 必填字段抛错」三种参数形态），其 switch 分支**保留**（运行时不可达但维持编译期穷尽性；L2 全量解码断言继续对双路径语义生效）。迁移契约由 `MTMRTests/ItemTypeDecodeRegistryTests.swift`（7 用例，手写测试，勿并入生成文件）钉住：注册表键集恰 3 键 / 逐字段等价 / 未注册类型仍走 switch / 必填缺失降级 unknown。评估与选型理由见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》。新增类型仍按上方六处注册点流程走；是否把参数解析迁入注册表为**可选**——不迁不影响任何功能，迁移面由对账测试 L2 + 等价性单测双重护栏。
+`ItemType.init(from:)` 在走 #2 decode switch 之前先查一个**字典驱动解码注册表**（`ItemsParsing.swift` 内 `ItemType.registeredTypeDecoders`，static let 不可变字典，键=`ItemTypeRaw`，值=参数解析闭包）：命中走闭包，未命中回退 switch。当前已注册 **23 类型**：第 30 轮试点 3（`cpu` / `battery` / `swipe`，覆盖「默认值等价 / 无参 / 必填字段抛错」三种参数形态）+ 第 31 轮批量迁移 20（形态 A「全 decodeIfPresent+默认值」12：`timeButton`/`brightness`/`music`/`pomodoro`/`network`/`upnext`/`lyrics`/`stock`/`usage`/`deepseekBalance`/`networkSpeed`/`uuidGen`；形态 B「无参」6：`volume`/`inputsource`/`nightShift`/`darkMode`/`lyricsTranslate`/`windowSnap`；形态 C「必填字段 decode」2：`appleScriptTitledButton`/`shellScriptTitledButton`），闭包参数解析与 switch 分支逐字节等价。已注册类型在 switch 中的分支**保留**（运行时不可达但维持编译期穷尽性；L2 全量解码断言继续对双路径语义生效）。保留 switch 分支不迁入的类型及理由：`staticButton`（unknown 降级目标语义特殊）、`group`/`expandable`（嵌套递归解码）、`themeSwitch`（SupportedTypesHolder 预注册重复键，运行时经 lookup 先行拦截、ItemType 分支仅测试可达，迁入零收益）、`audioSpectrum`（含 width→barCount 密度派生计算与注释语义）。迁移契约由 `MTMRTests/ItemTypeDecodeRegistryTests.swift`（41 用例，手写测试，勿并入生成文件）钉住：注册表键集恰 23 键 / 逐字段等价（默认值+显式值）/ 未注册类型仍走 switch / 必填缺失降级 unknown。评估与选型理由见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》与《验证报告_第31轮_decode迁移扩大化.md》。新增类型仍按上方六处注册点流程走；是否把参数解析迁入注册表为**可选**——不迁不影响任何功能，迁移面由对账测试 L2 + 等价性单测双重护栏。
 
 ### 2.4 视觉基件 `TBMetricView`
 
