@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~28 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~29 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -61,6 +61,7 @@ mindmap
 ├── tools/
 │   ├── mr-dump/                      # MediaRemote 调试工具（mr_dump + 源码 + 运行脚本）
 │   └── virtual-keyboard/             # 虚拟键盘 HTML 原型
+├── scripts/                          # 开发巡检脚本（anchor-patrol.py：文档锚点漂移巡检，第 29 轮 B 卡）
 ├── LyricsMTMR/                       # Xcode 工程根
 │   ├── LyricsMTMR.xcodeproj
 │   ├── LyricsRendering/              # 歌词渲染模块（KaraokeLabel、LyricsTouchBarItem 等）
@@ -98,7 +99,7 @@ mindmap
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
 │   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 │   └── archive/                      # 死代码归档（duplicate-LyricsRendering、dead-functions…）
-├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit）
+├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit / anchor-patrol 锚点巡检用法）
 ├── backup/                          # 优化前调研文档归档（17 份，存档点 pre-opt-20260812-0114；第8轮收尾新增 优化计划_OPT任务清单.md）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
 ├── 回归报告_第7轮_t_eeddbbf0.md             # 第 7 轮回归报告（main 全量构建+单测：60 用例 0 失败）
@@ -199,6 +200,7 @@ mindmap
 ├── 清理报告_第28轮_round27遗留清理.md          # 第 28 轮子任务 C 仓库卫生报告（round-27 父卡+子卡遗留 worktree/分支清理，r27 全清 4 worktree+4 分支，r28/review）
 ├── 验证报告_第28轮_闲置GC策略可测化.md # 第 28 轮子任务 A 验证报告（遗留④前半句闭环：内存修复闲置 GC 决策逻辑提取为可单测纯策略——提取边界声明（可提取=释放决策矩阵+调优常量；留在接线层=GCD 调度/AppKit 可见性读取/强引用副作用/系统通知/openSettings 开窗即 cancel 不变量）；新增 SettingsWindowGCStrategy 纯策略（SettingsWindowGCStrategy.swift：idleReleaseThreshold=3600 + shouldRelease 决策矩阵——visible→永不释放（守卫优先）/隐藏+内存压力→立即释放（短路）/否则 idleElapsed>=阈值→释放），AppDelegate 接线层仅调用策略（settingsWindowIdleGCSeconds 改向后兼容别名直接引用策略常量；定时器路径经策略——可达状态空间逐字节等价（fire ⇒ 窗口必隐藏 ⇒ 策略恒 true），不可达状态差异如实登记为守卫加固；压力路径 `window?.isVisible != true` 改策略调用逐输入同值）；新增 SettingsWindowGCStrategyTests 9 用例决策点全覆盖（未到阈值不释放/恰阈值释放≥边界/超阈值/压力立即释放/压力短路无视闲置时长/窗口在屏守卫×压力/×闲置/全组合遍历/调优常量回归钉）；237 用例实证（228 基线+新增 9）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r28/gc-strategy）
 ├── 核对报告_第28轮_README更新日志补登v0.29.md # 第 28 轮子任务 B 核对报告（README 更新日志补登 v0.29：第 24~27 轮 8 项条目——隐藏期零空转收官审计（5 项真遗漏修复：NoiseMeter 采集链/脚本自循环×2/marquee 60fps/netstat 常驻进程 + 后台调度零网络实证收口）、注册表混合架构对账测试、版本体系考古、时序敏感测试健壮化、注册表对账机制流程文档化、空 bar 不翻转全局隐藏态、失焦在途定位区分 close-hide/resignKey、工程版本号对齐（Info.plist 0.27/452→0.28/453），全部可追溯 iteration-log 实证出处；12 项现状核对 grep 实测刷新；版本决策=新增 v0.29 条目并建议（不擅改）收口时升 Info.plist 至 0.29；新增发现 1 项：114 口径锚点漂移 +11（:1163/:1174→:1174/:1185，round27-A cf6d36e 合入所致，ITEMS_REFERENCE.md:1709 陈旧，建议更新不擅改）；v0.28 条目降历史段 + 版本史说明补 v0.29 映射，r28/changelog）
+├── 核对报告_第29轮_文档锚点漂移巡检脚本.md # 第 29 轮子任务 B 核对报告（工程规范：文档锚点漂移巡检脚本落地——scripts/anchor-patrol.py 88 项锚点数据驱动清单（114 口径/6 注册点/金丝雀/ITER-14 待办/maintenance-notes 流程段 live 73 项 + iteration-plan 审查证据表 record 15 项），两级语义（live 漂移 ERROR 修文档 / record 位移 WARN 登记不改历史，known 再漂移 ERROR 防第三次漂移），全量实证 PASS 73 / WARN 10 / INFO 5 / ERROR 0 退出码 0，报告登记 84 行无重复；用法文档 docs/anchor-patrol.md，r29/anchor-scan）
 
 └── .gitignore / .gitattributes / README.md
 ```
