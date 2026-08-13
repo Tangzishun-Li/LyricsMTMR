@@ -1107,6 +1107,13 @@
 
 ## 第 26 轮（功能/优化迭代第 14 轮）
 
+### 父任务
+
+- 目标：功能/优化迭代第 14 轮——承接第 25 轮收口（main=d5b1248 已 push origin，整体实证 214 用例 0 失败）后的三条主线：① **时序敏感测试健壮化**（第 26 轮分解前全量回归触发（隔代规则，基线 214）：6 轮中 2 轮失败、每次恰 7 用例，全部集中在 PausableTimerTests/PollingPauseTests 时序敏感用例——父任务初判「负载升高 Timer 触发延迟→固定 sleep/紧时序断言误报」（失败发生于 load 6.3 期间），A 卡独立验证（负载仅 ~2.0）即同签名复现 22 断言失败且多为同步断言，**证伪负载假说**，根因=真实 app 级共享状态污染：TouchBarController.shared 单例 NSWorkspace 三观察者 → updateActiveApp → 空 bar dismissTouchBar → TouchBarVisibilityState 全局隐藏态永久置位 → round-23 init 播种令后续 widget 全暂停）；② **注册表对账机制流程文档化**（第 25 轮 A 卡登记遗留：新增 widget 6 处注册点 + 重跑脚本流程落地为 internal-apis zh/en §2.3 + ITEMS_REFERENCE 指引段）；③ 维护面（年度维护核验第 20 次 + round-25 清理 + 遗留 17 项盘点）。分解前全量回归实证：**214 用例基线**，6 轮中 2 轮失败定位 flaky 7 用例（非代码回归），交由 A 卡修复。
+- 合并提交点：main@d5b1248 → 3 子分支按 C→A→B 顺序并入父分支（C 直入 984aa04 无冲突 + merge A 5088348 经 2 处冲突 + merge B 12945fb 经 2 处冲突——iteration-log 并列 ×2 + file-structure 报告行并列 ×2，均 python 按行号删除三行标记，收口 grep 行首锚定 exit=1 清零）；合并后整体 build+test 实证 **214 用例 0 失败 0 意外**（基线 214，A 卡修改既有测试未增删用例数；金丝雀锚点 testGoldenAnchors2026/2027/Makeup2026 全绿，WidgetLeakTests 8 用例全绿，独立 derivedDataPath /tmp/LyricsMTMR-dd-r26-final-test，旧 /tmp/LyricsMTMR-dd-* 已清理）。main=收口 commit 后 push origin。根目录新增 4 份第 26 轮报告：验证报告_第26轮_时序敏感测试健壮化.md（A）、核对报告_第26轮_注册表对账机制流程文档化.md（B）、核验报告_第26轮_维护机制健在与文档一致性.md + 清理报告_第26轮_round25遗留清理.md（C）；file-structure.zh.md 同步（mindmap 第 7~25 轮→第 7~26 轮 + 4 份报告登记，无重复行）。
+- 遗留问题（第 25 轮 17 项 → 更新）：① issue #1 OPEN 待真机验证；② ITER-15 决策门 4 问待用户确认；③ ITER-14 时间驱动（第 20 次核验健在，2026-11 前无动作）；④ 口径统一 32+114（:1163/:1174 第 25 轮 A 卡合并后首轮复查零新漂移）；⑤ 内存修复真机冒烟 3 项挂账；⑥ currency 真机冒烟挂账；⑦ holidayCountdown 真机冒烟挂账；⑧ 隐藏机制真机冒烟挂账（第 26 轮 A 卡修复后测试侧全局隐藏态污染已闭环：两文件 setUp 复位）；⑨ add_files.py 已闭环；⑩ 第 19 轮观察 + 第 20 轮登记已闭环；⑪ 第 21 轮新登记 2 项挂账；⑫ 第 23 轮 A/B 卡新登记 2 项挂账；⑬ 第 24 轮新登记：真机冒烟延续挂账 4 项 + 版本体系观察已收口关闭；⑭ **第 25 轮 A 卡新登记（新增 widget 6 处注册点 + 重跑脚本流程）→ 本轮 B 卡闭环**（internal-apis zh/en §2.3 六处注册点表格 + ITEMS_REFERENCE 指引段 + generate_registry_test.py ROOT 自定位修复（原硬编码 round25-A worktree 路径）+ REQUIRED_FIELDS 同步说明，重跑 diff=0 实证）；**本轮 A 卡新登记生产代码观察 1 项（不擅改，comment 上报）**：`updateActiveApp()` 空 bar 时对任意 NSWorkspace 事件 dismissTouchBar 永久置位全局隐藏态（测试宿主下即「事件即污染」，生产语义空配置 dismiss 合理，建议后续评估仅在有实际内容时翻转）；**本轮 B 卡登记 0 项新遗留**（纯文档轮）；**本轮 C 卡零新增发现**（连续第二轮）；真机冒烟延续挂账不变（第 8/17/18/19/20/21/22/23/24/25/26 轮同口径）。
+- 下轮方向：① **第 27 轮分解前不触发全量回归**（本轮收口整体 214 实证，隔代规则预计第 28 轮分解前触发，届时基线口径 214）；② 继续功能/优化迭代第 15 轮候选：A 卡登记生产观察项评估（updateActiveApp 空 bar 翻转全局隐藏态——建议仅在有实际内容时翻转）、TECHNICAL_DEBT 暂缓项前置条件跟踪（① VC 化全体系重写、② 注册表混合架构对账测试已落地 + 注册链 6 处文档化，前置条件已兑现）、失焦取消在途定位区分 close-hide/resignKey 评估、真机冒烟多项挂账待用户 Touch Bar 真机确认；③ 待用户确认事项继续跟踪（issue #1 关闭 / ITER-15 使用场景 4 问）；④ ITER-14 时间驱动持续跟踪（2026-11 国办 2027 节假日通知核对）。
+
 ### 子任务记录
 
 - **t_06d0c731 维护三合一（review-agent，分支 r26/review，第 26 轮 / 子任务 C）**：
