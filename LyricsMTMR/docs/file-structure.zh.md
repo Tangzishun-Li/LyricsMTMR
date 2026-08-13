@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~27 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~28 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -195,6 +195,8 @@ mindmap
 ├── 清理报告_第27轮_round26遗留清理.md          # 第 27 轮子任务 C 仓库卫生报告（round-26 父卡+子卡遗留 worktree/分支清理，r26 全清 4 worktree+4 分支，r27/review）
 ├── 验证报告_第27轮_updateActiveApp全局隐藏态治理.md # 第 27 轮子任务 A 验证报告（第 26 轮登记遗留 ② 评估与落地：updateActiveApp 空 bar 翻转全局隐藏态治理——评估结论落地（生产语义：dismiss 的 UI 动作在空配置下全合理，越界的是无条件 setBarHidden(true) 把「空 bar 从未上屏」记录成「用户隐藏了有内容的 bar」，且该状态是 round-23 后 widget init 播种暂停唯一来源；测试宿主污染链条（事件→翻转→后续 widget 全暂停）源头消失，round-26 两文件 setUp 复位保留为双保险）；修复=TouchBarController.swift dismissTouchBar :763-781 仅 touchBarContainsAnyItems() 为真时翻转全局隐藏态+minimize（原两 if 合并语义不变）+ internal 化供单测，有内容路径（黑名单/exitTouchbar）逐字节等价，新不变量 isBarHidden==true ⇐ 有内容的 bar 被 dismiss；新增 GlobalHiddenStateTests round-27 段 4 用例（空bar不翻转×3 + 注入内容必翻转×1）；218 用例实证（214 基线+新增 4）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r27/activeapp-hidden）
 ├── 验证报告_第27轮_失焦在途定位语义.md # 第 27 轮子任务 B 验证报告（失焦取消在途定位区分 close-hide/resignKey 评估与落地：**结论=需要区分并落地**——静默取消无反馈、切走再切回应继续（1~6.5s 用户主动有界操作）、隐私指示灯为系统可见反馈不违反隐藏期零活动治理（该治理针对持续后台源）；SettingsWindowState 双旗标——isVisible（key 等价动画暂停，OPT-14 语义零改动）+ 新增 isOnScreen（真实在屏，resignKey 不改变）——控制器 6 处直写收敛为 SettingsWindowVisibilityTracker 可单测状态机（+NSApplication didHide/didUnhide 观察者，Cmd+H 无 delegate 回调；unhide 恢复隐藏前状态）；WeatherTabView 钩子改 isOnScreen + WeatherLocationSession.shouldStopForViewState 纯策略统一双钩子；边界：Space 切换/被覆盖继续（ordered-in 语义非 occlusion），Cmd+H/关闭/最小化仍取消；224 用例实证（214 基线+10 新增），r27/resignkey-location）
+├── 核验报告_第28轮_维护机制健在与文档一致性.md # 第 28 轮核验报告（第 22 次年度维护核验，r28/review；行号引用连续八轮零新漂移（maintenance-notes/iteration-plan 5 处引用 + ITER-14 :391），**114 口径 :1163/:1174 第 27 轮合并后首轮复查发现 +11 新漂移（→ :1174/:1185，round-27 A 卡 cf6d36e 合入 TouchBarController +11 行所致，内容在位语义零漂移，口径已更新 + ITEMS_REFERENCE :1709 同步）**，第 27 轮 A/B 卡落地源码实证（GlobalHiddenStateTests round-27 段 4 用例 / SettingsWindowVisibilityTracker + shouldStopForViewState + WeatherLocationSessionTests Round 27 节 10 用例），GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=2905892 同步，新增发现 1 项（114 口径行号 +11 漂移））
+├── 清理报告_第28轮_round27遗留清理.md          # 第 28 轮子任务 C 仓库卫生报告（round-27 父卡+子卡遗留 worktree/分支清理，r27 全清 4 worktree+4 分支，r28/review）
 
 └── .gitignore / .gitattributes / README.md
 ```
