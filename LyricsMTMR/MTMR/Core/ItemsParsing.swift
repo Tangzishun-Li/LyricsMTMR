@@ -608,6 +608,11 @@ enum ItemType: Decodable {
     ///   - 形态 B「无参」6 类：volume/inputsource/nightShift/darkMode/lyricsTranslate/windowSnap；
     ///   - 形态 C「必填字段 decode（抛错路径）」2 类：appleScriptTitledButton/
     ///     shellScriptTitledButton（source 必填，缺字段经既有 try? 降级 unknown）。
+    /// 第 32 轮批量迁移第三批再迁 20 常用类型（选型依据见《验证报告_第32轮_decode迁移第三批.md》）：
+    ///   - 形态 A「全 decodeIfPresent + 默认值」14 类：dock/weather/yandexWeather/
+    ///     currency/playbackProgress/quickReply/gitStatus/apiLatency/sshStatus/
+    ///     portChecker/hashCalc/packageTracker/foodDelivery/weatherOutfit；
+    ///   - 形态 B「无参」6 类：dnd/jsonFormatter/timestampConvert/httpCodes/qrCode/readTimer。
     /// 保留 switch 分支的类型及理由（不迁入）：staticButton（unknown 降级目标语义特殊）、
     /// group/expandable（嵌套递归解码）、themeSwitch（SupportedTypesHolder 预注册重复键，
     /// 运行时经 lookup 先行拦截、ItemType 分支仅测试可达，迁入零收益）、audioSpectrum
@@ -745,6 +750,108 @@ enum ItemType: Decodable {
             let source = try container.decode(Source.self, forKey: .source)
             let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
             return .shellScriptTitledButton(source: source, refreshInterval: interval)
+        },
+        // ── 第 32 轮批量迁移 · 形态 A：全 decodeIfPresent + 默认值（14 类）──
+        .dock: { container in
+            let autoResize = try container.decodeIfPresent(Bool.self, forKey: .autoResize) ?? false
+            let filterRegexString = try container.decodeIfPresent(String.self, forKey: .filter)
+            let showRunning = try container.decodeIfPresent(Bool.self, forKey: .showRunning) ?? true
+            let maxApps = try container.decodeIfPresent(Int.self, forKey: .maxApps) ?? 0
+            let iconSize = try container.decodeIfPresent(Double.self, forKey: .iconSize) ?? 32
+            // Per-theme pinned apps; when present they win over the global list.
+            let apps = try container.decodeIfPresent([String].self, forKey: .apps) ?? []
+            return .dock(autoResize: autoResize, filter: filterRegexString, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps)
+        },
+        .weather: { container in
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            let units = try container.decodeIfPresent(String.self, forKey: .units) ?? "metric"
+            let api_key = try container.decodeIfPresent(String.self, forKey: .api_key) ?? ""
+            let icon_type = try container.decodeIfPresent(String.self, forKey: .icon_type) ?? "text"
+            // Domestic source ("china" = 中国天气网, no key) vs OpenWeatherMap.
+            let apiSource = try container.decodeIfPresent(String.self, forKey: .apiSource) ?? "openweather"
+            // City list for china mode; tap the widget to cycle. Empty = use location.
+            let cities = try container.decodeIfPresent([String].self, forKey: .cities) ?? []
+            let showHumidity = try container.decodeIfPresent(Bool.self, forKey: .showHumidity) ?? false
+            let showWind = try container.decodeIfPresent(Bool.self, forKey: .showWind) ?? false
+            return .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
+        },
+        .yandexWeather: { container in
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            return .yandexWeather(interval: interval)
+        },
+        .currency: { container in
+            let interval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
+            let from = try container.decodeIfPresent(String.self, forKey: .from) ?? "RUB"
+            let to = try container.decodeIfPresent(String.self, forKey: .to) ?? "USD"
+            let full = try container.decodeIfPresent(Bool.self, forKey: .full) ?? false
+            return .currency(interval: interval, from: from, to: to, full: full)
+        },
+        .playbackProgress: { container in
+            let width = try container.decodeIfPresent(CGFloat.self, forKey: .width) ?? 0
+            return .playbackProgress(width: width)
+        },
+        .quickReply: { container in
+            let configPath = try container.decodeIfPresent(String.self, forKey: .configPath)
+            return .quickReply(configPath: configPath)
+        },
+        .gitStatus: { container in
+            let repoPath = try container.decodeIfPresent(String.self, forKey: .repoPath) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 10.0
+            return .gitStatus(repoPath: repoPath, refreshInterval: refreshInterval)
+        },
+        .apiLatency: { container in
+            let endpoint = try container.decodeIfPresent(String.self, forKey: .endpoint) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            return .apiLatency(endpoint: endpoint, refreshInterval: refreshInterval)
+        },
+        .sshStatus: { container in
+            let host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+            let hosts = try container.decodeIfPresent(String.self, forKey: .hosts) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 20.0
+            return .sshStatus(host: host, hosts: hosts, refreshInterval: refreshInterval)
+        },
+        .portChecker: { container in
+            let defaultPort = try container.decodeIfPresent(Int.self, forKey: .defaultPort) ?? 8080
+            return .portChecker(defaultPort: defaultPort)
+        },
+        .hashCalc: { container in
+            let algorithm = try container.decodeIfPresent(String.self, forKey: .algorithm) ?? "SHA256"
+            return .hashCalc(algorithm: algorithm)
+        },
+        .packageTracker: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let company = try container.decodeIfPresent(String.self, forKey: .company) ?? ""
+            let trackingNumber = try container.decodeIfPresent(String.self, forKey: .trackingNumber) ?? ""
+            return .packageTracker(refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber)
+        },
+        .foodDelivery: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            return .foodDelivery(refreshInterval: refreshInterval)
+        },
+        .weatherOutfit: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
+            let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
+            let lon = try container.decodeIfPresent(Double.self, forKey: .lon) ?? 121.47
+            return .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon)
+        },
+        // ── 第 32 轮批量迁移 · 形态 B：无参（6 类）──
+        .dnd: { _ in
+            return .dnd
+        },
+        .jsonFormatter: { _ in
+            return .jsonFormatter
+        },
+        .timestampConvert: { _ in
+            return .timestampConvert
+        },
+        .httpCodes: { _ in
+            return .httpCodes
+        },
+        .qrCode: { _ in
+            return .qrCode
+        },
+        .readTimer: { _ in
+            return .readTimer
         },
     ]
 

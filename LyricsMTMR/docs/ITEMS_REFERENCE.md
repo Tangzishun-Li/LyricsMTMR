@@ -1698,7 +1698,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 新增一个 Widget 类型须同步 **6 处注册点** + 重跑一次生成脚本，缺一不可（第 25 轮 A 卡实证；漏改任意一处运行时才暴露——解析失败/创建失败/镜像窗异常，`RegistryReconciliationTests` 将其变为立即失败）：
 
 1. `ItemTypeRaw` 枚举 case — `Core/ItemsParsing.swift:492-591`
-2. decode switch 分支 — `Core/ItemsParsing.swift:763-1161`
+2. decode switch 分支 — `Core/ItemsParsing.swift:870-1268`
 3. `identifierBase` switch 分支 — `Core/TouchBarController.swift:24-223`
 4. `BarItemFactory` 创建 switch 分支 — `Core/BarItemFactory.swift:52-280`
 5. （预定义类型才需要）`SupportedTypesHolder` 注册表 — `Core/ItemsParsing.swift:83-254`（`"escape"` :84 … `"displaySleep"` :244）
@@ -1706,7 +1706,7 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 
 改完后在**仓库根**重跑 `python3 generate_registry_test.py` 刷新 `MTMRTests/RegistryReconciliationTests.swift` 规范清单（98 条 + 16 注册表键），生成文件按原样提交；若新类型 decode 有必填字段，需同步脚本内 `REQUIRED_FIELDS` 表（脚本为唯一真相源，详细步骤与失效方向见 [internal-apis.zh.md §2.3](developer-guide/internal-apis.zh.md)）。
 
-> **decode 字典驱动注册表（第 30 轮 A 卡试点 + 第 31 轮 A 卡批量迁移，可选路径）**：`ItemType.init(from:)` 在 decode switch 前先查 `ItemType.registeredTypeDecoders` 字典（已注册 23 类型 = 试点 3：`cpu`/`battery`/`swipe` + 第 31 轮批量迁移 20：形态 A「默认值」12 = `timeButton`/`brightness`/`music`/`pomodoro`/`network`/`upnext`/`lyrics`/`stock`/`usage`/`deepseekBalance`/`networkSpeed`/`uuidGen`，形态 B「无参」6 = `volume`/`inputsource`/`nightShift`/`darkMode`/`lyricsTranslate`/`windowSnap`，形态 C「必填字段」2 = `appleScriptTitledButton`/`shellScriptTitledButton`，闭包参数解析与 switch 分支逐字节等价）；未命中仍走 switch。已注册类型 switch 分支保留（编译期穷尽性不损失），保留不迁入的类型及理由：`staticButton`（unknown 降级目标语义特殊）/`group`/`expandable`（嵌套递归）/`themeSwitch`（SupportedTypesHolder 预注册重复键，迁入零收益）/`audioSpectrum`（含派生计算逻辑）；迁移契约由手写测试 `MTMRTests/ItemTypeDecodeRegistryTests.swift`（41 用例）钉住；评估与选型理由见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》与《验证报告_第31轮_decode迁移扩大化.md》。新增类型按上方六处流程走即可，是否迁入注册表不影响任何功能。
+> **decode 字典驱动注册表（第 30 轮 A 卡试点 + 第 31 轮 A 卡批量迁移 + 第 32 轮 A 卡第三批推进，可选路径）**：`ItemType.init(from:)` 在 decode switch 前先查 `ItemType.registeredTypeDecoders` 字典（已注册 43 类型 = 试点 3：`cpu`/`battery`/`swipe` + 第 31 轮批量迁移 20：形态 A「默认值」12 = `timeButton`/`brightness`/`music`/`pomodoro`/`network`/`upnext`/`lyrics`/`stock`/`usage`/`deepseekBalance`/`networkSpeed`/`uuidGen`，形态 B「无参」6 = `volume`/`inputsource`/`nightShift`/`darkMode`/`lyricsTranslate`/`windowSnap`，形态 C「必填字段」2 = `appleScriptTitledButton`/`shellScriptTitledButton` + 第 32 轮第三批迁移 20：形态 A 14 = `dock`/`weather`/`yandexWeather`/`currency`/`playbackProgress`/`quickReply`/`gitStatus`/`apiLatency`/`sshStatus`/`portChecker`/`hashCalc`/`packageTracker`/`foodDelivery`/`weatherOutfit`，形态 B 6 = `dnd`/`jsonFormatter`/`timestampConvert`/`httpCodes`/`qrCode`/`readTimer`，闭包参数解析与 switch 分支逐字节等价）；未命中仍走 switch。已注册类型 switch 分支保留（编译期穷尽性不损失），保留不迁入的类型及理由：`staticButton`（unknown 降级目标语义特殊）/`group`/`expandable`（嵌套递归）/`themeSwitch`（SupportedTypesHolder 预注册重复键，迁入零收益）/`audioSpectrum`（含派生计算逻辑）；迁移契约由手写测试 `MTMRTests/ItemTypeDecodeRegistryTests.swift`（75 用例）钉住；评估与选型理由见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》、《验证报告_第31轮_decode迁移扩大化.md》与《验证报告_第32轮_decode迁移第三批.md》。新增类型按上方六处流程走即可，是否迁入注册表不影响任何功能。
 
 **114 口径锚点**（本条与全文「114 种 Item 类型」同源）：代码注释锚点位于 `Core/TouchBarController.swift:1174/:1185`（「≤114-item preset」注释，第 28 轮实测在位；第 27 轮 A 卡 cf6d36e 在 :758-781 插入 11 行致 :1163/:1174 → :1174/:1185）；新增类型后 98+14+2 计数变化时，本文档 :3/:59 口径句、八大类统计表与速查表须同步更新。
 

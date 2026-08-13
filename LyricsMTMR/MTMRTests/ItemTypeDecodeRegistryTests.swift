@@ -2,13 +2,14 @@
 //  ItemTypeDecodeRegistryTests.swift
 //  LyricsMTMRTests
 //
-//  Round 30 (A) + Round 31 (A): 注册表混合架构 decode 迁移试点与批量迁移测试。
+//  Round 30 (A) + Round 31 (A) + Round 32 (A): 注册表混合架构 decode 迁移试点、批量迁移与第三批推进测试。
 //
-//  契约（与《评估报告_第30轮_注册表混合架构decode迁移评估.md》及
-//  《验证报告_第31轮_decode迁移扩大化.md》一致）：
-//  - 迁移契约：ItemType 字典驱动解码注册表恰含 23 类型
+//  契约（与《评估报告_第30轮_注册表混合架构decode迁移评估.md》、
+//  《验证报告_第31轮_decode迁移扩大化.md》及《验证报告_第32轮_decode迁移第三批.md》一致）：
+//  - 迁移契约：ItemType 字典驱动解码注册表恰含 43 类型
 //    （试点 3：cpu/battery/swipe；第 31 轮批量迁移 20：形态 A 12 +
-//    形态 B 6 + 形态 C 2；新增/删除任一注册 → 本测试红，防迁移面悄然回退/无序扩张）；
+//    形态 B 6 + 形态 C 2；第 32 轮第三批迁移 20：形态 A 14 + 形态 B 6；
+//    新增/删除任一注册 → 本测试红，防迁移面悄然回退/无序扩张）；
 //  - 等价性：注册类型经注册表闭包解码的结果与 switch 分支逐字段一致
 //    （默认值、显式值、无参、全字段、必填字段）；
 //  - 回退路径：未注册类型仍走 switch 分支正常解码；
@@ -28,17 +29,21 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         return defs.first
     }
 
-    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 = 23 键，按 rawValue 升序）
+    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 + 第三批 20 = 43 键，按 rawValue 升序）
 
     func testRegisteredTypesInDecodeRegistry() {
         let registered = ItemType.registeredTypeDecoderNames.map { $0.rawValue }
         XCTAssertEqual(registered, [
-            "appleScriptTitledButton", "battery", "brightness", "cpu", "darkMode",
-            "deepseekBalance", "inputsource", "lyrics", "lyricsTranslate", "music",
-            "network", "networkSpeed", "nightShift", "pomodoro",
-            "shellScriptTitledButton", "stock", "swipe", "timeButton", "upnext",
-            "usage", "uuidGen", "volume", "windowSnap"
-        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 = 23 键（迁移契约，勿增勿删）")
+            "apiLatency", "appleScriptTitledButton", "battery", "brightness", "cpu",
+            "currency", "darkMode", "deepseekBalance", "dnd", "dock",
+            "foodDelivery", "gitStatus", "hashCalc", "httpCodes", "inputsource",
+            "jsonFormatter", "lyrics", "lyricsTranslate", "music", "network",
+            "networkSpeed", "nightShift", "packageTracker", "playbackProgress", "pomodoro",
+            "portChecker", "qrCode", "quickReply", "readTimer", "shellScriptTitledButton",
+            "sshStatus", "stock", "swipe", "timeButton", "timestampConvert",
+            "upnext", "usage", "uuidGen", "volume", "weather",
+            "weatherOutfit", "windowSnap", "yandexWeather"
+        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 + 第 32 轮第三批 20 = 43 键（迁移契约，勿增勿删）")
     }
 
     // MARK: - 等价性：注册表路径 vs switch 路径（试点类型）
@@ -567,21 +572,17 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
     // MARK: - 回退路径：未注册类型仍走 switch
 
     func testUnregisteredTypeStillDecodesViaSwitch() {
-        // dock 未注册（保留 switch 分支），验证未命中注册表时回退 switch 正常解码。
-        guard let def = decodeSingle(#"{"type": "dock", "maxApps": 8}"#) else {
-            XCTFail("dock JSON 解码失败")
+        // base64Tool 未注册（保留 switch 分支），验证未命中注册表时回退 switch 正常解码。
+        // （原用例用 dock——dock 于第 32 轮第三批迁入注册表，改用仍未注册的 base64Tool。）
+        guard let def = decodeSingle(#"{"type": "base64Tool", "mode": "decode"}"#) else {
+            XCTFail("base64Tool JSON 解码失败")
             return
         }
-        guard case let .dock(autoResize: autoResize, filter: filter, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps) = def.type else {
-            XCTFail("dock 应经 switch 解码为 .dock，实际：\(def.type)")
+        guard case let .base64Tool(mode: mode) = def.type else {
+            XCTFail("base64Tool 应经 switch 解码为 .base64Tool，实际：\(def.type)")
             return
         }
-        XCTAssertFalse(autoResize)
-        XCTAssertNil(filter)
-        XCTAssertTrue(showRunning)
-        XCTAssertEqual(maxApps, 8)
-        XCTAssertEqual(iconSize, 32)
-        XCTAssertEqual(apps, [])
+        XCTAssertEqual(mode, "decode")
     }
 
     // MARK: - 抛错降级：必填字段缺失 → unknown（既有容错路径不回归）
@@ -596,6 +597,458 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         }
         guard case .staticButton(title: "unknown") = def.type else {
             XCTFail("swipe 缺失必填字段应降级 unknown，实际：\(def.type)")
+            return
+        }
+    }
+
+    // MARK: - 等价性：形态 A「全 decodeIfPresent + 默认值」（第 32 轮第三批迁移 14 类）
+
+    func testDockDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "dock"}"#) else {
+            XCTFail("dock 最小 JSON 解码失败")
+            return
+        }
+        guard case let .dock(autoResize: autoResize, filter: filter, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps) = def.type else {
+            XCTFail("dock 应解码为 .dock，实际：\(def.type)")
+            return
+        }
+        XCTAssertFalse(autoResize, "dock 默认 autoResize 应与 switch 分支一致（?? false）")
+        XCTAssertNil(filter)
+        XCTAssertTrue(showRunning, "dock 默认 showRunning 应与 switch 分支一致（?? true）")
+        XCTAssertEqual(maxApps, 0, "dock 默认 maxApps 应与 switch 分支一致（?? 0）")
+        XCTAssertEqual(iconSize, 32, "dock 默认 iconSize 应与 switch 分支一致（?? 32）")
+        XCTAssertEqual(apps, [], "dock 默认 apps 应为空数组（?? []）")
+    }
+
+    func testDockDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "dock", "autoResize": true, "filter": "com.apple.*", "showRunning": false, "maxApps": 6, "iconSize": 40, "apps": ["Safari", "Xcode"]}"#) else {
+            XCTFail("dock 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .dock(autoResize: autoResize, filter: filter, showRunning: showRunning, maxApps: maxApps, iconSize: iconSize, apps: apps) = def.type else {
+            XCTFail("dock 应解码为 .dock，实际：\(def.type)")
+            return
+        }
+        XCTAssertTrue(autoResize)
+        XCTAssertEqual(filter, "com.apple.*")
+        XCTAssertFalse(showRunning)
+        XCTAssertEqual(maxApps, 6)
+        XCTAssertEqual(iconSize, 40)
+        XCTAssertEqual(apps, ["Safari", "Xcode"])
+    }
+
+    func testWeatherDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "weather"}"#) else {
+            XCTFail("weather 最小 JSON 解码失败")
+            return
+        }
+        guard case let .weather(interval: interval, units: units, api_key: apiKey, icon_type: iconType, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind) = def.type else {
+            XCTFail("weather 应解码为 .weather，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 1800.0, "weather 默认间隔应与 switch 分支一致（?? 1800.0）")
+        XCTAssertEqual(units, "metric")
+        XCTAssertEqual(apiKey, "")
+        XCTAssertEqual(iconType, "text")
+        XCTAssertEqual(apiSource, "openweather")
+        XCTAssertEqual(cities, [])
+        XCTAssertFalse(showHumidity)
+        XCTAssertFalse(showWind)
+    }
+
+    func testWeatherDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "weather", "refreshInterval": 900.0, "units": "imperial", "api_key": "k1", "icon_type": "emoji", "apiSource": "china", "cities": ["北京", "上海"], "showHumidity": true, "showWind": true}"#) else {
+            XCTFail("weather 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .weather(interval: interval, units: units, api_key: apiKey, icon_type: iconType, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind) = def.type else {
+            XCTFail("weather 应解码为 .weather，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 900.0)
+        XCTAssertEqual(units, "imperial")
+        XCTAssertEqual(apiKey, "k1")
+        XCTAssertEqual(iconType, "emoji")
+        XCTAssertEqual(apiSource, "china")
+        XCTAssertEqual(cities, ["北京", "上海"])
+        XCTAssertTrue(showHumidity)
+        XCTAssertTrue(showWind)
+    }
+
+    func testYandexWeatherDecodesViaRegistryDefaultInterval() {
+        guard let def = decodeSingle(#"{"type": "yandexWeather"}"#) else {
+            XCTFail("yandexWeather 最小 JSON 解码失败")
+            return
+        }
+        guard case let .yandexWeather(interval: interval) = def.type else {
+            XCTFail("yandexWeather 应解码为 .yandexWeather，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 1800.0, "yandexWeather 默认间隔应与 switch 分支一致（?? 1800.0）")
+    }
+
+    func testYandexWeatherDecodesExplicitInterval() {
+        guard let def = decodeSingle(#"{"type": "yandexWeather", "refreshInterval": 600.0}"#) else {
+            XCTFail("yandexWeather 显式 refreshInterval JSON 解码失败")
+            return
+        }
+        guard case let .yandexWeather(interval: interval) = def.type else {
+            XCTFail("yandexWeather 应解码为 .yandexWeather，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 600.0, "yandexWeather 显式 refreshInterval 应透传")
+    }
+
+    func testCurrencyDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "currency"}"#) else {
+            XCTFail("currency 最小 JSON 解码失败")
+            return
+        }
+        guard case let .currency(interval: interval, from: from, to: to, full: full) = def.type else {
+            XCTFail("currency 应解码为 .currency，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 600.0, "currency 默认间隔应与 switch 分支一致（?? 600.0）")
+        XCTAssertEqual(from, "RUB", "currency 默认 from 应与 switch 分支一致（?? \"RUB\"）")
+        XCTAssertEqual(to, "USD", "currency 默认 to 应与 switch 分支一致（?? \"USD\"）")
+        XCTAssertFalse(full, "currency 默认 full 应与 switch 分支一致（?? false）")
+    }
+
+    func testCurrencyDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "currency", "refreshInterval": 120.0, "from": "CNY", "to": "JPY", "full": true}"#) else {
+            XCTFail("currency 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .currency(interval: interval, from: from, to: to, full: full) = def.type else {
+            XCTFail("currency 应解码为 .currency，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(interval, 120.0)
+        XCTAssertEqual(from, "CNY")
+        XCTAssertEqual(to, "JPY")
+        XCTAssertTrue(full)
+    }
+
+    func testPlaybackProgressDecodesViaRegistryDefaultWidth() {
+        guard let def = decodeSingle(#"{"type": "playbackProgress"}"#) else {
+            XCTFail("playbackProgress 最小 JSON 解码失败")
+            return
+        }
+        guard case let .playbackProgress(width: width) = def.type else {
+            XCTFail("playbackProgress 应解码为 .playbackProgress，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(width, 0, "playbackProgress 默认 width 应与 switch 分支一致（?? 0）")
+    }
+
+    func testPlaybackProgressDecodesExplicitWidth() {
+        guard let def = decodeSingle(#"{"type": "playbackProgress", "width": 320}"#) else {
+            XCTFail("playbackProgress 显式 width JSON 解码失败")
+            return
+        }
+        guard case let .playbackProgress(width: width) = def.type else {
+            XCTFail("playbackProgress 应解码为 .playbackProgress，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(width, 320, "playbackProgress 显式 width 应透传")
+    }
+
+    func testQuickReplyDecodesViaRegistryDefaultNilConfigPath() {
+        guard let def = decodeSingle(#"{"type": "quickReply"}"#) else {
+            XCTFail("quickReply 最小 JSON 解码失败")
+            return
+        }
+        guard case let .quickReply(configPath: configPath) = def.type else {
+            XCTFail("quickReply 应解码为 .quickReply，实际：\(def.type)")
+            return
+        }
+        XCTAssertNil(configPath, "quickReply 缺省 configPath 应为 nil（decodeIfPresent 无默认值）")
+    }
+
+    func testQuickReplyDecodesExplicitConfigPath() {
+        guard let def = decodeSingle(#"{"type": "quickReply", "configPath": "/tmp/qr.json"}"#) else {
+            XCTFail("quickReply 显式 configPath JSON 解码失败")
+            return
+        }
+        guard case let .quickReply(configPath: configPath) = def.type else {
+            XCTFail("quickReply 应解码为 .quickReply，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(configPath, "/tmp/qr.json")
+    }
+
+    func testGitStatusDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "gitStatus"}"#) else {
+            XCTFail("gitStatus 最小 JSON 解码失败")
+            return
+        }
+        guard case let .gitStatus(repoPath: repoPath, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("gitStatus 应解码为 .gitStatus，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(repoPath, "", "gitStatus 默认 repoPath 应与 switch 分支一致（?? \"\"）")
+        XCTAssertEqual(refreshInterval, 10.0, "gitStatus 默认间隔应与 switch 分支一致（?? 10.0）")
+    }
+
+    func testGitStatusDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "gitStatus", "repoPath": "/Users/me/repo", "refreshInterval": 30.0}"#) else {
+            XCTFail("gitStatus 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .gitStatus(repoPath: repoPath, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("gitStatus 应解码为 .gitStatus，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(repoPath, "/Users/me/repo")
+        XCTAssertEqual(refreshInterval, 30.0)
+    }
+
+    func testApiLatencyDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "apiLatency"}"#) else {
+            XCTFail("apiLatency 最小 JSON 解码失败")
+            return
+        }
+        guard case let .apiLatency(endpoint: endpoint, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("apiLatency 应解码为 .apiLatency，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(endpoint, "", "apiLatency 默认 endpoint 应与 switch 分支一致（?? \"\"）")
+        XCTAssertEqual(refreshInterval, 15.0, "apiLatency 默认间隔应与 switch 分支一致（?? 15.0）")
+    }
+
+    func testApiLatencyDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "apiLatency", "endpoint": "https://example.com/ping", "refreshInterval": 60.0}"#) else {
+            XCTFail("apiLatency 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .apiLatency(endpoint: endpoint, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("apiLatency 应解码为 .apiLatency，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(endpoint, "https://example.com/ping")
+        XCTAssertEqual(refreshInterval, 60.0)
+    }
+
+    func testSshStatusDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "sshStatus"}"#) else {
+            XCTFail("sshStatus 最小 JSON 解码失败")
+            return
+        }
+        guard case let .sshStatus(host: host, hosts: hosts, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("sshStatus 应解码为 .sshStatus，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(host, "", "sshStatus 默认 host 应与 switch 分支一致（?? \"\"）")
+        XCTAssertEqual(hosts, "", "sshStatus 默认 hosts 应与 switch 分支一致（?? \"\"）")
+        XCTAssertEqual(refreshInterval, 20.0, "sshStatus 默认间隔应与 switch 分支一致（?? 20.0）")
+    }
+
+    func testSshStatusDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "sshStatus", "host": "web1", "hosts": "web1,web2", "refreshInterval": 60.0}"#) else {
+            XCTFail("sshStatus 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .sshStatus(host: host, hosts: hosts, refreshInterval: refreshInterval) = def.type else {
+            XCTFail("sshStatus 应解码为 .sshStatus，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(host, "web1")
+        XCTAssertEqual(hosts, "web1,web2")
+        XCTAssertEqual(refreshInterval, 60.0)
+    }
+
+    func testPortCheckerDecodesViaRegistryDefaultPort() {
+        guard let def = decodeSingle(#"{"type": "portChecker"}"#) else {
+            XCTFail("portChecker 最小 JSON 解码失败")
+            return
+        }
+        guard case let .portChecker(defaultPort: defaultPort) = def.type else {
+            XCTFail("portChecker 应解码为 .portChecker，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(defaultPort, 8080, "portChecker 默认 defaultPort 应与 switch 分支一致（?? 8080）")
+    }
+
+    func testPortCheckerDecodesExplicitPort() {
+        guard let def = decodeSingle(#"{"type": "portChecker", "defaultPort": 9090}"#) else {
+            XCTFail("portChecker 显式 defaultPort JSON 解码失败")
+            return
+        }
+        guard case let .portChecker(defaultPort: defaultPort) = def.type else {
+            XCTFail("portChecker 应解码为 .portChecker，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(defaultPort, 9090, "portChecker 显式 defaultPort 应透传")
+    }
+
+    func testHashCalcDecodesViaRegistryDefaultAlgorithm() {
+        guard let def = decodeSingle(#"{"type": "hashCalc"}"#) else {
+            XCTFail("hashCalc 最小 JSON 解码失败")
+            return
+        }
+        guard case let .hashCalc(algorithm: algorithm) = def.type else {
+            XCTFail("hashCalc 应解码为 .hashCalc，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(algorithm, "SHA256", "hashCalc 默认 algorithm 应与 switch 分支一致（?? \"SHA256\"）")
+    }
+
+    func testHashCalcDecodesExplicitAlgorithm() {
+        guard let def = decodeSingle(#"{"type": "hashCalc", "algorithm": "MD5"}"#) else {
+            XCTFail("hashCalc 显式 algorithm JSON 解码失败")
+            return
+        }
+        guard case let .hashCalc(algorithm: algorithm) = def.type else {
+            XCTFail("hashCalc 应解码为 .hashCalc，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(algorithm, "MD5", "hashCalc 显式 algorithm 应透传")
+    }
+
+    func testPackageTrackerDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "packageTracker"}"#) else {
+            XCTFail("packageTracker 最小 JSON 解码失败")
+            return
+        }
+        guard case let .packageTracker(refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber) = def.type else {
+            XCTFail("packageTracker 应解码为 .packageTracker，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 300.0, "packageTracker 默认间隔应与 switch 分支一致（?? 300.0）")
+        XCTAssertEqual(company, "", "packageTracker 默认 company 应与 switch 分支一致（?? \"\"）")
+        XCTAssertEqual(trackingNumber, "", "packageTracker 默认 trackingNumber 应与 switch 分支一致（?? \"\"）")
+    }
+
+    func testPackageTrackerDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "packageTracker", "refreshInterval": 600.0, "company": "顺丰", "trackingNumber": "SF123456"}"#) else {
+            XCTFail("packageTracker 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .packageTracker(refreshInterval: refreshInterval, company: company, trackingNumber: trackingNumber) = def.type else {
+            XCTFail("packageTracker 应解码为 .packageTracker，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 600.0)
+        XCTAssertEqual(company, "顺丰")
+        XCTAssertEqual(trackingNumber, "SF123456")
+    }
+
+    func testFoodDeliveryDecodesViaRegistryDefaultInterval() {
+        guard let def = decodeSingle(#"{"type": "foodDelivery"}"#) else {
+            XCTFail("foodDelivery 最小 JSON 解码失败")
+            return
+        }
+        guard case let .foodDelivery(refreshInterval: refreshInterval) = def.type else {
+            XCTFail("foodDelivery 应解码为 .foodDelivery，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 30.0, "foodDelivery 默认间隔应与 switch 分支一致（?? 30.0）")
+    }
+
+    func testFoodDeliveryDecodesExplicitInterval() {
+        guard let def = decodeSingle(#"{"type": "foodDelivery", "refreshInterval": 120.0}"#) else {
+            XCTFail("foodDelivery 显式 refreshInterval JSON 解码失败")
+            return
+        }
+        guard case let .foodDelivery(refreshInterval: refreshInterval) = def.type else {
+            XCTFail("foodDelivery 应解码为 .foodDelivery，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 120.0, "foodDelivery 显式 refreshInterval 应透传")
+    }
+
+    func testWeatherOutfitDecodesViaRegistryDefaults() {
+        guard let def = decodeSingle(#"{"type": "weatherOutfit"}"#) else {
+            XCTFail("weatherOutfit 最小 JSON 解码失败")
+            return
+        }
+        guard case let .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon) = def.type else {
+            XCTFail("weatherOutfit 应解码为 .weatherOutfit，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 1800.0, "weatherOutfit 默认间隔应与 switch 分支一致（?? 1800.0）")
+        XCTAssertEqual(lat, 31.23, "weatherOutfit 默认 lat 应与 switch 分支一致（?? 31.23）")
+        XCTAssertEqual(lon, 121.47, "weatherOutfit 默认 lon 应与 switch 分支一致（?? 121.47）")
+    }
+
+    func testWeatherOutfitDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "weatherOutfit", "refreshInterval": 3600.0, "lat": 39.9, "lon": 116.4}"#) else {
+            XCTFail("weatherOutfit 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon) = def.type else {
+            XCTFail("weatherOutfit 应解码为 .weatherOutfit，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(refreshInterval, 3600.0)
+        XCTAssertEqual(lat, 39.9)
+        XCTAssertEqual(lon, 116.4)
+    }
+
+    // MARK: - 等价性：形态 B「无参」（第 32 轮第三批迁移 6 类）
+
+    func testDndDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "dnd"}"#) else {
+            XCTFail("dnd 最小 JSON 解码失败")
+            return
+        }
+        guard case .dnd = def.type else {
+            XCTFail("dnd 应解码为 .dnd，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testJsonFormatterDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "jsonFormatter"}"#) else {
+            XCTFail("jsonFormatter 最小 JSON 解码失败")
+            return
+        }
+        guard case .jsonFormatter = def.type else {
+            XCTFail("jsonFormatter 应解码为 .jsonFormatter，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testTimestampConvertDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "timestampConvert"}"#) else {
+            XCTFail("timestampConvert 最小 JSON 解码失败")
+            return
+        }
+        guard case .timestampConvert = def.type else {
+            XCTFail("timestampConvert 应解码为 .timestampConvert，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testHttpCodesDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "httpCodes"}"#) else {
+            XCTFail("httpCodes 最小 JSON 解码失败")
+            return
+        }
+        guard case .httpCodes = def.type else {
+            XCTFail("httpCodes 应解码为 .httpCodes，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testQrCodeDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "qrCode"}"#) else {
+            XCTFail("qrCode 最小 JSON 解码失败")
+            return
+        }
+        guard case .qrCode = def.type else {
+            XCTFail("qrCode 应解码为 .qrCode，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testReadTimerDecodesViaRegistry() {
+        guard let def = decodeSingle(#"{"type": "readTimer"}"#) else {
+            XCTFail("readTimer 最小 JSON 解码失败")
+            return
+        }
+        guard case .readTimer = def.type else {
+            XCTFail("readTimer 应解码为 .readTimer，实际：\(def.type)")
             return
         }
     }
