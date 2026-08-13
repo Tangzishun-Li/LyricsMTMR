@@ -22,6 +22,7 @@
 import XCTest
 import CoreLocation
 import MapKit
+import AppKit
 @testable import LyricsMTMR
 
 class WeatherLocationSessionTests: XCTestCase {
@@ -327,5 +328,126 @@ class WeatherLocationSessionTests: XCTestCase {
         session.stop() // repeated dismiss / hide broadcasts
         XCTAssertEqual(source.counts.stopCount, 1, "repeated stop must stop exactly once")
         XCTAssertEqual(geocoder.cancelCount, 1, "repeated stop must cancel exactly once")
+    }
+
+    // MARK: - Round 27: close-hide vs resignKey distinction
+
+    /// Round 27: the view-lifecycle cancellation policy is a pure decision —
+    /// the session stops only when the settings window is truly off screen
+    /// (close orderOut / minimize / app hide) or the weather tab was left;
+    /// losing key status (resignKey) while the window is still on screen does
+    /// NOT cancel a 1~6.5 s user-initiated one-shot.
+    func testPolicyKeepsSessionWhileWindowOnScreenDespiteResignKey() {
+        // Window on screen and weather tab active — even if the window is NOT
+        // key (user clicked another app / Space switch / app deactivated).
+        XCTAssertFalse(WeatherLocationSession.shouldStopForViewState(onScreen: true, tabIsWeather: true),
+                       "on-screen window must keep the in-flight session (resignKey is not a hide)")
+    }
+
+    func testPolicyCancelsWhenWindowTrulyHides() {
+        XCTAssertTrue(WeatherLocationSession.shouldStopForViewState(onScreen: false, tabIsWeather: true),
+                      "close-hide / minimize / app hide must cancel the in-flight session")
+    }
+
+    func testPolicyCancelsWhenLeavingWeatherTab() {
+        XCTAssertTrue(WeatherLocationSession.shouldStopForViewState(onScreen: true, tabIsWeather: false),
+                      "switching away from the weather tab must cancel the in-flight session")
+    }
+
+    func testPolicyCancelsWhenBothSignalsLost() {
+        XCTAssertTrue(WeatherLocationSession.shouldStopForViewState(onScreen: false, tabIsWeather: false),
+                      "hidden window on another tab must cancel as well")
+    }
+
+    // MARK: - Round 27: visibility tracker wiring
+
+    /// The app-global settings state must not leak between tests.
+    private func resetSettingsWindowState() {
+        SettingsWindowState.shared.isVisible = false
+        SettingsWindowState.shared.isOnScreen = false
+    }
+
+    func testVisibilityTrackerResignKeyKeepsOnScreenState() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+        XCTAssertTrue(SettingsWindowState.shared.isVisible)
+        XCTAssertTrue(SettingsWindowState.shared.isOnScreen)
+
+        // THE round-27 differentiation: resignKey drops the animation signal
+        // but keeps the on-screen flag — in-flight locating continues.
+        tracker.windowResignedKey()
+        XCTAssertFalse(SettingsWindowState.shared.isVisible,
+                       "resignKey must pause animations (OPT-14 isVisible semantics)")
+        XCTAssertTrue(SettingsWindowState.shared.isOnScreen,
+                      "resignKey must NOT clear on-screen state — the window is still visible")
+    }
+
+    func testVisibilityTrackerCloseHideClearsOnScreen() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+        tracker.windowHidden() // close button / Cmd+W → orderOut hide-reuse path
+        XCTAssertFalse(SettingsWindowState.shared.isVisible)
+        XCTAssertFalse(SettingsWindowState.shared.isOnScreen,
+                       "close-hide must clear on-screen state so the session cancels")
+    }
+
+    func testVisibilityTrackerMiniaturizeClearsOnScreenAndDeminiaturizeRestores() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+        tracker.windowMiniaturized()
+        XCTAssertFalse(SettingsWindowState.shared.isVisible)
+        XCTAssertFalse(SettingsWindowState.shared.isOnScreen,
+                       "miniaturize must clear on-screen state (off screen)")
+        tracker.windowDeminiaturized()
+        XCTAssertTrue(SettingsWindowState.shared.isVisible)
+        XCTAssertTrue(SettingsWindowState.shared.isOnScreen,
+                       "deminiaturize must restore both flags")
+    }
+
+    func testVisibilityTrackerAppHideClearsOnScreenAndUnhideRestores() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+
+        // Cmd+H: AppKit orders every window out → didHideNotification.
+        NotificationCenter.default.post(name: NSApplication.didHideNotification, object: nil)
+        XCTAssertFalse(SettingsWindowState.shared.isOnScreen,
+                       "app hide (Cmd+H) must clear on-screen state")
+
+        // Unhide restores the windows that were visible before the hide.
+        NotificationCenter.default.post(name: NSApplication.didUnhideNotification, object: nil)
+        XCTAssertTrue(SettingsWindowState.shared.isOnScreen,
+                      "unhide must restore the pre-hide on-screen state")
+    }
+
+    func testVisibilityTrackerAppHideDoesNotResurrectClosedWindow() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+        tracker.windowHidden() // window closed BEFORE the app hid
+
+        NotificationCenter.default.post(name: NSApplication.didHideNotification, object: nil)
+        NotificationCenter.default.post(name: NSApplication.didUnhideNotification, object: nil)
+        XCTAssertFalse(SettingsWindowState.shared.isOnScreen,
+                       "unhide must not mark a closed window as on screen")
+    }
+
+    func testVisibilityTrackerRealCloseClearsOnScreen() {
+        let tracker = SettingsWindowVisibilityTracker()
+        defer { resetSettingsWindowState() }
+
+        tracker.windowBecameKey()
+        tracker.windowClosed() // windowWillClose path (idle GC / quit)
+        XCTAssertFalse(SettingsWindowState.shared.isVisible)
+        XCTAssertFalse(SettingsWindowState.shared.isOnScreen,
+                       "real close must clear both flags")
     }
 }
