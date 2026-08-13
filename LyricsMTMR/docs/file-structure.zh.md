@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~27 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~28 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -195,6 +195,7 @@ mindmap
 ├── 清理报告_第27轮_round26遗留清理.md          # 第 27 轮子任务 C 仓库卫生报告（round-26 父卡+子卡遗留 worktree/分支清理，r26 全清 4 worktree+4 分支，r27/review）
 ├── 验证报告_第27轮_updateActiveApp全局隐藏态治理.md # 第 27 轮子任务 A 验证报告（第 26 轮登记遗留 ② 评估与落地：updateActiveApp 空 bar 翻转全局隐藏态治理——评估结论落地（生产语义：dismiss 的 UI 动作在空配置下全合理，越界的是无条件 setBarHidden(true) 把「空 bar 从未上屏」记录成「用户隐藏了有内容的 bar」，且该状态是 round-23 后 widget init 播种暂停唯一来源；测试宿主污染链条（事件→翻转→后续 widget 全暂停）源头消失，round-26 两文件 setUp 复位保留为双保险）；修复=TouchBarController.swift dismissTouchBar :763-781 仅 touchBarContainsAnyItems() 为真时翻转全局隐藏态+minimize（原两 if 合并语义不变）+ internal 化供单测，有内容路径（黑名单/exitTouchbar）逐字节等价，新不变量 isBarHidden==true ⇐ 有内容的 bar 被 dismiss；新增 GlobalHiddenStateTests round-27 段 4 用例（空bar不翻转×3 + 注入内容必翻转×1）；218 用例实证（214 基线+新增 4）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r27/activeapp-hidden）
 ├── 验证报告_第27轮_失焦在途定位语义.md # 第 27 轮子任务 B 验证报告（失焦取消在途定位区分 close-hide/resignKey 评估与落地：**结论=需要区分并落地**——静默取消无反馈、切走再切回应继续（1~6.5s 用户主动有界操作）、隐私指示灯为系统可见反馈不违反隐藏期零活动治理（该治理针对持续后台源）；SettingsWindowState 双旗标——isVisible（key 等价动画暂停，OPT-14 语义零改动）+ 新增 isOnScreen（真实在屏，resignKey 不改变）——控制器 6 处直写收敛为 SettingsWindowVisibilityTracker 可单测状态机（+NSApplication didHide/didUnhide 观察者，Cmd+H 无 delegate 回调；unhide 恢复隐藏前状态）；WeatherTabView 钩子改 isOnScreen + WeatherLocationSession.shouldStopForViewState 纯策略统一双钩子；边界：Space 切换/被覆盖继续（ordered-in 语义非 occlusion），Cmd+H/关闭/最小化仍取消；224 用例实证（214 基线+10 新增），r27/resignkey-location）
+├── 核对报告_第28轮_README更新日志补登v0.29.md # 第 28 轮子任务 B 核对报告（README 更新日志补登 v0.29：第 24~27 轮 8 项条目——隐藏期零空转收官审计（5 项真遗漏修复：NoiseMeter 采集链/脚本自循环×2/marquee 60fps/netstat 常驻进程 + 后台调度零网络实证收口）、注册表混合架构对账测试、版本体系考古、时序敏感测试健壮化、注册表对账机制流程文档化、空 bar 不翻转全局隐藏态、失焦在途定位区分 close-hide/resignKey、工程版本号对齐（Info.plist 0.27/452→0.28/453），全部可追溯 iteration-log 实证出处；12 项现状核对 grep 实测刷新；版本决策=新增 v0.29 条目并建议（不擅改）收口时升 Info.plist 至 0.29；新增发现 1 项：114 口径锚点漂移 +11（:1163/:1174→:1174/:1185，round27-A cf6d36e 合入所致，ITEMS_REFERENCE.md:1709 陈旧，建议更新不擅改）；v0.28 条目降历史段 + 版本史说明补 v0.29 映射，r28/changelog）
 
 └── .gitignore / .gitattributes / README.md
 ```
