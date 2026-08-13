@@ -590,9 +590,56 @@ enum ItemType: Decodable {
         case opencodeGoUsage
     }
 
+    // MARK: - 字典驱动解码注册表（第 30 轮 A 卡试点：注册表混合架构 decode 迁移）
+
+    /// 试点结论（详见仓库根《评估报告_第30轮_注册表混合架构decode迁移评估.md》）：
+    /// 混合架构可行且值得落地——decode 分支可逐步迁入字典驱动注册表，
+    /// `ItemType` 枚举保留为编译期枢纽（identifierBase/工厂两处 switch 的
+    /// 穷尽性安全网不变）。
+    ///
+    /// 机制：`init(from:)` 先查本注册表，命中则走闭包解码（参数解析逻辑与
+    /// 下方 switch 分支逐字节等价）；未命中回退 98 分支 switch（穷尽性兜底）。
+    /// 试点三类型覆盖三种参数形态：
+    ///   - `cpu`    参数全部 decodeIfPresent + 默认值（最常见形态，TBPollItem 族）；
+    ///   - `battery` 无参类型（最简形态）；
+    ///   - `swipe`  必填字段 decode（抛错路径——注册表闭包抛错经既有 try?
+    ///     容错降级为 unknown，与 switch 路径行为一致）。
+    /// 试点类型在下方 switch 中的分支**保留**：运行时经注册表先行拦截不可达，
+    /// 但删除会破坏穷尽性并要求 default 兜底——试点期不承担该损失，且保留
+    /// 分支使对账测试 L2 全量解码断言继续对 switch 语义生效（双路径等价钉）。
+    /// 注册表为 static let 不可变初始化：无注册时序/线程安全问题。
+    private typealias TypeDecoder = (KeyedDecodingContainer<CodingKeys>) throws -> ItemType
+
+    private static let registeredTypeDecoders: [ItemTypeRaw: TypeDecoder] = [
+        .cpu: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            return .cpu(refreshInterval: refreshInterval)
+        },
+        .battery: { _ in
+            return .battery
+        },
+        .swipe: { container in
+            let sourceApple = try container.decodeIfPresent(Source.self, forKey: .sourceApple)
+            let sourceBash = try container.decodeIfPresent(Source.self, forKey: .sourceBash)
+            let direction = try container.decode(String.self, forKey: .direction)
+            let fingers = try container.decode(Int.self, forKey: .fingers)
+            let minOffset = try container.decodeIfPresent(Float.self, forKey: .minOffset) ?? 0.0
+            return .swipe(direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
+        },
+    ]
+
+    /// 注册表键集只读快照（迁移契约测试用，与 SupportedTypesHolder.registeredTypeNames 同型）。
+    static var registeredTypeDecoderNames: [ItemTypeRaw] {
+        registeredTypeDecoders.keys.sorted { $0.rawValue < $1.rawValue }
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(ItemTypeRaw.self, forKey: .type)
+        if let registeredDecoder = ItemType.registeredTypeDecoders[type] {
+            self = try registeredDecoder(container)
+            return
+        }
         switch type {
         case .appleScriptTitledButton:
             let source = try container.decode(Source.self, forKey: .source)
