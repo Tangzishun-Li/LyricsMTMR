@@ -165,7 +165,7 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 - **注册表混合架构对账测试**：新增 RegistryReconciliationTests 6 用例 + `generate_registry_test.py` 规范清单生成脚本——枚举 / 解码 / identifierBase / 工厂 / 预定义注册表 / 控制器注册六处注册链建立代码级对账，新增 widget 漏改任意一处即测试失败；生产最小增量（`CaseIterable` + 注册表键只读快照）零行为变更
 - **时序敏感测试健壮化**：修复 flaky 7 用例根因——测试宿主共享单例污染（NSWorkspace 事件 → 空 bar dismiss → 全局隐藏态永久置位 → 后续 widget 全部暂停）；纯测试侧修复（setUp 复位 + 时序断言健壮化），生产零改动，高负载复跑 0 失败
 - **注册表对账机制流程文档化**：internal-apis zh/en §2.3 六处注册点 + ITEMS_REFERENCE 开发者指引段 + `generate_registry_test.py` 仓库根自定位（新增 widget 的开发流程落地为权威文档）
-- **工程版本号对齐与版本史考古**：Info.plist 0.27/452 → 0.28/453（第 24 轮收口，营销版本号与工程版本号首次对齐）；考古确认 v0.9~v0.26 从未以 Release / tag / Info.plist 任何形式存在（编号空洞），README 增版本史说明段如实记录
+- **工程版本号对齐与版本史考古**：Info.plist 0.27/452 → 0.28/453（第 24 轮收口，营销版本号与工程版本号首次对齐）→ 0.29/454（第 28 轮收口，随 v0.29 条目对齐）；考古确认 v0.9~v0.26 从未以 Release / tag / Info.plist 任何形式存在（编号空洞），README 增版本史说明段如实记录
 
 ### v0.28
 
