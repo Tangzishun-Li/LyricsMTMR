@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~28 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~29 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -199,6 +199,7 @@ mindmap
 ├── 清理报告_第28轮_round27遗留清理.md          # 第 28 轮子任务 C 仓库卫生报告（round-27 父卡+子卡遗留 worktree/分支清理，r27 全清 4 worktree+4 分支，r28/review）
 ├── 验证报告_第28轮_闲置GC策略可测化.md # 第 28 轮子任务 A 验证报告（遗留④前半句闭环：内存修复闲置 GC 决策逻辑提取为可单测纯策略——提取边界声明（可提取=释放决策矩阵+调优常量；留在接线层=GCD 调度/AppKit 可见性读取/强引用副作用/系统通知/openSettings 开窗即 cancel 不变量）；新增 SettingsWindowGCStrategy 纯策略（SettingsWindowGCStrategy.swift：idleReleaseThreshold=3600 + shouldRelease 决策矩阵——visible→永不释放（守卫优先）/隐藏+内存压力→立即释放（短路）/否则 idleElapsed>=阈值→释放），AppDelegate 接线层仅调用策略（settingsWindowIdleGCSeconds 改向后兼容别名直接引用策略常量；定时器路径经策略——可达状态空间逐字节等价（fire ⇒ 窗口必隐藏 ⇒ 策略恒 true），不可达状态差异如实登记为守卫加固；压力路径 `window?.isVisible != true` 改策略调用逐输入同值）；新增 SettingsWindowGCStrategyTests 9 用例决策点全覆盖（未到阈值不释放/恰阈值释放≥边界/超阈值/压力立即释放/压力短路无视闲置时长/窗口在屏守卫×压力/×闲置/全组合遍历/调优常量回归钉）；237 用例实证（228 基线+新增 9）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r28/gc-strategy）
 ├── 核对报告_第28轮_README更新日志补登v0.29.md # 第 28 轮子任务 B 核对报告（README 更新日志补登 v0.29：第 24~27 轮 8 项条目——隐藏期零空转收官审计（5 项真遗漏修复：NoiseMeter 采集链/脚本自循环×2/marquee 60fps/netstat 常驻进程 + 后台调度零网络实证收口）、注册表混合架构对账测试、版本体系考古、时序敏感测试健壮化、注册表对账机制流程文档化、空 bar 不翻转全局隐藏态、失焦在途定位区分 close-hide/resignKey、工程版本号对齐（Info.plist 0.27/452→0.28/453），全部可追溯 iteration-log 实证出处；12 项现状核对 grep 实测刷新；版本决策=新增 v0.29 条目并建议（不擅改）收口时升 Info.plist 至 0.29；新增发现 1 项：114 口径锚点漂移 +11（:1163/:1174→:1174/:1185，round27-A cf6d36e 合入所致，ITEMS_REFERENCE.md:1709 陈旧，建议更新不擅改）；v0.28 条目降历史段 + 版本史说明补 v0.29 映射，r28/changelog）
+├── 验证报告_第29轮_恢复补刷即时性审计与补齐.md # 第 29 轮子任务 A 验证报告（隐藏→可见恢复侧统一治理（镜像隐藏期治理系列）：全量接入点审计——grep 实证 25 文件 111 处 TBPauseGate/TBPausableTimer/pauseGate/pollGate 引用，24 接入点逐一分类（恢复立即补刷 20 类上界 0 / 恢复经重建覆盖 1 类 netstat 首块 ≤1s / 事件驱动重建合理等待 2 类 marquee ≤0.25s+弹层作用域 / **恢复等待下 tick 4 处本轮修复**）；核心缺口=TBPollItem/TBMetricPopoverItem 两基类恢复分支（第 23 轮仅隐藏期创建走立即 catch-up，可见期创建后隐藏再恢复一律 scheduleNextCycle，首刷延迟上界=完整轮询周期，35 个 widget 受影响）；修复=恢复一律立即周期（runImmediateCycle 去 _needsInitialRefresh 依赖、flag 冗余删除、第 23 轮播种语义被统一恢复补刷吸收——「恢复=立即补刷一次+按原节奏继续」；线程安全/幂等/暂停语义护栏全保留）+ marquee 两处 immediateFireOnResume:false→true（0 空窗）；新增 GlobalHiddenStateTests Round 29 节 3 用例（可见创建恢复 0.6s 窗立即补刷=缺口回归钉/镜像 B 基类/恰好一次+幂等+快速 pause/resume 丢陈旧 hop）；240 用例实证（237 基线+新增 3）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r29/resume-refresh）
 
 └── .gitignore / .gitattributes / README.md
 ```

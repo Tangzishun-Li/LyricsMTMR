@@ -325,4 +325,109 @@ class GlobalHiddenStateTests: XCTestCase {
         XCTAssertTrue(TouchBarVisibilityState.shared.isBarHidden,
                       "a dismiss with real content must still flip the global hidden state")
     }
+
+    // MARK: - Round 29: resume immediacy (visible-created items)
+
+    /// Round 29 core contract: an item created while the bar was VISIBLE
+    /// (the normal case) must also refresh immediately on resume. Before
+    /// round 29 the resume broadcast only restarted the cadence
+    /// (scheduleNextCycle) unless the item had been created while hidden —
+    /// a long-interval widget (minutes) showed stale data for up to a full
+    /// interval after the bar came back. The immediate-window assertion
+    /// below (0.6 s ≪ 1.5 s interval) fails against the old behavior.
+    func testPollItemVisibleResumeRefreshesImmediately() {
+        let item = HiddenInitPollItem(identifier: testIdentifier, refreshInterval: 1.5,
+                                      icon: "circle", tint: .gray, label: "t")
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.computeCount >= 1 },
+                      "visible-created item must start polling normally")
+
+        item.setPaused(true)
+        // Let any in-flight cycle land, then prove the loop is frozen.
+        pumpRunLoop(for: 1.7) // > one interval
+        let pausedCount = item.computeCount
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount,
+                       "paused loop must not compute")
+
+        // Resume: the refresh must land well inside the interval (0.6 s of
+        // a 1.5 s cadence) — the old scheduleNextCycle path could not fire
+        // before a full interval.
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.computeCount > pausedCount },
+                      "resume must refresh immediately, not wait for the next tick")
+
+        // And the normal cadence continues afterwards.
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.computeCount >= pausedCount + 2 },
+                      "normal cadence must continue after the immediate resume refresh")
+    }
+
+    /// Same contract for the metric-popover base class.
+    func testMetricPopoverItemVisibleResumeRefreshesImmediately() {
+        let item = HiddenInitMetricPopoverItem(identifier: testIdentifier, refreshInterval: 1.5,
+                                               icon: "circle", tint: .gray, label: "t")
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.computeCount >= 1 },
+                      "visible-created metric popover item must start polling normally")
+
+        item.setPaused(true)
+        pumpRunLoop(for: 1.7)
+        let pausedCount = item.computeCount
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount,
+                       "paused loop must not compute")
+
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.computeCount > pausedCount },
+                      "resume must refresh immediately, not wait for the next tick")
+
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.computeCount >= pausedCount + 2 },
+                      "normal cadence must continue after the immediate resume refresh")
+    }
+
+    /// Round 29 guards on the new resume path: the immediate refresh fires
+    /// exactly once per resume, repeated resume broadcasts stay no-ops, and
+    /// a rapid resume → re-pause drops the stale refresh (same semantics as
+    /// the round-23 catch-up, now on the visible-created path).
+    func testPollItemVisibleResumeImmediateRefreshIdempotentAndRapidPauseDrops() {
+        let item = HiddenInitPollItem(identifier: testIdentifier, refreshInterval: 1.5,
+                                      icon: "circle", tint: .gray, label: "t")
+        XCTAssertTrue(waitUntil(timeout: 3.0) { item.computeCount >= 1 })
+
+        item.setPaused(true)
+        pumpRunLoop(for: 1.7)
+        let pausedCount = item.computeCount
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount)
+
+        // First resume: exactly one immediate refresh.
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.computeCount == pausedCount + 1 },
+                      "resume must fire exactly one immediate refresh")
+
+        // Repeated resume broadcasts stay no-ops (idempotent); 0.5 s < the
+        // 1.5 s cadence, so no ordinary cycle can fire in this window.
+        item.setPaused(false)
+        item.setPaused(false)
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount + 1,
+                       "repeated resume broadcasts must not double the immediate refresh")
+
+        // Rapid resume → re-pause before the refresh hop lands: the stale
+        // refresh is dropped — never a compute while paused.
+        item.setPaused(false)
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount + 1,
+                       "rapid resume/re-pause must drop the stale refresh")
+
+        // Final resume: exactly one more immediate refresh.
+        item.setPaused(false)
+        XCTAssertTrue(waitUntil(timeout: 0.6) { item.computeCount == pausedCount + 2 },
+                      "final resume must fire exactly one immediate refresh")
+
+        // Dismiss stops the loop again.
+        item.setPaused(true)
+        pumpRunLoop(for: 0.5)
+        XCTAssertEqual(item.computeCount, pausedCount + 2,
+                       "dismiss must stop the polling loop again")
+    }
 }
