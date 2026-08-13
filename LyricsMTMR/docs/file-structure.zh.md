@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~26 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~27 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -191,6 +191,7 @@ mindmap
 ├── 清理报告_第26轮_round25遗留清理.md          # 第 26 轮子任务 C 仓库卫生报告（round-25 父卡+子卡遗留 worktree/分支清理，r25 全清 4 worktree+4 分支，r26/review）
 ├── 验证报告_第26轮_时序敏感测试健壮化.md # 第 26 轮子任务 A 验证报告（全量回归 flaky 7 用例根因修复：**根因非负载时序而是真实 app 级共享状态污染**——TouchBarController.shared 单例（测试宿主内）注册 NSWorkspace 三观察者，任意 app 生命周期事件 → updateActiveApp() → 空 bar（TEST_HOST 不加载 preset）→ dismissTouchBar() → TouchBarVisibilityState 全局隐藏态永久置位 → round-23 init 播种令后续创建 widget 全部暂停（Weather/Yandex 定位不启/UpNext init fetch 拦截/TBPollItem 首 cycle 零调度，同步断言 0≠1 签名）；修复=两测试文件 setUp 复位全局态（与 GlobalHiddenStateTests 同模式，生产零改动）+ 时序断言健壮化（固定 sleep→waitForFrozenValue 冻结证明/直接探针 currentInterval==0/firstDelay 紧时序→间隔粒度双调度证明（0.3s 窗无第二跳+增量上界）/dealloc→waitUntil weak nil）；5 轮全量实证 214 用例 0 失败（干净 derivedDataPath 验收 + 负载 23.5/13.8 两轮复跑，修复前基线同环境 FAILED 22 断言作对照），r26/test-robustness）
 ├── 核对报告_第26轮_注册表对账机制流程文档化.md # 第 26 轮子任务 B 核对报告（注册表对账机制流程文档化：internal-apis.zh/en §2.3 三步→六处注册点+重跑脚本（ItemTypeRaw :492-591 / decode :596-994 / identifierBase :24-223 / BarItemFactory :52-280 / SupportedTypesHolder :83-254 / 控制器 :331-368，第 26 轮实测）+ ITEMS_REFERENCE 指引段（114 口径锚点 :1163/:1174 在位）+ generate_registry_test.py ROOT 自定位修复（原硬编码 round25-A worktree）+ REQUIRED_FIELDS 同步说明，重跑 diff=0 零 Swift 改动实证 + TECHNICAL_DEBT 两条前置条件状态更新，r26/registry-docs）
+├── 验证报告_第27轮_updateActiveApp全局隐藏态治理.md # 第 27 轮子任务 A 验证报告（第 26 轮登记遗留 ② 评估与落地：updateActiveApp 空 bar 翻转全局隐藏态治理——评估结论落地（生产语义：dismiss 的 UI 动作在空配置下全合理，越界的是无条件 setBarHidden(true) 把「空 bar 从未上屏」记录成「用户隐藏了有内容的 bar」，且该状态是 round-23 后 widget init 播种暂停唯一来源；测试宿主污染链条（事件→翻转→后续 widget 全暂停）源头消失，round-26 两文件 setUp 复位保留为双保险）；修复=TouchBarController.swift dismissTouchBar :763-781 仅 touchBarContainsAnyItems() 为真时翻转全局隐藏态+minimize（原两 if 合并语义不变）+ internal 化供单测，有内容路径（黑名单/exitTouchbar）逐字节等价，新不变量 isBarHidden==true ⇐ 有内容的 bar 被 dismiss；新增 GlobalHiddenStateTests round-27 段 4 用例（空bar不翻转×3 + 注入内容必翻转×1）；218 用例实证（214 基线+新增 4）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r27/activeapp-hidden）
 
 └── .gitignore / .gitattributes / README.md
 ```

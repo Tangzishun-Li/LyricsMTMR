@@ -265,4 +265,64 @@ class GlobalHiddenStateTests: XCTestCase {
         XCTAssertEqual(item.computeCount, afterRapid + 1,
                        "dismiss must stop the polling loop again")
     }
+
+    // MARK: - Round 27: empty-bar dismiss must not flip the global hidden state
+
+    /// The round-26 regression: in the test host the app never loads a
+    /// preset (AppDelegate skips reloadStandardConfig under XCTest), so the
+    /// shared controller's bar is empty; any NSWorkspace lifecycle event
+    /// landing in updateActiveApp used to call dismissTouchBar(), which
+    /// permanently set the global hidden state — every widget created
+    /// afterwards seeded paused (round-23 init seeding), killing the
+    /// round-26 flaky-7 suites. Round 27: an empty bar hides nothing, so
+    /// the dismiss must not record a global hide.
+    func testUpdateActiveAppWithEmptyBarDoesNotFlipGlobalHiddenState() {
+        TouchBarVisibilityState.shared.setBarHidden(false)
+        // Drive the real event path synchronously (the NSWorkspace
+        // observers would land in the same method on the main thread).
+        TouchBarController.shared.updateActiveApp()
+        XCTAssertFalse(TouchBarVisibilityState.shared.isBarHidden,
+                       "an empty-bar updateActiveApp must not flip the global hidden state")
+    }
+
+    /// The three NSWorkspace observers (didLaunch / didTerminate /
+    /// didActivateApplication) can fire in bursts; repeated empty-bar
+    /// dismisses must stay a no-op on the visibility state.
+    func testRepeatedEmptyBarEventsDoNotFlipGlobalHiddenState() {
+        TouchBarVisibilityState.shared.setBarHidden(false)
+        for _ in 0..<5 {
+            TouchBarController.shared.updateActiveApp()
+        }
+        XCTAssertFalse(TouchBarVisibilityState.shared.isBarHidden,
+                       "repeated empty-bar events must never flip the global hidden state")
+    }
+
+    /// Direct contract: dismissTouchBar on an empty bar (the
+    /// presentTouchBarWithCurrentItems guard path) must not flip the state.
+    func testDismissTouchBarWithEmptyBarDoesNotFlipGlobalHiddenState() {
+        TouchBarVisibilityState.shared.setBarHidden(false)
+        TouchBarController.shared.dismissTouchBar()
+        XCTAssertFalse(TouchBarVisibilityState.shared.isBarHidden,
+                       "an empty-bar dismissTouchBar must not flip the global hidden state")
+    }
+
+    /// Positive direction: a dismiss with actual content must still record
+    /// the global hide (blacklisted-app / exitTouchbar behavior preserved).
+    func testDismissTouchBarWithItemsFlipsGlobalHiddenState() {
+        TouchBarVisibilityState.shared.setBarHidden(false)
+        let controller = TouchBarController.shared
+        let identifier = NSTouchBarItem.Identifier("r27.dismiss.item")
+        controller.touchBar = NSTouchBar()
+        controller.items = [identifier: NSTouchBarItem(identifier: identifier)]
+        defer {
+            // The singleton outlives this test class — never leak injected
+            // items or the fabricated bar into other suites.
+            controller.items = [:]
+            controller.swipeItems = []
+            controller.touchBar = nil
+        }
+        controller.dismissTouchBar()
+        XCTAssertTrue(TouchBarVisibilityState.shared.isBarHidden,
+                      "a dismiss with real content must still flip the global hidden state")
+    }
 }
