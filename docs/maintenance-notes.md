@@ -13,10 +13,10 @@
   - 例：2026 年安排 = 国办发明电〔2025〕7 号（2025-11-04 发布）：
     `https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm`
 - **上交流程**：以官方通知原文逐日核对 → 在代码注释中记录文号 + URL
-  （参见 `StockBarItem.swift:372-373` 的 2026 写法）→ 提交 PR 合入 main。
+  （参见 `StockBarItem.swift:374-375` 的 2026 写法）→ 提交 PR 合入 main。
 - **代码位置**：`LyricsMTMR/MTMR/Widgets/Life/StockBarItem.swift`
-  - `aShareHolidays`（休市日，含假期窗口内周末，便于整窗核对）：`:378-402`
-  - `aShareMakeupDates`（调休补班日，周末上班视为交易日）：`:407-422`
+  - `aShareHolidays`（休市日，含假期窗口内周末，便于整窗核对）：`:380-404`
+  - `aShareMakeupDates`（调休补班日，周末上班视为交易日）：`:409-424`
   - 两表是 `isMarketOpen` 与 MTMRTests 的**唯一数据源**（ITER-7 / ITER-8），**必须一起维护**。
 
 ### 每年更新步骤（国办 11 月发布通知后）
