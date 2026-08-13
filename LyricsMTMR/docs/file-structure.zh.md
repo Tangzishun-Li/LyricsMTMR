@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~31 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~32 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -213,6 +213,7 @@ mindmap
 ├── 核对报告_第31轮_README更新日志补登v0.31.md # 第 31 轮子任务 B 核对报告（README 更新日志补登 v0.31：第 30 轮 3 项变更条目——注册表混合架构 decode 迁移试点落地（registeredTypeDecoders 字典驱动解码注册表，cpu/battery/swipe 三类型迁移 + ItemTypeDecodeRegistryTests 7 用例迁移契约，247 用例实证 0 失败）/锚点巡检脚本收口复跑接入固化（C 卡核验前 + 收口后双点接入，8 ERROR 处置闭环后 PASS 72/ERROR 0）/工程版本号对齐（Info.plist 0.29/454 → 0.30/455）+ 版本决策建议 0.31/456 + 12 项现状核对 grep 实证（114 口径/15 主题/22 Tab/holidayCountdown/应用专属主题/MediaRemote 段/剪贴板行号零新漂移/版本史补记 v0.31 映射/不入功能列表原则/第 30 轮代码地标在位/更新日志 v0.30 条目一致/版本号+git tag 体系）+ 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，零新发现），r31/changelog）
 ├── 核验报告_第31轮_维护机制健在与文档一致性.md # 第 31 轮核验报告（第 25 次年度维护核验，r31/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 30 轮收口基线逐项一致零新漂移；ITER-14 待办区引用 :393 第二轮保持；GitHub 4/4；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 30 轮 A/B/C 卡落地源码实证）
 ├── 清理报告_第31轮_round30遗留清理.md          # 第 31 轮子任务 C 仓库卫生报告（round-30 父卡+子卡遗留 worktree/分支清理，r30 全清 4 worktree+4 分支，r31/review；主仓库 r30/permission-lazy 非清理范围保留登记）
+├── 验证报告_第32轮_decode迁移第三批.md # 第 32 轮子任务 A 验证报告（注册表混合架构 decode 迁移第三批推进（TECHDEBT ② 续篇三）：可迁未迁 70 分支按常用度再迁 20——形态 A「全 decodeIfPresent+默认值」14 dock/weather/yandexWeather/currency/playbackProgress/quickReply/gitStatus/apiLatency/sshStatus/portChecker/hashCalc/packageTracker/foodDelivery/weatherOutfit（dock=示例预设最高频 10 处、weather/quickReply 亦在示例预设，dev 工具族 gitStatus/apiLatency/sshStatus/portChecker、消费跟踪族 packageTracker/foodDelivery）/ 形态 B「无参」6 dnd/jsonFormatter/timestampConvert/httpCodes/qrCode/readTimer；注册表键集 23→43、契约测试 41→75 用例（键集断言扩到实际 43 键 + 逐类型等价性：默认值+显式值透传/无参 case 断言）、回退路径用例原 dock 迁入后改写为 base64Tool（仍未注册，switch 路径继续被钉）；RegistryReconciliationTests 6 用例与 generate_registry_test.py 生成文件零改动（byte-identical 实证）；文档六处同步（internal-apis zh/en §2.3 行号 :870-1268 + §2.3.2、ITEMS_REFERENCE :1701/:1709、TECHNICAL_DEBT 第 2 条、anchor-patrol REG-2 范围锚点）+ 锚点巡检复跑 ERROR 0；323 用例实证（289 基线+新增 34）0 失败，r32/decode-batch）
 
 └── .gitignore / .gitattributes / README.md
 ```
