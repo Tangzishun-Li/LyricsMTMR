@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~26 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~27 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -191,6 +191,8 @@ mindmap
 ├── 清理报告_第26轮_round25遗留清理.md          # 第 26 轮子任务 C 仓库卫生报告（round-25 父卡+子卡遗留 worktree/分支清理，r25 全清 4 worktree+4 分支，r26/review）
 ├── 验证报告_第26轮_时序敏感测试健壮化.md # 第 26 轮子任务 A 验证报告（全量回归 flaky 7 用例根因修复：**根因非负载时序而是真实 app 级共享状态污染**——TouchBarController.shared 单例（测试宿主内）注册 NSWorkspace 三观察者，任意 app 生命周期事件 → updateActiveApp() → 空 bar（TEST_HOST 不加载 preset）→ dismissTouchBar() → TouchBarVisibilityState 全局隐藏态永久置位 → round-23 init 播种令后续创建 widget 全部暂停（Weather/Yandex 定位不启/UpNext init fetch 拦截/TBPollItem 首 cycle 零调度，同步断言 0≠1 签名）；修复=两测试文件 setUp 复位全局态（与 GlobalHiddenStateTests 同模式，生产零改动）+ 时序断言健壮化（固定 sleep→waitForFrozenValue 冻结证明/直接探针 currentInterval==0/firstDelay 紧时序→间隔粒度双调度证明（0.3s 窗无第二跳+增量上界）/dealloc→waitUntil weak nil）；5 轮全量实证 214 用例 0 失败（干净 derivedDataPath 验收 + 负载 23.5/13.8 两轮复跑，修复前基线同环境 FAILED 22 断言作对照），r26/test-robustness）
 ├── 核对报告_第26轮_注册表对账机制流程文档化.md # 第 26 轮子任务 B 核对报告（注册表对账机制流程文档化：internal-apis.zh/en §2.3 三步→六处注册点+重跑脚本（ItemTypeRaw :492-591 / decode :596-994 / identifierBase :24-223 / BarItemFactory :52-280 / SupportedTypesHolder :83-254 / 控制器 :331-368，第 26 轮实测）+ ITEMS_REFERENCE 指引段（114 口径锚点 :1163/:1174 在位）+ generate_registry_test.py ROOT 自定位修复（原硬编码 round25-A worktree）+ REQUIRED_FIELDS 同步说明，重跑 diff=0 零 Swift 改动实证 + TECHNICAL_DEBT 两条前置条件状态更新，r26/registry-docs）
+├── 核验报告_第27轮_维护机制健在与文档一致性.md # 第 27 轮核验报告（第 21 次年度维护核验，r27/review；行号引用连续七轮零新漂移，114 口径 :1163/:1174 第 26 轮合并后第二轮复查零新漂移（三卡改动清单均不含 TouchBarController.swift），第 26 轮 A/B 卡落地源码实证（PausableTimerTests/PollingPauseTests setUp 复位 + internal-apis zh/en §2.3 六处注册点 + ITEMS_REFERENCE 指引段 :1694 + generate_registry_test.py ROOT 自定位 :21 重跑 BYTE-IDENTICAL diff=0），GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=2825b99 同步（第 26 轮收口 push 由第 27 轮父任务补推实测确认），新增发现 1 项：第 26 轮父记录 C 卡报告名「核验报告」与实际交付「验证报告_第26轮_维护机制健在与文档一致性.md」前缀不一致（不改历史，本轮恢复「核验」惯例命名））
+├── 清理报告_第27轮_round26遗留清理.md          # 第 27 轮子任务 C 仓库卫生报告（round-26 父卡+子卡遗留 worktree/分支清理，r26 全清 4 worktree+4 分支，r27/review）
 
 └── .gitignore / .gitattributes / README.md
 ```
