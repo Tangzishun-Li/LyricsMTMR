@@ -61,6 +61,7 @@ mindmap
 ├── tools/
 │   ├── mr-dump/                      # MediaRemote 调试工具（mr_dump + 源码 + 运行脚本）
 │   └── virtual-keyboard/             # 虚拟键盘 HTML 原型
+├── scripts/                          # 开发巡检脚本（anchor-patrol.py：文档锚点漂移巡检，第 29 轮 B 卡）
 ├── LyricsMTMR/                       # Xcode 工程根
 │   ├── LyricsMTMR.xcodeproj
 │   ├── LyricsRendering/              # 歌词渲染模块（KaraokeLabel、LyricsTouchBarItem 等）
@@ -98,7 +99,7 @@ mindmap
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
 │   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 │   └── archive/                      # 死代码归档（duplicate-LyricsRendering、dead-functions…）
-├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit）
+├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit / anchor-patrol 锚点巡检用法）
 ├── backup/                          # 优化前调研文档归档（17 份，存档点 pre-opt-20260812-0114；第8轮收尾新增 优化计划_OPT任务清单.md）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
 ├── 回归报告_第7轮_t_eeddbbf0.md             # 第 7 轮回归报告（main 全量构建+单测：60 用例 0 失败）
@@ -202,6 +203,7 @@ mindmap
 ├── 核验报告_第29轮_维护机制健在与文档一致性.md # 第 29 轮核验报告（第 23 次年度维护核验，r29/review；行号引用连续九轮零新漂移（maintenance-notes/iteration-plan 4 处引用 + ITER-14 :391），114 口径 :1174/:1185 第 28 轮合并后首轮复查零新漂移（三卡改动清单均不含 TouchBarController.swift，提交史结构论证）+ ITEMS_REFERENCE :1709 锚点同步在位，第 28 轮 A/B 卡落地源码实证（SettingsWindowGCStrategy.swift :46 纯策略/AppDelegate 接线 :172 别名+:190/:210 调用/SettingsWindowGCStrategyTests 9 用例/README v0.29 条目 :154/Info.plist 0.29/454 对齐），GitHub 4/4：#1 OPEN/#40 CLOSED/0 PR/origin/main=a66ecaf 同步，新增发现 0 项）
 ├── 清理报告_第29轮_round28遗留清理.md          # 第 29 轮子任务 C 仓库卫生报告（round-28 父卡+子卡遗留 worktree/分支清理，r28 全清 4 worktree+4 分支，r29/review）
 ├── 验证报告_第29轮_恢复补刷即时性审计与补齐.md # 第 29 轮子任务 A 验证报告（隐藏→可见恢复侧统一治理（镜像隐藏期治理系列）：全量接入点审计——grep 实证 25 文件 111 处 TBPauseGate/TBPausableTimer/pauseGate/pollGate 引用，24 接入点逐一分类（恢复立即补刷 20 类上界 0 / 恢复经重建覆盖 1 类 netstat 首块 ≤1s / 事件驱动重建合理等待 2 类 marquee ≤0.25s+弹层作用域 / **恢复等待下 tick 4 处本轮修复**）；核心缺口=TBPollItem/TBMetricPopoverItem 两基类恢复分支（第 23 轮仅隐藏期创建走立即 catch-up，可见期创建后隐藏再恢复一律 scheduleNextCycle，首刷延迟上界=完整轮询周期，35 个 widget 受影响）；修复=恢复一律立即周期（runImmediateCycle 去 _needsInitialRefresh 依赖、flag 冗余删除、第 23 轮播种语义被统一恢复补刷吸收——「恢复=立即补刷一次+按原节奏继续」；线程安全/幂等/暂停语义护栏全保留）+ marquee 两处 immediateFireOnResume:false→true（0 空窗）；新增 GlobalHiddenStateTests Round 29 节 3 用例（可见创建恢复 0.6s 窗立即补刷=缺口回归钉/镜像 B 基类/恰好一次+幂等+快速 pause/resume 丢陈旧 hop）；240 用例实证（237 基线+新增 3）0 失败，金丝雀 StockMarketHoursTests 三锚点 + WidgetLeakTests 8 全绿，r29/resume-refresh）
+├── 核对报告_第29轮_文档锚点漂移巡检脚本.md # 第 29 轮子任务 B 核对报告（工程规范：文档锚点漂移巡检脚本落地——scripts/anchor-patrol.py 88 项锚点数据驱动清单（114 口径/6 注册点/金丝雀/ITER-14 待办/maintenance-notes 流程段 live 73 项 + iteration-plan 审查证据表 record 15 项），两级语义（live 漂移 ERROR 修文档 / record 位移 WARN 登记不改历史，known 再漂移 ERROR 防第三次漂移），全量实证 PASS 73 / WARN 10 / INFO 5 / ERROR 0 退出码 0，报告登记 84 行无重复；用法文档 docs/anchor-patrol.md，r29/anchor-scan）
 
 └── .gitignore / .gitattributes / README.md
 ```
