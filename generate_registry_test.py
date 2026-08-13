@@ -5,10 +5,20 @@ Extracts the 98 ItemTypeRaw case names (ItemsParsing.swift) and the 98
 identifierBase mappings (TouchBarController.swift) directly from the code,
 then emits the canonical fixture + reconciliation tests. Regenerate whenever
 the fixture needs refreshing; the generated file is committed as-is.
+
+新增 widget 类型时（注册链 6 处同步改完后）必须重跑本脚本刷新规范清单：
+    python3 generate_registry_test.py   # 仓库根执行，ROOT 自定位
+同步注意（脚本是唯一真相源，文档不得与脚本矛盾）：
+- REQUIRED_FIELDS（下方表）是各类型「最小合法 JSON」的唯一来源：某类型
+  decode 分支新增必填字段（decode 而非 decodeIfPresent）时必须同步更新，
+  否则 L2 解码断言按设计失败（有意的失效方向）。
+- 脚本内硬编码计数（98 case / 16 注册表键）是防漂移护栏：新增/删除类型时
+  计数变化会先让本脚本自身 assert 失败，属预期（提示人工确认后同步更新）。
 """
 import re, pathlib
 
-ROOT = pathlib.Path("/Users/litz/codespace/MTMR with LyricsX /.worktrees/round25-A/LyricsMTMR/MTMR")
+# 自定位：脚本位于仓库根，源码树为同仓库 LyricsMTMR/MTMR（不依赖历史 worktree 路径）
+ROOT = pathlib.Path(__file__).resolve().parent / "LyricsMTMR" / "MTMR"
 
 parsing = (ROOT / "Core" / "ItemsParsing.swift").read_text()
 controller = (ROOT / "Core" / "TouchBarController.swift").read_text()

@@ -1691,6 +1691,23 @@ LyricsMTMR 的 Touch Bar 配置是一个 **JSON 数组**，数组中的每个元
 }
 ```
 
+### 新增 Widget 类型（开发者）：注册点与对账测试
+
+> 本节面向**开发者**（给 MTMR 代码库新增一个类型）；用户侧「在 items.json 加一个已有类型的 item」见上文「添加新 Item」。
+
+新增一个 Widget 类型须同步 **6 处注册点** + 重跑一次生成脚本，缺一不可（第 25 轮 A 卡实证；漏改任意一处运行时才暴露——解析失败/创建失败/镜像窗异常，`RegistryReconciliationTests` 将其变为立即失败）：
+
+1. `ItemTypeRaw` 枚举 case — `Core/ItemsParsing.swift:492-591`
+2. decode switch 分支 — `Core/ItemsParsing.swift:596-994`
+3. `identifierBase` switch 分支 — `Core/TouchBarController.swift:24-223`
+4. `BarItemFactory` 创建 switch 分支 — `Core/BarItemFactory.swift:52-280`
+5. （预定义类型才需要）`SupportedTypesHolder` 注册表 — `Core/ItemsParsing.swift:83-254`（`"escape"` :84 … `"displaySleep"` :244）
+6. （特殊行为类型才需要）控制器运行时注册 — `Core/TouchBarController.swift:331-368`
+
+改完后在**仓库根**重跑 `python3 generate_registry_test.py` 刷新 `MTMRTests/RegistryReconciliationTests.swift` 规范清单（98 条 + 16 注册表键），生成文件按原样提交；若新类型 decode 有必填字段，需同步脚本内 `REQUIRED_FIELDS` 表（脚本为唯一真相源，详细步骤与失效方向见 [internal-apis.zh.md §2.3](developer-guide/internal-apis.zh.md)）。
+
+**114 口径锚点**（本条与全文「114 种 Item 类型」同源）：代码注释锚点位于 `Core/TouchBarController.swift:1163/:1174`（「≤114-item preset」注释，第 26 轮实测在位）；新增类型后 98+14+2 计数变化时，本文档 :3/:59 口径句、八大类统计表与速查表须同步更新。
+
 ### 调整宽度
 
 直接修改 `width` 值（单位：像素）：

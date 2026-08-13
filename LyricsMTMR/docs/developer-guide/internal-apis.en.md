@@ -60,31 +60,66 @@ class TBPollItem: NSCustomTouchBarItem {
 - `apply()` updates `TBMetricView` (icon/label/value/progress/sparkline) on the main thread;
 - Poll period is `max(0.4, refreshInterval)` seconds.
 
-### 2.3 Registering a New Widget (three steps)
+### 2.3 Registering a New Widget (six registration points + reconciliation refresh)
+
+Adding a widget type is not "three steps" but **six registration points + one refresh step** (round-25 A empirical calibre): missing any one of them only surfaces at runtime (parse failure / create failure / mirror-window anomaly) — the `RegistryReconciliationTests` suite turns those misses into **immediate failures**.
 
 ```mermaid
 flowchart LR
-  A[1. Add case to ItemTypeRaw<br/>ItemsParsing.swift] --> B[2. ItemType decode branch<br/>parse config params]
-  B --> C[3. Instantiate in createItemInternal<br/>TouchBarController.swift]
+  A[1. Add case to ItemTypeRaw<br/>ItemsParsing.swift] --> B[2. Add decode switch branch<br/>parse config params]
+  B --> C[3. Add identifierBase switch branch<br/>TouchBarController.swift]
+  C --> D[4. Add BarItemFactory branch<br/>instantiate widget]
+  D --> E[5. Predefined type → registry<br/>SupportedTypesHolder]
+  E --> F[6. Special type → controller registration<br/>TouchBarController.init]
+  F --> G[7. Rerun generate_registry_test.py<br/>refresh canonical list]
 ```
+
+The six registration points (line numbers measured in round 26, paths relative to `LyricsMTMR/MTMR/`):
+
+| # | Registration point | Location | Notes |
+|:--|:--|:--|:--|
+| 1 | `ItemTypeRaw` enum case | `Core/ItemsParsing.swift:492-591` (`case staticButton` :493 … `case opencodeGoUsage` :590, 98 cases) | String source of truth for the type name (rawValue = JSON `type` field) |
+| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:596-994` (`switch type {` :596, `case .appleScriptTitledButton:` :597 … `case .opencodeGoUsage:` :988) | `ItemTypeRaw` → `ItemType` decode branches, parses config params; `ItemType` case list at :293-390 (compiler exhaustiveness keeps this switch in sync with the enum) |
+| 3 | `identifierBase` switch | `Core/TouchBarController.swift:24-223` (`case .staticButton` :26 … `case .opencodeGoUsage` :220) | Touch Bar item identifier prefix (`com.lyricsmtmr.<type>.`); missing this branch → compile error (exhaustiveness) |
+| 4 | `BarItemFactory` create switch | `Core/BarItemFactory.swift:52-280` (`createItem` :52, `switch item.type` :54, `case let .staticButton` :55 … `case let .opencodeGoUsage` :276) | Factory instantiates the widget class; missing this branch → compile error (exhaustiveness) |
+| 5 | `SupportedTypesHolder` predefined registry | `Core/ItemsParsing.swift:83-254` (`"escape"` :84 … `"displaySleep"` :244, 14 keys, dict closes :254) | Only needed for "predefined types without JSON config" (e.g. system control keys); regular configured types are **not** registered here |
+| 6 | Controller runtime registration | `Core/TouchBarController.swift:331-368` (`exitTouchbar` :334-341, `close` :343-355; `themeSwitch` :359-368 is a documented duplicate of the enum and not counted) | For types needing closure/custom behaviour injection (e.g. exit button triggering dismiss); `private override init()` :331 |
+
+The reconciliation tests check: ① full enum set of 98 names ↔ canonical list; ② all 98 minimal-JSON decodes + per-entry `identifierBase` expectations; ③ factory constructs every type non-nil; ④ registry key set matches exactly (14 predefined + `exitTouchbar`/`close`, `themeSwitch` the only duplicate key); ⑤ the 114-path calibre (98 + 14 + 2).
 
 Real example — `weatherOutfit`:
 
 ```swift
-// 1. ItemsParsing.swift → enum ItemTypeRaw
+// 1. ItemsParsing.swift:542 → enum ItemTypeRaw (within :492-591)
 case weatherOutfit
 
-// 2. ItemsParsing.swift → ItemType.init(from:)
+// 2. ItemsParsing.swift:831-835 → decode switch (within :596-994)
 case .weatherOutfit:
     let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
     let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
     let lon = try container.decodeIfPresent(Double.self, forKey: .lon) ?? 121.47
     self = .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon)
 
-// 3. TouchBarController.swift → createItemInternal
+// 3. TouchBarController.swift:124-125 → identifierBase switch (within :24-223)
+case .weatherOutfit(refreshInterval: _, lat: _, lon: _):
+    return "com.lyricsmtmr.weatherOutfit."
+
+// 4. BarItemFactory.swift:180-181 → createItem switch (within :52-280)
 case let .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon):
     barItem = WeatherOutfitItem(identifier: identifier, refreshInterval: refreshInterval, lat: lat, lon: lon)
 ```
+
+#### 2.3.1 After the six edits: rerun the generator to refresh the canonical list
+
+```bash
+# repo root (the script self-locates to the sibling LyricsMTMR/MTMR)
+python3 generate_registry_test.py
+```
+
+- The script extracts the `ItemTypeRaw` case names (`ItemsParsing.swift`) and `identifierBase` mappings (`TouchBarController.swift`) entry by entry and regenerates the `canonicalItems` list (98 entries) + registry-only keys (16) inside `MTMRTests/RegistryReconciliationTests.swift`; **commit the generated file as-is** (its header says "do not hand-edit").
+- **Keep the `REQUIRED_FIELDS` table in sync** (inside the script, `generate_registry_test.py:53-60`): it holds each type's minimal valid JSON. If the new type's decode branch has a **required** field (`decode`, not `decodeIfPresent`), its minimal JSON must be added to the table; otherwise the L2 decode assertion fails by design — this is an **intentional failure direction** (missing update = red test, signalling that both the canonical JSON and the REQUIRED_FIELDS table must be updated together).
+- The hardcoded counts in the script (98 cases / 16 keys) are drift guards: adding/removing a type makes the count assert fire first, as intended (a prompt to confirm and update).
+- After refreshing, run the reconciliation suite: `xcodebuild test -project LyricsMTMR.xcodeproj -scheme UnitTests` (`RegistryReconciliationTests`, 6 cases). Missing any of the six registration points: compile-time exhaustiveness blocks it for #2/#3/#4 (exhaustive switches); registry misses (#5/#6) and renames/deletions are caught by the L1/L5 assertions.
 
 ### 2.4 Visual Cell `TBMetricView`
 

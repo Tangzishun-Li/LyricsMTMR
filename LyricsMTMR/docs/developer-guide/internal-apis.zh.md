@@ -60,31 +60,66 @@ class TBPollItem: NSCustomTouchBarItem {
 - `apply()` 在主线程更新 `TBMetricView`（图标/标签/数值/进度条/sparkline）；
 - 轮询周期 `max(0.4, refreshInterval)` 秒。
 
-### 2.3 注册一个新 Widget（三步）
+### 2.3 注册一个新 Widget（六处注册点 + 对账测试刷新）
+
+新增一个 Widget 类型不是「三步」，而是**六处注册点 + 一步刷新**（第 25 轮 A 卡实证口径）：漏改任意一处，运行时才暴露（解析失败 / 创建失败 / 镜像窗异常）——`RegistryReconciliationTests` 对账测试把这些漏改变成**立即失败**。
 
 ```mermaid
 flowchart LR
-  A[1. ItemTypeRaw 加 case<br/>ItemsParsing.swift] --> B[2. ItemType 解码分支<br/>解析配置参数]
-  B --> C[3. createItemInternal 实例化<br/>TouchBarController.swift]
+  A[1. ItemTypeRaw 加 case<br/>ItemsParsing.swift] --> B[2. decode switch 加分支<br/>解析配置参数]
+  B --> C[3. identifierBase switch 加分支<br/>TouchBarController.swift]
+  C --> D[4. BarItemFactory 加分支<br/>实例化 widget]
+  D --> E[5. 预定义类型→注册表<br/>SupportedTypesHolder]
+  E --> F[6. 特殊类型→控制器注册<br/>TouchBarController.init]
+  F --> G[7. 重跑 generate_registry_test.py<br/>刷新规范清单]
 ```
+
+六处注册点逐一列出（行号为第 26 轮实测，`LyricsMTMR/MTMR/` 相对路径）：
+
+| # | 注册点 | 位置 | 说明 |
+|:--|:--|:--|:--|
+| 1 | `ItemTypeRaw` 枚举 case | `Core/ItemsParsing.swift:492-591`（`case staticButton` :493 … `case opencodeGoUsage` :590，98 case） | 类型名的字符串真相源（rawValue = JSON `type` 字段） |
+| 2 | `ItemType` decode switch | `Core/ItemsParsing.swift:596-994`（`switch type {` :596，`case .appleScriptTitledButton:` :597 … `case .opencodeGoUsage:` :988） | `ItemTypeRaw` → `ItemType` 解码分支，解析配置参数；`ItemType` 枚举 case 表在 :293-390（编译器穷尽性保证此 switch 与枚举同步） |
+| 3 | `identifierBase` switch | `Core/TouchBarController.swift:24-223`（`case .staticButton` :26 … `case .opencodeGoUsage` :220） | 触摸条 item 标识前缀（`com.lyricsmtmr.<type>.`）；新增 case 漏改此处 → 编译失败（穷尽性） |
+| 4 | `BarItemFactory` 创建 switch | `Core/BarItemFactory.swift:52-280`（`createItem` :52，`switch item.type` :54，`case let .staticButton` :55 … `case let .opencodeGoUsage` :276） | 工厂实例化 widget 类；新增 case 漏改此处 → 编译失败（穷尽性） |
+| 5 | `SupportedTypesHolder` 预定义注册表 | `Core/ItemsParsing.swift:83-254`（`"escape"` :84 … `"displaySleep"` :244，14 键，字典闭合 :254） | 仅「无 JSON 配置的预定义类型」需要（如系统控制键）；带配置的普通类型**不**登记此处 |
+| 6 | 控制器运行时注册 | `Core/TouchBarController.swift:331-368`（`exitTouchbar` :334-341、`close` :343-355；`themeSwitch` :359-368 与枚举重复注册，文档口径不计） | 需要闭包/自定义行为注入的类型（如 exit 按钮触发 dismiss）；`private override init()` :331 |
+
+对账测试会校验：① 枚举全集 98 名 ↔ 规范清单；② 98 条最小 JSON 全量解码 + 逐条 identifierBase 期望值；③ 工厂全量真实构造非 nil；④ 注册表键集精确对账（14 预定义 + `exitTouchbar`/`close`，`themeSwitch` 为唯一重复键）；⑤ 114 路径口径（98 + 14 + 2）。
 
 以 `weatherOutfit` 为例（真实代码）：
 
 ```swift
-// 1. ItemsParsing.swift → enum ItemTypeRaw
+// 1. ItemsParsing.swift:542 → enum ItemTypeRaw（:492-591 内）
 case weatherOutfit
 
-// 2. ItemsParsing.swift → ItemType.init(from:)
+// 2. ItemsParsing.swift:831-835 → decode switch（:596-994 内）
 case .weatherOutfit:
     let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1800.0
     let lat = try container.decodeIfPresent(Double.self, forKey: .lat) ?? 31.23
     let lon = try container.decodeIfPresent(Double.self, forKey: .lon) ?? 121.47
     self = .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon)
 
-// 3. TouchBarController.swift → createItemInternal
+// 3. TouchBarController.swift:124-125 → identifierBase switch（:24-223 内）
+case .weatherOutfit(refreshInterval: _, lat: _, lon: _):
+    return "com.lyricsmtmr.weatherOutfit."
+
+// 4. BarItemFactory.swift:180-181 → createItem switch（:52-280 内）
 case let .weatherOutfit(refreshInterval: refreshInterval, lat: lat, lon: lon):
     barItem = WeatherOutfitItem(identifier: identifier, refreshInterval: refreshInterval, lat: lat, lon: lon)
 ```
+
+#### 2.3.1 六处改完后：重跑生成脚本刷新规范清单
+
+```bash
+# 仓库根（脚本自定位到同仓库 LyricsMTMR/MTMR）
+python3 generate_registry_test.py
+```
+
+- 脚本从 `ItemsParsing.swift`（ItemTypeRaw case 名）与 `TouchBarController.swift`（identifierBase 映射）逐条提取，重新生成 `MTMRTests/RegistryReconciliationTests.swift` 的 `canonicalItems` 规范清单（98 条）+ 注册表专属键（16 个），**生成文件按原样提交**（文件头注释「勿手改」）。
+- **`REQUIRED_FIELDS` 表同步**（脚本内，`generate_registry_test.py:53-60`）：脚本持有各类型「最小合法 JSON」。若新类型的 decode 分支有**必填**字段（`decode` 而非 `decodeIfPresent`），必须把对应最小 JSON 写入该表；否则 L2 解码断言按设计失败——这是**有意的失效方向**（漏更新 = 测试红，提示修法须同时更新清单 JSON 与 REQUIRED_FIELDS 表）。
+- 脚本内硬编码计数（98 case / 16 键）是防漂移护栏：类型增删时计数变化会让脚本自身 assert 失败，属预期（提示人工确认后同步更新）。
+- 刷新后跑对账测试：`xcodebuild test -project LyricsMTMR.xcodeproj -scheme UnitTests`（套件 `RegistryReconciliationTests` 6 用例）。漏改六处注册点任意一处：编译期穷尽性直接拦截（#2/#3/#4 为 exhaustive switch）；注册表漏登（#5/#6）与改名/删除由 L1/L5 断言拦截。
 
 ### 2.4 视觉基件 `TBMetricView`
 
