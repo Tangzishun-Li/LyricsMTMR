@@ -247,6 +247,8 @@
 		C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */; };
 		C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */; };
 		C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */; };
+		C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */; };
+		C1FF1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -522,6 +524,8 @@
 		C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSession.swift; sourceTree = "<group>"; };
 		C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSessionTests.swift; sourceTree = "<group>"; };
 		C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistryReconciliationTests.swift; sourceTree = "<group>"; };
+		C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowGCStrategy.swift; sourceTree = "<group>"; };
+		C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowGCStrategyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -669,6 +673,7 @@
 				C1FE1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift */,
 				C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */,
 				C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */,
+				C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -907,6 +912,7 @@
 				5F48F01FC23F4982AE8C2B17 /* KeyBindingTabView.swift */,
 				54D50C2A58718B948CCF51CF /* Editor */,
 				C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */,
+				C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */,
 			);
 			name = Preferences;
 			path = Preferences;
@@ -1313,6 +1319,7 @@
 				B9AD4E44826AB52D3D69C151 /* RSSTabView.swift in Sources */,
 				C0FFB3400C3B5EE0211E19A3 /* TBPausableTimer.swift in Sources */,
 				C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */,
+				C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1339,6 +1346,7 @@
 				C1FF1CA49CB4D333B08330D3 /* GlobalHiddenStateTests.swift in Sources */,
 				C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */,
 				C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */,
+				C1FF1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

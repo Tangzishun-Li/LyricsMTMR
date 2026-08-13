@@ -164,12 +164,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var unifiedSettingsController: UnifiedSettingsWindowController?
 
     /// How long a hidden settings window may stay cached before being
-    /// released so its memory returns to baseline. Deliberately long: each
-    /// rebuild permanently costs ~10MB of unreclaimable allocator/framework
-    /// retention, so the window should outlive typical open/close workflows
-    /// (an hour of disuse means the user is done with settings). The
-    /// memory-pressure handler releases it immediately regardless.
-    static let settingsWindowIdleGCSeconds: TimeInterval = 3600   // 1 h
+    /// released so its memory returns to baseline. Round 28: the value now
+    /// lives in `SettingsWindowGCStrategy.idleReleaseThreshold` — this is a
+    /// backward-compatible alias so the memory-repair report and controller
+    /// comments that reference `AppDelegate.settingsWindowIdleGCSeconds`
+    /// stay literally true.
+    static let settingsWindowIdleGCSeconds: TimeInterval = SettingsWindowGCStrategy.idleReleaseThreshold
 
     private var settingsWindowGCWorkItem: DispatchWorkItem?
 
@@ -183,7 +183,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let item = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.settingsWindowGCWorkItem = nil
-            self.unifiedSettingsController = nil
+            // The timer only fires while the window has stayed hidden
+            // (reopening cancels it), so the strategy's visible-guard is
+            // defense-in-depth here; the decision matrix itself is covered
+            // by unit tests (SettingsWindowGCStrategyTests).
+            if SettingsWindowGCStrategy.shouldRelease(
+                isWindowVisible: self.unifiedSettingsController?.window?.isVisible == true,
+                memoryPressure: false,
+                idleElapsed: Self.settingsWindowIdleGCSeconds
+            ) {
+                self.unifiedSettingsController = nil
+            }
         }
         settingsWindowGCWorkItem = item
         DispatchQueue.main.asyncAfter(
@@ -197,7 +207,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func releaseSettingsWindowIfHidden() {
         settingsWindowGCWorkItem?.cancel()
         settingsWindowGCWorkItem = nil
-        if unifiedSettingsController?.window?.isVisible != true {
+        if SettingsWindowGCStrategy.shouldRelease(
+            isWindowVisible: unifiedSettingsController?.window?.isVisible == true,
+            memoryPressure: true,
+            idleElapsed: 0   // ignored by the matrix: pressure releases immediately
+        ) {
             unifiedSettingsController = nil
         }
     }
