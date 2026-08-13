@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~30 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~31 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -208,6 +208,8 @@ mindmap
 ├── 核对报告_第30轮_README更新日志补登v0.30.md # 第 30 轮子任务 B 核对报告（README 更新日志补登 v0.30：第 28~29 轮变更条目——恢复补刷即时性审计与补齐（两基类恢复立即补刷 + marquee 0 空窗）/闲置 GC 策略可测化（纯策略 + 9 单测）/锚点巡检脚本落地/年度维护核验第 22/23 次 + 版本决策建议 0.30/455 + 114 口径锚点核对（README 内引用 3 处 + 机器断言 5 项全 PASS）+ anchor-patrol 8 ERROR 漂移发现（StockBarItem +2 第三例合并后未复查，登记不擅改），r30/changelog）
 ├── 核验报告_第30轮_维护机制健在与文档一致性.md # 第 30 轮核验报告（第 24 次年度维护核验，r30/review；锚点巡检收口复跑接入——首跑捕获 8 ERROR 新增漂移（round-29 A 卡 +2 行位移）处置闭环，复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0；ITER-14 待办区引用同步 :393；GitHub 4/4；114 口径 :1174/:1185 复查零新漂移）
 ├── 清理报告_第30轮_round29遗留清理.md          # 第 30 轮子任务 C 仓库卫生报告（round-29 父卡+子卡遗留 worktree/分支清理，r29 全清 4 worktree+4 分支，r30/review）
+├── 核验报告_第31轮_维护机制健在与文档一致性.md # 第 31 轮核验报告（第 25 次年度维护核验，r31/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 30 轮收口基线逐项一致零新漂移；ITER-14 待办区引用 :393 第二轮保持；GitHub 4/4；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 30 轮 A/B/C 卡落地源码实证）
+├── 清理报告_第31轮_round30遗留清理.md          # 第 31 轮子任务 C 仓库卫生报告（round-30 父卡+子卡遗留 worktree/分支清理，r30 全清 4 worktree+4 分支，r31/review；主仓库 r30/permission-lazy 非清理范围保留登记）
 
 └── .gitignore / .gitattributes / README.md
 ```
