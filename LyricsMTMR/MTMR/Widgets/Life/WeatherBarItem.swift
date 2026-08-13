@@ -108,35 +108,47 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
             ]
         }
 
-        if !locationServicesUsable() {
-            // China mode with explicit cities doesn't need location.
-            if !(isChinaMode && !cities.isEmpty) {
-                return
-            }
-        }
+        // round 30（权限惰性化）：定位权限未就绪（.notDetermined/.denied）且
+        // 非中国模式固定城市时，不再自动申请/自动退出——init 绝不触发 TCC
+        // 弹窗（测试宿主全量实例化/应用首启零弹窗），改在组件上显示提示，
+        // 点按才发起申请或跳转系统设置。固定城市不需要定位，不受影响。
+        let locationBlocked: Bool = {
+            if locationServicesUsable() { return false }
+            return !(isChinaMode && !cities.isEmpty)
+        }()
 
-        activity.repeats = true
-        activity.qualityOfService = .utility
-        // [weak self]：round 22 修复——原闭包强捕获 self 与 self.activity 构成
-        // 永久循环引用，deinit 永不执行（配置热重载后旧 item + 旧 manager 泄漏，
-        // GPS 持续活跃）；弱引用后 deinit 可达，由 deinit 统一 invalidate + 停定位。
-        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
-            // 门控回调：bar 隐藏期间过门拦截（零网络请求），恢复后按原 interval 继续。
-            self?.pollTick()
-            completion(NSBackgroundActivityScheduler.Result.finished)
+        if locationBlocked {
+            // 权限未就绪：不调度天气刷新（无定位源时 openweather 不产生
+            // 请求、中国模式无城市也不产生请求），仅显示提示 + 点按动作。
+            let status = currentLocationAuthorizationStatus()
+            title = (status == .notDetermined)
+                ? localized("点按定位", "Tap to locate")
+                : localized("定位未授权", "Location denied")
+            actions.append(ItemAction(trigger: .singleTap) { [weak self] in
+                guard let self = self else { return }
+                if status == .notDetermined {
+                    self.requestLocationAuthorization()
+                } else {
+                    self.openLocationSettings()
+                }
+            })
+        } else {
+            scheduleWeatherActivity()
+            updateWeather()
         }
-        updateWeather()
 
         if isChinaMode && !cities.isEmpty {
             // Fixed city list — no location tracking needed.
             return
         }
 
-        locationTrackingEnabled = true
+        locationTrackingEnabled = !locationBlocked
         // Round 23: created while the bar is hidden — do not start location
         // (GPS + privacy indicator would stay on for nothing); the resume
-        // broadcast restarts it as catch-up.
-        if !locationPauseGate.isPaused {
+        // broadcast restarts it as catch-up. Round 30: blocked instances
+        // (location permission missing) never start — the tap-to-locate
+        // hint owns the grant path.
+        if locationTrackingEnabled && !locationPauseGate.isPaused {
             startLocationUpdates()
         }
     }
@@ -295,11 +307,14 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
 
     // MARK: - Location service lifecycle (round 22)
 
-    /// 定位可用性门（权限 + 服务开关）。internal：单测注入点——子类
+    /// 定位可用性门（权限 + 服务开关）。round 30：`.notDetermined` 不再算
+    /// 可用——init 绝不自动触发定位申请（TCC 弹窗零自动），授权后由
+    /// didChangeAuthorization 接续启动。internal：单测注入点——子类
     /// override 恒 true，隔离真实 TCC 授权状态（测试宿主授权不可控）。
     func locationServicesUsable() -> Bool {
         let status = CLLocationManager().authorizationStatus
-        if status == .restricted || status == .denied {
+        // round 30: notDetermined = 尚未授权，不自动申请（见 init 惰性路径）。
+        if status == .notDetermined || status == .restricted || status == .denied {
             print("User permission not given")
             return false
         }
@@ -314,12 +329,58 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
     /// 注入点——子类 override 计数，不触碰真实 CoreLocation 硬件（同
     /// round 21 startCapture/stopCapture 模式）。
     func startLocationUpdates() {
+        ensureManager()
+        manager.startUpdatingLocation()
+    }
+
+    /// 点按触发的一次性定位申请（round 30 惰性化路径）。internal：单测
+    /// 注入点——计数子类 override，不触碰真实 CoreLocation（TCC 弹窗零自动）。
+    func requestLocationAuthorization() {
+        ensureManager()
+        manager.requestWhenInUseAuthorization()
+    }
+
+    /// 当前定位授权状态（round 30 测试缝：提示文案分支断言用——计数子类
+    /// override，隔离真实 TCC 授权状态）。
+    func currentLocationAuthorizationStatus() -> CLAuthorizationStatus {
+        CLLocationManager().authorizationStatus
+    }
+
+    /// 定位权限被拒绝时跳转系统设置（round 30）。internal：单测注入点——
+    /// 计数子类 override 避免测试期真实跳转系统设置。
+    func openLocationSettings() {
+        let urls = [
+            URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocationServices"),
+            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")
+        ]
+        for case let url? in urls {
+            if NSWorkspace.shared.open(url) { break }
+        }
+    }
+
+    /// manager 惰性创建（复用既有实例；配置与 startLocationUpdates 一致）。
+    private func ensureManager() {
         if manager == nil {
             manager = CLLocationManager()
             manager.delegate = self
             manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         }
-        manager.startUpdatingLocation()
+    }
+
+    /// 周期刷新调度器（门控回调：bar 隐藏期间零网络请求）。init 与
+    /// didChangeAuthorization 授权接续路径共用（round 30）。
+    private func scheduleWeatherActivity() {
+        activity.repeats = true
+        activity.qualityOfService = .utility
+        // [weak self]：round 22 修复——原闭包强捕获 self 与 self.activity
+        // 构成永久循环引用，deinit 永不执行（配置热重载后旧 item + 旧
+        // manager 泄漏，GPS 持续活跃）；弱引用后 deinit 可达，由 deinit
+        // 统一 invalidate + 停定位。
+        activity.schedule { [weak self] (completion: NSBackgroundActivityScheduler.CompletionHandler) in
+            // 门控回调：bar 隐藏期间过门拦截（零网络请求），恢复后按原 interval 继续。
+            self?.pollTick()
+            completion(NSBackgroundActivityScheduler.Result.finished)
+        }
     }
 
     /// 停止定位更新（GPS 关闭、隐私指示灯熄灭）。幂等；manager 未创建
@@ -364,7 +425,17 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
 
     func locationManager(_: CLLocationManager, didChangeAuthorization _: CLAuthorizationStatus) {
 //        print("inside didChangeAuthorization ");
-        updateWeather()
+        // round 30：点按申请路径接续——授权后启动定位、调度天气刷新并立即
+        // 补刷（惰性实例 init 时未调度；正常实例 locationTrackingEnabled 已
+        // 为 true 且调度器已启动，此处仅补 start + 刷新，幂等）。
+        if locationServicesUsable() {
+            if !locationTrackingEnabled {
+                locationTrackingEnabled = true
+                scheduleWeatherActivity()
+            }
+            startLocationUpdates()
+            updateWeather()
+        }
     }
     
     deinit {

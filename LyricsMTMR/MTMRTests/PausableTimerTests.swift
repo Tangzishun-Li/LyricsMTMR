@@ -46,6 +46,7 @@
 
 import XCTest
 import CoreLocation
+import AVFoundation
 @testable import LyricsMTMR
 
 class PausableTimerTests: XCTestCase {
@@ -930,6 +931,7 @@ class PausableTimerTests: XCTestCase {
         private var _startCount = 0
         private var _stopCount = 0
         private var _refreshCount = 0
+        private var _requestCount = 0
 
         var startCount: Int {
             lock.lock()
@@ -949,6 +951,12 @@ class PausableTimerTests: XCTestCase {
             return _refreshCount
         }
 
+        var requestCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return _requestCount
+        }
+
         func start() {
             lock.lock()
             _startCount += 1
@@ -964,6 +972,12 @@ class PausableTimerTests: XCTestCase {
         func refresh() {
             lock.lock()
             _refreshCount += 1
+            lock.unlock()
+        }
+
+        func request() {
+            lock.lock()
+            _requestCount += 1
             lock.unlock()
         }
     }
@@ -1020,6 +1034,113 @@ class PausableTimerTests: XCTestCase {
         override func stopLocationUpdates() { counts.stop() }
 
         override func updateWeather() { counts.refresh() }
+    }
+
+    // MARK: - Round 30 test doubles: 权限惰性化（TCC 弹窗零自动）
+
+    /// WeatherBarItem 计数子类：定位不可用（未授权/拒绝）路径——不自动
+    /// 启动定位、不自动刷新；点按动作计数。不触碰真实 CoreLocation。
+    private final class CountingDeniedLocationWeatherItem: WeatherBarItem {
+        private let counts: LocationCounts
+        private let denied: Bool
+
+        init(counts: LocationCounts, identifier: NSTouchBarItem.Identifier, interval: TimeInterval,
+             apiSource: String = "openweather", cities: [String] = [], denied: Bool = false) {
+            self.counts = counts
+            self.denied = denied
+            super.init(identifier: identifier, interval: interval, units: "metric", api_key: "",
+                       icon_type: "text", apiSource: apiSource, cities: cities,
+                       showHumidity: false, showWind: false)
+            activity.invalidate()
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func locationServicesUsable() -> Bool { false }
+
+        override func currentLocationAuthorizationStatus() -> CLAuthorizationStatus {
+            denied ? .denied : .notDetermined
+        }
+
+        override func startLocationUpdates() { counts.start() }
+
+        override func stopLocationUpdates() { counts.stop() }
+
+        override func updateWeather() { counts.refresh() }
+
+        override func requestLocationAuthorization() { counts.request() }
+
+        override func openLocationSettings() {}
+
+        override func locationManager(_: CLLocationManager, didUpdateLocations _: [CLLocation]) {}
+        override func locationManager(_: CLLocationManager, didFailWithError _: Error) {}
+        override func locationManager(_: CLLocationManager, didChangeAuthorization _: CLAuthorizationStatus) {}
+    }
+
+    /// YandexWeatherBarItem 同款计数子类（round 30 惰性路径）。
+    private final class CountingDeniedLocationYandexItem: YandexWeatherBarItem {
+        private let counts: LocationCounts
+
+        init(counts: LocationCounts, identifier: NSTouchBarItem.Identifier, interval: TimeInterval) {
+            self.counts = counts
+            super.init(identifier: identifier, interval: interval)
+            activity.invalidate()
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func locationServicesUsable() -> Bool { false }
+
+        override func currentLocationAuthorizationStatus() -> CLAuthorizationStatus { .notDetermined }
+
+        override func startLocationUpdates() { counts.start() }
+
+        override func stopLocationUpdates() { counts.stop() }
+
+        override func updateWeather() { counts.refresh() }
+
+        override func requestLocationAuthorization() { counts.request() }
+
+        override func openLocationSettings() {}
+
+        override func locationManager(_: CLLocationManager, didUpdateLocations _: [CLLocation]) {}
+        override func locationManager(_: CLLocationManager, didFailWithError _: Error) {}
+        override func locationManager(_: CLLocationManager, didChangeAuthorization _: CLAuthorizationStatus) {}
+    }
+
+    /// AudioSpectrumBarItem 授权门计数子类：仅 override 授权状态注入点，
+    /// 真实 startMic/startSystem 跑守卫分支——未授权路径零硬件零 TCC。
+    private final class GateSpectrumItem: AudioSpectrumBarItem {
+        var status: AVAuthorizationStatus
+        var preflightGranted: Bool
+
+        init(identifier: NSTouchBarItem.Identifier, barCount: Int, source: String,
+             status: AVAuthorizationStatus, preflightGranted: Bool = false) {
+            self.status = status
+            self.preflightGranted = preflightGranted
+            super.init(identifier: identifier, barCount: barCount, source: source)
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func micAuthorizationStatus() -> AVAuthorizationStatus { status }
+
+        override func screenCaptureAccessPreflight() -> Bool { preflightGranted }
+    }
+
+    /// NoiseMeterItem 授权门计数子类：真实 startEngine 跑守卫——未授权
+    /// 零硬件（running 保持 false，apply() 显示「需要权限」）。
+    private final class GateNoiseItem: NoiseMeterItem {
+        var status: AVAuthorizationStatus
+
+        init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double, status: AVAuthorizationStatus) {
+            self.status = status
+            super.init(identifier: identifier, refreshInterval: refreshInterval)
+        }
+
+        required init?(coder: NSCoder) { return nil }
+
+        override func micAuthorizationStatus() -> AVAuthorizationStatus { status }
     }
 
     func testWeatherBarItemLocationPauseStopsResumeRestartsAndRefreshes() {
@@ -1307,6 +1428,89 @@ class PausableTimerTests: XCTestCase {
         pumpRunLoop(for: 0.3)
         XCTAssertEqual(item.startCount, 2, "repeated resume broadcast must not restart the process again")
     }
+
+    // MARK: - Round 30: 权限惰性化（TCC 弹窗零自动）
+
+    func testWeatherItemLocationUnavailableShowsHintAndDoesNotAutoStart() {
+        let counts = LocationCounts()
+        let item = CountingDeniedLocationWeatherItem(counts: counts, identifier: testIdentifier, interval: 3600)
+        // 未授权（notDetermined）→ 不自动启动定位、不发起天气刷新、不调度。
+        XCTAssertEqual(counts.startCount, 0, "location must not auto-start without permission")
+        XCTAssertEqual(counts.refreshCount, 0, "no weather fetch while location permission is missing")
+        XCTAssertEqual(item.title, "点按定位", "widget must show the tap-to-locate hint")
+
+        // 点按动作 → 发起定位申请（非自动；申请本身不启动定位）。
+        let tap = item.actions.first { $0.trigger == .singleTap }
+        XCTAssertNotNil(tap, "lazy widget must expose a single-tap grant action")
+        tap?.closure?()
+        XCTAssertEqual(counts.requestCount, 1, "tap must request location authorization once")
+        XCTAssertEqual(counts.startCount, 0, "the request alone must not start location")
+    }
+
+    func testWeatherItemLocationDeniedShowsSettingsHintAndTapDoesNotRequest() {
+        let counts = LocationCounts()
+        let item = CountingDeniedLocationWeatherItem(counts: counts, identifier: testIdentifier, interval: 3600, denied: true)
+        XCTAssertEqual(item.title, "定位未授权", "denied widget must show the settings hint")
+
+        let tap = item.actions.first { $0.trigger == .singleTap }
+        XCTAssertNotNil(tap)
+        tap?.closure?()
+        XCTAssertEqual(counts.requestCount, 0, "denied tap must not re-request (routes to settings)")
+    }
+
+    func testYandexWeatherItemLocationUnavailableShowsHintAndDoesNotAutoStart() {
+        let counts = LocationCounts()
+        let item = CountingDeniedLocationYandexItem(counts: counts, identifier: testIdentifier, interval: 3600)
+        XCTAssertEqual(counts.startCount, 0, "yandex must not auto-start location without permission")
+        XCTAssertEqual(counts.refreshCount, 0, "no weather fetch while location permission is missing")
+        XCTAssertEqual(item.title, "点按定位")
+
+        let tap = item.actions.first { $0.trigger == .singleTap }
+        XCTAssertNotNil(tap)
+        tap?.closure?()
+        XCTAssertEqual(counts.requestCount, 1, "tap must request location authorization once")
+        XCTAssertEqual(counts.startCount, 0)
+    }
+
+    func testSpectrumMicNotDeterminedShowsHintWithoutStartingCapture() {
+        let item = GateSpectrumItem(identifier: testIdentifier, barCount: 8, source: "mic", status: .notDetermined)
+        XCTAssertEqual(item.currentHint, "需麦克风权限 · 点按开启",
+                       "notDetermined mic must show the tap hint instead of starting capture")
+    }
+
+    func testSpectrumMicDeniedShowsSettingsHint() {
+        let item = GateSpectrumItem(identifier: testIdentifier, barCount: 8, source: "mic", status: .denied)
+        XCTAssertEqual(item.currentHint, "麦克风未授权 · 点按设置",
+                       "denied mic must show the settings hint")
+    }
+
+    func testSpectrumSystemWithoutScreenRecordingPreflightShowsHint() {
+        // 录屏权限未授予：预检拦截，不发起 SCK 流（零 TCC 弹窗），显示提示。
+        let item = GateSpectrumItem(identifier: testIdentifier, barCount: 8, source: "system",
+                                    status: .denied, preflightGranted: false)
+        XCTAssertEqual(item.currentHint, "需录屏权限 · 点按开启",
+                       "missing screen-recording permission must show the hint without attempting SCK")
+    }
+
+    func testNoiseMeterMicNotAuthorizedSkipsEngineAndShowsNeedPermission() {
+        let item = GateNoiseItem(identifier: testIdentifier, refreshInterval: 60, status: .denied)
+        item.apply()
+        XCTAssertEqual(item.metric.value, "需要权限",
+                       "unauthorized mic must render the need-permission state (engine never started)")
+    }
+
+    func testUpNextShowsPermissionHintWhenSourceMissingPermission() {
+        let source = CountingNoPermissionUpNextSource()
+        let item = CountingUpNextItem(identifier: testIdentifier, interval: 3600, source: source)
+        pumpRunLoop(for: 0.5) // updateView() dispatches the item build async
+        XCTAssertEqual(item.items.count, 1, "missing permission must render exactly the tap-to-allow hint")
+        XCTAssertEqual(item.items.first?.title, "点按授权日历", "hint text must invite the explicit grant tap")
+
+        let tap = item.items.first?.actions.first { $0.trigger == .singleTap }
+        XCTAssertNotNil(tap, "hint item must be tappable")
+        tap?.closure?()
+        XCTAssertEqual(source.requestCount, 1, "hint tap must route to the source's grant request")
+    }
 }
 
 // MARK: - Round 22 shared test doubles (file scope so WidgetLeakTests reuses them)
@@ -1457,7 +1661,7 @@ final class CountingUpNextSource: IUpNextSource {
 /// UpNextScrubberTouchBarItem subclass with an injected fake source
 /// (the round-22 test seam — no real EventKit source is created).
 final class CountingUpNextItem: UpNextScrubberTouchBarItem {
-    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, source: CountingUpNextSource) {
+    init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, source: IUpNextSource) {
         super.init(identifier: identifier, interval: interval, from: 1, to: 4,
                    maxToShow: 1, autoResize: false, eventSources: [source])
         // Same isolation as the other round-22 counting subclasses.
@@ -1465,6 +1669,34 @@ final class CountingUpNextItem: UpNextScrubberTouchBarItem {
     }
 
     required init?(coder _: NSCoder) { return nil }
+}
+
+/// IUpNextSource fake with hasPermission=false + grant-request counter —
+/// round 30 permission-lazy test double (never touches EKEventStore).
+final class CountingNoPermissionUpNextSource: IUpNextSource {
+    static let bundleIdentifier: String = "com.lyricsmtmr.tests.noperm"
+    let hasPermission = false
+    var updateCallback: () -> Void = {}
+    private let counterLock = NSLock()
+    private var _requestCount = 0
+
+    var requestCount: Int {
+        counterLock.lock()
+        defer { counterLock.unlock() }
+        return _requestCount
+    }
+
+    required init(updateCallback: @escaping () -> Void = {}) {
+        self.updateCallback = updateCallback
+    }
+
+    func getUpcomingEvents(dateLowerBounds _: Date, dateUpperBounds _: Date) -> [UpNextEventModel] { [] }
+
+    func requestAccessIfNeeded() {
+        counterLock.lock()
+        _requestCount += 1
+        counterLock.unlock()
+    }
 }
 
 // MARK: - Round 24 test doubles (file scope)

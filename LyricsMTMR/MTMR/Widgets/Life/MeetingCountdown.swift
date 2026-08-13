@@ -16,7 +16,9 @@ class MeetingCountdownItem: TBPollItem {
         super.init(identifier: identifier, refreshInterval: refreshInterval,
                    icon: "person.3.fill", tint: TB.gold,
                    label: localized("会议", "Meet"), width: 168)
-        TBEvents.requestAccess()
+        // round 30（权限惰性化）：不再在 init 自动申请日历权限（TCC 弹窗零
+        // 自动——测试宿主全量实例化/应用首启零弹窗）；未授权时 compute()
+        // 显示「需要权限」，用户到 系统设置 → 隐私与安全性 → 日历 授予。
     }
     required init?(coder: NSCoder) { return nil }
 

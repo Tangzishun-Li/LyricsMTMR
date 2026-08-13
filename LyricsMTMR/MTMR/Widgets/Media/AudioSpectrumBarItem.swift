@@ -300,6 +300,23 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
         spectrumView.onTap = { [weak self] in
             guard let self = self, self.spectrumView.hint != nil else { return }
             HapticFeedback.instance.tap(type: .medium)
+            if self.requestedSource == "mic" {
+                // round 30：麦克风提示（未决定）——点按即申请授权，授权后
+                // 重启采集链；拒绝态提示点按仅触达（无授权动作）。
+                if self.micAuthorizationStatus() == .notDetermined {
+                    AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                        DispatchQueue.main.async {
+                            guard let self = self, granted else { return }
+                            self.spectrumView.hint = nil
+                            self.stopCapture()
+                            if !self.capturePauseGate.isPaused {
+                                self.startCapture()
+                            }
+                        }
+                    }
+                }
+                return
+            }
             // Straight to the Screen Recording privacy pane so granting the
             // permission is one toggle away.
             let urls = [
@@ -404,6 +421,12 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
 
     private func startSystem() {
         guard #available(macOS 13.0, *) else { return }
+        // round 30（权限惰性化）：录屏权限未授予时不发起 SCK 流——发起即触发
+        // TCC 弹窗；改为直接显示提示（点按跳系统设置），零自动弹窗。
+        if !screenCaptureAccessPreflight() {
+            showSystemPermissionHint()
+            return
+        }
         lastAudibleSystem = 0
         let tap = SystemAudioTap()
         tap.onSamples = { [weak self] samples in
@@ -416,11 +439,25 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
             // Permission missing (or SCK unavailable): tell the user instead
             // of dying silently. The synth keeps the widget alive meanwhile,
             // and tapping the hint opens the permission pane.
-            self.spectrumView.hint = localized("需录屏权限 · 点按开启", "Screen Recording needed · tap")
-            AppLog.error("AudioSpectrum: system audio unavailable — showing permission hint")
+            self.showSystemPermissionHint()
         }
         systemTap = tap
         tap.start()
+    }
+
+    /// 录屏权限预检（round 30 惰性门）。internal：单测注入点——计数子类
+    /// override，隔离真实 TCC 授权状态。
+    func screenCaptureAccessPreflight() -> Bool {
+        if #available(macOS 12.3, *) {
+            return CGPreflightScreenCaptureAccess()
+        }
+        return true
+    }
+
+    /// 录屏权限缺失提示（round 30 预检 + round 21 onFailed 共用）。
+    private func showSystemPermissionHint() {
+        spectrumView.hint = localized("需录屏权限 · 点按开启", "Screen Recording needed · tap")
+        AppLog.error("AudioSpectrum: system audio unavailable — showing permission hint")
     }
 
     private func stopSystem() {
@@ -434,6 +471,19 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
     }
 
     private func startMic() {
+        // round 30（权限惰性化）：麦克风权限未授予（未决定/拒绝）时不启动
+        // AVAudioEngine——启动即触发 TCC 弹窗；改为显示提示，点按申请或跳
+        // 系统设置（见 init 的 spectrumView.onTap 分支）。
+        switch micAuthorizationStatus() {
+        case .authorized:
+            break
+        case .notDetermined:
+            spectrumView.hint = localized("需麦克风权限 · 点按开启", "Microphone needed · tap")
+            return
+        default: // .denied / .restricted
+            spectrumView.hint = localized("麦克风未授权 · 点按设置", "Microphone denied · tap settings")
+            return
+        }
         // The mic path is optional — a missing device or denied permission
         // must never break the widget; the synth timer covers the display.
         let error = MTMRTryOrError { [weak self] in
@@ -459,6 +509,15 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
             AppLog.error("AudioSpectrum: mic capture setup threw: \(error.localizedDescription)")
         }
     }
+
+    /// 麦克风授权状态（round 30 惰性门）。internal：单测注入点——计数子类
+    /// override，不触碰真实 TCC 授权状态（同 locationServicesUsable 模式）。
+    func micAuthorizationStatus() -> AVAuthorizationStatus {
+        AVCaptureDevice.authorizationStatus(for: .audio)
+    }
+
+    /// 当前提示文案（round 30 测试缝：授权门行为断言用）。
+    var currentHint: String? { spectrumView.hint }
 
     private func stopMic() {
         if tapInstalled, let engine = audioEngine {
