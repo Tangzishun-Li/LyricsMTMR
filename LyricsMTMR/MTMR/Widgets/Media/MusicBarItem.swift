@@ -35,8 +35,10 @@ class MusicBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private let pauseGate = TBPauseGate()
     /// 0.25s 跑马灯（round 20：与自循环共用同一暂停信号——隐藏期
     /// 无效化，恢复后按原节奏重新安装）。仅在出现歌名后创建/安装。
+    /// round 29：恢复立即推进一帧（与自循环的恢复补刷同构，相位从当前
+    /// 位置继续，无 0.25s 空窗）。
     private lazy var marqueeTimer = TBPausableTimer(interval: 0.25, tolerance: nil,
-                                                    immediateFireOnResume: false) { [weak self] in
+                                                    immediateFireOnResume: true) { [weak self] in
         self?.marquee()
     }
     /// 跑马灯是否已装过（未装过时 setPaused 不得触碰 wrapper——

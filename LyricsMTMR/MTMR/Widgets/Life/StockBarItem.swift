@@ -37,8 +37,10 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
         self.refreshData()
         self.refreshBoundaryCheck()
     }
-    /// 跑马灯 3s 定时器（数据到达后由 startMarquee 启停，行为与原实现一致）。
-    private lazy var marqueePausable = TBPausableTimer(interval: 3, tolerance: nil, immediateFireOnResume: false) { [weak self] in
+    /// 跑马灯 3s 定时器（数据到达后由 startMarquee 启停，行为与原实现一致；
+    /// round 29：恢复立即推进一帧——相位从当前 index 继续，无 ≤3s 旋转
+    /// 空窗。stocks 为空时 handler 早退零副作用）。
+    private lazy var marqueePausable = TBPausableTimer(interval: 3, tolerance: nil, immediateFireOnResume: true) { [weak self] in
         guard let self = self, !self.stocks.isEmpty else { return }
         self.marqueeIndex = (self.marqueeIndex + 1) % self.stocks.count
         DispatchQueue.main.async {
