@@ -758,11 +758,22 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         setPollingPaused(false)
     }
 
-    @objc private func dismissTouchBar() {
+    /// `internal` (not `private`) since round 27 so GlobalHiddenStateTests
+    /// can drive the empty-bar vs. content-bar dismiss contract directly.
+    @objc func dismissTouchBar() {
+        let hasItems = touchBarContainsAnyItems()
         // Round 23: settle the process-wide visibility state before the
         // pause broadcast (see presentTouchBar).
-        TouchBarVisibilityState.shared.setBarHidden(true)
-        if touchBarContainsAnyItems() {
+        // Round 27: only record the global hidden state when the bar
+        // actually has content — an empty bar hides nothing, and recording
+        // it as globally hidden made every later-created widget seed paused
+        // (round-23 init seeding) even though the bar was never on screen.
+        // In the test host this turned any NSWorkspace lifecycle event into
+        // permanent test pollution (round-26 flaky-7 root cause). Real
+        // dismissals (blacklisted app / exitTouchbar / content-less rebuild
+        // after a content bar) still flip the state exactly as before.
+        if hasItems {
+            TouchBarVisibilityState.shared.setBarHidden(true)
             minimizeSystemModal(touchBar)
         }
         updateControlStripPresence()
