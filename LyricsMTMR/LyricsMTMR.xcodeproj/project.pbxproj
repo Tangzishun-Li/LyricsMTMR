@@ -249,6 +249,7 @@
 		C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */; };
 		C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */; };
 		C1FF1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */; };
+		C1FFABC7415B62F1D6A38BC7 /* ItemTypeDecodeRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEABC7415B62F1D6A38BC7 /* ItemTypeDecodeRegistryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -526,6 +527,7 @@
 		C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistryReconciliationTests.swift; sourceTree = "<group>"; };
 		C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowGCStrategy.swift; sourceTree = "<group>"; };
 		C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowGCStrategyTests.swift; sourceTree = "<group>"; };
+		C1FEABC7415B62F1D6A38BC7 /* ItemTypeDecodeRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemTypeDecodeRegistryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -674,6 +676,7 @@
 				C1FEBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift */,
 				C1FED4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift */,
 				C1FE1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift */,
+				C1FEABC7415B62F1D6A38BC7 /* ItemTypeDecodeRegistryTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1347,6 +1350,7 @@
 				C1FFBB0F771AFAC1886869D4 /* WeatherLocationSessionTests.swift in Sources */,
 				C1FFD4D578F9C98A37F3C2EE /* RegistryReconciliationTests.swift in Sources */,
 				C1FF1AB1D30FB5773679906B /* SettingsWindowGCStrategyTests.swift in Sources */,
+				C1FFABC7415B62F1D6A38BC7 /* ItemTypeDecodeRegistryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
