@@ -54,6 +54,16 @@ internal final class WeatherLocationSession {
 
     internal typealias ResultHandler = (Outcome) -> Void
 
+    /// 视图生命周期取消策略（round 27 区分 close-hide / resignKey）：
+    /// 窗口真实不可见（关闭 orderOut / 最小化 / 应用隐藏）或已切离天气页 → 取消
+    /// 在途定位；窗口仍在屏但失焦（resignKey）→ 继续——1~6.5s 一次性操作用户
+    /// 在场、窗口可见，完成（城市已添加 + 提示文案）比静默取消更符合「切走再切回」
+    /// 的用户预期；GPS 有界（≤6.5s）且隐私指示灯为系统可见反馈，不违反
+    /// 「隐藏期零活动」治理（该治理针对持续后台源；本会话为用户主动发起的一次性操作）。
+    internal static func shouldStopForViewState(onScreen: Bool, tabIsWeather: Bool) -> Bool {
+        !onScreen || !tabIsWeather
+    }
+
     private let locationSource: LocationProviding
     private let geocoder: GeocodingProviding
     private let resultHandler: ResultHandler

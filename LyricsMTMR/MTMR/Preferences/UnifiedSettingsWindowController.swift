@@ -10,18 +10,113 @@ import SwiftUI
 
 // MARK: - Settings Window Visibility State
 
-/// Observable visibility flag for the unified settings window. Decorative
+/// Observable visibility state for the unified settings window. Decorative
 /// always-animating views (Touch Bar preview karaoke line, equalizer bars)
 /// observe it so their TimelineView redraws pause while the window is
 /// closed or miniaturized — no frames get rendered that nobody can see.
+///
+/// Round 27: two flags with deliberately different semantics.
+/// - `isVisible`: "window is key" equivalent (OPT-14) — resigning key
+///   (clicking another app / Space switch / app deactivation) sets it false
+///   so offscreen DisplayLink frames stop. Conservative "nobody is looking
+///   right now" signal for animations.
+/// - `isOnScreen`: the window is really ordered in on some Space (driven by
+///   close-hide / real close / minimize / app-hide events). Losing key
+///   status does NOT clear it — the window is still on screen, the user is
+///   still present. The in-flight location session (WeatherTabView) keys off
+///   this flag: a 1~6.5 s user-initiated one-shot continues while the window
+///   is on screen (GPS bounded, user present, privacy indicator visible) and
+///   cancels only when the window truly hides (close / minimize / app hide).
 final class SettingsWindowState: ObservableObject {
     static let shared = SettingsWindowState()
     @Published var isVisible: Bool = false
+    @Published var isOnScreen: Bool = false
     /// The tab currently shown in the settings window. Always-animating
     /// previews (e.g. the karaoke line) observe it so their TimelineView
     /// redraws pause while their own tab is hidden.
     @Published var activeTab: SettingsTab? = nil
     private init() {}
+}
+
+// MARK: - Settings Window Visibility Tracker
+
+/// Maps settings-window visibility events onto `SettingsWindowState` (round 27).
+/// Extracted from the window controller so the close-hide / resignKey
+/// distinction is a testable unit: unit tests construct it directly and
+/// drive it with the same method calls / notifications the controller
+/// forwards — no window content, no hardware.
+///
+/// `isOnScreen` means "the settings window is ordered in on some Space — the
+/// user is present and could be looking at the operation". It is cleared by
+/// every true hide (close-reuse orderOut / real close / minimize / Cmd+H app
+/// hide) and restored by the reverse events. resignKey does NOT clear it:
+/// the window is still on screen, only focus moved away.
+final class SettingsWindowVisibilityTracker {
+    private var observers: [NSObjectProtocol] = []
+    /// Whether the window was on screen before the app hid (Cmd+H) — the
+    /// unhide handler restores the pre-hide state (AppKit re-shows the
+    /// windows that were visible before the hide).
+    private var wasOnScreenBeforeAppHide = false
+
+    init() {
+        let center = NotificationCenter.default
+        // Cmd+H orders every window out: the settings window is no longer
+        // visible to the user. AppKit posts both notifications on main.
+        observers.append(center.addObserver(forName: NSApplication.didHideNotification,
+                                            object: nil, queue: nil) { [weak self] _ in
+            guard let self = self else { return }
+            self.wasOnScreenBeforeAppHide = SettingsWindowState.shared.isOnScreen
+            SettingsWindowState.shared.isOnScreen = false
+        })
+        observers.append(center.addObserver(forName: NSApplication.didUnhideNotification,
+                                            object: nil, queue: nil) { [weak self] _ in
+            guard let self = self else { return }
+            SettingsWindowState.shared.isOnScreen = self.wasOnScreenBeforeAppHide
+            self.wasOnScreenBeforeAppHide = false
+        })
+    }
+
+    deinit {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
+    /// Window became key: it is on screen and focused.
+    func windowBecameKey() {
+        SettingsWindowState.shared.isVisible = true
+        SettingsWindowState.shared.isOnScreen = true
+    }
+
+    /// Window lost key status (clicked another app / Space switch / app
+    /// deactivation). Animations pause (isVisible = false) but the window
+    /// is still on screen — isOnScreen stays true: a user-initiated bounded
+    /// location lookup keeps running instead of silently dying.
+    func windowResignedKey() {
+        SettingsWindowState.shared.isVisible = false
+        // isOnScreen deliberately unchanged.
+    }
+
+    /// Window miniaturized: off screen, no longer visible to the user.
+    func windowMiniaturized() {
+        SettingsWindowState.shared.isVisible = false
+        SettingsWindowState.shared.isOnScreen = false
+    }
+
+    func windowDeminiaturized() {
+        SettingsWindowState.shared.isVisible = true
+        SettingsWindowState.shared.isOnScreen = true
+    }
+
+    /// Real close (windowWillClose path).
+    func windowClosed() {
+        SettingsWindowState.shared.isVisible = false
+        SettingsWindowState.shared.isOnScreen = false
+    }
+
+    /// Active hide (orderOut reuse path — close button / Cmd+W).
+    func windowHidden() {
+        SettingsWindowState.shared.isVisible = false
+        SettingsWindowState.shared.isOnScreen = false
+    }
 }
 
 // MARK: - Dock Visibility Manager
@@ -117,6 +212,10 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
     /// 优化前的幽灵渲染问题。
     var onWindowHidden: (() -> Void)?
 
+    /// Round 27: maps window visibility events onto SettingsWindowState.
+    /// Owned by the controller; deinit removes its notification observers.
+    private var visibilityTracker: SettingsWindowVisibilityTracker?
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
@@ -137,6 +236,7 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         self.init(window: window)
         UnifiedSettingsWindowController.current = self
         window.delegate = self
+        visibilityTracker = SettingsWindowVisibilityTracker()
         DockVisibilityManager.shared.track(window: window)
         Self.installTitlebarDrag(accessory: window)
 
@@ -155,7 +255,7 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         UnifiedSettingsWindowController.current = nil
-        SettingsWindowState.shared.isVisible = false
+        visibilityTracker?.windowClosed()
         DockVisibilityManager.shared.handleSettingsWindowClosed()
         // OPT-1: drop the owner's strong reference so the window and the whole
         // SwiftUI tree deallocate with the close (ghost-window fix). AppKit
@@ -195,30 +295,34 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
     /// DockVisibilityManager 收起 Dock 图标。窗口与整棵 SwiftUI 树保持存活，
     /// 由 AppDelegate 的闲置 GC / 内存压力路径决定何时真正释放。
     private func hideWindow() {
-        SettingsWindowState.shared.isVisible = false
+        visibilityTracker?.windowHidden()
         DockVisibilityManager.shared.handleSettingsWindowClosed()
         window?.orderOut(nil)
         onWindowHidden?()
     }
 
     func windowDidBecomeKey(_ notification: Notification) {
-        SettingsWindowState.shared.isVisible = true
+        visibilityTracker?.windowBecameKey()
     }
 
     func windowDidResignKey(_ notification: Notification) {
         // OPT-14: non-standard hide paths (orderOut / Space switch / losing
         // key status) never reset isVisible, leaving offscreen DisplayLink
-        // frames running. Treat "not key" as "not visible" — didBecomeKey
-        // flips it back when the window regains focus.
-        SettingsWindowState.shared.isVisible = false
+        // frames running. Treat "not key" as "not visible" for animation
+        // pausing — didBecomeKey flips it back when the window regains focus.
+        // Round 27: isOnScreen is NOT cleared here — the window is still on
+        // screen, so a user-initiated in-flight location lookup continues.
+        // True hides (close / minimize / app hide) still cancel it via
+        // windowHidden / windowMiniaturized / the app-hide notifications.
+        visibilityTracker?.windowResignedKey()
     }
 
     func windowDidMiniaturize(_ notification: Notification) {
-        SettingsWindowState.shared.isVisible = false
+        visibilityTracker?.windowMiniaturized()
     }
 
     func windowDidDeminiaturize(_ notification: Notification) {
-        SettingsWindowState.shared.isVisible = true
+        visibilityTracker?.windowDeminiaturized()
     }
 
     /// Installs an invisible title-bar accessory so the window can still be

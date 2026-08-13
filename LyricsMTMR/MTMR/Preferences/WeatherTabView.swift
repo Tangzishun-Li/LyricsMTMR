@@ -26,7 +26,9 @@ struct WeatherTab: View {
     /// 定位添加城市会话（round 23）：resolve/超时/视图消失三路径停定位。
     @State private var locationSession: WeatherLocationSession? = nil
     /// 设置窗口可见性（round 22 关窗=隐藏复用后，窗口关闭/切后台/最小化
-    /// 不会卸载视图树，onDisappear 不触发——用 isVisible 做等价生命周期）。
+    /// 不会卸载视图树，onDisappear 不触发——用等价生命周期钩子；round 27：
+    /// 改用 isOnScreen（真实在屏）而非 isVisible（key 等价）——失焦 resignKey
+    /// 窗口仍在屏，在途定位继续，真正隐藏（关闭/最小化/应用隐藏）才取消）。
     @ObservedObject private var windowState = SettingsWindowState.shared
 
     var body: some View {
@@ -51,15 +53,22 @@ struct WeatherTab: View {
         }
         .onAppear(perform: loadFromJSON)
         .onDisappear { stopLocationSession() }
-        .onChange(of: windowState.isVisible) { _, visible in
-            // 窗口关闭（隐藏复用）/最小化/切后台/Space 切换：视图树仍在，
-            // onDisappear 不触发，等价生命周期钩子停掉在途定位会话。
-            if !visible { stopLocationSession() }
+        .onChange(of: windowState.isOnScreen) { _, onScreen in
+            // 窗口真实不可见（关闭=orderOut 隐藏复用/最小化/应用隐藏）→ 停掉在途
+            // 定位会话；失焦（resignKey）但窗口仍在屏 → 继续（round 27：1~6.5s
+            // 一次性操作用户在场，完成比静默取消更符合预期；GPS 有界且指示灯可见）。
+            if WeatherLocationSession.shouldStopForViewState(onScreen: onScreen,
+                                                             tabIsWeather: windowState.activeTab == .weather) {
+                stopLocationSession()
+            }
         }
         .onChange(of: windowState.activeTab) { _, tab in
             // 切页：本 tab 常驻挂载（ZStack + 缓存，onDisappear 不触发），
             // 离开天气页即停掉在途定位会话。
-            if tab != .weather { stopLocationSession() }
+            if WeatherLocationSession.shouldStopForViewState(onScreen: windowState.isOnScreen,
+                                                             tabIsWeather: tab == .weather) {
+                stopLocationSession()
+            }
         }
     }
 
