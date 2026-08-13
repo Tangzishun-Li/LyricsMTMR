@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~25 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~26 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -187,6 +187,7 @@ mindmap
 ├── 清理报告_第25轮_round24遗留清理.md          # 第 25 轮子任务 C 仓库卫生报告（round-24 父卡+子卡遗留 worktree/分支清理，r24 全清 4 worktree+4 分支，r25/review）
 ├── 验证报告_第25轮_注册表混合架构对账测试.md # 第 25 轮子任务 A 验证报告（注册表混合架构对账测试落地：测试侧唯一基准「规范清单」98 条（generate_registry_test.py 从 ItemTypeRaw/identifierBase 源码提取生成）+ 16 注册表专属键，五层断言 L1~L5——ItemTypeRaw 枚举全集（新增 CaseIterable）/最小 JSON 全量解码 + 逐条 identifierBase 期望值/工厂全量真实构造/注册表键集精确对账（含控制器 exitTouchbar/close）/114 路径口径；生产最小增量 2 处（CaseIterable + registeredTypeNames 只读快照）零行为变更；覆盖边界诚实声明（switch 不可反射 → 编译期穷尽性 + 运行时行为取证双保险）；对账发现：源码四层一致零漂移，夹具自身 1 处修正（sleep/displaySleep 预设标题 ☕️）即机制生效证据；214 用例实证（208 基线+6 新增）0 失败，r25/registry；新增测试 MTMRTests/RegistryReconciliationTests.swift）
 ├── 考古报告_第25轮_版本体系考古.md         # 第 25 轮子任务 B 考古报告（Releases API 全量仅 2 枚 v1.0.0/v0.8 + git tag 3 枚 + Info.plist 264 提交全量扫描版本号仅 0.27/452→0.28/453 两状态；v0.9~v0.26 缺失段结论=从未以 Release/tag/Info.plist 存在过（编号空洞，fork 继承上游 MTMR v0.27.0 所致两编号体系脱节）；README 方案甲补「版本史说明」段，r25/version-history）
+├── 核对报告_第26轮_注册表对账机制流程文档化.md # 第 26 轮子任务 B 核对报告（注册表对账机制流程文档化：internal-apis.zh/en §2.3 三步→六处注册点+重跑脚本（ItemTypeRaw :492-591 / decode :596-994 / identifierBase :24-223 / BarItemFactory :52-280 / SupportedTypesHolder :83-254 / 控制器 :331-368，第 26 轮实测）+ ITEMS_REFERENCE 指引段（114 口径锚点 :1163/:1174 在位）+ generate_registry_test.py ROOT 自定位修复（原硬编码 round25-A worktree）+ REQUIRED_FIELDS 同步说明，重跑 diff=0 零 Swift 改动实证 + TECHNICAL_DEBT 两条前置条件状态更新，r26/registry-docs）
 
 └── .gitignore / .gitattributes / README.md
 ```

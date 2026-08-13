@@ -1101,3 +1101,19 @@
   - 冲突检查（如实登记无擅改）：v0.8 预发布（08-09T19:16:32Z≈北京 08-10 03:16，tag creatordate 08-10 03:30）与 README v0.8 条目内容一致；v1.0.0（07-29T19:13:19Z≈北京 07-30 03:13，tag creatordate 07-30 03:12）与 README v1.0.0 条目一致；唯一登记现象（非冲突）：**版本号序号倒挂**——v1.0.0 先发布（07-29）v0.8 后发布（08-09）且 body 自称「v1.0.0 之后 30 个提交的阶段性汇总」，佐证营销版本号无递增纪律，已如实记入报告与 README 版本史说明；
   - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；
   - 交付：考古报告《考古报告_第25轮_版本体系考古.md》（本分支根目录，含 Releases API 实证输出/tag 清单/版本号时间线（264 提交扫描）/缺失段性质结论论证/README 处理决策论证/改动清单/冲突检查）+ 本记录（iteration-log 末尾追加，标注「第 25 轮 / 子任务 B」）+ file-structure.zh.md 同步（mindmap 第 7~24 轮→第 7~25 轮 + 报告行登记，无重复行）+ README.md 版本史说明段；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+
+---
+
+## 第 26 轮（功能/优化迭代第 14 轮）
+
+### 子任务记录
+
+- **t_b1dd4f1d 注册表对账机制流程文档化（text-processing-agent，分支 r26/registry-docs，第 26 轮 / 子任务 B）**：
+  - 背景：第 25 轮 A 卡登记遗留 ②——新增 widget 类型须同步 6 处注册点 + 重跑 generate_registry_test.py 刷新规范清单，此前该流程只存在于 iteration-log 与验证报告，internal-apis.zh.md §2.3 仍是旧「三步」口径（且步骤 3 引用已不存在的 createItemInternal，BarItemFactory 第 15 轮已提取），ITEMS_REFERENCE.md 亦无开发者指引；本轮将其落地为开发者可直达的权威文档（zh/en/ITEMS_REFERENCE 三处 + 脚本头部说明）；
+  - **六处注册点行号实测（第 26 轮 grep/python 逐条取证，相对 LyricsMTMR/MTMR/）**：① ItemTypeRaw 枚举 case ItemsParsing.swift:492-591（case staticButton :493 … opencodeGoUsage :590，98 case，枚举声明 :492 含 CaseIterable）；② ItemType decode switch ItemsParsing.swift:596-994（switch type { :596，case .appleScriptTitledButton: :597 … case .opencodeGoUsage: :988，98 分支；ItemType 枚举 case :293-390）；③ identifierBase switch TouchBarController.swift:24-223（case .staticButton :26 … case .opencodeGoUsage :220）；④ BarItemFactory 创建 switch BarItemFactory.swift:52-280（createItem :52，switch item.type :54，case .staticButton :55 … case .opencodeGoUsage :276，98 分支）；⑤ SupportedTypesHolder 预定义注册表 ItemsParsing.swift:83-254（"escape" :84 … "displaySleep" :244，14 键，字典闭合 :254）；⑥ 控制器运行时注册 TouchBarController.swift:331-368（private init :331，exitTouchbar :334-341、close :343-355；themeSwitch :359-368 与枚举重复注册文档口径不计）；与第 25 轮 A 卡记录同源同点，行号按第 26 轮实测刷新（旧记录 decode :598-986 等 1-2 行偏差为跨度口径差异，语义零漂移）；
+  - 文档落地：internal-apis.zh.md §2.3「注册一个新 Widget（六处注册点 + 对账测试刷新）」重写——mermaid 七步流程图 + 六处注册点表格（逐处文件:行号）+ weatherOutfit 真实代码示例补全 4 段（原示例步骤 3 createItemInternal 已失效，更正为 identifierBase + BarItemFactory 两处）+ 2.3.1 重跑脚本小节（python3 generate_registry_test.py 仓库根执行、REQUIRED_FIELDS 表同步、硬编码计数护栏、xcodebuild 对账套件命令、失效方向：编译期穷尽性拦截 #2/#3/#4、L1/L5 断言拦截注册表漏登与改名删除）；internal-apis.en.md §2.3 英文版同步（中文为主英文一致）；ITEMS_REFERENCE.md 新增「新增 Widget 类型（开发者）：注册点与对账测试」指引段（6 处注册点速览 + 重跑脚本 + REQUIRED_FIELDS 同步 + 114 口径锚点 Core/TouchBarController.swift:1163/:1174 第 26 轮实测在位 + 本文档 :3/:59 口径句/统计表/速查表同步提醒，并链接 internal-apis.zh.md §2.3）；
+  - generate_registry_test.py 顺带核对（任务 ④）：头部注释补 REQUIRED_FIELDS 表同步说明与硬编码计数（98 case/16 键）护栏说明；**ROOT 自定位修复**——原硬编码 `/Users/litz/codespace/MTMR with LyricsX /.worktrees/round25-A/...`（指向历史 worktree，随清理报告轮次会被删除），改为 `pathlib.Path(__file__).resolve().parent / "LyricsMTMR" / "MTMR"`，仓库根执行即读写本仓库；重跑验证：生成 MTMRTests/RegistryReconciliationTests.swift 与已提交版本逐字节一致（git diff 0 行），零 Swift 改动实证；
+  - TECHNICAL_DEBT.md 前置条件跟踪：① VC 化全体系重写条目补第 26 轮复核（维持暂缓，无新增触发条件）；② 枚举迁移条目补前置条件进度（对账测试已落地第 25 轮 + 注册链 6 处文档化第 26 轮，维持暂缓决策不变）并将陈旧行号刷新（:285-384→:293-390、:485-584→:492-591、:589-981→:596-994、:82-283→:83-254）；
+  - 交付：核对报告《核对报告_第26轮_注册表对账机制流程文档化.md》（仓库根，含逐项核对表 + grep 文件:行号实证 + 三处文档与脚本逐字一致性核对 + 六处注册点锚点对照 + 零 Swift 改动实证）+ 本记录（iteration-log 末尾追加，标注「第 26 轮 / 子任务 B」）+ file-structure.zh.md 同步（mindmap 第 7~25 轮→第 7~26 轮 + 报告行登记，无重复行）；
+  - 约束遵守：纯文档/工程规范轮零 Swift 源码改动（生成测试文件 diff=0 实证），未触发构建/测试，仅动本工作区与 r26/registry-docs 分支，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
