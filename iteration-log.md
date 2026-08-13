@@ -1290,3 +1290,16 @@
   - 仓库卫生：round-29 父卡 t_bdaa67df + 3 子卡（t_5af7b9df / t_161a77ef / t_8899d98a）遗留清理 —— 删除前复核 4 检查全过（4 分支 rev-list 0 ahead + merge-base 即分支头 + 4 worktree 干净 + 远端仅 main），删除后清点 .worktrees 5 项（round30-* 4 项 + 主仓库）/本地分支 6 条（main + round30-* 4 条 + 第 30 轮父卡分支 1 条，round30-* 与父卡分支按约束未动）/远端仅 main
   - 遗留跟踪盘点（round-29 收口 17 项 → 逐项状态确认）：① issue #1 OPEN（实测仍 OPEN）/ ② ITER-15 决策门 4 问（:238 条目在位）/ ③ ITER-14 时间驱动（第 24 次核验健在，2026-11 前无动作）/ ④ 口径统一 32+114（32 日期复核 0 不符；114 口径 :1174/:1185 复查零新漂移）/ ⑤~⑬ 各轮挂账/闭环状态延续（同第 29 轮口径）/ ⑭⑮⑯ 已闭环/零新增在案 / ⑰ 命名发现保持登记 + 第 28 轮 114 口径 +11 漂移闭环 + 第 29 轮新增 0 项 + **本轮新增 1 项（锚点巡检首跑 8 ERROR）已处置闭环**；第 27 轮 B 卡 GPS 灯观感挂账 + 真机冒烟延续挂账不变（第 30 轮同口径）；第 29 轮 A/B/C 卡承接核对：df5262d / dc27561 / 41636af 均已并入 main@1dcb286（git log 实证），三卡分支/worktree 本轮清理完成
   - 产出：根目录 2 份报告（核验报告_第30轮_维护机制健在与文档一致性.md / 清理报告_第30轮_round29遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~30 轮 + 2 份报告登记）+ 锚点漂移处置（docs/maintenance-notes.md、docs/iteration-plan.md、scripts/anchor-patrol.py 行号引用同步）
+
+---
+
+## 用户问题修复 t_aeb0b769（权限弹窗零自动申请治理，2026-08-14）
+
+> 来源：dashboard 用户问题卡（非轮次卡）——「为什么不停地弹出让我授权麦克风和位置信息呢？…只要我不操作它，看板任务就没有办法继续下去…你得修一下。至少得提醒他们，不是这样搞检测的，一直在弹弹窗。」分支 r30/permission-lazy，修复后合入 main 并 push。
+
+- **根因（TCC 日志 + 代码双实证）**：① 构建产物 ad-hoc 签名（codesign 实证 `Signature=adhoc`）→ 每轮重建 cdhash 变化 → TCC 视作全新应用、授权回到 notDetermined → 弹窗每轮重来（日志直证 `Failed to match existing code requirement`）；② 测试宿主 = 真实 App + RegistryReconciliationTests 全量实例化 98 种 widget，其中 7 种组件 init 即自动触碰受保护服务（round 29 收口回归单轮：麦克风 12 + 日历 8 + 提醒 5 + 录屏 2 = 27 次请求、3 次真实弹窗，任务卡在弹窗等用户点）；③ 组件「init 即自动申请」本身不符合最小权限 UX。
+- **修复（权限惰性化：init 零自动 TCC，显式点按才申请）**：WeatherBarItem/YandexWeatherBarItem（`.notDetermined` 不再算可用，显示「点按定位/定位未授权」+ 点按申请/跳设置，didChangeAuthorization 授权后接续启动+补刷）/ AudioSpectrumBarItem（startMic 授权门 + startSystem 录屏预检 + onTap 按源分流）/ NoiseMeterItem（startEngine 授权门）/ TravelCountdown+MeetingCountdown（init 删除自动 requestAccess）/ UpNextScrubber（源仅在已授权时刷新 + 组件显示「点按授权日历」提示项，点按经 requestAccessIfNeeded 申请/跳设置；顺带修复原 authorized 分支漏置 hasPermission 致组件恒空的潜在 bug）；IUpNextSource 协议新增 requestAccessIfNeeded（扩展默认 no-op）；新增内部注入点 6 处（currentLocationAuthorizationStatus/requestLocationAuthorization/openLocationSettings/micAuthorizationStatus×2/screenCaptureAccessPreflight/currentHint/items）。
+- **单测**：PausableTimerTests Round 30 段 8 用例（计数子类模式：天气/Yandex 不自动定位+点按申请、频谱麦克风未决/拒绝提示、录屏预检提示、噪音计未授权零引擎、UpNext 提示项+点按路由），零新增测试文件（避免注册链改动）。
+- **验证**：全量回归 248 用例（240 基线 + 8 新增）0 失败 0 意外（三轮实测；第一轮 2 失败为本卡天气测试守卫条件笔误，修复后两轮全绿）；**TCC log stream 全程并行采集实证：弹窗 0 次**（修复前单轮 3 次），应用侧全部为 preflight=yes 状态查询，唯一 preflight=no 为 replayd 收尾请求零弹窗；金丝雀三锚点 + WidgetLeakTests 8 全绿。
+- **遗留与建议**：① 治本 = Xcode 配置 DEVELOPMENT_TEAM 稳定签名（需用户确认后人工操作，另议）；② 后续轮次新增组件若 init 自动触碰受保护服务，回归必弹窗——沿用授权门模式，可复跑 TCC 日志自查；③ TravelCountdown/MeetingCountdown 授权入口=系统设置→隐私→日历（设置面板一键授权按钮留待后续）；④ WeType 输入法 02:33 的 26 次麦克风请求与本项目无关（语音输入会话）；⑤ 真机冒烟延续挂账不变（提示文案/点按申请 UX 观感待用户 Touch Bar 真机确认）。
+- 产出：根目录《修复报告_t_aeb0b769_权限弹窗零自动申请治理.md》+ 本记录 + file-structure.zh.md 登记（报告行，无重复行）；完成自查 git status 干净 + commit 已提交 + 合入 main 后 push origin。

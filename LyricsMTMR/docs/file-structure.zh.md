@@ -208,6 +208,7 @@ mindmap
 ├── 核对报告_第30轮_README更新日志补登v0.30.md # 第 30 轮子任务 B 核对报告（README 更新日志补登 v0.30：第 28~29 轮变更条目——恢复补刷即时性审计与补齐（两基类恢复立即补刷 + marquee 0 空窗）/闲置 GC 策略可测化（纯策略 + 9 单测）/锚点巡检脚本落地/年度维护核验第 22/23 次 + 版本决策建议 0.30/455 + 114 口径锚点核对（README 内引用 3 处 + 机器断言 5 项全 PASS）+ anchor-patrol 8 ERROR 漂移发现（StockBarItem +2 第三例合并后未复查，登记不擅改），r30/changelog）
 ├── 核验报告_第30轮_维护机制健在与文档一致性.md # 第 30 轮核验报告（第 24 次年度维护核验，r30/review；锚点巡检收口复跑接入——首跑捕获 8 ERROR 新增漂移（round-29 A 卡 +2 行位移）处置闭环，复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0；ITER-14 待办区引用同步 :393；GitHub 4/4；114 口径 :1174/:1185 复查零新漂移）
 ├── 清理报告_第30轮_round29遗留清理.md          # 第 30 轮子任务 C 仓库卫生报告（round-29 父卡+子卡遗留 worktree/分支清理，r29 全清 4 worktree+4 分支，r30/review）
+├── 修复报告_t_aeb0b769_权限弹窗零自动申请治理.md # 用户问题修复（t_aeb0b769，r30/permission-lazy）：权限弹窗零自动申请治理——根因=TCC 日志实证（测试宿主全量实例化 widget 单轮 27 次请求/3 次弹窗 + ad-hoc 签名每轮重建 cdhash 变化致 TCC 身份重来）；修复=7 组件权限惰性化（天气/Yandex 定位 notDetermined 不自动启动+点按申请、频谱麦克风授权门+录屏预检、噪音计授权门、出行/会议日历零自动申请、UpNext 点按授权提示项）+ IUpNextSource.requestAccessIfNeeded 协议方法 + 6 处内部注入点；8 新单测（PausableTimerTests Round 30 段）；248 用例 0 失败 + TCC log stream 并行采集实证弹窗 0 次）
 
 └── .gitignore / .gitattributes / README.md
 ```

@@ -15,7 +15,8 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     private let scrollView = NSScrollView()
     let activity: NSBackgroundActivityScheduler // Update scheduler
     private var eventSources : [IUpNextSource] = []
-    private var items: [UpNextItem] = []
+    /// 当前展示项（round 30 起 internal：权限提示项断言的测试缝）。
+    var items: [UpNextItem] = []
 
     /// round 22：隐藏暂停门。NSBackgroundActivityScheduler 无 pause API，
     /// 采取「门控回调」路径——调度器保持存活，但每次触发经 pollTick 过门：
@@ -136,6 +137,18 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
                 }
                 index += 1
             }
+            // round 30：无事件且存在未授权源时，显示「点按授权」提示项
+            // （零自动 TCC 弹窗；点按经源自身的 requestAccessIfNeeded 申请
+            // 或跳系统设置）。
+            if self.items.isEmpty,
+               let missingSource = self.eventSources.first(where: { !$0.hasPermission }) {
+                let hint = UpNextItem(hint: localized("点按授权日历", "Tap to allow Calendar"))
+                hint.actions.append(ItemAction(trigger: .singleTap) { [weak self] in
+                    guard self != nil else { return }
+                    missingSource.requestAccessIfNeeded()
+                })
+                self.items.append(hint)
+            }
             self.reloadData()
             self.updateSize()
         }
@@ -207,13 +220,19 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     }
 }
 
-private class UpNextItem : CustomButtonTouchBarItem {
+/// round 30 起 internal（items 测试缝的同级可见性要求）。
+class UpNextItem : CustomButtonTouchBarItem {
     static public let df = DateFormatter()
 
     init(event: UpNextEventModel) {
         let identifier = UpNextItem.getIdentifier(event: event)
         let title = UpNextItem.getTitle(event: event)
         super.init(identifier: NSTouchBarItem.Identifier(rawValue: identifier), title: title)
+    }
+
+    /// round 30：无权限时的点按授权提示项（零自动 TCC 弹窗）。
+    init(hint: String) {
+        super.init(identifier: NSTouchBarItem.Identifier(rawValue: "com.mtmr.permissionHint"), title: hint)
     }
     
     required init?(coder _: NSCoder) { return nil }
@@ -253,11 +272,18 @@ struct UpNextEventModel {
 // Interface for any event source
 protocol IUpNextSource {
     static var bundleIdentifier: String { get }
-    var hasPermission : Bool { get }
+    var hasPermission: Bool { get }
     var updateCallback : () -> Void { get set }
     
     init(updateCallback: @escaping () -> Void)
     func getUpcomingEvents(dateLowerBounds: Date, dateUpperBounds: Date) -> [UpNextEventModel]
+    /// round 30：显式点按触发的权限申请（默认 no-op；UpNextCalenderSource
+    /// 实现真实申请/跳系统设置——权限惰性化，零自动 TCC 弹窗）。
+    func requestAccessIfNeeded()
+}
+
+extension IUpNextSource {
+    func requestAccessIfNeeded() {}
 }
 
 class UpNextCalenderSource : IUpNextSource {
@@ -273,36 +299,63 @@ class UpNextCalenderSource : IUpNextSource {
         eventStore = EKEventStore()
         storeObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: eventStore, queue: nil, using: handleUpdate)
         let authStatus = EKEventStore.authorizationStatus(for: .event)
+        // round 30（权限惰性化）：仅在已授权时立即刷新；未决定/拒绝一律
+        // 不自动申请（TCC 弹窗零自动——测试宿主全量实例化/应用首启零弹窗），
+        // 由组件上的「点按授权」提示在用户显式点按时发起申请
+        // （requestAccessIfNeeded）。已授权路径同时置 hasPermission=true
+        // （原实现 authorized 分支漏置位，组件恒空——顺带修复）。
+        if isAuthorized(authStatus) {
+            hasPermission = true
+            handleUpdate()
+        }
+    }
+
+    /// round 30：授权判定（macOS 14+ .fullAccess/.writeOnly 取代 .authorized）。
+    private func isAuthorized(_ status: EKAuthorizationStatus) -> Bool {
         if #available(macOS 14.0, *) {
-            // macOS 14+: .fullAccess / .writeOnly 取代了 .authorized
-            guard authStatus != .fullAccess, authStatus != .writeOnly else {
-                self.handleUpdate()
-                return
+            return status == .fullAccess || status == .writeOnly
+        }
+        return status == .authorized
+    }
+
+    /// 点按触发的一次性申请（round 30 惰性化路径）。未决定 → 发起申请，
+    /// 授权后置位并刷新；拒绝/受限 → 跳转系统设置日历隐私面板。
+    public func requestAccessIfNeeded() {
+        let authStatus = EKEventStore.authorizationStatus(for: .event)
+        if isAuthorized(authStatus) {
+            hasPermission = true
+            handleUpdate()
+            return
+        }
+        if authStatus == .denied || authStatus == .restricted {
+            let urls = [
+                URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Calendars"),
+                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
+            ]
+            for case let url? in urls {
+                if NSWorkspace.shared.open(url) { break }
             }
-            eventStore.requestFullAccessToEvents { granted, error in
+            return
+        }
+        if #available(macOS 14.0, *) {
+            eventStore.requestFullAccessToEvents { [weak self] granted, _ in
+                guard let self = self else { return }
                 self.hasPermission = granted
                 self.handleUpdate()
                 if !granted {
                     NSLog("Error: MTMR UpNextBarWidget not given calendar access.")
-                    return
                 }
             }
         } else {
-            // macOS 13 及更早
-            guard authStatus != .authorized else {
-                self.handleUpdate()
-                return
-            }
-            eventStore.requestAccess(to: .event) { granted, error in
+            eventStore.requestAccess(to: .event) { [weak self] granted, _ in
+                guard let self = self else { return }
                 self.hasPermission = granted
                 self.handleUpdate()
                 if !granted {
                     NSLog("Error: MTMR UpNextBarWidget not given calendar access.")
-                    return
                 }
             }
         }
-
     }
 
     deinit {

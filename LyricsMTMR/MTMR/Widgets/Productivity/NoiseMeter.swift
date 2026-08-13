@@ -35,11 +35,15 @@ class NoiseMeterItem: TBPollItem {
     deinit { engine.stop() }
 
     /// 启动麦克风采集。tap 仅安装一次（引擎 stop/start 复用同一 tap——
-    /// 重复 installTap 会抛异常）；引擎重启不重弹 TCC 授权（授权持久化，
-    /// 同 round 21 论证）。internal：单测注入点——计数子类 override 计数，
+    /// 重复 installTap 会抛异常）。round 30：引擎启动前先过授权门——麦克风
+    /// 权限未授予时不启动（启动即触发 TCC 弹窗；ad-hoc 构建每次重建都是新
+    /// TCC 身份，授权不跨构建记忆），保持 running=false 由 apply() 显示
+    /// 「需要权限」。internal：单测注入点——计数子类 override 计数，
     /// 不触碰真实 AVFoundation 硬件。
     func startEngine() {
         guard !running else { return }
+        // round 30（权限惰性化）：未授权零启动、零 TCC 弹窗。
+        guard micAuthorizationStatus() == .authorized else { return }
         if !tapInstalled {
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
@@ -62,6 +66,12 @@ class NoiseMeterItem: TBPollItem {
         } catch {
             running = false
         }
+    }
+
+    /// 麦克风授权状态（round 30 惰性门）。internal：单测注入点——计数子类
+    /// override，不触碰真实 TCC 授权状态（同 AudioSpectrum/定位门模式）。
+    func micAuthorizationStatus() -> AVAuthorizationStatus {
+        AVCaptureDevice.authorizationStatus(for: .audio)
     }
 
     /// 停止麦克风采集（隐私指示灯熄灭）。幂等；tap 保留，start 复用。
