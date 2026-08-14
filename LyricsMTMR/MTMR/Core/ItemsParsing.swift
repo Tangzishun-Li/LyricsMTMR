@@ -938,6 +938,94 @@ enum ItemType: Decodable {
         .shortcutHints: { _ in
             return .shortcutHints
         },
+        // ── 第 34 轮批量迁移 · 形态 A：全 decodeIfPresent + 默认值（16 类）──
+        .breathingGuide: { container in
+            let pattern = try container.decodeIfPresent(String.self, forKey: .pattern) ?? "4-7-8"
+            return .breathingGuide(pattern: pattern)
+        },
+        .postureReminder: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            let intervalMin = try container.decodeIfPresent(Double.self, forKey: .intervalMin) ?? 45.0
+            return .postureReminder(refreshInterval: refreshInterval, intervalMin: intervalMin)
+        },
+        .travelCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            let calendarFilter = try container.decodeIfPresent(String.self, forKey: .calendarFilter) ?? ""
+            return .travelCountdown(refreshInterval: refreshInterval, calendarFilter: calendarFilter)
+        },
+        .birthdayCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .birthdayCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .holidayCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            return .holidayCountdown(refreshInterval: refreshInterval)
+        },
+        .classCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .classCountdown(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .ddlList: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .ddlList(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .readingProgress: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .readingProgress(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .noteCapture: { container in
+            let filePath = try container.decodeIfPresent(String.self, forKey: .filePath) ?? ""
+            return .noteCapture(filePath: filePath)
+        },
+        .savingsGoal: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .savingsGoal(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .taxEstimate: { container in
+            let annualIncome = try container.decodeIfPresent(Double.self, forKey: .annualIncome) ?? 0.0
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            return .taxEstimate(annualIncome: annualIncome, refreshInterval: refreshInterval)
+        },
+        .creditCardDue: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .creditCardDue(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .ciPipeline: { container in
+            let repo = try container.decodeIfPresent(String.self, forKey: .repo) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            return .ciPipeline(repo: repo, refreshInterval: refreshInterval)
+        },
+        .systemTemp: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            return .systemTemp(refreshInterval: refreshInterval)
+        },
+        .diskIO: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 2.0
+            return .diskIO(refreshInterval: refreshInterval)
+        },
+        .quickScreenshot: { container in
+            let mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "region"
+            return .quickScreenshot(mode: mode)
+        },
+        // ── 第 34 轮批量迁移 · 形态 B：无参（4 类）──
+        .billSplit: { _ in
+            return .billSplit
+        },
+        .screenPicker: { _ in
+            return .screenPicker
+        },
+        .latexSymbols: { _ in
+            return .latexSymbols
+        },
+        .finderTags: { _ in
+            return .finderTags
+        },
     ]
 
     /// 注册表键集只读快照（迁移契约测试用，与 SupportedTypesHolder.registeredTypeNames 同型）。

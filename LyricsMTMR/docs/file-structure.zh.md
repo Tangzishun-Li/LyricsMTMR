@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~33 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~34 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -221,6 +221,7 @@ mindmap
 ├── 核对报告_第33轮_README更新日志补登v0.33.md # 第 33 轮子任务 B 核对报告（README 更新日志补登 v0.33：第 32 轮 3 项变更条目——注册表混合架构 decode 迁移第三批推进（可迁未迁 70 分支按常用度再迁 20：形态 A「全 decodeIfPresent+默认值」14 dock/weather/yandexWeather/currency/playbackProgress/quickReply/gitStatus/apiLatency/sshStatus/portChecker/hashCalc/packageTracker/foodDelivery/weatherOutfit / 形态 B「无参」6 dnd/jsonFormatter/timestampConvert/httpCodes/qrCode/readTimer；闭包逐字节复制 + 程序化 diff 20/20 等价；注册表键集 23→43、契约测试 41→75 用例、回退路径锚点 dock→base64Tool；RegistryReconciliationTests 6 零改动 + generate_registry_test.py byte-identical；文档六处同步 + 锚点巡检复跑 PASS 72/ERROR 0；323 用例实证 0 失败，可迁未迁剩余 50 登记后续轮次候选）/锚点巡检收口复跑接入保持（连续第三轮 0 ERROR）/工程版本号对齐（Info.plist 0.32/457）+ 版本决策建议 0.33/458 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，零新发现），r33/changelog）
 ├── 核验报告_第33轮_维护机制健在与文档一致性.md # 第 33 轮核验报告（第 27 次年度维护核验，r33/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 32 轮收口基线逐项一致零新漂移，连续第四轮 0 ERROR；ITER-14 待办区引用 :393 第四轮保持；GitHub 4/4；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 32 轮 A/B/C 卡落地源码实证——注册表 43 键+75 用例/README v0.32/Info.plist 0.32/457）
 ├── 清理报告_第33轮_round32遗留清理.md          # 第 33 轮子任务 C 仓库卫生报告（round-32 父卡+子卡遗留 worktree/分支清理，r32 全清 4 worktree+4 分支，r33/review；主仓库 checkout main@10b4947 第 32 轮收口后正常位置，非清理范围保留登记）
+├── 验证报告_第34轮_decode迁移第五批.md # 第 34 轮子任务 A 验证报告（注册表混合架构 decode 迁移第五批推进（TECHDEBT ② 续篇五）：可迁未迁剩余 30 分支按常用度再迁 20——形态 A「全 decodeIfPresent+默认值」16 breathingGuide/postureReminder/travelCountdown/birthdayCountdown/holidayCountdown/classCountdown/ddlList/readingProgress/noteCapture/quickScreenshot/savingsGoal/taxEstimate/creditCardDue/ciPipeline/systemTemp/diskIO（任务建议优先 5 类 holidayCountdown/noteCapture/quickScreenshot/travelCountdown/readingProgress 全含，theme10/12/13/14 主流场景族逐一实证）/ 形态 B「无参」4 billSplit/screenPicker/latexSymbols/finderTags（全部迁完）；注册表键集 63→83、契约测试 109→145 用例（键集断言扩到实际 83 键 + 逐类型等价性：默认值+显式值透传/无参 case 断言）、回退路径锚点 base64Tool 本轮未迁保持现状（回退用例零改动）；RegistryReconciliationTests 6 用例与 generate_registry_test.py 生成文件零改动（byte-identical 实证）；文档六处同步（internal-apis zh/en §2.3 行号 :1043-1441 + §2.3.2、ITEMS_REFERENCE :1701/:1709、TECHNICAL_DEBT 第 2 条、anchor-patrol REG-2 范围锚点）+ 锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0；393 用例实证（357 基线+新增 36）0 失败，r34/decode-batch）
 
 └── .gitignore / .gitattributes / README.md
 ```
