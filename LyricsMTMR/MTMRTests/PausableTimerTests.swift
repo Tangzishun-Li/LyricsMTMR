@@ -55,6 +55,10 @@ class PausableTimerTests: XCTestCase {
 
     private let testIdentifier = NSTouchBarItem.Identifier("pausabletimertests.item")
 
+    /// Round 35 (CI fix): previous language setting, saved in setUp and
+    /// restored in tearDown so no other suite observes the pin.
+    private var previousAppLanguage: AppLanguage = .system
+
     /// Round 26: isolation from the test-host app's real TouchBarController
     /// singleton. Other suites touch `TouchBarController.shared`, whose
     /// init subscribes to NSWorkspace app-launch/terminate/activation
@@ -75,6 +79,23 @@ class PausableTimerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         TouchBarVisibilityState.shared.setBarHidden(false)
+        // Round 35 (CI fix): the permission-hint / weather-hint widgets
+        // render through localized(zh, en), which keys off
+        // AppSettings.appLanguage — a UserDefault that mirrors the host
+        // app's persisted language (this suite is hosted). The dev machine
+        // has zh-Hans persisted, so the Chinese-asserting tests pass there,
+        // but a fresh runner (GitHub Actions) has no value → .system → the
+        // English branch → the hint tests fail. Pin Chinese for every test
+        // in this suite and restore in tearDown so no other suite observes
+        // the change. Production code is untouched (test-harness
+        // determinism, same pattern as the visibility reset above).
+        previousAppLanguage = AppSettings.appLanguage
+        AppSettings.appLanguage = .chinese
+    }
+
+    override func tearDown() {
+        AppSettings.appLanguage = previousAppLanguage
+        super.tearDown()
     }
 
     /// Thread-safe counter for handler invocations.
