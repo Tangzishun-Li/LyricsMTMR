@@ -188,7 +188,7 @@ struct TouchBarSimulatorView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     itemsHStack(items, zone: zone, scale: scale)
                 }
-                .onChange(of: model.scrollAnchor) { anchor in
+                .onChange(of: model.scrollAnchor) { _, anchor in
                     guard let anchor else { return }
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo(anchor, anchor: .center)

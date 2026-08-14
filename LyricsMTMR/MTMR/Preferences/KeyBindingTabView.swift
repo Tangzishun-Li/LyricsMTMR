@@ -709,7 +709,7 @@ struct AddBindingSheet: View {
                             .fill(EditorColors.cardSwift)
                             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5))
                     }
-                    .onChange(of: widthStr) { v in itemWidth = CGFloat(Double(v) ?? 64) }
+                    .onChange(of: widthStr) { _, v in itemWidth = CGFloat(Double(v) ?? 64) }
                 Text("px").font(.system(size: 9.5)).foregroundStyle(EditorColors.textTertiarySwift)
             }
             HStack(spacing: 6) {
@@ -728,7 +728,7 @@ struct AddBindingSheet: View {
                             .fill(EditorColors.cardSwift)
                             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5))
                     }
-                    .onChange(of: heightStr) { v in itemHeight = CGFloat(Double(v) ?? 30) }
+                    .onChange(of: heightStr) { _, v in itemHeight = CGFloat(Double(v) ?? 30) }
                 Text("px").font(.system(size: 9.5)).foregroundStyle(EditorColors.textTertiarySwift)
             }
             Spacer()

@@ -71,7 +71,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
     private var isChinaMode: Bool { apiSource == "china" }
 
     init(identifier: NSTouchBarItem.Identifier, interval: TimeInterval, units: String, api_key: String, icon_type: String? = "text", apiSource: String = "openweather", cities: [String] = [], showHumidity: Bool = false, showWind: Bool = false) {
-        activity = NSBackgroundActivityScheduler(identifier: "\\(identifier.rawValue).updatecheck")
+        activity = NSBackgroundActivityScheduler(identifier: "\(identifier.rawValue).updatecheck")
         activity.interval = interval
         self.units = units
         self.apiSource = apiSource
@@ -173,7 +173,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
             return
         }
         if location != nil {
-            let urlRequest = URLRequest(url: URL(string: "https://api.openweathermap.org/data/2.5/weather?lat=\\(location.coordinate.latitude)&lon=\\(location.coordinate.longitude)&units=\\(units)&appid=\\(api_key)")!)
+            let urlRequest = URLRequest(url: URL(string: "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&units=\(units)&appid=\(api_key)")!)
 
             let task = URLSession.shared.dataTask(with: urlRequest) { [weak self] data, _, error in
                 // round 40：弱捕获——请求在途期间不持有 widget（否则 widget 被丢弃后
@@ -236,7 +236,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
         ChinaWeatherProvider.resolveCityCode(name: cityName) { [weak self] code in
             guard let self = self, let code = code else {
                 DispatchQueue.main.async {
-                    self?.title = "\\(cityName) 未知"
+                    self?.title = "\(cityName) 未知"
                 }
                 return
             }
@@ -254,18 +254,18 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
         let icon = chinaIconMap[data.weatherCode] ?? ""
         if !cities.isEmpty {
             let cityLabel = data.cityName.isEmpty ? cities[cityIndex % cities.count] : data.cityName
-            text = "\\(icon)\\(cityLabel) \\(Int(data.tempCelsius.rounded()))\\(units_str)"
+            text = "\(icon)\(cityLabel) \(Int(data.tempCelsius.rounded()))\(units_str)"
             if showHumidity {
-                text += " 湿度\\(data.humidity)"
+                text += " 湿度\(data.humidity)"
             }
             if showWind {
-                text += " \\(data.windDir)\\(data.windLevel)"
+                text += " \(data.windDir)\(data.windLevel)"
             }
         } else if let located = lastLocatedCityName {
             // Location mode — city name comes from reverse geocoding.
-            text = "\\(icon)\\(located) \\(Int(data.tempCelsius.rounded()))\\(units_str)"
+            text = "\(icon)\(located) \(Int(data.tempCelsius.rounded()))\(units_str)"
         } else {
-            text = "\\(icon)\\(Int(data.tempCelsius.rounded()))\\(units_str) \\(data.weather)"
+            text = "\(icon)\(Int(data.tempCelsius.rounded()))\(units_str) \(data.weather)"
         }
         setWeather(text: text)
     }

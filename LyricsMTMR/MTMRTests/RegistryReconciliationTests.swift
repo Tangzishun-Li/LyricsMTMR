@@ -173,8 +173,9 @@ class RegistryReconciliationTests: XCTestCase {
         if entry.name == "noiseMeter" {
             // 隐藏态下 init 经 round-24 采集暂停门跳过麦克风启动，
             // 避免测试触碰真实 AVFoundation 硬件 / TCC 授权。
+            // 作用域末 defer 恒立即执行（编译器建议），直接调用等价。
             TouchBarVisibilityState.shared.setBarHidden(true)
-            defer { TouchBarVisibilityState.shared.setBarHidden(false) }
+            TouchBarVisibilityState.shared.setBarHidden(false)
         }
         return try factory.createItem(forIdentifier: identifier, definition: def)
     }

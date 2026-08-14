@@ -318,11 +318,10 @@ class UpNextCalenderSource : IUpNextSource {
     }
 
     /// round 30：授权判定（macOS 14+ .fullAccess/.writeOnly 取代 .authorized）。
+    /// 部署目标 15.0 ≥ 14.0，#available 恒真，.authorized 分支为不可达死代码，
+    /// 直接使用 14+ 双态判定（行为等价，同时消除弃用警告）。
     private func isAuthorized(_ status: EKAuthorizationStatus) -> Bool {
-        if #available(macOS 14.0, *) {
-            return status == .fullAccess || status == .writeOnly
-        }
-        return status == .authorized
+        status == .fullAccess || status == .writeOnly
     }
 
     /// 点按触发的一次性申请（round 30 惰性化路径）。未决定 → 发起申请，
