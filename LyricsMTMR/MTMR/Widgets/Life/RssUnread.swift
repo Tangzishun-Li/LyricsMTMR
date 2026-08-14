@@ -20,6 +20,10 @@ class RssUnreadItem: TBPollItem {
     private var unread = 0
     private var configured = true
     private var mode = "provider"
+    /// Round 44: any fetch failure (direct feed / provider API) flips this,
+    /// and apply() shows a failure state instead of a misleading "0" —
+    /// "all read" must not be indistinguishable from "network dead".
+    private var fetchFailed = false
 
     init(identifier: NSTouchBarItem.Identifier, provider: String, refreshInterval: Double) {
         self.provider = provider
@@ -30,6 +34,7 @@ class RssUnreadItem: TBPollItem {
     required init?(coder: NSCoder) { return nil }
 
     override func compute() {
+        fetchFailed = false
         mode = AppSettings.rssMode
         if mode == "direct" {
             computeDirect()
@@ -53,7 +58,13 @@ class RssUnreadItem: TBPollItem {
         let window = AppSettings.rssUnreadWindowHours
         var total = 0
         for feed in feeds {
-            total += RSSDirectCounter.unreadCount(feedURL: feed, windowHours: window)
+            // nil = fetch failed: one dead feed already invalidates the
+            // whole badge, so stop instead of summing a partial count.
+            guard let count = RSSDirectCounter.unreadCount(feedURL: feed, windowHours: window) else {
+                fetchFailed = true
+                return
+            }
+            total += count
         }
         unread = total
     }
@@ -70,10 +81,22 @@ class RssUnreadItem: TBPollItem {
         }
         configured = true
         let server = AppSettings.rssServerURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        unread = RSSProviderClient.unreadCount(provider: useProvider, token: key, server: server)
+        if let count = RSSProviderClient.unreadCount(provider: useProvider, token: key, server: server) {
+            unread = count
+        } else {
+            fetchFailed = true
+        }
     }
 
     override func apply() {
+        // Failure state first: a dead network must look dead, not "0 unread".
+        if fetchFailed {
+            metric.value = "—"
+            metric.subValue = localized("获取失败", "offline")
+            metric.valueColor = TB.coral
+            metric.iconTint = TB.coral
+            return
+        }
         // Optionally collapse the badge when everything is read.
         if configured && unread == 0 && !AppSettings.rssShowBadge {
             metric.value = ""
@@ -94,11 +117,12 @@ class RssUnreadItem: TBPollItem {
 // MARK: - Provider clients
 
 /// Talks to the various aggregator / self-hosted reader APIs and returns a
-/// total unread count. Each backend returns 0 on any failure so the widget
-/// simply shows "0" rather than crashing the poll loop.
+/// total unread count. Round 44: returns nil on any fetch/shape failure so
+/// the widget can show a failure state instead of a misleading "0" ("all
+/// read" must not be indistinguishable from "network dead").
 enum RSSProviderClient {
 
-    static func unreadCount(provider: String, token: String, server: String) -> Int {
+    static func unreadCount(provider: String, token: String, server: String) -> Int? {
         let p = provider.lowercased()
         if p.contains("inoreader") {
             return inoreader(token: token)
@@ -113,38 +137,39 @@ enum RSSProviderClient {
     }
 
     // Feedly cloud — sum of all unreadcounts.
-    private static func feedly(token: String) -> Int {
+    private static func feedly(token: String) -> Int? {
         guard let json = TBNet.json("https://cloud.feedly.com/v3/markers/counts",
                                     headers: ["Authorization": "Bearer \(token)"]),
-              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return 0 }
+              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return nil }
         return items.reduce(0) { $0 + (($1["count"] as? Int) ?? 0) }
     }
 
     // Inoreader — sum of all unreadcounts.
-    private static func inoreader(token: String) -> Int {
+    private static func inoreader(token: String) -> Int? {
         guard let json = TBNet.json("https://api.inoreader.com/api/0/unread-count",
                                     headers: ["Authorization": "Bearer \(token)"]),
-              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return 0 }
+              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return nil }
         return items.reduce(0) { $0 + (($1["count"] as? Int) ?? 0) }
     }
 
     // Miniflux (self-hosted) — /v1/entries?status=unread returns a "total".
-    private static func miniflux(token: String, server: String) -> Int {
+    private static func miniflux(token: String, server: String) -> Int? {
         let base = normalized(server, fallback: "http://localhost:8080")
         guard let json = TBNet.json("\(base)/v1/entries?status=unread&limit=1",
-                                    headers: ["X-Auth-Token": token]) as? [String: Any] else { return 0 }
-        return (json["total"] as? Int) ?? 0
+                                    headers: ["X-Auth-Token": token]) as? [String: Any],
+              let total = json["total"] as? Int else { return nil }
+        return total
     }
 
     // Google Reader compatible API — used by FreshRSS, BazQux, The Old Reader.
     // Server should be the API root, e.g. "https://rss.example.com/api/greader.php"
     // for FreshRSS, "https://www.bazqux.com" for BazQux, "https://theoldreader.com"
     // for The Old Reader.
-    private static func googleReader(token: String, server: String) -> Int {
+    private static func googleReader(token: String, server: String) -> Int? {
         let base = normalized(server, fallback: "https://theoldreader.com")
         guard let json = TBNet.json("\(base)/reader/api/0/unread-count?output=json",
                                     headers: ["Authorization": "GoogleLogin auth=\(token)"]),
-              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return 0 }
+              let items = (json as? [String: Any])?["unreadcounts"] as? [[String: Any]] else { return nil }
         // Only count real feeds (ids look like "feed/..."), skip label/category rows.
         return items.reduce(0) { sum, entry in
             let id = (entry["id"] as? String) ?? ""
@@ -181,8 +206,10 @@ final class RSSDirectCounter: NSObject, XMLParserDelegate {
         self.cutoff = Date().addingTimeInterval(-max(0, windowHours) * 3600)
     }
 
-    static func unreadCount(feedURL: String, windowHours: Double) -> Int {
-        guard let data = TBNet.get(feedURL, timeout: 10) else { return 0 }
+    static func unreadCount(feedURL: String, windowHours: Double) -> Int? {
+        // Round 44: nil = fetch failed (distinct from a legitimately empty
+        // feed, which returns 0) so the widget can show a failure state.
+        guard let data = TBNet.get(feedURL, timeout: 10) else { return nil }
         let delegate = RSSDirectCounter(windowHours: windowHours)
         let parser = XMLParser(data: data)
         parser.delegate = delegate

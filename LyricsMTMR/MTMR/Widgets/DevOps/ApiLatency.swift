@@ -78,13 +78,9 @@ class ApiLatencyItem: TBPollItem {
 
     private static func directGet(_ urlString: String, timeout: TimeInterval) -> Data? {
         guard let url = URL(string: urlString) else { return nil }
-        var result: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        directSession.dataTask(with: URLRequest(url: url, timeoutInterval: timeout)) { data, _, _ in
-            result = data
-            semaphore.signal()
-        }.resume()
-        _ = semaphore.wait(timeout: .now() + timeout + 1)
-        return result
+        // Round 44: shared hardened sync core — bounded wait + cancel-on-
+        // expiry so a black-holed direct connection is released promptly.
+        return TBNet.syncFetch(URLRequest(url: url, timeoutInterval: timeout),
+                               session: directSession).data
     }
 }

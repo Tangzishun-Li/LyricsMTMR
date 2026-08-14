@@ -103,12 +103,20 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
 
     // MARK: - 数据获取
 
+    /// Round 44: single-flight guard — a hung quote fetch (up to the 15s
+    /// request timeout) must not pile up duplicate refresh rounds on the
+    /// next tick. All touches happen on the main thread (timer handler +
+    /// group.notify both main), so no locking is needed.
+    private var isFetching = false
+
     private func refreshData() {
+        guard !isFetching else { return }
         guard !stockSymbols.isEmpty else {
             title = "未配置股票"
             image = nil
             return
         }
+        isFetching = true
 
         let group = DispatchGroup()
         var fetched: [StockMinuteData] = []
@@ -124,7 +132,12 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
         }
 
         group.notify(queue: .main) { [weak self] in
-            guard let self = self, !self.refreshPausable.isPaused else { return }
+            guard let self = self else { return }
+            // Clear the flight flag before the pause check: a pause that
+            // lands mid-fetch must not leave the guard stuck (the resume
+            // immediate refresh would then be skipped forever).
+            self.isFetching = false
+            guard !self.refreshPausable.isPaused else { return }
             self.stocks = fetched
             if self.displayMode == "marquee" {
                 self.startMarquee()
@@ -154,6 +167,9 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
 
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", forHTTPHeaderField: "User-Agent")
+        // Round 44: explicit timeout — the 60s session default vs the 10s
+        // refresh cadence would leave quotes stale up to a minute.
+        request.timeoutInterval = 15
 
         URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
@@ -282,7 +298,7 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
             return
         }
 
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        URLSession.shared.dataTask(with: URLRequest(url: url, timeoutInterval: 15)) { data, _, error in
             guard let data = data, error == nil else {
                 completion(nil)
                 return
@@ -311,7 +327,7 @@ class StockBarItem: CustomButtonTouchBarItem, TBPollPausable {
             return
         }
 
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        URLSession.shared.dataTask(with: URLRequest(url: url, timeoutInterval: 15)) { data, _, error in
             guard let data = data, error == nil else {
                 completion(nil)
                 return

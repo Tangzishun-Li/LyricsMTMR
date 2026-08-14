@@ -130,6 +130,9 @@ class YandexWeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate,
         guard !pollGate.isPaused else { return }
         var urlRequest = URLRequest(url: URL(string: getWeatherUrl())!)
         urlRequest.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36", forHTTPHeaderField: "user-agent") // important for the right format
+        // Round 44: explicit timeout — the 60s session default vs the 30min
+        // refresh cadence would leave weather stale up to a minute.
+        urlRequest.timeoutInterval = 15
 
         updateWeatherTask?.cancel()
         updateWeatherTask = URLSession.shared.dataTask(with: urlRequest) { [weak self] data, _, error in

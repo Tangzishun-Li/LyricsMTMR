@@ -173,7 +173,9 @@ class CurrencyBarItem: CustomButtonTouchBarItem, TBPollPausable {
             return
         }
 
-        let task = URLSession.shared.dataTask(with: URLRequest(url: url)) { [weak self] data, _, error in
+        // Round 44: explicit timeout — the 60s session default vs the 10min
+        // refresh cadence would leave the rate stale up to a minute.
+        let task = URLSession.shared.dataTask(with: URLRequest(url: url, timeoutInterval: 15)) { [weak self] data, _, error in
             guard let self = self else { return }
             if error != nil {
                 showErrorState()

@@ -877,19 +877,45 @@ class TBMetricPopoverItem: TBPopoverItem, TBPollPausable {
 // MARK: - Networking helper
 
 enum TBNet {
+    /// Test hook (round 44): nil = URLSession.shared (production). Injected
+    /// sessions let contract tests stub the transport via URLProtocol —
+    /// same shape as SettingsSync.itemsJSONPathOverride (round 42).
+    static var sessionOverride: URLSession?
+
+    /// Synchronous fetch core (call from a background queue). Bounded by
+    /// `request.timeoutInterval + 1s`. When the bound expires the in-flight
+    /// task is **cancelled** — under a trickling/black-holed connection the
+    /// session's own idle timeout never fires, so without cancellation the
+    /// orphaned task would hold the connection until the server gives up —
+    /// and a synthetic timeout error is returned so callers can surface it.
+    /// `result` is read only after a successful wait (happens-before via the
+    /// semaphore); after expiry the late completion writes into a box nobody
+    /// reads, eliminating the unconditional-read data race of the old code.
+    static func syncFetch(_ request: URLRequest, session: URLSession? = nil)
+        -> (data: Data?, response: URLResponse?, error: Error?) {
+        let session = session ?? (sessionOverride ?? .shared)
+        var result: (data: Data?, response: URLResponse?, error: Error?) = (nil, nil, nil)
+        let semaphore = DispatchSemaphore(value: 0)
+        let task = session.dataTask(with: request) { data, response, error in
+            result = (data, response, error)
+            semaphore.signal()
+        }
+        task.resume()
+        guard semaphore.wait(timeout: .now() + request.timeoutInterval + 1) == .success else {
+            task.cancel()
+            let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut,
+                                userInfo: [NSLocalizedDescriptionKey: "The request timed out."])
+            return (nil, nil, error)
+        }
+        return result
+    }
+
     /// Synchronous GET (call from a background queue). Returns raw body data.
     static func get(_ urlString: String, headers: [String: String] = [:], timeout: TimeInterval = 8) -> Data? {
         guard let url = URL(string: urlString) else { return nil }
         var req = URLRequest(url: url, timeoutInterval: timeout)
         for (key, value) in headers { req.setValue(value, forHTTPHeaderField: key) }
-        var result: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: req) { data, _, _ in
-            result = data
-            semaphore.signal()
-        }.resume()
-        _ = semaphore.wait(timeout: .now() + timeout + 1)
-        return result
+        return syncFetch(req).data
     }
 
     static func getString(_ urlString: String, headers: [String: String] = [:]) -> String? {
@@ -910,14 +936,7 @@ enum TBNet {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         for (key, value) in headers { req.setValue(value, forHTTPHeaderField: key) }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        var result: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: req) { data, _, _ in
-            result = data
-            semaphore.signal()
-        }.resume()
-        _ = semaphore.wait(timeout: .now() + timeout + 1)
-        guard let data = result else { return nil }
+        guard let data = syncFetch(req).data else { return nil }
         return try? JSONSerialization.jsonObject(with: data)
     }
 }
