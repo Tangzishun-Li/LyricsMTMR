@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~40 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~41 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -250,6 +250,8 @@ mindmap
 ├── 清理报告_第39轮_round38遗留清理.md          # 第 39 轮子任务 C 仓库卫生报告（round-38 父卡+子卡遗留 worktree/分支清理，r38 全清 4 worktree+4 分支，r39/review；合并基准 main@4250cfd=origin/main——第 38 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@4250cfd 与远端同步无偏差登记）
 ├── 核验报告_第40轮_维护机制健在与文档一致性.md # 第 40 轮核验报告（第 34 次年度维护核验，r40/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 39 轮收口基线逐项一致零新漂移，连续第十四轮 0 ERROR；ITER-14 待办区引用 :393 第十一轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0——第 39 轮收口已 push 4afbbe6 且本地 main 已同步）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 39 轮 A/B/C 卡落地源码实证——WidgetLeakTests 27 用例+UpNextScrubberTouchBarItem.swift:300 弱闭包/README v0.39/Info.plist 0.39/464；本轮新增发现 0 项）
 ├── 清理报告_第40轮_round39遗留清理.md          # 第 40 轮子任务 C 仓库卫生报告（round-39 父卡+子卡遗留 worktree/分支清理，r39 全清 4 worktree+4 分支，r40/review；前置确认 4 卡 board 均 done 收口；合并基准 main@4afbbe6=origin/main——第 39 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@4afbbe6 与远端同步无偏差登记）
+├── 核验报告_第41轮_维护机制健在与文档一致性.md # 第 41 轮核验报告（第 35 次年度维护核验，r41/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 40 轮收口基线逐项一致零新漂移，连续第十六轮 0 ERROR；ITER-14 待办区引用 :393 第十二轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=0cf1fcc——第 40 轮收口已 push 0cf1fcc 且本地 main 已同步）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 40 轮 A/B/C 卡落地源码实证——WidgetLeakTests 30 用例+VolumeViewController 弱闭包+WeatherBarItem:178 [weak self]/README v0.40/Info.plist 0.40/465；本轮新增发现 0 项）
+├── 清理报告_第41轮_round40遗留清理.md          # 第 41 轮子任务 C 仓库卫生报告（round-40 父卡+子卡遗留 worktree/分支清理，r40 全清 4 worktree+4 分支，r41/review；前置确认 4 卡 board 均 done 收口；合并基准 main@0cf1fcc=origin/main——第 40 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@0cf1fcc 与远端同步无偏差登记）
 └── .gitignore / .gitattributes / README.md
 ```
 
