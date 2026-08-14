@@ -175,7 +175,10 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
         if location != nil {
             let urlRequest = URLRequest(url: URL(string: "https://api.openweathermap.org/data/2.5/weather?lat=\\(location.coordinate.latitude)&lon=\\(location.coordinate.longitude)&units=\\(units)&appid=\\(api_key)")!)
 
-            let task = URLSession.shared.dataTask(with: urlRequest) { data, _, error in
+            let task = URLSession.shared.dataTask(with: urlRequest) { [weak self] data, _, error in
+                // round 40：弱捕获——请求在途期间不持有 widget（否则 widget 被丢弃后
+                // 仍被 completion 保留至响应到达，属陈旧回调风险；完成即释放，非永久环）。
+                guard let self = self else { return }
 
                 if error == nil {
                     do {
@@ -199,7 +202,7 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
 
                         if temperature != nil {
                             DispatchQueue.main.async {
-                                self.setWeather(text: "\\(condition_icon) \\(temperature!)\\(self.units_str)")
+                                self.setWeather(text: "\(condition_icon) \(temperature!)\(self.units_str)")
                             }
                         }
                     } catch let jsonError {

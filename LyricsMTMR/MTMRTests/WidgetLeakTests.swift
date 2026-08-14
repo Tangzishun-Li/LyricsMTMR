@@ -446,6 +446,78 @@ class WidgetLeakTests: XCTestCase {
         XCTAssertNil(weakItem, "AudioSpectrumBarItem leaked — its UserDefaults observer must not retain it")
     }
 
+    // MARK: - Round 40: async closure capture chains (non-timer, non-observer)
+    //
+    // Rounds 38/39 closed the timer-handle and observer-token leak classes.
+    // The next blind zone is async closure capture chains that hold NO
+    // resource handle: URLSession completions, DispatchQueue.async/asyncAfter
+    // self-loops, DispatchWorkItem and system block-listener registrations.
+    // A strong `self` capture here keeps a discarded object alive for as
+    // long as the closure lives (a hung request, a long debounce, a
+    // process-lifetime CoreAudio listener), so the contract is: capture
+    // weakly, and deinit must deregister anything process-lifetime.
+    //
+    // Full-repo audit (round 40) found exactly one permanent cycle in this
+    // class — VolumeViewController's CoreAudio property-listener blocks —
+    // fixed this round and pinned below (red→green). The two script items
+    // are the repo's only asyncAfter self-loops; their loop hops are weak,
+    // these tests pin that contract (a strong hop would keep the item alive
+    // for the whole interval and go red).
+
+    func testVolumeViewControllerDoesNotLeak() {
+        weak var weakItem: VolumeViewController?
+        autoreleasepool {
+            // Registers 2 CoreAudio property-listener blocks (route listener on
+            // kAudioObjectSystemObject + volume listener on the default device).
+            // Construction only registers listeners and reads volume — zero
+            // permission prompts, zero hardware activation. Pre-fix the blocks
+            // captured self strongly and were never removed on deinit, so the
+            // system object retained every constructed instance for the process
+            // lifetime.
+            var item: VolumeViewController? = VolumeViewController(
+                identifier: NSTouchBarItem.Identifier("leaktest.volume"))
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "VolumeViewController leaked — its CoreAudio property-listener blocks must not retain it")
+    }
+
+    func testShellScriptTouchBarItemDoesNotLeak() {
+        weak var weakItem: NoExecShellScriptItem?
+        autoreleasepool {
+            // init kicks the asyncAfter self-loop on the shell queue; execute()
+            // is overridden so no real Process is spawned. The loop hop is
+            // [weak self] — a strong hop would keep the item alive for the
+            // whole (large) interval and this test would go red.
+            var item: NoExecShellScriptItem? = NoExecShellScriptItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.shellscript"),
+                source: EmptySource(), interval: 3600)
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "ShellScriptTouchBarItem leaked — its asyncAfter self-loop must not retain it")
+    }
+
+    func testAppleScriptTouchBarItemDoesNotLeak() {
+        weak var weakItem: NoExecAppleScriptItem?
+        autoreleasepool {
+            // appleScript non-nil → the init path compiles the script and
+            // starts the asyncAfter self-loop; execute() is overridden so the
+            // script is never run (no Apple Events / automation prompts).
+            // Compile-only is side-effect-free.
+            var item: NoExecAppleScriptItem? = NoExecAppleScriptItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.applescript"),
+                source: EmptySource(appleScript: NSAppleScript(source: "return 1")),
+                interval: 3600, alternativeImages: [:])
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "AppleScriptTouchBarItem leaked — its asyncAfter self-loop must not retain it")
+    }
+
     // MARK: - Round 38: side-effect-free subclasses
 
     /// MusicBarItem subclass whose updatePlayer() never touches
@@ -460,5 +532,31 @@ class WidgetLeakTests: XCTestCase {
         override func startCapture() {}
         override func stopCapture() {}
         override func spectrumTick() {}
+    }
+
+    // MARK: - Round 40: side-effect-free subclasses
+
+    /// ShellScriptTouchBarItem subclass whose execute() never spawns a
+    /// Process (no shell script runs during the suite).
+    private final class NoExecShellScriptItem: ShellScriptTouchBarItem {
+        override func execute(_ command: String) -> String { "" }
+    }
+
+    /// AppleScriptTouchBarItem subclass whose execute() never runs the
+    /// script (no Apple Events / automation prompts during the suite).
+    private final class NoExecAppleScriptItem: AppleScriptTouchBarItem {
+        override func execute() -> String { "" }
+    }
+
+    /// SourceProtocol stub: nothing to read, no scripts to run.
+    private struct EmptySource: SourceProtocol {
+        var data: Data? { nil }
+        var string: String? { nil }
+        var image: NSImage? { nil }
+        var appleScript: NSAppleScript?
+
+        init(appleScript: NSAppleScript? = nil) {
+            self.appleScript = appleScript
+        }
     }
 }
