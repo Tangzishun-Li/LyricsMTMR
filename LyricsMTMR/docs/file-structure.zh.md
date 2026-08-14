@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~35 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~36 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -228,7 +228,8 @@ mindmap
 ├── 清理报告_第34轮_round33遗留清理.md          # 第 34 轮子任务 C 仓库卫生报告（round-33 父卡+子卡遗留 worktree/分支清理，r33 全清 4 worktree+4 分支，r34/review；合并基准 origin/main@b11fbf0——本地 main 失同步新发现登记；主仓库 checkout main@10b4947 落后 7 提交非清理范围保留登记）
 ├── 核对报告_第35轮_README更新日志补登v0.35.md # 第 35 轮子任务 B 核对报告（README 更新日志补登 v0.35：第 34 轮 3 项变更条目——注册表混合架构 decode 迁移第五批推进（可迁未迁剩余 30 分支按常用度再迁 20：形态 A「全 decodeIfPresent+默认值」16 breathingGuide/postureReminder/travelCountdown/birthdayCountdown/holidayCountdown/classCountdown/ddlList/readingProgress/noteCapture/quickScreenshot/savingsGoal/taxEstimate/creditCardDue/ciPipeline/systemTemp/diskIO / 形态 B「无参」4 billSplit/screenPicker/latexSymbols/finderTags；闭包逐字节复制 + 程序化 diff 20/20 等价；注册表键集 63→83、契约测试 109→145 用例、回退路径锚点 base64Tool 保持未迁；RegistryReconciliationTests 6 零改动 + generate_registry_test.py byte-identical；文档六处同步 + 锚点巡检复跑 PASS 72/ERROR 0；393 用例实证 0 失败，可迁未迁剩余 10 登记后续轮次候选）/锚点巡检收口复跑接入保持（连续第六轮 0 ERROR）/工程版本号对齐（Info.plist 0.34/459）+ 版本决策建议 0.35/460 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，零新发现），r35/changelog）
 ├── 核验报告_第35轮_维护机制健在与文档一致性.md # 第 35 轮核验报告（第 29 次年度维护核验，r35/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 34 轮收口基线逐项一致零新漂移，连续第七轮 0 ERROR；ITER-14 待办区引用 :393 第六轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0——第 34 轮失同步已闭环）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 34 轮 A/B/C 卡落地源码实证——注册表 83 键+145 用例/README v0.34/Info.plist 0.34/459；本轮新增发现 0 项）
-├── 清理报告_第35轮_round34遗留清理.md          # 第 35 轮子任务 C 仓库卫生报告（round-34 父卡+子卡遗留 worktree/分支清理，r34 全清 4 worktree+4 分支，r35/review；合并基准 main@ae6526e=origin/main——第 34 轮收口已同步本地 main；主仓库 checkout main@ae6526e 与远端同步无偏差登记）
+├── 清理报告_第35轮_round34遗留清理.md
+├── 验证报告_第36轮_decode迁移最终收官.md # 第 36 轮子任务 A 验证报告（decode 迁移最终收官（TECHDEBT ② 续篇七）：base64Tool 换锚补迁评估与落地——方案甲（换锚补迁）落地，新锚点选型 audioSpectrum（保留 5 类中唯一含真实计算逻辑者——width→barCount 密度派生，运行时无前置拦截，排除 staticButton/group/expandable/themeSwitch 四类理由在案）；base64Tool 迁入注册表（形态 A「全 decodeIfPresent+默认值」1，闭包逐字节复制仅末行 self= 改 return），注册表键集 92→93、switch 非注册保留 6→5、契约测试 163→165 用例（键集断言扩到实际 93 键 + base64Tool 默认值+显式值 2 用例 + 回退路径用例改新锚点 audioSpectrum 断言密度派生 width=400→48）；可迁分支全部迁完（93/98 迁入注册表）——decode 迁移系列最终收官声明；程序化等价比对 tools/verify_round36_equiv.py 1/1 + RegistryReconciliationTests 6 用例与 generate_registry_test.py 生成文件零改动（byte-identical 实证）；文档六处同步（internal-apis zh/en §2.3 行号 :1096-1494 + §2.3.2、ITEMS_REFERENCE :1701/:1709、TECHNICAL_DEBT 第 2 条、anchor-patrol REG-2 范围锚点）+ 锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0；413 用例实证（411 基线+新增 2）0 失败，r36/decode-batch）          # 第 35 轮子任务 C 仓库卫生报告（round-34 父卡+子卡遗留 worktree/分支清理，r34 全清 4 worktree+4 分支，r35/review；合并基准 main@ae6526e=origin/main——第 34 轮收口已同步本地 main；主仓库 checkout main@ae6526e 与远端同步无偏差登记）
 
 └── .gitignore / .gitattributes / README.md
 ```
