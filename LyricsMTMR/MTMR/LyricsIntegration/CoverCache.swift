@@ -1,6 +1,13 @@
 import Cocoa
 import ImageIO
 
+/// Sendable box for the NSImage? crossing the async isolation boundary
+/// (NSImage is not Sendable; box keeps the Swift 6 mode warning away
+/// while leaving decode work on the cooperative pool).
+struct CoverArtwork: @unchecked Sendable {
+    let image: NSImage?
+}
+
 class CoverCache {
     static let shared = CoverCache()
 
@@ -32,10 +39,10 @@ class CoverCache {
         return comps.url ?? url
     }
 
-    func image(for url: URL) async -> NSImage? {
+    func image(for url: URL) async -> CoverArtwork {
         let url = secureURL(url)
         if let cached = memoryCache.object(forKey: url as NSURL) {
-            return cached
+            return CoverArtwork(image: cached)
         }
 
         var request = URLRequest(url: url)
@@ -45,16 +52,16 @@ class CoverCache {
             let (data, _) = try await session.data(for: request)
             if let image = decodeDownsampled(data) {
                 cache(image, for: url)
-                return image
+                return CoverArtwork(image: image)
             }
         } catch {
             if let cached = URLCache.shared.cachedResponse(for: request),
                let image = decodeDownsampled(cached.data) {
                 cache(image, for: url)
-                return image
+                return CoverArtwork(image: image)
             }
         }
-        return nil
+        return CoverArtwork(image: nil)
     }
 
     /// Decode straight to display size with ImageIO so the full-resolution

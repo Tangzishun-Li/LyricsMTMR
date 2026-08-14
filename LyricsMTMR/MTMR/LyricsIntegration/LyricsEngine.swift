@@ -806,7 +806,7 @@ class LyricsEngine: NSObject, ObservableObject {
             AppLog.info("updateTrackInfo: ARTWORK CHANGED (no title change), fetching coverURL=\(url.absoluteString.prefix(50))...")
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                if let image = await CoverCache.shared.image(for: url) {
+                if let image = (await CoverCache.shared.image(for: url)).image {
                     AppLog.info("updateTrackInfo: cover image fetched OK (\(image.size.width)x\(image.size.height))")
                     trackInfo = EngineTrackInfo(
                         title: trackInfo.title,
@@ -991,7 +991,7 @@ class LyricsEngine: NSObject, ObservableObject {
                     AppLog.lyrics("searchLyricsViaMusic: coverURL=\(coverURL.absoluteString.prefix(80)), fetching...")
                     self.coverURL = coverURL
                     Task { [weak self] in
-                        if let image = await CoverCache.shared.image(for: coverURL) {
+                        if let image = (await CoverCache.shared.image(for: coverURL)).image {
                             AppLog.lyrics("searchLyricsViaMusic: cover image fetched OK (\(image.size.width)x\(image.size.height))")
                             await MainActor.run {
                                 guard let self = self else { return }
