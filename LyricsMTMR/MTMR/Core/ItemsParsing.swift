@@ -616,6 +616,10 @@ enum ItemType: Decodable {
     /// 第 35 轮第六批（收官批）再迁 9 类（形态 A 全部）：pixelPet/homekitScene/aiSelectedText/
     /// rssUnread/citationGen/paperProgress/paperTags/bilibiliFeed/apiTester；本批完成后可迁分支
     /// 全部迁完（仅 base64Tool 保留未迁——switch 回退路径测试锚点，确定换锚前不迁）。
+    /// 第 36 轮换锚补迁最终收官：base64Tool 迁入本注册表（形态 A，闭包与 switch 分支逐字节
+    /// 等价），回退路径测试锚点同步换为 audioSpectrum（保留 5 类中唯一含真实计算逻辑者，
+    /// 且运行时无前置拦截）；可迁分支至此全部迁完（注册表 93 键），switch 仅保留 5 类
+    /// 非注册分支（staticButton/group/expandable/themeSwitch/audioSpectrum）为穷尽性兜底。
     /// 保留 switch 分支的类型及理由（不迁入）：staticButton（unknown 降级目标语义特殊）、
     /// group/expandable（嵌套递归解码）、themeSwitch（SupportedTypesHolder 预注册重复键，
     /// 运行时经 lookup 先行拦截、ItemType 分支仅测试可达，迁入零收益）、audioSpectrum
@@ -1069,6 +1073,11 @@ enum ItemType: Decodable {
         .apiTester: { container in
             let defaultUrl = try container.decodeIfPresent(String.self, forKey: .defaultUrl) ?? ""
             return .apiTester(defaultUrl: defaultUrl)
+        },
+        // ── 第 36 轮换锚补迁 · 形态 A：全 decodeIfPresent + 默认值（1 类，最终收官）──
+        .base64Tool: { container in
+            let mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "encode"
+            return .base64Tool(mode: mode)
         },
     ]
 

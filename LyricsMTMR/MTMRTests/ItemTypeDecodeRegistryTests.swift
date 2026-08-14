@@ -2,19 +2,23 @@
 //  ItemTypeDecodeRegistryTests.swift
 //  LyricsMTMRTests
 //
-//  Round 30 (A) + Round 31 (A) + Round 32 (A) + Round 33 (A) + Round 34 (A) + Round 35 (A): 注册表混合架构 decode 迁移试点、批量迁移、第三批、第四批、第五批与第六批（收官批）推进测试。
+//  Round 30 (A) + Round 31 (A) + Round 32 (A) + Round 33 (A) + Round 34 (A) + Round 35 (A) + Round 36 (A): 注册表混合架构 decode 迁移试点、批量迁移、第三批、第四批、第五批、第六批（收官批）与换锚补迁（最终收官）推进测试。
 //
 //  契约（与《评估报告_第30轮_注册表混合架构decode迁移评估.md》、
 //  《验证报告_第31轮_decode迁移扩大化.md》、《验证报告_第32轮_decode迁移第三批.md》、
-//  《验证报告_第33轮_decode迁移第四批.md》及《验证报告_第34轮_decode迁移第五批.md》一致）：
-//  - 迁移契约：ItemType 字典驱动解码注册表恰含 92 类型
+//  《验证报告_第33轮_decode迁移第四批.md》、《验证报告_第34轮_decode迁移第五批.md》、
+//  《验证报告_第35轮_decode迁移第六批.md》及《验证报告_第36轮_decode迁移最终收官.md》一致）：
+//  - 迁移契约：ItemType 字典驱动解码注册表恰含 93 类型
 //    （试点 3：cpu/battery/swipe；第 31 轮批量迁移 20：形态 A 12 +
 //    形态 B 6 + 形态 C 2；第 32 轮第三批迁移 20：形态 A 14 + 形态 B 6；
 //    第 33 轮第四批迁移 20：形态 A 14 + 形态 B 6；
 //    第 34 轮第五批迁移 20：形态 A 16 + 形态 B 4；
 //    第 35 轮第六批（收官批）迁移 9：形态 A 9——pixelPet/homekitScene/
 //    aiSelectedText/rssUnread/citationGen/paperProgress/paperTags/bilibiliFeed/apiTester；
-//    可迁分支已全部迁完，仅 base64Tool 保留未迁（switch 回退路径测试锚点）；
+//    第 36 轮换锚补迁 1：形态 A 1——base64Tool（原 switch 回退路径测试锚点，换锚后补迁）；
+//    可迁分支已全部迁完；switch 98 分支中 5 类保留为穷尽性兜底
+//    （staticButton/group/expandable/themeSwitch/audioSpectrum），
+//    回退路径测试锚点 = audioSpectrum（保留 5 类中唯一含真实计算逻辑者）；
 //    新增/删除任一注册 → 本测试红，防迁移面悄然回退/无序扩张）；
 //  - 等价性：注册类型经注册表闭包解码的结果与 switch 分支逐字段一致
 //    （默认值、显式值、无参、全字段、必填字段）；
@@ -35,31 +39,31 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         return defs.first
     }
 
-    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 + 第三批 20 + 第四批 20 + 第五批 20 + 第六批 9 = 92 键，按 rawValue 升序）
+    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 + 第三批 20 + 第四批 20 + 第五批 20 + 第六批 9 + 换锚补迁 1 = 93 键，按 rawValue 升序）
 
     func testRegisteredTypesInDecodeRegistry() {
         let registered = ItemType.registeredTypeDecoderNames.map { $0.rawValue }
         XCTAssertEqual(registered, [
-            "aiSelectedText", "apiLatency", "apiTester", "appleScriptTitledButton", "battery",
-            "bilibiliFeed", "billSplit", "birthdayCountdown", "bluetoothToggle", "breathingGuide",
-            "brightness", "ciPipeline", "citationGen", "classCountdown", "clipboardHistory",
-            "colorConvert", "cpu", "creditCardDue", "currency", "dailyQuote",
-            "darkMode", "ddlList", "deepseekBalance", "diskIO", "dnd",
-            "dock", "dockerStatus", "emailBadge", "expenseTracker", "finderTags",
-            "foodDelivery", "gitStatus", "hashCalc", "holidayCountdown", "homekitScene",
-            "httpCodes", "inputsource", "jsonFormatter", "latexSymbols", "lyrics",
-            "lyricsTranslate", "meetingCountdown", "music", "network", "networkSpeed",
-            "nightShift", "noiseMeter", "noteCapture", "opencodeGoUsage", "packageTracker",
-            "paperProgress", "paperTags", "pixelPet", "playbackProgress", "pomodoro",
-            "portChecker", "postureReminder", "printerStatus", "qrCode", "quickReply",
-            "quickScreenshot", "readTimer", "readingProgress", "regexReference", "regexTester",
-            "rssUnread", "savingsGoal", "screenLock", "screenPicker", "serverMonitor",
-            "shellScriptTitledButton", "shortcutHints", "slackUnread", "sshStatus", "standupTimer",
-            "stock", "subscriptionCountdown", "swipe", "systemTemp", "taxEstimate",
-            "timeButton", "timestampConvert", "travelCountdown", "upnext", "usage",
-            "uuidGen", "volume", "weather", "weatherOutfit", "windowSnap",
-            "wordLookup", "yandexWeather"
-        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 + 第 32 轮第三批迁移 20 + 第 33 轮第四批迁移 20 + 第 34 轮第五批迁移 20 + 第 35 轮第六批（收官批）迁移 9 = 92 键（迁移契约，勿增勿删）")
+            "aiSelectedText", "apiLatency", "apiTester", "appleScriptTitledButton", "base64Tool",
+            "battery", "bilibiliFeed", "billSplit", "birthdayCountdown", "bluetoothToggle",
+            "breathingGuide", "brightness", "ciPipeline", "citationGen", "classCountdown",
+            "clipboardHistory", "colorConvert", "cpu", "creditCardDue", "currency",
+            "dailyQuote", "darkMode", "ddlList", "deepseekBalance", "diskIO",
+            "dnd", "dock", "dockerStatus", "emailBadge", "expenseTracker",
+            "finderTags", "foodDelivery", "gitStatus", "hashCalc", "holidayCountdown",
+            "homekitScene", "httpCodes", "inputsource", "jsonFormatter", "latexSymbols",
+            "lyrics", "lyricsTranslate", "meetingCountdown", "music", "network",
+            "networkSpeed", "nightShift", "noiseMeter", "noteCapture", "opencodeGoUsage",
+            "packageTracker", "paperProgress", "paperTags", "pixelPet", "playbackProgress",
+            "pomodoro", "portChecker", "postureReminder", "printerStatus", "qrCode",
+            "quickReply", "quickScreenshot", "readTimer", "readingProgress", "regexReference",
+            "regexTester", "rssUnread", "savingsGoal", "screenLock", "screenPicker",
+            "serverMonitor", "shellScriptTitledButton", "shortcutHints", "slackUnread",
+            "sshStatus", "standupTimer", "stock", "subscriptionCountdown", "swipe",
+            "systemTemp", "taxEstimate", "timeButton", "timestampConvert", "travelCountdown",
+            "upnext", "usage", "uuidGen", "volume", "weather",
+            "weatherOutfit", "windowSnap", "wordLookup", "yandexWeather"
+        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 + 第 32 轮第三批迁移 20 + 第 33 轮第四批迁移 20 + 第 34 轮第五批迁移 20 + 第 35 轮第六批（收官批）迁移 9 + 第 36 轮换锚补迁 1 = 93 键（迁移契约，勿增勿删）")
     }
 
     // MARK: - 等价性：注册表路径 vs switch 路径（试点类型）
@@ -585,20 +589,52 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         }
     }
 
-    // MARK: - 回退路径：未注册类型仍走 switch
+    // MARK: - 等价性：形态 A「全 decodeIfPresent + 默认值」（第 36 轮换锚补迁 1 类）
 
-    func testUnregisteredTypeStillDecodesViaSwitch() {
-        // base64Tool 未注册（保留 switch 分支），验证未命中注册表时回退 switch 正常解码。
-        // （原用例用 dock——dock 于第 32 轮第三批迁入注册表，改用仍未注册的 base64Tool。）
-        guard let def = decodeSingle(#"{"type": "base64Tool", "mode": "decode"}"#) else {
-            XCTFail("base64Tool JSON 解码失败")
+    func testBase64ToolDecodesViaRegistryDefaults() {
+        // base64Tool 于第 36 轮换锚补迁入注册表（原 switch 回退路径锚点，换锚后补迁）。
+        guard let def = decodeSingle(#"{"type": "base64Tool"}"#) else {
+            XCTFail("base64Tool 最小 JSON 解码失败")
             return
         }
         guard case let .base64Tool(mode: mode) = def.type else {
-            XCTFail("base64Tool 应经 switch 解码为 .base64Tool，实际：\(def.type)")
+            XCTFail("base64Tool 应解码为 .base64Tool，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(mode, "encode", "base64Tool 默认 mode 应与 switch 分支一致（?? \"encode\"）")
+    }
+
+    func testBase64ToolDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "base64Tool", "mode": "decode"}"#) else {
+            XCTFail("base64Tool 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .base64Tool(mode: mode) = def.type else {
+            XCTFail("base64Tool 应解码为 .base64Tool，实际：\(def.type)")
             return
         }
         XCTAssertEqual(mode, "decode")
+    }
+
+    // MARK: - 回退路径：未注册类型仍走 switch
+
+    func testUnregisteredTypeStillDecodesViaSwitch() {
+        // audioSpectrum 未注册（保留 switch 分支，含 width→barCount 密度派生计算），
+        // 验证未命中注册表时回退 switch 正常解码。
+        // （锚点沿革：dock——第 32 轮第三批迁入注册表 → base64Tool——第 36 轮换锚补迁
+        // 迁入注册表 → audioSpectrum——保留 5 类中唯一含真实计算逻辑者，运行时无前置
+        // 拦截，注册表未命中即真实落入 switch，与 base64Tool 换锚前同型。）
+        guard let def = decodeSingle(#"{"type": "audioSpectrum", "width": 400}"#) else {
+            XCTFail("audioSpectrum JSON 解码失败")
+            return
+        }
+        guard case let .audioSpectrum(barCount: barCount, source: source) = def.type else {
+            XCTFail("audioSpectrum 应经 switch 解码为 .audioSpectrum，实际：\(def.type)")
+            return
+        }
+        // 密度派生（switch 分支独有计算逻辑）：width=400 → Int(400/8)=50 → min(48,50)=48
+        XCTAssertEqual(barCount, 48, "audioSpectrum 未显式 barCount 时按 width 密度派生并截断上限（width=400 → 48）")
+        XCTAssertEqual(source, "", "audioSpectrum 缺省 source 默认空串")
     }
 
     // MARK: - 抛错降级：必填字段缺失 → unknown（既有容错路径不回归）
