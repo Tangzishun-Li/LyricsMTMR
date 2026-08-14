@@ -589,6 +589,7 @@
 - 下轮方向：① 继续功能/优化迭代（第 3 轮）：候选——新 widget/体验优化、README TODO 待办评估（剪切板快捷查看等）、TECHNICAL_DEBT 梳理、代码库中残留 FIXME/禁用项排查；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 14 轮 A 卡已附 84 用例实证、C 卡已全量回归（72 用例，基线口径升级为 72），累积 2~3 轮代码改动后触发下次全量回归；④ 收口教训固化：子任务 worker 完成工作后必须自查 commit 已提交（B 卡漏提交由父任务补交）；合并冲突解决时起始标记行 `<<<<<<< HEAD` 单独成行极易遗漏在 patch old_string 外，提交前必须 grep 冲突标记清零（本轮连续 2 次重演，第 11/13 轮同教训）。
 
 
+### 子任务记录
 - **t_753ceac6 实现（code-agent，分支 r14/feature）**：
   - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
   - 加固（CurrencyBarItem.swift）：提取纯函数 `static parseRate(from:to:)`（Coinbase 响应 data.rates[<to>] 解析，畸形/缺层/非字符串一律返回 nil，原 as!/data! 强转会崩溃）与 `static formatTitle(prefix:postfix:value:decimal:full:)`（full=前缀+后缀‣decimal 位舍入，否则前缀+两位小数）；URL 构造去强制解包；请求失败/解析失败优雅降级为 ⚠︎ 错误态（主线程，不崩溃不残留旧值）；dataTask 闭包改 [weak self]；删除失效状态变量 decimalValue/decimalString；币种符号表/小数位表/涨跌着色/定时刷新不变；
@@ -1525,7 +1526,6 @@
   - 遗留跟踪盘点（round-36 收口 17 项 → 逐项状态确认）：① issue #1 OPEN（实测仍 OPEN）/ ② ITER-15 决策门 4 问（:238 条目在位）/ ③ ITER-14 时间驱动（第 31 次核验健在，2026-11 前无动作）/ ④ 口径统一 32+114（32 日期复核 0 不符；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位零新位移）/ ⑤~⑬ 各轮挂账/闭环状态延续（同第 36 轮口径）/ ⑭ 各轮新增发现闭环状态延续（第 28 轮 114 口径 +11 漂移闭环 + 第 29 轮新增 0 项 + 第 30 轮锚点首跑 8 ERROR 闭环 + 第 31~35 轮新增 0 项 + 第 36 轮新增 0 项）+ **本轮（第 37 轮）新增发现 0 项**（锚点巡检零漂移/114 零新漂移/32 日期 0 不符/金丝雀 7/7/GitHub 4/4 全过，均无新问题）/ ⑮ 第 27 轮 B 卡 GPS 灯观感挂账 + 真机冒烟延续挂账不变（第 37 轮同口径）/ ⑯ t_aeb0b769 遗留建议（DEVELOPMENT_TEAM 稳定签名需用户确认）挂账跟踪 / ⑰ 第 36 轮 A 卡新登记（decode 迁移系列最终收官：93/98 迁入注册表，switch 仅保留 5 类非注册分支为穷尽性兜底，回退路径测试锚点 = audioSpectrum）与 B 卡登记（README v0.36 + 版本建议 0.36/461 已收口落地）状态确认；第 37 轮 A 卡承接推进中（保留 5 类非注册分支 switch 路径契约测试补齐）；第 37 轮 A/B 卡承接核对：r37/switch-contract（t_a47cdcf3）与 r37/changelog（t_8b91e906）分支均与 main 同点 dfd31b2 0 ahead，board 实测均 running——并入 main 结论待第 37 轮收口确认（同第 31~36 轮 C 卡核验口径）
   - 产出：根目录 2 份报告（核验报告_第37轮_维护机制健在与文档一致性.md / 清理报告_第37轮_round36遗留清理.md）+ iteration-log 本记录（小节头「## 第 37 轮（功能/优化迭代第 25 轮）」+「### 子任务记录」已由父任务预建于 02e17ce，直接追加）+ file-structure.zh.md（mindmap 第 7~36 轮→第 7~37 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r37/review，零代码改动（未触发构建/测试/全量回归，第 37 轮分解前父任务已实证 413 用例 0 失败，基线口径 413），未 push，未开新分支/子任务，无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）
 
-### 子任务记录
 
 - **t_a47cdcf3 第37轮 A卡（实现/优化）：保留 5 类非注册分支 switch 路径契约测试补齐 — 穷尽性兜底运行时断言化（TECHDEBT ② 续篇八）（default，分支 r37/switch-contract，第 37 轮 / 子任务 A）**：
   - 背景：第 30~36 轮 decode 迁移系列最终收官后，注册表 registeredTypeDecoders 恰含 93 类型（ItemsParsing.swift:634-1082，键集快照 :1085-1087，init(from:) 先行查表 :1092 起），switch 98 分支中 5 类保留为穷尽性兜底（staticButton/group/expandable/themeSwitch/audioSpectrum，:1108/:1174/:1178/:1240/:1258），回退路径测试锚点 = audioSpectrum（ItemTypeDecodeRegistryTests.swift:621-638 已有回退契约用例，钉住 width→barCount 密度派生计算）；**缺口：保留 5 类中 4 类无 switch 路径契约覆盖**——grep 实证（改动前）：staticButton 仅 3 处命中且全部为其他类型降级用例中的 `staticButton(title: "unknown")` 断言（:562/:586/:650），自身正向契约 0；group/expandable/themeSwitch 零命中；本卡按第 31~36 轮既定模板（形态 A 每类 2 测：默认值 + 显式值/必填形态）补齐；
