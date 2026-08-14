@@ -588,7 +588,6 @@
   6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理（URLSession 遵循系统网络设置），失败自动重试并显示 ⚠︎。
 - 下轮方向：① 继续功能/优化迭代（第 3 轮）：候选——新 widget/体验优化、README TODO 待办评估（剪切板快捷查看等）、TECHNICAL_DEBT 梳理、代码库中残留 FIXME/禁用项排查；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 14 轮 A 卡已附 84 用例实证、C 卡已全量回归（72 用例，基线口径升级为 72），累积 2~3 轮代码改动后触发下次全量回归；④ 收口教训固化：子任务 worker 完成工作后必须自查 commit 已提交（B 卡漏提交由父任务补交）；合并冲突解决时起始标记行 `<<<<<<< HEAD` 单独成行极易遗漏在 patch old_string 外，提交前必须 grep 冲突标记清零（本轮连续 2 次重演，第 11/13 轮同教训）。
 
-### 子任务记录
 
 - **t_753ceac6 实现（code-agent，分支 r14/feature）**：
   - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
