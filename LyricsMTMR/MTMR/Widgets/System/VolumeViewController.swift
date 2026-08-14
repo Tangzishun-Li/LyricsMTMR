@@ -7,6 +7,15 @@ class VolumeViewController: NSCustomTouchBarItem {
     private(set) var sliderItem: CustomSlider!
     private var currentDeviceId: AudioObjectID = AudioObjectID(0)
 
+    /// round 40：CoreAudio property-listener 注册用 block 句柄。原实现直接把
+    /// 实例方法引用（audioRouteChanged / audioObjectPropertyListenerBlock）传给
+    /// AudioObjectAddPropertyListenerBlock——方法引用默认强捕获 self，而 deinit
+    /// 从不移除监听 → CoreAudio（系统对象）进程生命周期持有每个构造实例 = 真实泄漏
+    /// （bar 每次重建累积）。现改为弱捕获闭包 + deinit 成对移除；block 存属性保证
+    /// add/remove 指向同一 block（AudioObjectRemovePropertyListenerBlock 要求恒等）。
+    private var routeChangeBlock: AudioObjectPropertyListenerBlock?
+    private var volumeChangeBlock: AudioObjectPropertyListenerBlock?
+
     init(identifier: NSTouchBarItem.Identifier, image: NSImage? = nil) {
         super.init(identifier: identifier)
 
@@ -34,9 +43,23 @@ class VolumeViewController: NSCustomTouchBarItem {
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-        AudioObjectAddPropertyListenerBlock(audioId, &forPropertyAddress, nil, audioRouteChanged)
+        let block: AudioObjectPropertyListenerBlock = { [weak self] numberAddresses, addresses in
+            self?.audioRouteChanged(numberAddresses: numberAddresses, addresses: addresses)
+        }
+        routeChangeBlock = block
+        AudioObjectAddPropertyListenerBlock(audioId, &forPropertyAddress, nil, block)
     }
-    
+
+    private func removeAudioRouteChangedListener() {
+        guard let block = routeChangeBlock else { return }
+        let audioId = AudioObjectID(bitPattern: kAudioObjectSystemObject)
+        var forPropertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        AudioObjectRemovePropertyListenerBlock(audioId, &forPropertyAddress, nil, block)
+        routeChangeBlock = nil
+    }
 
     func audioRouteChanged(numberAddresses _: UInt32, addresses _: UnsafePointer<AudioObjectPropertyAddress>) {
         self.removeLastAudioVolumeChangeListener()
@@ -54,17 +77,23 @@ class VolumeViewController: NSCustomTouchBarItem {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &forPropertyAddress, nil, audioObjectPropertyListenerBlock)
+        let block: AudioObjectPropertyListenerBlock = { [weak self] numberAddresses, addresses in
+            self?.audioObjectPropertyListenerBlock(numberAddresses: numberAddresses, addresses: addresses)
+        }
+        volumeChangeBlock = block
+        AudioObjectAddPropertyListenerBlock(defaultDeviceID, &forPropertyAddress, nil, block)
     }
     
     private func removeLastAudioVolumeChangeListener() {
+        guard let block = volumeChangeBlock else { return }
         var forPropertyAddress = AudioObjectPropertyAddress(
             mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
             mScope: kAudioDevicePropertyScopeOutput,
             mElement: kAudioObjectPropertyElementMain
         )
 
-        AudioObjectRemovePropertyListenerBlock(currentDeviceId, &forPropertyAddress, nil, audioObjectPropertyListenerBlock)
+        AudioObjectRemovePropertyListenerBlock(currentDeviceId, &forPropertyAddress, nil, block)
+        volumeChangeBlock = nil
     }
 
     func audioObjectPropertyListenerBlock(numberAddresses _: UInt32, addresses _: UnsafePointer<AudioObjectPropertyAddress>) {
@@ -76,6 +105,8 @@ class VolumeViewController: NSCustomTouchBarItem {
     required init?(coder _: NSCoder) { return nil }
 
     deinit {
+        removeAudioRouteChangedListener()
+        removeLastAudioVolumeChangeListener()
         sliderItem.unbind(NSBindingName.value)
     }
 
