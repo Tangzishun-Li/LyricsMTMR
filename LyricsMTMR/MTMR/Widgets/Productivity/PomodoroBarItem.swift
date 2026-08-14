@@ -84,7 +84,12 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
         let queue: DispatchQueue = DispatchQueue(label: "Timer")
         timer = DispatchSource.makeTimerSource(queue: queue)
         timer?.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
-        timer?.setEventHandler(handler: tick)
+        // round 38：弱闭包 handler——原 `handler: tick` 方法引用强捕获 self，
+        // 形成 item → timer → handler → item 保留环，运行中的番茄钟永远无法回收；
+        // 改为 weak self 后 deinit 的 cancel 才能实际执行。
+        timer?.setEventHandler { [weak self] in
+            self?.tick()
+        }
         timer?.resume()
 
         NSSound.beep()
