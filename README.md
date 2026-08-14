@@ -149,9 +149,19 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 ### 版本史说明
 
-> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮），此前条目为发布时实况。
+> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮），此前条目为发布时实况。
 
-### v0.38（当前开发版本）
+### v0.39（当前开发版本）
+
+> 承接第 38 轮：WidgetLeakTests 泄漏契约覆盖面扩展（8→23 类全覆盖，新增 15 用例——TBPausableTimer 弱闭包 11 + DispatchSourceTimer 1 + 直接 Timer 3；发现并根因修复真实泄漏 1 处——PomodoroBarItem.swift:87 setEventHandler 强捕获 self 保留环→弱闭包，红→绿双跑实证未放宽断言；436 用例实证 0 失败）、锚点巡检收口复跑接入保持（第 29 轮落地后连续第十一轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.37/462 → 0.38/463）。
+
+#### 工程与稳定性
+
+- **WidgetLeakTests 泄漏契约覆盖面扩展（timer 类 widget 防回归网络密，内存修复主线续篇）**：泄漏契约测试 8 → 23 类全覆盖，新增 15 用例（同一文件追加，沿用 autoreleasepool + weak var + letRunLoopSpin + XCTAssertNil 模式）——TBPausableTimer 弱闭包模式 11（UsageBarItem / StockBarItem（双 timer）/ ClipboardHistory / PlaybackProgressBarItem / MusicBarItem / AudioSpectrumBarItem / DeepseekBalanceBarItem / OpenCodeGoUsageBarItem / ExpenseTracker / TimestampConvert / BrightnessViewController）+ DispatchSourceTimer 1（PomodoroBarItem）+ 直接 Timer 3（ReadTimer / BreathingGuide / StandupTimer）；构造无副作用策略（空 providers/symbols 免网络、假 key/假 workspace 免真实密钥、NoScriptingMusicItem / NoCaptureSpectrumItem 子类避开 ScriptingBridge 与 SCK/mic 硬件）；**发现并根因修复真实泄漏 1 处——PomodoroBarItem.swift:87 `setEventHandler(handler: tick)` 方法引用强捕获 self，形成 item → timer → handler → item 保留环（运行中的番茄钟永远无法回收，deinit cancel 永不被执行），改为 `{ [weak self] in self?.tick() }` 弱闭包（第 8 轮既定模式）——红→绿双跑实证未放宽断言**；436 用例实证（421 基线 + 新增 15）0 失败，任务预算零偏差；零生产代码改动面外（仅泄漏修复 1 处），金丝雀三锚点 + WidgetLeakTests 23 全绿
+- **锚点巡检收口复跑接入保持**：scripts/anchor-patrol.py 收口复跑接入（第 29 轮 B 卡固化）连续第十一轮保持——第 38 轮收口后复跑 PASS 72 / WARN 11 / INFO 5 / ERROR 0 退出码 0，与第 37 轮收口基线逐项一致零新漂移，机器检查零回归
+- **工程版本号对齐**：Info.plist 0.37/462 → 0.38/463（第 38 轮收口落地，B 卡版本决策建议收口采纳、README v0.38 条目对齐，营销版本号与工程版本号对齐惯例延续）
+
+### v0.38
 
 > 承接第 37 轮：保留 5 类非注册分支 switch 路径契约测试补齐（staticButton/group/expandable/themeSwitch 4 类 8 用例，契约测试 165→173、键集 93 键零改动，穷尽性兜底从编译期保证升级为运行时行为断言）、锚点巡检收口复跑接入保持（第 29 轮落地后连续第九轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.36/461 → 0.37/462）。
 
