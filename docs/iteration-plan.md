@@ -6,7 +6,7 @@
 
 - [ ] **ITER-14 核对提醒（2026-11）：国办发布《2027 年部分节假日安排》通知后，核对并更新
       `StockBarItem.aShareHolidays` / `aShareMakeupDates` 的 2027 预估段**（
-      `LyricsMTMR/MTMR/Widgets/Life/StockBarItem.swift:393` 起；2027 节日日期为农历/公历确定值，
+      `LyricsMTMR/MTMR/Widgets/Life/StockBarItem.swift:409` 起；2027 节日日期为农历/公历确定值，
       连休窗口与补班日为预估）。
       检查点清单：
       - 春节连休窗口与补班日（当前预估 2/5(五)除夕 ~ 2/12(五)初七，共 8 天）；

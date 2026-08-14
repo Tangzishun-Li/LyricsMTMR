@@ -173,7 +173,9 @@ class WeatherBarItem: CustomButtonTouchBarItem, CLLocationManagerDelegate, TBPol
             return
         }
         if location != nil {
-            let urlRequest = URLRequest(url: URL(string: "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&units=\(units)&appid=\(api_key)")!)
+            // Round 44: explicit timeout — the 60s session default vs the
+            // 30min refresh cadence would leave weather stale up to a minute.
+            let urlRequest = URLRequest(url: URL(string: "https://api.openweathermap.org/data/2.5/weather?lat=\(location.coordinate.latitude)&lon=\(location.coordinate.longitude)&units=\(units)&appid=\(api_key)")!, timeoutInterval: 15)
 
             let task = URLSession.shared.dataTask(with: urlRequest) { [weak self] data, _, error in
                 // round 40：弱捕获——请求在途期间不持有 widget（否则 widget 被丢弃后

@@ -117,7 +117,9 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
             return
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+        // Round 44: explicit timeout — a hung translation endpoint must not
+        // hold the user's tap result for the 60s session default.
+        URLSession.shared.dataTask(with: URLRequest(url: url, timeoutInterval: 15)) { [weak self] data, _, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
 

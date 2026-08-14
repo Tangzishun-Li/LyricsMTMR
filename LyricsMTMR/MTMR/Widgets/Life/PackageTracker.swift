@@ -80,10 +80,8 @@ class PackageTrackerItem: TBPollItem {
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         req.httpBody = body.data(using: .utf8)
-        var result: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: req) { data, _, _ in result = data; semaphore.signal() }.resume()
-        _ = semaphore.wait(timeout: .now() + 9)
-        return result
+        // Round 44: shared hardened sync core — bounded wait + cancel-on-
+        // expiry so a dead courier endpoint never leaves an orphaned task.
+        return TBNet.syncFetch(req).data
     }
 }

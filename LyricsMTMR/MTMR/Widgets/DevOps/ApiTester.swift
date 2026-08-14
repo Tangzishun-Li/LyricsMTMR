@@ -80,21 +80,20 @@ class ApiTesterItem: TBPopoverItem {
             req.httpBody = "{}".data(using: .utf8)
         }
 
+        // Round 44: shared hardened sync core. Fixes the old 12s wait vs
+        // 10s request-timeout mismatch and surfaces a proper timeout message
+        // on wait expiry instead of an empty body.
+        let result = TBNet.syncFetch(req)
         var statusCode = 0
         var responseBody = ""
-        let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: req) { data, response, error in
-            if let httpResp = response as? HTTPURLResponse {
-                statusCode = httpResp.statusCode
-            }
-            if let error = error {
-                responseBody = error.localizedDescription
-            } else if let data = data {
-                responseBody = String(data: data, encoding: .utf8) ?? ""
-            }
-            semaphore.signal()
-        }.resume()
-        _ = semaphore.wait(timeout: .now() + 12)
+        if let httpResp = result.response as? HTTPURLResponse {
+            statusCode = httpResp.statusCode
+        }
+        if let error = result.error {
+            responseBody = error.localizedDescription
+        } else if let data = result.data {
+            responseBody = String(data: data, encoding: .utf8) ?? ""
+        }
         return (statusCode, responseBody)
     }
 }
