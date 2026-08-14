@@ -853,6 +853,91 @@ enum ItemType: Decodable {
         .readTimer: { _ in
             return .readTimer
         },
+        // ── 第 33 轮批量迁移 · 形态 A：全 decodeIfPresent + 默认值（14 类）──
+        .noiseMeter: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 1.0
+            return .noiseMeter(refreshInterval: refreshInterval)
+        },
+        .expenseTracker: { container in
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            let categories = try container.decodeIfPresent(String.self, forKey: .categories) ?? ""
+            return .expenseTracker(dataPath: dataPath, categories: categories)
+        },
+        .subscriptionCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3600.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            let index = try container.decodeIfPresent(Int.self, forKey: .index) ?? 0
+            let tint = try container.decodeIfPresent(String.self, forKey: .tint) ?? ""
+            return .subscriptionCountdown(refreshInterval: refreshInterval, dataPath: dataPath, index: index, tint: tint)
+        },
+        .dailyQuote: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 600.0
+            return .dailyQuote(refreshInterval: refreshInterval)
+        },
+        .emailBadge: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 120.0
+            return .emailBadge(refreshInterval: refreshInterval)
+        },
+        .meetingCountdown: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            return .meetingCountdown(refreshInterval: refreshInterval)
+        },
+        .slackUnread: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 120.0
+            let channels = try container.decodeIfPresent(String.self, forKey: .channels) ?? ""
+            return .slackUnread(refreshInterval: refreshInterval, channels: channels)
+        },
+        .printerStatus: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 60.0
+            return .printerStatus(refreshInterval: refreshInterval)
+        },
+        .standupTimer: { container in
+            let durationMin = try container.decodeIfPresent(Double.self, forKey: .durationMin) ?? 15.0
+            return .standupTimer(durationMin: durationMin)
+        },
+        .clipboardHistory: { container in
+            let maxItems = try container.decodeIfPresent(Int.self, forKey: .maxItems) ?? 5
+            return .clipboardHistory(maxItems: maxItems)
+        },
+        .wordLookup: { container in
+            let provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? "dictionary"
+            return .wordLookup(provider: provider)
+        },
+        .dockerStatus: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            return .dockerStatus(refreshInterval: refreshInterval)
+        },
+        .serverMonitor: { container in
+            let host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 30.0
+            return .serverMonitor(host: host, refreshInterval: refreshInterval)
+        },
+        .opencodeGoUsage: { container in
+            let workspaceID = try container.decodeIfPresent(String.self, forKey: .workspaceID) ?? ""
+            let cookie = try container.decodeIfPresent(String.self, forKey: .cookie) ?? ""
+            let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "worst"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            return .opencodeGoUsage(workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
+        },
+        // ── 第 33 轮批量迁移 · 形态 B：无参（6 类）──
+        .regexTester: { _ in
+            return .regexTester
+        },
+        .colorConvert: { _ in
+            return .colorConvert
+        },
+        .regexReference: { _ in
+            return .regexReference
+        },
+        .screenLock: { _ in
+            return .screenLock
+        },
+        .bluetoothToggle: { _ in
+            return .bluetoothToggle
+        },
+        .shortcutHints: { _ in
+            return .shortcutHints
+        },
     ]
 
     /// 注册表键集只读快照（迁移契约测试用，与 SupportedTypesHolder.registeredTypeNames 同型）。
