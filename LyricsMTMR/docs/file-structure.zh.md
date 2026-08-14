@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~36 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~37 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -234,6 +234,8 @@ mindmap
 ├── 验证报告_第36轮_decode迁移最终收官.md # 第 36 轮子任务 A 验证报告（decode 迁移最终收官（TECHDEBT ② 续篇七）：base64Tool 换锚补迁评估与落地——方案甲（换锚补迁）落地，新锚点选型 audioSpectrum（保留 5 类中唯一含真实计算逻辑者——width→barCount 密度派生，运行时无前置拦截，排除 staticButton/group/expandable/themeSwitch 四类理由在案）；base64Tool 迁入注册表（形态 A「全 decodeIfPresent+默认值」1，闭包逐字节复制仅末行 self= 改 return），注册表键集 92→93、switch 非注册保留 6→5、契约测试 163→165 用例（键集断言扩到实际 93 键 + base64Tool 默认值+显式值 2 用例 + 回退路径用例改新锚点 audioSpectrum 断言密度派生 width=400→48）；可迁分支全部迁完（93/98 迁入注册表）——decode 迁移系列最终收官声明；程序化等价比对 tools/verify_round36_equiv.py 1/1 + RegistryReconciliationTests 6 用例与 generate_registry_test.py 生成文件零改动（byte-identical 实证）；文档六处同步（internal-apis zh/en §2.3 行号 :1096-1494 + §2.3.2、ITEMS_REFERENCE :1701/:1709、TECHNICAL_DEBT 第 2 条、anchor-patrol REG-2 范围锚点）+ 锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0；413 用例实证（411 基线+新增 2）0 失败，r36/decode-batch）
 ├── 核对报告_第36轮_README更新日志补登v0.36.md # 第 36 轮子任务 B 核对报告（README 更新日志补登 v0.36：第 35 轮 4 项变更条目——注册表混合架构 decode 迁移第六批·收官批完成（可迁未迁剩余 10 分支除回退锚点外全部迁移 9：形态 A「全 decodeIfPresent+默认值」9 pixelPet/homekitScene/aiSelectedText/rssUnread/citationGen/paperProgress/paperTags/bilibiliFeed/apiTester（低频繁/细分族全部收尾）；base64Tool 保持未迁（switch 回退路径测试锚点，换锚后可补迁 + 2 用例）；闭包逐字节复制 + 程序化 diff 9/9 等价（tools/verify_round35_equiv.py）；注册表键集 83→92、契约测试 145→163 用例、switch 98 分支中 6 保留为穷尽性兜底（base64Tool + staticButton/group/expandable/themeSwitch/audioSpectrum）；decode 迁移系列收官（除回退锚点）声明；RegistryReconciliationTests 6 零改动 + generate_registry_test.py byte-identical；文档六处同步 + 锚点巡检复跑 PASS 72/ERROR 0；411 用例实证 0 失败，任务预算零偏差）/锚点巡检收口复跑接入保持（连续第七轮 0 ERROR）/PR #42 CI locale 测试确定性修复并入（PausableTimerTests.swift +21 行非新增用例，合并后重跑实证）/工程版本号对齐（Info.plist 0.35/460）+ 版本决策建议 0.36/461 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，连续第八轮零新发现），r36/changelog）
 
+├── 核验报告_第37轮_维护机制健在与文档一致性.md # 第 37 轮核验报告（第 31 次年度维护核验，r37/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 36 轮收口基线逐项一致零新漂移，连续第九轮 0 ERROR；ITER-14 待办区引用 :393 第八轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0——第 36 轮收口已 push dfd31b2 且本地 main 已同步）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 36 轮 A/B/C 卡落地源码实证——注册表 93 键+165 用例/README v0.36/Info.plist 0.36/461；本轮新增发现 0 项）
+├── 清理报告_第37轮_round36遗留清理.md          # 第 37 轮子任务 C 仓库卫生报告（round-36 父卡+子卡遗留 worktree/分支清理，r36 全清 4 worktree+4 分支，r37/review；合并基准 main@dfd31b2=origin/main——第 36 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@dfd31b2 与远端同步无偏差登记）
 └── .gitignore / .gitattributes / README.md
 ```
 
