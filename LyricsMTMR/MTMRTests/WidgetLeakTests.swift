@@ -368,6 +368,84 @@ class WidgetLeakTests: XCTestCase {
         XCTAssertNil(weakItem, "StandupTimerItem leaked at construction")
     }
 
+    // MARK: - Round 39: NotificationCenter observer contracts (non-timer resources)
+    //
+    // Round 38 closed the timer-class leak contracts; the next blind zone
+    // is non-timer resources. Block-based observers (addObserver(forName:))
+    // whose closures capture self strongly pin the object to the
+    // notification center forever — deinit never runs, so the token is
+    // never removed and the object (plus anything it owns, e.g. an
+    // EKEventStore) leaks for the process lifetime. Selector-based
+    // observers (addObserver(_:selector:)) do not retain the target on
+    // modern macOS (zeroing-weak center), but the target must still
+    // unregister them on deinit so no notification can fire against a
+    // deallocated object. These tests pin the weak-capture +
+    // deinit-remove contract for every widget-level observer owner in
+    // the repo — and would go red if any observer were ever switched to
+    // a strong-capturing block.
+
+    func testUpNextCalenderSourceDoesNotLeak() {
+        weak var weakSource: UpNextCalenderSource?
+        autoreleasepool {
+            // EKEventStore init + authorizationStatus are TCC-safe (zero
+            // permission prompt); the round-30 lazy path only requests
+            // access on explicit tap, so construction is side-effect-free.
+            var source: UpNextCalenderSource? = UpNextCalenderSource()
+            weakSource = source
+            source = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakSource, "UpNextCalenderSource leaked — its EKEventStoreChanged observer block must not retain it")
+    }
+
+    func testThemeSwitchBarItemDoesNotLeak() {
+        weak var weakItem: ThemeSwitchBarItem?
+        autoreleasepool {
+            // Registers 2 block observers (.themeIndexDidChange +
+            // .appThemeAutoSwitchDidChange); deinit must remove both tokens
+            // or the notification center retains the item forever.
+            var item: ThemeSwitchBarItem? = ThemeSwitchBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.themeswitch"),
+                themes: [])
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "ThemeSwitchBarItem leaked — its 2 NotificationCenter observers must not retain it")
+    }
+
+    func testAppScrubberTouchBarItemDoesNotLeak() {
+        weak var weakItem: AppScrubberTouchBarItem?
+        autoreleasepool {
+            // Registers 3 NSWorkspace selector observers; deinit must
+            // unregister them or the workspace notification center
+            // retains the item forever (selector observers retain target).
+            var item: AppScrubberTouchBarItem? = AppScrubberTouchBarItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.appscrubber"))
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "AppScrubberTouchBarItem leaked — its 3 NSWorkspace selector observers must be unregistered on deinit")
+    }
+
+    func testAudioSpectrumSettingsDrivenObserverDoesNotLeak() {
+        weak var weakItem: NoCaptureSpectrumItem?
+        autoreleasepool {
+            // source: "" → settingsDriven=true → the UserDefaults
+            // didChangeNotification observer is registered (JSON-pinned
+            // sources never register it). Pins the observer path the
+            // round-38 test (source: "system") deliberately skips.
+            var item: NoCaptureSpectrumItem? = NoCaptureSpectrumItem(
+                identifier: NSTouchBarItem.Identifier("leaktest.spectrum.observer"),
+                barCount: 8, source: "")
+            weakItem = item
+            item = nil
+        }
+        letRunLoopSpin()
+        XCTAssertNil(weakItem, "AudioSpectrumBarItem leaked — its UserDefaults observer must not retain it")
+    }
+
     // MARK: - Round 38: side-effect-free subclasses
 
     /// MusicBarItem subclass whose updatePlayer() never touches
