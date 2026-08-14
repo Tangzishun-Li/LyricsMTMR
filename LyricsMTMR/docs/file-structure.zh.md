@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~41 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~42 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -254,6 +254,7 @@ mindmap
 ├── 验证报告_第41轮_编译警告清零与工程规范治理.md # 第 41 轮子任务 A 验证报告（编译警告清零与工程规范治理——xcodebuild 警告面：全量采集 12 条 warning: 行逐条分类（10 代码警告集中在 7 文件 + 2 appintentsmetadataprocessor 工具提示豁免——零 AppIntents.framework 依赖刻意设计，引入依赖清零即行为变更违背任务原则）；**发现并根因修复真实显示 bug 1 类 8 处同源——commit 917983f7 把 Swift 插值 \( 写成 \\(（源码双反斜杠=转义反斜杠+字面文本，swiftc 最小复现+hexdump 5c5c 28→5c 28+git 历史旧版单反斜杠三方取证），中国天气标题/OpenWeather URL/scheduler identifier 全部退化为字面文本（Touch Bar 显示 \(icon)\(cityLabel) 26°C），同文件 205 行单反斜杠为意图之证，恢复 8 处单反斜杠插值（74/176/239/257/259/262/266/268）**；其余 7 条行为等价修复：CoverCache CoverArtwork @unchecked Sendable 盒化非 Sendable 返回（Swift 6 前瞻，解码仍在协作池）+ onChange(of:perform:) 两参数闭包迁移 3 处（部署目标 15.0）+ UpNextScrubberTouchBarItem 去除 #available else 死代码 .authorized 分支 + RegistryReconciliationTests 作用域末 defer→直接调用（同一程序点行为等价）；治理前后对比 10→0 代码警告；443 用例 0 失败实证（基线零偏差 97.1s，金丝雀 StockMarketHoursTests 16 三锚点+WidgetLeakTests 30+RegistryReconciliationTests 6+ItemTypeDecodeRegistryTests 173 全绿）；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0（连续第十六轮），r41/warnings）
 ├── 核验报告_第41轮_维护机制健在与文档一致性.md # 第 41 轮核验报告（第 35 次年度维护核验，r41/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 40 轮收口基线逐项一致零新漂移，连续第十六轮 0 ERROR；ITER-14 待办区引用 :393 第十二轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=0cf1fcc——第 40 轮收口已 push 0cf1fcc 且本地 main 已同步）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 40 轮 A/B/C 卡落地源码实证——WidgetLeakTests 30 用例+VolumeViewController 弱闭包+WeatherBarItem:178 [weak self]/README v0.40/Info.plist 0.40/465；本轮新增发现 0 项）
 ├── 清理报告_第41轮_round40遗留清理.md          # 第 41 轮子任务 C 仓库卫生报告（round-40 父卡+子卡遗留 worktree/分支清理，r40 全清 4 worktree+4 分支，r41/review；前置确认 4 卡 board 均 done 收口；合并基准 main@0cf1fcc=origin/main——第 40 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@0cf1fcc 与远端同步无偏差登记）
+├── 验证报告_第42轮_写入侧encode审计与治理.md # 第 42 轮子任务 A 验证报告（注册表写入侧 encode 审计与治理——数据与存储维度，decode 迁移系列写侧镜像：全仓写入侧路径盘点 9 处 JSONEncoder + 23 处 UserDefaults .set + items.json 字典写路径 + 5 处文件写逐项分类（数据类别/生命周期/读写对称性），重点验证 decode 已迁注册表的 93 类 Item 写侧对称性——items.json 写侧为 JSONSerialization 字典透传（非 Item encode 路径），读侧注册表 decodeIfPresent 容缺键，双向对称成立；**发现并根因修复真实问题 2 处：① SettingsSync.writeBack(type:/matcher:) 无匹配仍无条件 saveItems 重写 items.json（空写清掉用户手写注释+规范化格式=数据损坏风险；实测 AITabView 以不存在的 type "ai" 每改必触发）→ 加 didMatch 守卫无匹配不落盘；② AITabView.swift:227 死写路径 SettingsSync.writeBack(type:"ai")——不存在 type "ai"（真实类型 aiSelectedText 仅 model/prompt 两属性），streamOutput/showBalance 是 UserDefaults 专属设置（load() 同源读），删除该行**；新增 WriteSideContractTests 6 用例（无匹配不重写×3 + 匹配合并保未知键×3，itemsJSONPathOverride 测试钩子与 ClipboardHistory persistHistory 同型），红（2 failure）→绿（6/6）双跑实证未放宽断言；全量 449 用例 0 失败实证（443 基线+新增 6 零偏差，98.6s，/tmp/LyricsMTMR-dd-r42a-test）；锚点巡检复跑 PASS 72/ERROR 0（连续第十八轮），r42/encode-registry）
 └── .gitignore / .gitattributes / README.md
 ```
 
