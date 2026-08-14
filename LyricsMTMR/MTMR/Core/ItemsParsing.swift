@@ -613,6 +613,9 @@ enum ItemType: Decodable {
     ///     currency/playbackProgress/quickReply/gitStatus/apiLatency/sshStatus/
     ///     portChecker/hashCalc/packageTracker/foodDelivery/weatherOutfit；
     ///   - 形态 B「无参」6 类：dnd/jsonFormatter/timestampConvert/httpCodes/qrCode/readTimer。
+    /// 第 35 轮第六批（收官批）再迁 9 类（形态 A 全部）：pixelPet/homekitScene/aiSelectedText/
+    /// rssUnread/citationGen/paperProgress/paperTags/bilibiliFeed/apiTester；本批完成后可迁分支
+    /// 全部迁完（仅 base64Tool 保留未迁——switch 回退路径测试锚点，确定换锚前不迁）。
     /// 保留 switch 分支的类型及理由（不迁入）：staticButton（unknown 降级目标语义特殊）、
     /// group/expandable（嵌套递归解码）、themeSwitch（SupportedTypesHolder 预注册重复键，
     /// 运行时经 lookup 先行拦截、ItemType 分支仅测试可达，迁入零收益）、audioSpectrum
@@ -1025,6 +1028,47 @@ enum ItemType: Decodable {
         },
         .finderTags: { _ in
             return .finderTags
+        },
+        // ── 第 35 轮第六批迁移 · 形态 A：全 decodeIfPresent + 默认值（9 类，收官批）──
+        .pixelPet: { container in
+            let petType = try container.decodeIfPresent(String.self, forKey: .petType) ?? "cat"
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 3.0
+            return .pixelPet(petType: petType, refreshInterval: refreshInterval)
+        },
+        .homekitScene: { container in
+            let scenes = try container.decodeIfPresent(String.self, forKey: .scenes) ?? ""
+            return .homekitScene(scenes: scenes)
+        },
+        .aiSelectedText: { container in
+            let model = try container.decodeIfPresent(String.self, forKey: .model) ?? ""
+            let prompt = try container.decodeIfPresent(String.self, forKey: .prompt) ?? ""
+            return .aiSelectedText(model: model, prompt: prompt)
+        },
+        .rssUnread: { container in
+            let provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? ""
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            return .rssUnread(provider: provider, refreshInterval: refreshInterval)
+        },
+        .citationGen: { container in
+            let style = try container.decodeIfPresent(String.self, forKey: .style) ?? "both"
+            return .citationGen(style: style)
+        },
+        .paperProgress: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 5.0
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .paperProgress(refreshInterval: refreshInterval, dataPath: dataPath)
+        },
+        .paperTags: { container in
+            let dataPath = try container.decodeIfPresent(String.self, forKey: .dataPath) ?? ""
+            return .paperTags(dataPath: dataPath)
+        },
+        .bilibiliFeed: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
+            return .bilibiliFeed(refreshInterval: refreshInterval)
+        },
+        .apiTester: { container in
+            let defaultUrl = try container.decodeIfPresent(String.self, forKey: .defaultUrl) ?? ""
+            return .apiTester(defaultUrl: defaultUrl)
         },
     ]
 
