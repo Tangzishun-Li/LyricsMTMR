@@ -588,7 +588,6 @@
   6. currency widget 已恢复但无 Touch Bar 真机冒烟（格式化逻辑由单测覆盖）；Coinbase 直连在本机网络超时，依赖系统代理（URLSession 遵循系统网络设置），失败自动重试并显示 ⚠︎。
 - 下轮方向：① 继续功能/优化迭代（第 3 轮）：候选——新 widget/体验优化、README TODO 待办评估（剪切板快捷查看等）、TECHNICAL_DEBT 梳理、代码库中残留 FIXME/禁用项排查；② 待用户确认事项（issue #1 关闭 / ITER-15 使用场景 4 问）继续跟踪；③ 回归规则：第 14 轮 A 卡已附 84 用例实证、C 卡已全量回归（72 用例，基线口径升级为 72），累积 2~3 轮代码改动后触发下次全量回归；④ 收口教训固化：子任务 worker 完成工作后必须自查 commit 已提交（B 卡漏提交由父任务补交）；合并冲突解决时起始标记行 `<<<<<<< HEAD` 单独成行极易遗漏在 patch old_string 外，提交前必须 grep 冲突标记清零（本轮连续 2 次重演，第 11/13 轮同教训）。
 
-
 ### 子任务记录
 - **t_753ceac6 实现（code-agent，分支 r14/feature）**：
   - 解禁：TouchBarController.swift:869 `case .currency` 由「FIXME: Coinbase SSL error, temporarily disabled; break」恢复为绑定关联值构造 `CurrencyBarItem(identifier:interval:from:to:full:)`（+2 行，identifier 映射 com.toxblh.mtmr.currency 原本在位；配置解析端 ItemsParsing.swift:650-655 默认值 refreshInterval=600/from=RUB/to=USD/full=false 不变）；
@@ -1028,7 +1027,6 @@
   - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一合并）；未开新分支/新子任务；
   - 交付：核对报告《核对报告_第24轮_README更新日志与现状核对.md》（本分支根目录，含版本决策/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/改动清单/风险点）+ 本记录（iteration-log 末尾追加）+ file-structure.zh.md 登记（mindmap 第 7~23 轮→第 7~24 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
 
-
 ---
 
 ## 第 24 轮（功能/优化迭代第 12 轮）
@@ -1102,7 +1100,6 @@
   - 纯文档轮零 Swift 源码改动，未触发构建/测试；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；
   - 交付：考古报告《考古报告_第25轮_版本体系考古.md》（本分支根目录，含 Releases API 实证输出/tag 清单/版本号时间线（264 提交扫描）/缺失段性质结论论证/README 处理决策论证/改动清单/冲突检查）+ 本记录（iteration-log 末尾追加，标注「第 25 轮 / 子任务 B」）+ file-structure.zh.md 同步（mindmap 第 7~24 轮→第 7~25 轮 + 报告行登记，无重复行）+ README.md 版本史说明段；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
 
-
 ---
 
 ## 第 26 轮（功能/优化迭代第 14 轮）
@@ -1138,7 +1135,6 @@
   - TECHNICAL_DEBT.md 前置条件跟踪：① VC 化全体系重写条目补第 26 轮复核（维持暂缓，无新增触发条件）；② 枚举迁移条目补前置条件进度（对账测试已落地第 25 轮 + 注册链 6 处文档化第 26 轮，维持暂缓决策不变）并将陈旧行号刷新（:285-384→:293-390、:485-584→:492-591、:589-981→:596-994、:82-283→:83-254）；
   - 交付：核对报告《核对报告_第26轮_注册表对账机制流程文档化.md》（仓库根，含逐项核对表 + grep 文件:行号实证 + 三处文档与脚本逐字一致性核对 + 六处注册点锚点对照 + 零 Swift 改动实证）+ 本记录（iteration-log 末尾追加，标注「第 26 轮 / 子任务 B」）+ file-structure.zh.md 同步（mindmap 第 7~25 轮→第 7~26 轮 + 报告行登记，无重复行）；
   - 约束遵守：纯文档/工程规范轮零 Swift 源码改动（生成测试文件 diff=0 实证），未触发构建/测试，仅动本工作区与 r26/registry-docs 分支，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
-
 
 
 ---
@@ -1180,7 +1176,6 @@
   - 遗留跟踪盘点（round-26 收口 17 项 → 本轮逐项状态确认）：issue #1 OPEN 待真机验证（实测仍 OPEN）/ ITER-15 决策门 4 问（iteration-plan :238 条目在位，待用户确认）/ ITER-14 时间驱动（第 21 次核验健在，2026-11 前无动作）/ 口径统一 32+114（32 日期复核 0 不符；**114 口径 :1163/:1174 第 26 轮合并后第二轮复查零新漂移**）/ 内存修复真机冒烟 3 项 / currency 真机冒烟 / holidayCountdown 真机冒烟 / 隐藏机制真机冒烟（逻辑单测覆盖，真机留待用户）/ add_files.py 已闭环（脚本在位）/ 第 19 轮观察①② + 第 20 轮登记 2 项已闭环 / 第 21 轮新登记 2 项挂账 / 第 23 轮 A/B 卡新登记 2 项挂账（失焦在途定位 → **本轮 B 卡承接中**）/ 第 24 轮新登记：真机冒烟延续挂账 4 项 + 版本体系观察已收口关闭 / 第 25 轮 A 卡新登记已闭环（第 26 轮 B 卡，本轮 internal-apis/ITEMS_REFERENCE/generate_registry_test.py 源码实证在位）/ 第 25 轮 B 卡登记现象（版本号序号倒挂，非冲突）保持挂账 / **第 26 轮 A 卡新登记 1 项（updateActiveApp 生产观察项）→ 本轮 A 卡承接中（r27/activeapp-hidden 分支已建，running 实测）** / 第 26 轮 B 卡零新增记录在案 / 第 26 轮 C 卡零新增记录在案 / 真机冒烟延续挂账不变（第 8/17/18/19/20/21/22/23/24/25/26/27 轮同口径）；**第 27 轮 A/B 卡承接核对**：A 卡（t_7cda9f35 updateActiveApp 空 bar 翻转全局隐藏态评估与落地，r27/activeapp-hidden）与 B 卡（t_47701626 失焦取消在途定位区分 close-hide/resignKey 评估与落地，r27/resignkey-location）均 running 实测（分支已建均与 main 同点 0 ahead 未提交，结论待收口确认）；本轮核验新增发现：**1 项**（第 26 轮 C 卡报告命名前缀「验证」vs 惯例「核验」不一致，如实登记不改历史，本轮恢复惯例命名）；
   - 产出：根目录 2 份报告（核验报告_第27轮_维护机制健在与文档一致性.md / 清理报告_第27轮_round26遗留清理.md）+ iteration-log 本记录 + file-structure.zh.md（mindmap 第 7~26 轮→第 7~27 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r27/review，零代码改动（未触发构建/测试/全量回归，第 26 轮收口已整体实证 214 用例 0 失败，基线口径 214，隔代规则全量回归预计第 28 轮分解前触发），未 push，未开新分支/子任务；完成自查 git status 干净 + commit 已提交。
 
-
 ---
 
 ## 第 28 轮（功能/优化迭代第 16 轮）
@@ -1203,7 +1198,6 @@
   - 分支验证：先清理旧 /tmp/LyricsMTMR-dd-*；xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r28a-test）**TEST SUCCEEDED —— Executed 237 tests, 0 failures (0 unexpected) in 167.6s**（228 基线 + 新增 9；金丝雀 StockMarketHoursTests 三锚点 testGoldenAnchors2026/2027/Makeup2026 全绿 + 全套件 15 用例 0 失败，WidgetLeakTests 8 全绿无新泄漏，SettingsWindowGCStrategyTests 套件 9/9 passed，无新增构建告警；日志 /tmp/r28a-test.log）；
   - 交付：验证报告《验证报告_第28轮_闲置GC策略可测化.md》（本分支根目录，含评估边界声明（提取边界表）/方案设计/决策矩阵与现状对照表/改动清单/逐字节等价论证（含不可达状态差异如实登记）/单测清单/实证表/遗留登记）+ 本记录（iteration-log 末尾追加，标注「第 28 轮 / 子任务 A」）+ file-structure.zh.md 同步（mindmap 第 7~27 轮→第 7~28 轮 + 报告行登记，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）；
   - 约束遵守：仅本工作区（.worktrees/round28-A，r28/gc-strategy）改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，未建 cron/自触发；登记遗留：**本轮关闭遗留④前半句（闲置 GC 决策逻辑不可单测）**，后半句（真机冒烟 3 项：连续开关 8+ 次内存不线性增长 / 隐藏 1h 或内存压力后整树释放回基线 / 复用路径 Dock 图标显隐正确）仍挂账（运行时行为，依赖 Touch Bar 真机，第 8/17~27 轮同口径）；无新增生产观察项。
-
 
 - **t_72b7bcb9 README 更新日志补登 v0.29 + 现状核对（text-processing-agent，分支 r28/changelog，第 28 轮 / 子任务 B）**：
   - 版本决策：Info.plist 核对（LyricsMTMR/MTMR/Info.plist:21-24 CFBundleShortVersionString=0.28 / CFBundleVersion=453，第 24 轮收口 82d2dc1 由 0.27/452 升入，第 25~27 轮零变更）+ git tag 核对（仅 v1.0.0/v0.8/pre-opt-20260812-0114 三枚，第 24~27 轮无新 tag 未发版）→ **新增「v0.29（当前开发版本）」条目**（任务既定口径；v0.28 条目降为历史段并移除「当前开发版本」标注，语义移交 v0.29；版本史说明段补记 v0.29=第 24~27 轮）；v0.29 与 Info.plist 0.28 存在一版本领先差，**建议**父任务收口时同步升 Info.plist 至 0.29（CFBundleVersion 453→454+），本卡仅建议不擅改；
@@ -1237,7 +1231,6 @@
   - 分支验证：先清理旧 /tmp/LyricsMTMR-dd-*；xcodebuild test（UnitTests, Debug，独立 derivedDataPath /tmp/LyricsMTMR-dd-r29a-test）**TEST SUCCEEDED —— Executed 240 tests, 0 failures (0 unexpected) in 961.2s**（237 基线 + 新增 3；金丝雀 StockMarketHoursTests 三锚点 testGoldenAnchors2026/2027/Makeup2026 全绿 + WidgetLeakTests 8 全绿无新泄漏面——恢复补刷走既有 runImmediateCycle 弱引用 hop 无新闭包持有；无新增构建告警（12 条既有告警均在未改动文件，与第 28 轮同口径）；总时长含 RegistryReconciliationTests.testFactoryCreatesEveryCanonicalType 单用例 870.6s 显示器休眠 CoreDisplay mach port 阻塞后自行恢复（第 28 轮同型环境性问题非代码回归）；日志 /tmp/r29a-xcodebuild.log）；
   - 交付：验证报告《验证报告_第29轮_恢复补刷即时性审计与补齐.md》（本分支根目录，含审计方法取证清单/接入点全量审计表 24 接入点（文件:行号+恢复行为+首刷延迟上界，A 基类/B 裸 gate/C 主刷新/D 非作用域四表）/缺口清单（修复前 4 处→修复后零残留）/改动清单/设计要点（与既有 setPaused 补刷先例同构）/单测清单（含旧行为杀伤力标注与 237 基线兼容性推演）/实证表/遗留登记与边界声明）+ 本记录（iteration-log 末尾追加，标注「第 29 轮 / 子任务 A」）+ file-structure.zh.md 同步（mindmap 第 7~28 轮→第 7~29 轮 + 报告行登记，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）；
   - 约束遵守：仅本工作区（.worktrees/round29-A，r29/resume-refresh）改动，未 push 远端（父任务收口统一推送），未开新分支/新子任务/无 parents 依赖，未建 cron/自触发；登记遗留：真机冒烟延续挂账 4 项（第 8/17/18/19/20/21/22/23/24/25/26/27/28 轮同口径）——恢复补刷观感/脚本停止恢复补刷观感/marquee 恢复相位（本轮空窗 3s→0 帧，仅剩确认观感）/netstat 恢复首秒，逻辑侧已本轮闭环；真实 AppKit 可见性回调时序不可单测如实声明；本轮零新增生产观察项。
-
 
 
 - **t_161a77ef 文档锚点漂移巡检脚本落地（text-processing-agent，分支 r29/anchor-scan，第 29 轮 / 子任务 B）**：
@@ -1313,7 +1306,6 @@
 - 合并提交点：3 子分支按 C→A→B 顺序并入父分支（C 直入 + merge A 51a1077 经 2 处冲突 + merge B 0dc4852 经 3 处冲突——iteration-log 记录序重组 ×2（A+C 合并 / B 插入 A/C 之间）+ file-structure 报告行合并 ×2（A+C / A+B+C 按 A→B→C 序），均 python 按行号/内容重组，grep 行首锚定清零 exit=1 通过）；**Info.plist 0.30/455 → 0.31/456**（B 卡版本决策建议收口落地，README v0.31 条目对齐，第 24/28/30 轮先例）；合并后整体 build+test 实证 **281 用例 0 失败 0 意外**（247 基线 + A 34，金丝雀 StockMarketHoursTests 三锚点全绿，WidgetLeakTests 8 全绿，ItemTypeDecodeRegistryTests 41 全绿，RegistryReconciliationTests 6 全绿，独立 derivedDataPath /tmp/LyricsMTMR-dd-r31-final-test，旧 /tmp/LyricsMTMR-dd-* 已清理，caffeinate 防休眠在位——RegistryReconciliationTests 单用例仍 ~870s CoreDisplay mach port 阻塞后自行恢复（第 28~30 轮同型环境性问题非代码回归，如实登记），整体 961.2s）；收口后锚点巡检复跑 **PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0**（与第 30 轮收口基线逐项一致，机器检查连续第二轮 0 ERROR）。main=收口 commit 后 push origin。根目录新增 4 份第 31 轮报告：验证报告_第31轮_decode迁移扩大化.md（A）、核对报告_第31轮_README更新日志补登v0.31.md（B）、核验报告_第31轮_维护机制健在与文档一致性.md + 清理报告_第31轮_round30遗留清理.md（C）；file-structure.zh.md 同步（mindmap 第 7~30 轮→第 7~31 轮 + 4 份报告登记，无重复行）。另登记环境事项：本轮分解前检查 standalone dispatcher 在位（双 daemon 实例 9929 + 11257 并存运行正常，第 29 轮拉起实例仍存活），3 子卡 ready 后 30s 内全部正常 spawn（dir 类型 + 预建 worktree 方案连续四轮零 spawn 失败）。
 - 遗留问题（第 30 轮 17 项 → 更新）：① issue #1 OPEN 待真机验证（实测仍 OPEN）/ ② ITER-15 决策门 4 问待用户确认（:238 条目在位）/ ③ ITER-14 时间驱动（第 25 次核验健在，2026-11 前无动作）/ ④ 口径统一 32+114（32 日期复核 0 不符；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位（+2 系 A 卡试点注插入所致，C 卡已同步锚点数据处置历史位移））/ ⑤ 内存修复真机冒烟 3 项挂账 / ⑥ currency 真机冒烟挂账 / ⑦ holidayCountdown 真机冒烟挂账 / ⑧ 隐藏机制真机冒烟挂账 / ⑨ add_files.py 已闭环 / ⑩ 第 19 轮观察①② + 第 20 轮登记 2 项已闭环 / ⑪ 第 21 轮新登记 2 项挂账 / ⑫ 失焦在途定位已闭环（第 27 轮 B 卡）/ ⑬ 真机冒烟延续挂账 4 项 + 版本体系观察已收口关闭 / ⑭ 第 25 轮 A 卡新登记已闭环 / ⑮ 第 26 轮 A 卡新登记已闭环 / ⑯ 第 26 轮 B 卡零新增 / ⑰ 命名发现保持登记 + 第 28 轮 114 口径 +11 漂移闭环 + 第 29 轮新增 0 项 + 第 30 轮新增 1 项（锚点首跑 8 ERROR）已处置闭环 + **第 31 轮新增发现 0 项**；第 27 轮 B 卡新登记（GPS 灯观感真机冒烟）挂账 / 真机冒烟延续挂账不变（第 8/17~31 轮同口径）；**第 31 轮 A 卡登记：decode 迁移扩大化落地**（适配性分类全量 98 分支——迁入注册表 23（试点 3 + 本轮 20）/ 保留 switch 5 类及理由（staticButton/group+expandable/themeSwitch/audioSpectrum）/ 可迁未迁 70 登记后续轮次候选；注册表键集 3→23，契约测试 7→41 用例，281 用例实证 0 失败）；**第 31 轮 B 卡登记：README v0.31 补登 + 版本建议 0.31/456（收口落地）**；**第 31 轮 C 卡新增发现 0 项**。
 - 下轮方向：① **第 32 轮分解前触发全量回归**（隔代规则：第 30 轮收口 247 + 第 31 轮收口 281 两轮实证后触发，届时基线口径 281）；② 继续功能/优化迭代第 20 轮候选：decode 迁移可继续推进（可迁未迁 70 分支按常用度/需求批次推进，迁移模板与机器护栏已就绪）、README v0.32 补登（第 31 轮变更按需：decode 批量迁移 + 锚点巡检接入保持 + Info.plist 0.31/456）、TECHNICAL_DEBT 暂缓项前置条件跟踪（① VC 化全体系重写仍暂缓无新触发；② 已推进为批量迁移落地）、真机冒烟多项挂账待用户 Touch Bar 真机确认；③ 待用户确认事项继续跟踪（issue #1 关闭 / ITER-15 使用场景 4 问）；④ ITER-14 时间驱动持续跟踪（2026-11 国办 2027 节假日通知核对）。
-
 
 ### 子任务记录
 
@@ -1527,7 +1519,6 @@
   - 遗留跟踪盘点（round-36 收口 17 项 → 逐项状态确认）：① issue #1 OPEN（实测仍 OPEN）/ ② ITER-15 决策门 4 问（:238 条目在位）/ ③ ITER-14 时间驱动（第 31 次核验健在，2026-11 前无动作）/ ④ 口径统一 32+114（32 日期复核 0 不符；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位零新位移）/ ⑤~⑬ 各轮挂账/闭环状态延续（同第 36 轮口径）/ ⑭ 各轮新增发现闭环状态延续（第 28 轮 114 口径 +11 漂移闭环 + 第 29 轮新增 0 项 + 第 30 轮锚点首跑 8 ERROR 闭环 + 第 31~35 轮新增 0 项 + 第 36 轮新增 0 项）+ **本轮（第 37 轮）新增发现 0 项**（锚点巡检零漂移/114 零新漂移/32 日期 0 不符/金丝雀 7/7/GitHub 4/4 全过，均无新问题）/ ⑮ 第 27 轮 B 卡 GPS 灯观感挂账 + 真机冒烟延续挂账不变（第 37 轮同口径）/ ⑯ t_aeb0b769 遗留建议（DEVELOPMENT_TEAM 稳定签名需用户确认）挂账跟踪 / ⑰ 第 36 轮 A 卡新登记（decode 迁移系列最终收官：93/98 迁入注册表，switch 仅保留 5 类非注册分支为穷尽性兜底，回退路径测试锚点 = audioSpectrum）与 B 卡登记（README v0.36 + 版本建议 0.36/461 已收口落地）状态确认；第 37 轮 A 卡承接推进中（保留 5 类非注册分支 switch 路径契约测试补齐）；第 37 轮 A/B 卡承接核对：r37/switch-contract（t_a47cdcf3）与 r37/changelog（t_8b91e906）分支均与 main 同点 dfd31b2 0 ahead，board 实测均 running——并入 main 结论待第 37 轮收口确认（同第 31~36 轮 C 卡核验口径）
   - 产出：根目录 2 份报告（核验报告_第37轮_维护机制健在与文档一致性.md / 清理报告_第37轮_round36遗留清理.md）+ iteration-log 本记录（小节头「## 第 37 轮（功能/优化迭代第 25 轮）」+「### 子任务记录」已由父任务预建于 02e17ce，直接追加）+ file-structure.zh.md（mindmap 第 7~36 轮→第 7~37 轮 + 2 份报告登记，无重复行）；约束遵守：仅动本工作区与 r37/review，零代码改动（未触发构建/测试/全量回归，第 37 轮分解前父任务已实证 413 用例 0 失败，基线口径 413），未 push，未开新分支/子任务，无 parents 依赖；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）
 
-
 - **t_a47cdcf3 第37轮 A卡（实现/优化）：保留 5 类非注册分支 switch 路径契约测试补齐 — 穷尽性兜底运行时断言化（TECHDEBT ② 续篇八）（default，分支 r37/switch-contract，第 37 轮 / 子任务 A）**：
   - 背景：第 30~36 轮 decode 迁移系列最终收官后，注册表 registeredTypeDecoders 恰含 93 类型（ItemsParsing.swift:634-1082，键集快照 :1085-1087，init(from:) 先行查表 :1092 起），switch 98 分支中 5 类保留为穷尽性兜底（staticButton/group/expandable/themeSwitch/audioSpectrum，:1108/:1174/:1178/:1240/:1258），回退路径测试锚点 = audioSpectrum（ItemTypeDecodeRegistryTests.swift:621-638 已有回退契约用例，钉住 width→barCount 密度派生计算）；**缺口：保留 5 类中 4 类无 switch 路径契约覆盖**——grep 实证（改动前）：staticButton 仅 3 处命中且全部为其他类型降级用例中的 `staticButton(title: "unknown")` 断言（:562/:586/:650），自身正向契约 0；group/expandable/themeSwitch 零命中；本卡按第 31~36 轮既定模板（形态 A 每类 2 测：默认值 + 显式值/必填形态）补齐；
   - **落地（8 用例，零生产代码改动）**：ItemTypeDecodeRegistryTests.swift 165 → 173 用例（手写独立文件，不并入生成文件 RegistryReconciliationTests.swift），新增 MARK 节「switch 兜底契约：保留 5 类中 4 类补齐（第 37 轮 A 卡）」——staticButton title 必填透传（显式 title=="Hello"）+ 缺失 title 降级 unknown（:1108-1110）/ group items 嵌套 [BarItemDefinition] 递归解码（2 子项分别命中 switch 路径 staticButton 与注册表路径 cpu，验证两级解码在嵌套上下文均生效）+ 缺失 items 降级（:1174-1176）/ expandable 最小 JSON 默认值断言（closePosition=="left"、cardWidthRatio==0.5）+ 显式值透传（:1178-1182）/ themeSwitch 缺省 themes==[] + 显式数组透传（含 label 缺省回退 preset 去扩展名、matchAppIds 可选两形态，:1240-1242）；**键集断言 testRegisteredTypesInDecodeRegistry 保持 93 键零改动**（新增用例不改键集枚举，防迁移面悄然回退/无序扩张的护栏原样保留）；**保留 5 类分支至此全部有 switch 路径契约钉住——穷尽性兜底从编译期保证升级为运行时行为断言，回退路径锚点体系完备**；
@@ -1632,3 +1623,11 @@
 
 ### 父任务
 - 目标：功能/优化迭代第 29 轮——承接第 40 轮收口（main=0cf1fcc 已 push origin，整体实证 443 用例 0 失败）后的主线分解（A/B/C 方向由本卡 body 摘要承接：第 40 轮 A 卡已闭环比异步闭包捕获链全链路，下轮主线由父任务分解时自定）。**分解前不触发全量回归**（隔代规则：第 39 轮收口 440 + 第 40 轮收口 443 两轮实证后触发，预计第 42 轮触发，届时基线口径 443）。环境事项：main=0cf1fcc 未被并行推进（git fetch origin 核对一致）；3 子卡 worktree 预建于 main@0cf1fcc 同点（dir 类型 + 预建 worktree 方案连续第十四轮零 spawn 失败预期）。
+
+### 子任务记录
+- **t_8dcd3dc7 第41轮 C卡（维护面）：年度维护核验第 35 次 + round-40 遗留清理（4 worktree + 4 分支）+ 锚点巡检复跑接入保持 + 遗留 20 项盘点（review-agent，分支 r41/review，第 41 轮 / 子任务 C）**：
+  - 年度维护核验（第 35 次）：ITER-14 置顶待办完好可执行（唯一未勾选项 :7，待办区行号引用 `StockBarItem.swift:393` 与源码实测吻合——:393 为 2027 段注释行，第 30 轮处置后第十二轮保持）；2027 段 32 日期（7 节日注释头齐全，3+8+3+5+3+3+7 分布断言通过）+ 6 补班日全周六 + 两表零重叠 + 金丝雀 7/7（星期+在表）+ 防屏蔽直查 :195-196 在位 + 唯一数据源实证（两表仅 StockBarItem :380/:409 定义；2027 字面量全仓 4 文件均数据本体/测试/注释，无第二份数据级字面量块）；GitHub 4/4 全过（先 fetch：issue #1 OPEN / #40 CLOSED / 0 open PR / origin/main 与本地 main 同步 0/0=0cf1fcc）；三方交叉核对一致（iteration-log 第 40 轮收口段 :1605-1627 ↔ main 提交图 f5fb538→2a1a154→5e1e082→57f56bc→0cf1fcc ↔ file-structure 登记 4 份第 40 轮报告 :240/:246/:251/:252，全仓 grep 冲突残留 0 命中）；114 口径 :1174/:1185 与 ITEMS_REFERENCE :1711 复查零新漂移；第 40 轮 A/B/C 卡落地源码实证（A：WidgetLeakTests.swift 30 用例 + VolumeViewController 弱闭包（[weak self]+round 40 注释+block 恒等存储+deinit 成对移除）+ WeatherBarItem.swift:178 [weak self]；B：README.md v0.40 条目 :154；C：Info.plist 0.40/465 + 4 份报告在位）。
+  - 锚点巡检复跑接入（第 30 轮固化首项，本轮保持）：核验前复跑 scripts/anchor-patrol.py **PASS 72 / WARN 11 / INFO 5 / ERROR 0 退出码 0** —— 与第 40 轮收口基线逐项完全一致，零新漂移，无需处置闭环（WARN 11/INFO 5 全部 known 已登记项）；机器检查连续第十六轮 0 ERROR 保持。
+  - 仓库卫生：round-40 父卡 t_5442a5ef + 3 子卡（t_c53ba339 / t_a6aa414a / t_07e2d5ea）遗留清理 —— 前置确认 4 卡 board 均 done 收口；删除前复核 4 检查全过（4 分支 rev-list 0 ahead（基准 main@0cf1fcc=origin/main）+ merge-base 即分支头 + 4 worktree 干净 + 远端仅 main）；删除后清点 .worktrees 5 项（round41-* 4 项 + 主仓库）/ 本地分支 5 条（main + lyricsmtmr/t_round41-41-lyricsmtmr-29-40 + r41/warnings + r41/changelog + r41/review）/ 远端仅 main；主仓库 checkout 实测在 main@0cf1fcc（与 origin/main 同步，无失同步登记）。
+  - 遗留跟踪盘点（round-40 收口 20 项 → 逐项状态确认）：① issue #1 OPEN（实测仍 OPEN）/ ② ITER-15 决策门 4 问（:238 条目在位）/ ③ ITER-14 时间驱动（第 35 次核验健在，2026-11 前无动作）/ ④ 口径统一 32+114（32 日期复核 0 不符；114 口径 :1174/:1185 与 ITEMS_REFERENCE :1711 零新漂移）/ ⑤~⑬ 各轮挂账/闭环状态延续（内存修复真机冒烟 3 项、currency/holidayCountdown/隐藏机制/真机冒烟延续、第 21 轮 2 项、GPS 灯观感、t_aeb0b769 建议等）/ ⑭ 各轮新增发现闭环状态延续 + **本轮（第 41 轮）新增发现 0 项**（锚点巡检零新漂移 + 114 复查零漂移 + 32 日期 0 不符 + 金丝雀 7/7 + GitHub 4/4 全过）/ ⑮ 第 40 轮 A 卡新登记（异步闭包捕获链泄漏契约覆盖面扩展——30/30 用例 + VolumeViewController 真实永久泄漏修复 + WeatherBarItem 陈旧回调修复）与 B 卡登记（README v0.40 + 版本建议 0.40/465 已收口落地——Info.plist 0.40/465 实证在位）状态确认；第 41 轮 A 卡承接推进中（编译警告清零与工程规范治理——代码质量维度）；第 41 轮 A/B 卡承接核对：r41/warnings（t_ee122f56）与 r41/changelog（t_5720cc6c）分支均与 main 同点 0cf1fcc 0 ahead、board 实测 running（B 卡 worktree dirty=1 为在飞编辑中，属预期）——并入 main 结论待第 41 轮收口确认（同第 31~40 轮 C 卡核验口径）。
+  - 产出：根目录 2 份报告（核验报告_第41轮_维护机制健在与文档一致性.md / 清理报告_第41轮_round40遗留清理.md）+ iteration-log 本记录（先建「## 第 41 轮（功能/优化迭代第 29 轮）」+「### 子任务记录」小节头——第 33/35 轮教训，父任务预建于父分支 a26e1bc、子卡基于 main 看不到故本卡自建，末尾追加，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~40 轮→第 7~41 轮 + 本卡 2 份报告行，无重复行）；零 Swift 代码改动未触发构建/测试/全量回归（第 41 轮分解前不触发全量回归，隔代规则基线口径 443）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
