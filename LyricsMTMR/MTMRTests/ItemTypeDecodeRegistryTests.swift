@@ -2,7 +2,7 @@
 //  ItemTypeDecodeRegistryTests.swift
 //  LyricsMTMRTests
 //
-//  Round 30 (A) + Round 31 (A) + Round 32 (A) + Round 33 (A) + Round 34 (A) + Round 35 (A) + Round 36 (A): 注册表混合架构 decode 迁移试点、批量迁移、第三批、第四批、第五批、第六批（收官批）与换锚补迁（最终收官）推进测试。
+//  Round 30 (A) + Round 31 (A) + Round 32 (A) + Round 33 (A) + Round 34 (A) + Round 35 (A) + Round 36 (A) + Round 37 (A): 注册表混合架构 decode 迁移试点、批量迁移、第三批、第四批、第五批、第六批（收官批）、换锚补迁（最终收官）推进测试，与保留分支 switch 兜底契约补齐。
 //
 //  契约（与《评估报告_第30轮_注册表混合架构decode迁移评估.md》、
 //  《验证报告_第31轮_decode迁移扩大化.md》、《验证报告_第32轮_decode迁移第三批.md》、
@@ -19,6 +19,11 @@
 //    可迁分支已全部迁完；switch 98 分支中 5 类保留为穷尽性兜底
 //    （staticButton/group/expandable/themeSwitch/audioSpectrum），
 //    回退路径测试锚点 = audioSpectrum（保留 5 类中唯一含真实计算逻辑者）；
+//    第 37 轮 A 卡补齐保留 5 类中其余 4 类的 switch 路径契约
+//    （staticButton title 必填透传+缺失降级 / group items 嵌套递归+缺失降级 /
+//    expandable 默认值+显式值 / themeSwitch 默认 []+显式数组）——
+//    至此 5 类保留分支全部有 switch 路径契约钉住，兜底从编译期保证
+//    升级为运行时行为断言（audioSpectrum 已有回退锚点用例，不重复）；
 //    新增/删除任一注册 → 本测试红，防迁移面悄然回退/无序扩张）；
 //  - 等价性：注册类型经注册表闭包解码的结果与 switch 分支逐字段一致
 //    （默认值、显式值、无参、全字段、必填字段）；
@@ -635,6 +640,138 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         // 密度派生（switch 分支独有计算逻辑）：width=400 → Int(400/8)=50 → min(48,50)=48
         XCTAssertEqual(barCount, 48, "audioSpectrum 未显式 barCount 时按 width 密度派生并截断上限（width=400 → 48）")
         XCTAssertEqual(source, "", "audioSpectrum 缺省 source 默认空串")
+    }
+
+    // MARK: - switch 兜底契约：保留 5 类中 4 类补齐（第 37 轮 A 卡）
+
+    func testStaticButtonDecodesViaSwitchExplicitTitle() {
+        // staticButton 未注册（保留 switch 分支，ItemsParsing.swift:1108-1110，
+        // title 必填 decode）——显式 title 透传正向契约。
+        guard let def = decodeSingle(#"{"type": "staticButton", "title": "Hello"}"#) else {
+            XCTFail("staticButton 显式 title JSON 解码失败")
+            return
+        }
+        guard case let .staticButton(title: title) = def.type else {
+            XCTFail("staticButton 应经 switch 解码为 .staticButton，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(title, "Hello", "staticButton 显式 title 应透传")
+    }
+
+    func testStaticButtonMissingRequiredTitleDegradesToUnknown() {
+        // title 为必填（decode 而非 decodeIfPresent）；switch 分支抛错后经
+        // BarItemDefinition 的 try? 容错降级为 unknown——与既有必填缺失降级
+        // 先例同型（appleScriptTitledButton/shellScriptTitledButton 缺失 source 用例）。
+        guard let def = decodeSingle(#"{"type": "staticButton"}"#) else {
+            XCTFail("缺失必填字段应降级解码而非整体失败")
+            return
+        }
+        guard case .staticButton(title: "unknown") = def.type else {
+            XCTFail("staticButton 缺失 title 应降级 unknown，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testGroupDecodesViaSwitchNestedItems() {
+        // group 未注册（保留 switch 分支，ItemsParsing.swift:1174-1176，
+        // items 必填嵌套数组）——嵌套 [BarItemDefinition] 递归解码：
+        // 2 个子项分别命中 switch 路径（staticButton）与注册表路径（cpu），
+        // 验证两级解码在嵌套上下文均生效。
+        guard let def = decodeSingle(#"{"type": "group", "items": [{"type": "staticButton", "title": "A"}, {"type": "cpu"}]}"#) else {
+            XCTFail("group 嵌套 items JSON 解码失败")
+            return
+        }
+        guard case let .group(items: items) = def.type else {
+            XCTFail("group 应经 switch 解码为 .group，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(items.count, 2, "group 应含 2 个嵌套子项")
+        guard case let .staticButton(title: nestedTitle) = items[0].type else {
+            XCTFail("嵌套子项 0 应解码为 .staticButton，实际：\(items[0].type)")
+            return
+        }
+        XCTAssertEqual(nestedTitle, "A", "嵌套 staticButton title 应透传")
+        guard case let .cpu(refreshInterval: nestedInterval) = items[1].type else {
+            XCTFail("嵌套子项 1 应解码为 .cpu，实际：\(items[1].type)")
+            return
+        }
+        XCTAssertEqual(nestedInterval, 5.0, "嵌套 cpu 应经注册表路径解码且默认间隔 5.0")
+    }
+
+    func testGroupMissingRequiredItemsDegradesToUnknown() {
+        // items 为必填（decode 而非 decodeIfPresent）；缺失抛错 → try? 降级 unknown。
+        guard let def = decodeSingle(#"{"type": "group"}"#) else {
+            XCTFail("缺失必填字段应降级解码而非整体失败")
+            return
+        }
+        guard case .staticButton(title: "unknown") = def.type else {
+            XCTFail("group 缺失 items 应降级 unknown，实际：\(def.type)")
+            return
+        }
+    }
+
+    func testExpandableDecodesViaSwitchDefaults() {
+        // expandable 未注册（保留 switch 分支，ItemsParsing.swift:1178-1182）——
+        // 最小 JSON 默认值断言：closePosition 默认 "left"、cardWidthRatio 默认 0.5。
+        guard let def = decodeSingle(#"{"type": "expandable", "items": [{"type": "battery"}]}"#) else {
+            XCTFail("expandable 最小 JSON 解码失败")
+            return
+        }
+        guard case let .expandable(items: items, closePosition: closePosition, cardWidthRatio: cardWidthRatio) = def.type else {
+            XCTFail("expandable 应经 switch 解码为 .expandable，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(items.count, 1, "expandable items 应透传")
+        XCTAssertEqual(closePosition, "left", "expandable 默认 closePosition 应与 switch 分支一致（?? \"left\"）")
+        XCTAssertEqual(cardWidthRatio, 0.5, "expandable 默认 cardWidthRatio 应与 switch 分支一致（?? 0.5）")
+    }
+
+    func testExpandableDecodesExplicitValues() {
+        guard let def = decodeSingle(#"{"type": "expandable", "items": [{"type": "staticButton", "title": "X"}], "closePosition": "right", "cardWidthRatio": 0.8}"#) else {
+            XCTFail("expandable 显式值 JSON 解码失败")
+            return
+        }
+        guard case let .expandable(items: items, closePosition: closePosition, cardWidthRatio: cardWidthRatio) = def.type else {
+            XCTFail("expandable 应经 switch 解码为 .expandable，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(items.count, 1, "expandable items 应透传")
+        XCTAssertEqual(closePosition, "right", "expandable 显式 closePosition 应透传")
+        XCTAssertEqual(cardWidthRatio, 0.8, "expandable 显式 cardWidthRatio 应透传")
+    }
+
+    func testThemeSwitchDecodesViaSwitchDefaultThemes() {
+        // themeSwitch 未注册（保留 switch 分支，ItemsParsing.swift:1240-1242）——
+        // themes 可选（decodeIfPresent）默认 []：缺省最小 JSON 断言空数组。
+        guard let def = decodeSingle(#"{"type": "themeSwitch"}"#) else {
+            XCTFail("themeSwitch 最小 JSON 解码失败")
+            return
+        }
+        guard case let .themeSwitch(themes: themes) = def.type else {
+            XCTFail("themeSwitch 应经 switch 解码为 .themeSwitch，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(themes.count, 0, "themeSwitch 缺省 themes 应为空数组（?? []）")
+    }
+
+    func testThemeSwitchDecodesExplicitThemes() {
+        // 显式 themes 数组透传；覆盖 label 缺省回退（ThemeDefinition preset
+        // 去扩展名作 label）与 matchAppIds 可选字段两种形态。
+        guard let def = decodeSingle(#"{"type": "themeSwitch", "themes": [{"label": "暗色", "preset": "dark", "matchAppIds": ["Safari"]}, {"preset": "light"}]}"#) else {
+            XCTFail("themeSwitch 显式 themes JSON 解码失败")
+            return
+        }
+        guard case let .themeSwitch(themes: themes) = def.type else {
+            XCTFail("themeSwitch 应经 switch 解码为 .themeSwitch，实际：\(def.type)")
+            return
+        }
+        XCTAssertEqual(themes.count, 2, "themeSwitch 显式 themes 应透传 2 项")
+        XCTAssertEqual(themes[0].label, "暗色")
+        XCTAssertEqual(themes[0].preset, "dark")
+        XCTAssertEqual(themes[0].matchAppIds, ["Safari"])
+        XCTAssertEqual(themes[1].label, "light", "themeSwitch 嵌套主题缺省 label 回退 preset 去扩展名")
+        XCTAssertEqual(themes[1].preset, "light")
+        XCTAssertNil(themes[1].matchAppIds)
     }
 
     // MARK: - 抛错降级：必填字段缺失 → unknown（既有容错路径不回归）
