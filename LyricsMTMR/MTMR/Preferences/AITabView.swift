@@ -224,7 +224,11 @@ struct AITab: View {
         let work = DispatchWorkItem {
             UserDefaults.standard.set(self.streamOutput, forKey: "com.lyricsmtmr.ai.streamOutput")
             UserDefaults.standard.set(self.showBalance, forKey: "com.lyricsmtmr.ai.showBalance")
-            SettingsSync.writeBack(type: "ai", settings: ["streamOutput": self.streamOutput, "showBalance": self.showBalance])
+            // round 42 写入侧审计：删去对 items.json 的死写——item 类型是
+            // aiSelectedText（仅 model/prompt 两个属性），不存在 type "ai"，
+            // writeBack 永不匹配；streamOutput/showBalance 是 UserDefaults
+            // 专属设置（load() 也只从 UserDefaults 读），写 items.json 属
+            // 无效路径（且旧实现会以空写重写文件、清掉用户手写注释）。
         }
         Self.saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)

@@ -16,7 +16,14 @@ class SettingsSync {
             .first!.appending("/LyricsMTMR")
     }
 
-    private static var itemsJSONPath: String { appSupportDir + "/items.json" }
+    /// 测试钩子（round 42 写入侧审计）：把 items.json 读写重定向到临时目录，
+    /// 与 ClipboardHistoryItem.persistHistory 同型——生产恒为 nil 走真实路径，
+    /// 单测隔离用，避免污染用户配置。@testable 可见即可。
+    static var itemsJSONPathOverride: String?
+
+    private static var itemsJSONPath: String {
+        itemsJSONPathOverride ?? appSupportDir + "/items.json"
+    }
     private static var defaultPresetPath: String {
         Bundle.main.path(forResource: "defaultPreset", ofType: "json") ?? ""
     }
@@ -63,11 +70,16 @@ class SettingsSync {
 
     static func writeBack(type: String, settings: [String: Any]) {
         guard var array = loadItemsRaw() else { return }
+        var didMatch = false
         for i in 0..<array.count where (array[i]["type"] as? String) == type {
             for (key, value) in settings {
                 array[i][key] = value
             }
+            didMatch = true
         }
+        // 无匹配不重写（round 42 写入侧审计）：空写会清掉用户手写注释并规范化
+        // 格式——纯副作用的数据损坏风险；有匹配才落盘。
+        guard didMatch else { return }
         saveItems(array)
     }
 
@@ -82,13 +94,16 @@ class SettingsSync {
 
     static func writeBack(matcher: ([String: Any]) -> Bool, settings: [String: Any]) {
         guard var array = loadItemsRaw() else { return }
+        var didMatch = false
         for i in 0..<array.count {
             if matcher(array[i]) {
                 for (key, value) in settings {
                     array[i][key] = value
                 }
+                didMatch = true
             }
         }
+        guard didMatch else { return }
         saveItems(array)
     }
 
