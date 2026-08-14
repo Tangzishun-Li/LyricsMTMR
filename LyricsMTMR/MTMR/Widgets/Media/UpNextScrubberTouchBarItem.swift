@@ -297,7 +297,14 @@ class UpNextCalenderSource : IUpNextSource {
     required init(updateCallback: @escaping () -> Void = {}) {
         self.updateCallback = updateCallback
         eventStore = EKEventStore()
-        storeObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: eventStore, queue: nil, using: handleUpdate)
+        // round 39（observer 契约盲区）：`using: handleUpdate` 方法引用默认
+        // 强捕获 self——token→block→self 保留环使 deinit 永不可达、observer
+        // 永不移除，源对象 + EKEventStore 进程生命周期泄漏；改弱闭包。
+        storeObserver = NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged, object: eventStore, queue: nil
+        ) { [weak self] note in
+            self?.handleUpdate(note: note)
+        }
         let authStatus = EKEventStore.authorizationStatus(for: .event)
         // round 30（权限惰性化）：仅在已授权时立即刷新；未决定/拒绝一律
         // 不自动申请（TCC 弹窗零自动——测试宿主全量实例化/应用首启零弹窗），
