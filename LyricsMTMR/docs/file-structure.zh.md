@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~43 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~44 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -262,6 +262,7 @@ mindmap
 ├── 验证报告_第43轮_SecretsManager密钥存储审计与治理.md # 第 43 轮子任务 A 验证报告（SecretsManager 密钥存储审计与治理——安全与合规维度：全仓密钥生命周期盘点分类（20 个 APIService 全经 SecretsManager 单一入口，默认 UserDefaults 明文落盘；传输方式 DeepSeek/Slack/GitHub/RSS/HA/BeeCount 全走 Authorization Bearer header、Bilibili/OpenCodeGo Cookie header、OpenWeather appid query 与快递100 key/sign POST body 为 vendor 契约登记不改；ATS 例外域 6 个全为无鉴权公开端点合理；泄漏面日志/打印 0 命中）；Keychain 治理评估——切换机制可行且已完整实施（读穿回退+迁移+回退迁移+SecItem 状态检查+测试钩子）但默认保持 false 不翻转（Debug 77R6HZNK93 vs Release D6D8BR2QNB 双 DEVELOPMENT_TEAM 跨配置 ACL 风险 + hosted 单测污染真实钥匙串，翻转前需统一签名身份）；**发现并根因修复真实问题 7 处：① clear() 只清活动后端（明文副本残留/回退复活）→双后端全清；② useKeychain=true 无存量迁移→读穿迁移删明文副本；③ useKeychain=false 无回退读穿→反向迁移；④ store() 不删另一后端（陈旧值复活）→单一权威；⑤ keychainStore 忽略 SecItemAdd 状态（静默丢密钥）→状态检查+降级不丢数据；⑥ detectHardcodedKeys 死代码+覆盖窄+snippet 含明文值→12 种形态键+掩码脱敏；⑦ AppSettings 10 处同键 @UserDefault 死代码旁路→删除**；新增 SecretsManagerContractTests 13 用例（读写对称×2+迁移×3+回退×2+清除×2+检测×4，defaultsOverride/keychainOverride 测试钩子与 itemsJSONPathOverride 同型），红（14 failures）→绿（13/13）双跑实证未放宽断言；全量 462 用例 0 失败实证（449 基线+新增 13 零偏差，95.8s，/tmp/LyricsMTMR-dd-r43a-test）；锚点巡检复跑 PASS 72/ERROR 0（连续第二十轮），r43/secrets）
 ├── 核验报告_第43轮_维护机制健在与文档一致性.md # 第 43 轮核验报告（第 37 次年度维护核验，r43/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 42 轮收口基线逐项一致零新漂移，连续第二十轮 0 ERROR；ITER-14 待办区引用 :393 第十四轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=0860783）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 42 轮 A/B/C 卡落地源码实证——WriteSideContractTests 6 用例+SettingsSync didMatch 守卫+AITabView 死写路径已删/README v0.42/Info.plist 0.42/467；本轮新增发现 0 项）
 ├── 清理报告_第43轮_round42遗留清理.md          # 第 43 轮子任务 C 仓库卫生报告（round-42 父卡+子卡遗留 worktree/分支清理，r42 全清 4 worktree+4 分支+远端残留分支 1，r43/review；前置确认 4 卡 board 均 done 收口；合并基准 main@0860783=origin/main——第 42 轮收口已 push+同步本地 main；远端实测 2 heads 含 round42 父分支同 commit 零独特内容按「远端仅 main」预告一并删除；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@0860783 与远端同步无偏差登记）
+├── 核对报告_第44轮_README更新日志补登v0.44.md # 第 44 轮子任务 B 核对报告（README 更新日志补登 v0.44：第 43 轮工程与稳定性变更条目——SecretsManager 密钥存储审计与治理（安全与合规维度：全仓 20 个 APIService 生命周期盘点分类（存储介质/传输方式/泄漏面/ATS 例外域 6 个逐项）/Keychain 切换机制完整实施（读穿回退+存量迁移+回退迁移+SecItem 状态检查+测试钩子）但默认保持 false 不翻转（Debug 77R6HZNK93 vs Release D6D8BR2QNB 双 DEVELOPMENT_TEAM 跨配置 ACL 风险论证）/真实问题 7 处根因修复（clear 双后端全清/迁移删明文副本/回退反向迁移/单一权威/写失败降级/硬编码检测 12 形态键+值掩码/AppSettings 10 处死代码旁路删除）/SecretsManagerContractTests 13 用例（红 14 failures→绿 13/13 双跑实证未放宽断言）/462 用例实证 0 失败（95.8s）/锚点巡检连续第二十一轮 0 ERROR/Info.plist 0.43/468）+ 版本决策建议 0.44/469 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，连续第二十二轮 0 ERROR 零新漂移），r44/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 
