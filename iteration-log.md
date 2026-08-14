@@ -1511,3 +1511,11 @@
   - README.md 共 3 处改动：① 更新日志区置顶新增「v0.36（当前开发版本）」条目（工程与稳定性 4 项：注册表混合架构 decode 迁移第六批·收官批完成——可迁未迁剩余 10 分支除回退锚点外全部迁移 9（全部形态 A pixelPet/homekitScene/aiSelectedText/rssUnread/citationGen/paperProgress/paperTags/bilibiliFeed/apiTester），闭包逐字节复制 + 程序化 diff 9/9 等价，注册表键集 83→92、契约测试 145→163 用例、switch 98 分支中 6 保留为穷尽性兜底（base64Tool + staticButton/group/expandable/themeSwitch/audioSpectrum）、decode 迁移系列收官（除回退锚点，base64Tool 换锚后可补迁 + 2 用例）、RegistryReconciliationTests 6 零改动 + generate_registry_test.py byte-identical、文档六处同步、411 用例实证 0 失败、任务预算零偏差；锚点巡检收口复跑接入保持——连续第七轮 PASS 72/ERROR 0；PR #42 CI locale 测试确定性修复并入——PausableTimerTests.swift +21 行非新增用例、合并 origin/main 后重跑实证；工程版本号对齐——Info.plist 0.34/459 → 0.35/460），全部来自第 35 轮 iteration-log 实证记录（父收口段 :1454 + t_664682b1 :1466-1473 / t_c5a62307 :1474-1479 子任务记录），未虚构）；② v0.35 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.36=第 35 轮；
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归（第 36 轮分解前父任务已实证 411 用例 0 失败，隔代规则基线 411，如无必要不跑 xcodebuild）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；
   - 交付：核对报告《核对报告_第36轮_README更新日志补登v0.36.md》（本分支根目录，含版本决策与 0.36/461 建议/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/锚点核对（anchor-patrol 机器断言实证）/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加，**先建「## 第 36 轮（功能/优化迭代第 24 轮）」+「### 子任务记录」小节头**——第 33/35 轮教训，标注「第 36 轮 / 子任务 B」）+ file-structure.zh.md 登记（mindmap 第 7~35 轮→第 7~36 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+## 第 37 轮（功能/优化迭代第 25 轮）
+
+### 父任务
+
+- 目标：功能/优化迭代第 25 轮——承接第 36 轮收口（main=dfd31b2 已 push origin，整体实证 413 用例 0 失败）后的三条主线：① A 卡（r37/switch-contract 保留 5 类非注册分支 switch 路径契约测试补齐，TECHDEBT ② 续篇八——staticButton/group/expandable/themeSwitch 补 switch 路径契约用例（audioSpectrum 已有回退锚点），把穷尽性兜底从编译期保证升级为运行时行为断言）② B 卡（r37/changelog README 更新日志补登 v0.37 + 版本决策建议 0.37/462）③ 维护面（年度维护核验第 31 次 + round-36 清理 + 锚点巡检复跑接入保持，本卡）。**分解前不触发全量回归**（隔代规则：第 35 轮收口 411 + 第 36 轮收口 413 两轮实证后触发，预计第 38 轮分解前触发，届时基线口径 413）。环境事项：main=dfd31b2 未被并行推进（git fetch origin 核对一致）；3 子卡 worktree 预建于 main@dfd31b2 同点（dir 类型 + 预建 worktree 方案连续第十轮零 spawn 失败预期）。
+
+### 子任务记录
