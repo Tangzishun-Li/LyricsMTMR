@@ -7,8 +7,13 @@
 //  Features:
 //    - All API keys flow through this single access point.
 //    - Opt-in macOS Keychain storage (more secure than UserDefaults).
+//      `useKeychain = false` is the shipped default (第 43 轮评估结论：Debug/Release
+//      使用不同 DEVELOPMENT_TEAM，跨配置 Keychain ACL 存在读取风险 + hosted 单测
+//      污染真实钥匙串；翻转前需先统一签名身份)。切到 Keychain 后自动获得：
+//      读穿迁移（存量 UserDefaults 密钥迁移后删明文副本）、回退迁移（切回
+//      UserDefaults 时存量无损恢复）、SecItem 状态检查（写失败降级不丢数据）。
 //    - Built-in validation for known key formats.
-//    - Detection of hardcoded keys in JSON config files.
+//    - Detection of hardcoded keys in JSON config files (snippet 值已掩码脱敏).
 //    - Audit helper: `hasAnyConfigured` / `configuredServices` for the UI.
 //    - Built-in connectivity test for every service.
 //
@@ -17,7 +22,8 @@
 //       guard !key.isEmpty else { /* show "未配置" */ return }
 //
 //  NOTE: Keys stored in UserDefaults are NOT encrypted at rest on disk;
-//  for production, switch to Keychain by setting `useKeychain = true` below.
+//  for production, switch to Keychain by setting `useKeychain = true` below
+//  (第 43 轮起迁移/回退/SecItem 状态检查均已实现并有契约测试覆盖).
 //
 
 import Foundation
@@ -158,20 +164,73 @@ final class SecretsManager {
     static let shared = SecretsManager()
 
     /// Set to `true` to use the system Keychain instead of UserDefaults.
-    /// Keychain is more secure but requires the app to be signed with the
-    /// proper Keychain Access Groups entitlement.
+    ///
+    /// 默认保持 `false`（第 43 轮评估结论，见验证报告）：
+    ///  - Debug（77R6HZNK93）与 Release（D6D8BR2QNB）使用不同 DEVELOPMENT_TEAM，
+    ///    Keychain 条目 ACL 绑定签名 designated requirement —— 跨配置切换存在
+    ///    「另一配置读不到本配置写入的条目」的真实风险，翻转默认值前需先统一签名身份；
+    ///  - hosted 单测与 CI（CODE_SIGNING_ALLOWED=NO）共享真实钥匙串/无法访问钥匙串，
+    ///    翻转默认会让测试污染真实用户钥匙串；
+    ///  - 本类已实现 Keychain 完整路径（读穿回退 + 迁移 + 回退迁移 + SecItem 状态
+    ///    检查 + 测试钩子），`useKeychain = true` 一行即可在生产开启。
     var useKeychain = false
 
     private init() {}
 
+    // MARK: - Test hooks（生产恒 nil；与 SettingsSync.itemsJSONPathOverride 同型 ——
+    //         第 42 轮 WriteSideContractTests 先例，@testable 内部可见）
+
+    /// 测试注入的 UserDefaults 存储（nil = UserDefaults.standard）。生产恒 nil。
+    static var defaultsOverride: UserDefaults?
+
+    /// 测试注入的 Keychain 后端（nil = 真实 Security 框架）。生产恒 nil。
+    static var keychainOverride: KeychainBackend?
+
+    /// Keychain 读写后端抽象（测试用内存桩；生产走真实 SecItem* 调用）。
+    struct KeychainBackend {
+        var store: (String, APIService) -> Bool
+        var retrieve: (APIService) -> String?
+        var delete: (APIService) -> Void
+    }
+
+    private var defaults: UserDefaults { SecretsManager.defaultsOverride ?? .standard }
+
     // MARK: - Read / Write
 
     /// Retrieve a credential for the given service.
+    ///
+    /// Keychain 模式（useKeychain = true）：
+    ///   - Keychain 优先；未命中时读 UserDefaults 旧值并迁移（写 Keychain 成功后
+    ///     删除 UserDefaults 明文副本）—— 现有用户存量密钥读取兼容；
+    ///   - Keychain 写失败（无登录/无钥匙串/签名异常）时保留 UserDefaults 副本，
+    ///     数据不丢。
+    /// UserDefaults 模式（useKeychain = false，默认）：
+    ///   - UserDefaults 优先；未命中时反向迁移 Keychain 值（回退策略：曾切
+    ///     Keychain 的用户切回后存量值无损恢复）。
     func retrieve(_ service: APIService) -> String {
         if useKeychain {
-            return keychainRetrieve(service) ?? ""
+            if let value = keychainRetrieve(service), !value.isEmpty {
+                return value
+            }
+            if let legacy = defaults.string(forKey: service.defaultsKey), !legacy.isEmpty {
+                if keychainStore(legacy, for: service) {
+                    defaults.removeObject(forKey: service.defaultsKey)
+                }
+                return legacy
+            }
+            return ""
         }
-        return UserDefaults.standard.string(forKey: service.defaultsKey) ?? ""
+        if let value = defaults.string(forKey: service.defaultsKey), !value.isEmpty {
+            return value
+        }
+        if let keychainValue = keychainRetrieve(service), !keychainValue.isEmpty {
+            // 回退：Keychain 曾有值（用户曾切 Keychain）→ 反向迁移回 UserDefaults
+            defaults.set(keychainValue, forKey: service.defaultsKey)
+            defaults.synchronize()
+            keychainDelete(service)
+            return keychainValue
+        }
+        return ""
     }
 
     /// Persist a credential. Pass empty string to clear.
@@ -179,18 +238,30 @@ final class SecretsManager {
         if useKeychain {
             if value.isEmpty {
                 keychainDelete(service)
+                defaults.removeObject(forKey: service.defaultsKey)
+                return
+            }
+            if keychainStore(value, for: service) {
+                // 迁移/写入成功 → 清理 UserDefaults 明文副本（单一权威 Keychain）
+                defaults.removeObject(forKey: service.defaultsKey)
             } else {
-                keychainStore(value, for: service)
+                // Keychain 写失败（无登录/无钥匙串/签名异常）→ 降级 UserDefaults，不静默丢数据
+                defaults.set(value, forKey: service.defaultsKey)
+                AppLog.warn("Keychain 写入失败，已降级存储于 UserDefaults: \(service.defaultsKey)")
             }
         } else {
-            UserDefaults.standard.set(value, forKey: service.defaultsKey)
-            UserDefaults.standard.synchronize()
+            defaults.set(value, forKey: service.defaultsKey)
+            defaults.synchronize()
+            // 单一权威：清掉 Keychain 旧副本，防切回 Keychain 后读到陈旧值
+            keychainDelete(service)
         }
     }
 
-    /// Remove a credential from storage.
+    /// Remove a credential from storage（双后端全清 —— 修复原实现只清活动后端、
+    /// 明文副本残留/回退后复活的缺陷）。
     func clear(_ service: APIService) {
-        store("", for: service)
+        keychainDelete(service)
+        defaults.removeObject(forKey: service.defaultsKey)
     }
 
     /// Returns `true` when a non-empty value exists for this service.
@@ -705,20 +776,30 @@ final class SecretsManager {
 
     // MARK: - Hardcoded Key Detection
 
-    /// Scans the given JSON string for apiKey/api_key fields with non-empty
+    /// Scans the given JSON string for secret-shaped keys (`apiKey`, `api_key`,
+    /// `apikey`, `token`, `secret`, `password`, `cookie`, `pat`, `authorization`,
+    /// `x-api-key`, `credential`, … — case-insensitive) with non-empty string
     /// values and returns their locations.
+    ///
+    /// The returned `snippet` masks the secret value (replaced with `***`) so
+    /// callers can display/log it without leaking the credential itself.
     func detectHardcodedKeys(in jsonString: String) -> [(line: Int, snippet: String)] {
         var results: [(Int, String)] = []
         let lines = jsonString.components(separatedBy: .newlines)
+        let keyComponent = "(?:api[-_]?key|apikey|token|secret|password|passwd|cookie|\\bpat\\b|authorization|x-api-key|credential|access[-_]?key)"
+        let pattern = "\"([^\"]*" + keyComponent + "[^\"]*)\"\\s*:\\s*\"([^\"]+)\""
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return results
+        }
         for (idx, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard let keyRange = trimmed.range(of: "\"api") else { continue }
-            guard let colonRange = trimmed.range(of: ":") else { continue }
-            guard colonRange.lowerBound > keyRange.upperBound else { continue }
-            let afterColon = trimmed[colonRange.upperBound...].trimmingCharacters(in: .whitespaces)
-            if afterColon.hasPrefix("\"") && !afterColon.hasPrefix("\"\"") {
-                let snippet = String(trimmed.prefix(60))
-                results.append((idx + 1, snippet))
+            let nsLine = line as NSString
+            let range = NSRange(location: 0, length: nsLine.length)
+            let matches = regex.matches(in: line, options: [], range: range)
+            for match in matches {
+                guard match.numberOfRanges >= 3 else { continue }
+                let key = nsLine.substring(with: match.range(at: 1))
+                // Mask the value: never include the credential in the snippet.
+                results.append((idx + 1, "\"\(key)\": \"***\""))
             }
         }
         return results
@@ -728,8 +809,11 @@ final class SecretsManager {
 
     private let keychainServiceName = "com.lyricsmtmr.SecretsManager"
 
-    private func keychainStore(_ value: String, for service: APIService) {
-        guard let data = value.data(using: .utf8) else { return }
+    private func keychainStore(_ value: String, for service: APIService) -> Bool {
+        if let backend = SecretsManager.keychainOverride {
+            return backend.store(value, service)
+        }
+        guard let data = value.data(using: .utf8) else { return false }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainServiceName,
@@ -738,10 +822,13 @@ final class SecretsManager {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
         ]
         SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
     }
 
     private func keychainRetrieve(_ service: APIService) -> String? {
+        if let backend = SecretsManager.keychainOverride {
+            return backend.retrieve(service)
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainServiceName,
@@ -756,6 +843,10 @@ final class SecretsManager {
     }
 
     private func keychainDelete(_ service: APIService) {
+        if let backend = SecretsManager.keychainOverride {
+            backend.delete(service)
+            return
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainServiceName,
