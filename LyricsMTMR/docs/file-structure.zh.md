@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~42 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~43 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -258,6 +258,7 @@ mindmap
 ├── 验证报告_第42轮_写入侧encode审计与治理.md # 第 42 轮子任务 A 验证报告（注册表写入侧 encode 审计与治理——数据与存储维度，decode 迁移系列写侧镜像：全仓写入侧路径盘点 9 处 JSONEncoder + 23 处 UserDefaults .set + items.json 字典写路径 + 5 处文件写逐项分类（数据类别/生命周期/读写对称性），重点验证 decode 已迁注册表的 93 类 Item 写侧对称性——items.json 写侧为 JSONSerialization 字典透传（非 Item encode 路径），读侧注册表 decodeIfPresent 容缺键，双向对称成立；**发现并根因修复真实问题 2 处：① SettingsSync.writeBack(type:/matcher:) 无匹配仍无条件 saveItems 重写 items.json（空写清掉用户手写注释+规范化格式=数据损坏风险；实测 AITabView 以不存在的 type "ai" 每改必触发）→ 加 didMatch 守卫无匹配不落盘；② AITabView.swift:227 死写路径 SettingsSync.writeBack(type:"ai")——不存在 type "ai"（真实类型 aiSelectedText 仅 model/prompt 两属性），streamOutput/showBalance 是 UserDefaults 专属设置（load() 同源读），删除该行**；新增 WriteSideContractTests 6 用例（无匹配不重写×3 + 匹配合并保未知键×3，itemsJSONPathOverride 测试钩子与 ClipboardHistory persistHistory 同型），红（2 failure）→绿（6/6）双跑实证未放宽断言；全量 449 用例 0 失败实证（443 基线+新增 6 零偏差，98.6s，/tmp/LyricsMTMR-dd-r42a-test）；锚点巡检复跑 PASS 72/ERROR 0（连续第十八轮），r42/encode-registry）
 ├── 核验报告_第42轮_维护机制健在与文档一致性.md # 第 42 轮核验报告（第 36 次年度维护核验，r42/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 41 轮收口基线逐项一致零新漂移，连续第十八轮 0 ERROR；ITER-14 待办区引用 :393 第十三轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=f57cf9f——第 41 轮收口已 push f57cf9f 且本地 main 已同步）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 41 轮 A/B/C 卡落地源码实证——WeatherBarItem 8 处单反斜杠插值+CoverCache @unchecked Sendable+onChange 两参数闭包 3 处/README v0.41/Info.plist 0.41/466；本轮新增发现 0 项）
 ├── 清理报告_第42轮_round41遗留清理.md          # 第 42 轮子任务 C 仓库卫生报告（round-41 父卡+子卡遗留 worktree/分支清理，r41 全清 4 worktree+4 分支，r42/review；前置确认 4 卡 board 均 done 收口；合并基准 main@f57cf9f=origin/main——第 41 轮收口已 push+同步本地 main；远端无残留引用仅 main；主仓库 checkout main@f57cf9f 与远端同步无偏差登记）
+├── 验证报告_第43轮_SecretsManager密钥存储审计与治理.md # 第 43 轮子任务 A 验证报告（SecretsManager 密钥存储审计与治理——安全与合规维度：全仓密钥生命周期盘点分类（20 个 APIService 全经 SecretsManager 单一入口，默认 UserDefaults 明文落盘；传输方式 DeepSeek/Slack/GitHub/RSS/HA/BeeCount 全走 Authorization Bearer header、Bilibili/OpenCodeGo Cookie header、OpenWeather appid query 与快递100 key/sign POST body 为 vendor 契约登记不改；ATS 例外域 6 个全为无鉴权公开端点合理；泄漏面日志/打印 0 命中）；Keychain 治理评估——切换机制可行且已完整实施（读穿回退+迁移+回退迁移+SecItem 状态检查+测试钩子）但默认保持 false 不翻转（Debug 77R6HZNK93 vs Release D6D8BR2QNB 双 DEVELOPMENT_TEAM 跨配置 ACL 风险 + hosted 单测污染真实钥匙串，翻转前需统一签名身份）；**发现并根因修复真实问题 7 处：① clear() 只清活动后端（明文副本残留/回退复活）→双后端全清；② useKeychain=true 无存量迁移→读穿迁移删明文副本；③ useKeychain=false 无回退读穿→反向迁移；④ store() 不删另一后端（陈旧值复活）→单一权威；⑤ keychainStore 忽略 SecItemAdd 状态（静默丢密钥）→状态检查+降级不丢数据；⑥ detectHardcodedKeys 死代码+覆盖窄+snippet 含明文值→12 种形态键+掩码脱敏；⑦ AppSettings 10 处同键 @UserDefault 死代码旁路→删除**；新增 SecretsManagerContractTests 13 用例（读写对称×2+迁移×3+回退×2+清除×2+检测×4，defaultsOverride/keychainOverride 测试钩子与 itemsJSONPathOverride 同型），红（14 failures）→绿（13/13）双跑实证未放宽断言；全量 462 用例 0 失败实证（449 基线+新增 13 零偏差，95.8s，/tmp/LyricsMTMR-dd-r43a-test）；锚点巡检复跑 PASS 72/ERROR 0（连续第二十轮），r43/secrets）
 └── .gitignore / .gitattributes / README.md
 ```
 
