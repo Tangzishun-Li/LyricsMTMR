@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~45 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~46 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -269,6 +269,7 @@ mindmap
 ├── 核对报告_第45轮_README更新日志补登v0.45.md # 第 45 轮子任务 B 核对报告（README 更新日志补登 v0.45：第 44 轮工程与稳定性变更条目——网络请求健壮性审计与治理（后端服务维度：全仓网络调用盘点分类（6 处信号量同步调用有界等待 + 7 处默认 60s 无显式超时站点 + 25 处合规站点 + 错误面盘点）/真实问题 3 类根因修复（TBNet.syncFetch 统一硬化——等待超时 task.cancel() 释放孤儿 dataTask + 合成 NSURLErrorTimedOut + 成功才读消除数据竞争，ApiLatency/PackageTracker/ApiTester 4 处调用点复用并修正 ApiTester 12s/10s 错配/RSS 失败面——四后端 + direct counter 改 Int?，RssUnreadItem fetchFailed 失败态「—」+coral 替代误导性 0/7 处默认 60s 站点补显式 timeoutInterval=15 + StockBarItem 单飞守卫防堆积）/NetworkRobustnessContractTests 4 用例（红 5 failures→绿 4/4 双跑实证未放宽断言）/466 用例实证 0 失败（102.8s）/锚点巡检连续第二十二轮 0 ERROR/Info.plist 0.44/469）+ 版本决策建议 0.45/470 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 67/WARN 16/INFO 5/ERROR 0，连续第二十三轮 0 ERROR 零新漂移），r45/changelog）
 ├── 核验报告_第45轮_维护机制健在与文档一致性.md # 第 45 轮核验报告（第 39 次年度维护核验，r45/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 44 轮收口基线逐项一致零新漂移，连续第二十三轮 0 ERROR；ITER-14 待办区引用 :409 第十六轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=802cd8f）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 44 轮 A/B/C 卡落地源码实证——NetworkRobustnessContractTests 4 用例/TBNet.syncFetch 硬化 :894/RssUnread fetchFailed 失败态/README v0.44/Info.plist 0.44/469；遗留盘点：第 44 轮 A 卡新登记 3 项中「5 widget 失败静默」被第 45 轮 A 卡承接治理中（未收口待确认）；本轮新增发现 0 项）
 ├── 清理报告_第45轮_round44遗留清理.md          # 第 45 轮子任务 C 仓库卫生报告（round-44 父卡+子卡遗留 worktree/分支清理，r44 全清 4 worktree+4 分支，r45/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@802cd8f=origin/main——第 44 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round44 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@802cd8f 与远端同步无偏差登记）
+├── 核对报告_第46轮_README更新日志补登v0.46.md # 第 46 轮子任务 B 核对报告（README 更新日志补登 v0.46：第 45 轮工程与稳定性变更条目——网络 widget 失败面统一治理（第二批·前端体验维度：盘点分类（已合规对照 SlackUnread 不动作 + 明确标注 mock 合规类 8 项不改 + 误导/语义混淆类 4+1 治理）/真实问题 5 处根因修复（WeatherOutfit 废除 mock 22° 伪装改「—」+coral、BilibiliFeed 失败不再显示误导性 0、CiPipeline 拆「请求失败」coral/「无结果」textTertiary 两语义、DailyQuote compute 失败置 fetchFailed + 浮层「换一句」失败显式反馈、WordLookup 同类两态分离）/NetworkRobustnessContractTests 5 用例（红 9 用例 11 failures→绿 9/9 双跑实证未放宽断言）/471 用例实证 0 失败（102.96s）/锚点巡检连续第二十三轮 0 ERROR/Info.plist 0.45/470）+ 第 46 轮 A 卡方向承接段（轮询链同步网络调用异步化评估与治理，A 卡进行中）+ 版本决策建议 0.46/471 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 67/WARN 16/INFO 5/ERROR 0，连续第二十四轮 0 ERROR 零新漂移），r46/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 
