@@ -11,6 +11,10 @@ import Cocoa
 class DailyQuoteItem: TBMetricPopoverItem {
     private var quote = "…"
     private var source = ""
+    /// Round 45: compute/refresh failure flips this; apply() and the
+    /// popover refresh surface a coral failure visual instead of silently
+    /// keeping a stale value.
+    private var fetchFailed = false
     private weak var quoteLabel: NSTextField?
 
     init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double) {
@@ -28,10 +32,12 @@ class DailyQuoteItem: TBMetricPopoverItem {
     private func fetchQuote() {
         guard let json = TBNet.json("https://v1.hitokoto.cn/?c=a&c=b&c=d&c=k") as? [String: Any],
               let text = json["hitokoto"] as? String else {
+            fetchFailed = true
             quote = localized("离线：心有所向，方能行远", "offline quote")
             source = ""
             return
         }
+        fetchFailed = false
         quote = text
         source = (json["from"] as? String) ?? ""
     }
@@ -40,8 +46,9 @@ class DailyQuoteItem: TBMetricPopoverItem {
         // 收起态只放短句预览，完整句子（含出处）留给浮层，避免挤成一团显示不下
         metric.value = quote
         metric.subValue = nil
-        metric.valueColor = TB.textPrimary
+        metric.valueColor = fetchFailed ? TB.coral : TB.textPrimary
         quoteLabel?.stringValue = overlayText()
+        quoteLabel?.textColor = fetchFailed ? TB.coral : TB.textPrimary
     }
 
     private func overlayText() -> String {
@@ -96,12 +103,21 @@ class DailyQuoteItem: TBMetricPopoverItem {
         } else {
             sender.isEnabled = false
             quoteLabel?.stringValue = localized("正在换一句…", "fetching…")
+            quoteLabel?.textColor = TB.textPrimary
             DispatchQueue.global().async { [weak self] in
                 self?.fetchQuote()
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
-                    self.quoteLabel?.stringValue = self.overlayText()
+                    if self.fetchFailed {
+                        // Round 45: failure must be visible — no silent stale-value keep.
+                        self.quoteLabel?.stringValue = localized("获取失败，点击重试", "failed, tap to retry")
+                        self.quoteLabel?.textColor = TB.coral
+                    } else {
+                        self.quoteLabel?.stringValue = self.overlayText()
+                        self.quoteLabel?.textColor = TB.textPrimary
+                    }
                     self.metric.value = self.quote
+                    self.metric.valueColor = self.fetchFailed ? TB.coral : TB.textPrimary
                     self.metric.needsDisplay = true
                     sender.isEnabled = true
                 }

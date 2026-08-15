@@ -11,6 +11,10 @@ class BilibiliFeedItem: TBPollItem {
     private var unreadCount = 0
     private var configured = true
     private var latestTitle = ""
+    /// Round 45: fetch failure flips this; apply() shows a failure state
+    /// instead of a misleading "0" — "no new dynamics" must not be
+    /// indistinguishable from "network dead".
+    private var fetchFailed = false
 
     init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double) {
         super.init(identifier: identifier, refreshInterval: refreshInterval,
@@ -20,6 +24,7 @@ class BilibiliFeedItem: TBPollItem {
     required init?(coder: NSCoder) { return nil }
 
     override func compute() {
+        fetchFailed = false
         let cookie = SecretsManager.shared.retrieve(.bilibiliCookie)
         guard !cookie.isEmpty else {
             configured = false
@@ -39,7 +44,7 @@ class BilibiliFeedItem: TBPollItem {
         guard let json = TBNet.json("https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?type=all&page=1", headers: headers) as? [String: Any],
               let data = json["data"] as? [String: Any],
               let items = data["items"] as? [[String: Any]] else {
-            unreadCount = 0
+            fetchFailed = true
             latestTitle = localized("加载失败", "load failed")
             return
         }
@@ -62,6 +67,14 @@ class BilibiliFeedItem: TBPollItem {
             metric.subValue = "Cookie"
             metric.valueColor = TB.textTertiary
             metric.iconTint = TB.textTertiary
+            return
+        }
+        // Failure state before the count: a dead network must look dead, not 0.
+        if fetchFailed {
+            metric.value = "—"
+            metric.subValue = latestTitle
+            metric.valueColor = TB.coral
+            metric.iconTint = TB.coral
             return
         }
         metric.value = "\(unreadCount)"

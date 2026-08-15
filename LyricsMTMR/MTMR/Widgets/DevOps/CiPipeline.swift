@@ -30,8 +30,13 @@ class CiPipelineItem: TBPollItem {
             return
         }
         let url = "https://api.github.com/repos/\(repo)/actions/runs?per_page=1"
-        guard let json = TBNet.json(url, headers: ["Authorization": "Bearer \(token)", "Accept": "application/vnd.github+json"]),
-              let runs = (json as? [String: Any])?["workflow_runs"] as? [[String: Any]],
+        guard let json = TBNet.json(url, headers: ["Authorization": "Bearer \(token)", "Accept": "application/vnd.github+json"]) as? [String: Any] else {
+            // Round 45: a dead network must not read as "the repo has no runs".
+            state = localized("请求失败", "api error")
+            tint = TB.coral
+            return
+        }
+        guard let runs = json["workflow_runs"] as? [[String: Any]],
               let first = runs.first else {
             configured = true
             state = localized("无结果", "no runs")

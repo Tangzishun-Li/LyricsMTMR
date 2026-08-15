@@ -68,8 +68,12 @@ class WordLookupItem: TBPopoverItem {
             return localized("请求失败", "request failed")
         }
         let encoded = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
-        guard let json = TBNet.json("https://api.dictionaryapi.dev/api/v2/entries/en/\(encoded)") as? [[String: Any]],
-              let meanings = json.first?["meanings"] as? [[String: Any]],
+        guard let json = TBNet.json("https://api.dictionaryapi.dev/api/v2/entries/en/\(encoded)") else {
+            // Round 45: a dead network must not read as "word not found".
+            return localized("请求失败", "request failed")
+        }
+        guard let list = json as? [[String: Any]],
+              let meanings = list.first?["meanings"] as? [[String: Any]],
               let definitions = meanings.first?["definitions"] as? [[String: Any]],
               let definition = definitions.first?["definition"] as? String else {
             return ""

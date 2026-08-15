@@ -81,6 +81,24 @@ class NetworkRobustnessContractTests: XCTestCase {
         override func stopLoading() {}
     }
 
+    /// 成功 JSON 桩：返回预设 payload（round 45，「请求成功但无 runs」路径用）。
+    private final class JSONStubURLProtocol: URLProtocol {
+        static var payload = Data()
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+        override func startLoading() {
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200,
+                                           httpVersion: "HTTP/1.1",
+                                           headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: JSONStubURLProtocol.payload)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+        override func stopLoading() {}
+    }
+
     // MARK: - Helpers
 
     private var injectedTricklingSession: URLSession {
@@ -95,17 +113,30 @@ class NetworkRobustnessContractTests: XCTestCase {
         return URLSession(configuration: config)
     }
 
+    private var injectedJSONSession: URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [JSONStubURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    /// Round 35/45: pin Chinese so localized(zh, en) copy assertions are
+    /// deterministic regardless of the host app's persisted language.
+    private var previousAppLanguage: AppLanguage = .system
+
     override func setUp() {
         super.setUp()
         TricklingURLProtocol.stopLoadingCount = 0
         // 隐藏态启动 widget：RssUnreadItem 是 TBPollItem，隐藏期不调度
         // 真实轮询周期，测试直接同步调用 compute()/apply() 不受后台循环干扰。
         TouchBarVisibilityState.shared.setBarHidden(true)
+        previousAppLanguage = AppSettings.appLanguage
+        AppSettings.appLanguage = .chinese
     }
 
     override func tearDown() {
         TBNet.sessionOverride = nil
         SecretsManager.defaultsOverride = nil
+        AppSettings.appLanguage = previousAppLanguage
         TouchBarVisibilityState.shared.setBarHidden(false)
         super.tearDown()
     }
@@ -208,5 +239,94 @@ class NetworkRobustnessContractTests: XCTestCase {
         XCTAssertEqual(item.metric.value, "—",
                        "provider 模式抓取失败必须显示失败态「—」，不得显示误导性的 0")
         XCTAssertEqual(item.metric.valueColor, TB.coral)
+    }
+
+    // MARK: - 失败面契约（第二批，round 45：前端体验维度）
+
+    /// 天气穿衣：网络失败 → 失败态「—」+coral，绝不得把 mock 温度伪装成真实读数。
+    func testWeatherOutfitFetchFailureShowsFailureState() {
+        TBNet.sessionOverride = injectedFailingSession
+        let item = WeatherOutfitItem(identifier: NSTouchBarItem.Identifier(
+            "robusttest.weather." + UUID().uuidString),
+            refreshInterval: 60, lat: 31.2, lon: 121.5)
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, "—",
+                       "天气抓取失败必须显示失败态「—」，不得显示 mock 温度伪装读数")
+        XCTAssertEqual(item.metric.subValue, localized("获取失败", "offline"))
+        XCTAssertEqual(item.metric.valueColor, TB.coral)
+        XCTAssertEqual(item.metric.iconTint, TB.coral)
+        XCTAssertFalse((item.metric.value ?? "").contains("°"),
+                       "失败态主值不得包含温度读数（°）")
+        XCTAssertFalse((item.metric.subValue ?? "").contains("°"),
+                       "失败态副值不得包含温度读数（°）")
+    }
+
+    /// B 站动态：抓取失败 → unreadCount 不再显示误导性的 0，subValue 失败文案 + coral。
+    func testBilibiliFeedFetchFailureShowsFailureState() {
+        let defaults = UserDefaults(suiteName: "NetworkRobustnessContractTests-" + UUID().uuidString)!
+        defaults.set("SESSDATA=test-cookie", forKey: APIService.bilibiliCookie.defaultsKey)
+        SecretsManager.defaultsOverride = defaults
+
+        TBNet.sessionOverride = injectedFailingSession
+        let item = BilibiliFeedItem(identifier: NSTouchBarItem.Identifier(
+            "robusttest.bili." + UUID().uuidString),
+            refreshInterval: 60)
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, "—",
+                       "B 站抓取失败必须显示失败态「—」，不得显示误导性的 0")
+        XCTAssertEqual(item.metric.subValue, localized("加载失败", "load failed"))
+        XCTAssertEqual(item.metric.valueColor, TB.coral)
+        XCTAssertEqual(item.metric.iconTint, TB.coral)
+    }
+
+    /// CI 流水线：网络请求失败 → 「请求失败」+coral（与「确实没有 run」语义分离）。
+    func testCiPipelineNetworkFailureShowsRequestFailed() {
+        let defaults = UserDefaults(suiteName: "NetworkRobustnessContractTests-" + UUID().uuidString)!
+        defaults.set("ghp_test", forKey: APIService.githubToken.defaultsKey)
+        SecretsManager.defaultsOverride = defaults
+
+        TBNet.sessionOverride = injectedFailingSession
+        let item = CiPipelineItem(identifier: NSTouchBarItem.Identifier(
+            "robusttest.ci." + UUID().uuidString),
+            repo: "owner/repo", refreshInterval: 60)
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, localized("请求失败", "api error"),
+                       "CI 网络请求失败必须显示「请求失败」，不得与「无结果」语义混淆")
+        XCTAssertEqual(item.metric.valueColor, TB.coral)
+    }
+
+    /// CI 流水线：请求成功但确实没有 workflow run → 「无结果」textTertiary（保持现状语义）。
+    func testCiPipelineNoRunsShowsNoResult() {
+        let defaults = UserDefaults(suiteName: "NetworkRobustnessContractTests-" + UUID().uuidString)!
+        defaults.set("ghp_test", forKey: APIService.githubToken.defaultsKey)
+        SecretsManager.defaultsOverride = defaults
+
+        JSONStubURLProtocol.payload = Data(#"{"workflow_runs":[]}"#.utf8)
+        TBNet.sessionOverride = injectedJSONSession
+        let item = CiPipelineItem(identifier: NSTouchBarItem.Identifier(
+            "robusttest.ci." + UUID().uuidString),
+            repo: "owner/repo", refreshInterval: 60)
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, localized("无结果", "no runs"),
+                       "请求成功但无 run 必须显示「无结果」")
+        XCTAssertEqual(item.metric.valueColor, TB.textTertiary)
+    }
+
+    /// 每日一言：compute 失败置 fetchFailed，apply 失败态 valueColor 切 coral（等价失败视觉）。
+    func testDailyQuoteFetchFailureShowsFailureState() {
+        TBNet.sessionOverride = injectedFailingSession
+        let item = DailyQuoteItem(identifier: NSTouchBarItem.Identifier(
+            "robusttest.quote." + UUID().uuidString),
+            refreshInterval: 60)
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.valueColor, TB.coral,
+                       "一言抓取失败必须呈现失败视觉（coral），不得与成功态同构")
+        XCTAssertEqual(item.metric.value, localized("离线：心有所向，方能行远", "offline quote"),
+                       "失败文案需保留离线前缀，诚实标注非在线内容")
     }
 }
