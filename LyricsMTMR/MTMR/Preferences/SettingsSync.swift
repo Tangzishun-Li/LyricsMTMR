@@ -146,7 +146,7 @@ class SettingsSync {
     // MARK: - Import / Export
 
     static func exportProfile() -> Data? {
-        let defaults = UserDefaults.standard
+        let defaults = UserDefaultsStore.current
         var udDict: [String: Any] = [:]
         for (key, value) in defaults.dictionaryRepresentation()
         where key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr.") {
@@ -173,26 +173,24 @@ class SettingsSync {
         guard profile["version"] != nil else { return false }
         if let ud = profile["userDefaults"] as? [String: Any] {
             for (key, value) in ud {
-                UserDefaults.standard.set(value, forKey: key)
+                UserDefaultsStore.current.set(value, forKey: key)
             }
         }
         if let items = profile["itemsJson"] as? [[String: Any]],
            let jsonData = try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted, .sortedKeys]) {
             try? jsonData.write(to: URL(fileURLWithPath: itemsJSONPath))
         }
-        UserDefaults.standard.synchronize()
         return true
     }
 
     // MARK: - Reset
 
     static func resetAllToDefaults() {
-        let defaults = UserDefaults.standard
+        let defaults = UserDefaultsStore.current
         for key in defaults.dictionaryRepresentation().keys
         where key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr.") {
             defaults.removeObject(forKey: key)
         }
-        defaults.synchronize()
         if !defaultPresetPath.isEmpty,
            let data = try? Data(contentsOf: URL(fileURLWithPath: defaultPresetPath)) {
             try? data.write(to: URL(fileURLWithPath: itemsJSONPath))

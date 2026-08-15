@@ -201,8 +201,8 @@ struct AITab: View {
         model = SecretsManager.shared.retrieve(.deepseekModel).isEmpty
             ? (AppSettings.deepseekModel.isEmpty ? "deepseek-v4-flash" : AppSettings.deepseekModel)
             : SecretsManager.shared.retrieve(.deepseekModel)
-        streamOutput = UserDefaults.standard.object(forKey: "com.lyricsmtmr.ai.streamOutput") as? Bool ?? true
-        showBalance = UserDefaults.standard.object(forKey: "com.lyricsmtmr.ai.showBalance") as? Bool ?? true
+        streamOutput = UserDefaultsStore.current.object(forKey: UDKey.aiStreamOutput) as? Bool ?? true
+        showBalance = UserDefaultsStore.current.object(forKey: UDKey.aiShowBalance) as? Bool ?? true
     }
 
     /// Persist the connection triple; debounced so typing doesn't hammer disk.
@@ -222,8 +222,8 @@ struct AITab: View {
     private func saveDebounced() {
         Self.saveWork?.cancel()
         let work = DispatchWorkItem {
-            UserDefaults.standard.set(self.streamOutput, forKey: "com.lyricsmtmr.ai.streamOutput")
-            UserDefaults.standard.set(self.showBalance, forKey: "com.lyricsmtmr.ai.showBalance")
+            UserDefaultsStore.current.set(self.streamOutput, forKey: UDKey.aiStreamOutput)
+            UserDefaultsStore.current.set(self.showBalance, forKey: UDKey.aiShowBalance)
             // round 42 写入侧审计：删去对 items.json 的死写——item 类型是
             // aiSelectedText（仅 model/prompt 两个属性），不存在 type "ai"，
             // writeBack 永不匹配；streamOutput/showBalance 是 UserDefaults
