@@ -5,10 +5,11 @@ anchor-patrol.py —— 文档锚点漂移巡检脚本（第 29 轮 B 卡落地�
 
 背景
 ----
-文档→源码行号锚点已两次漂移且均为「合并后未复查」所致：
+文档→源码行号锚点已多次漂移且均为「合并后未复查」所致：
   第 24 轮 +18（:1145/:1156 → :1163/:1174）、第 28 轮 +11（:1163/:1174 → :1174/:1185，
-  round-27 A 卡合入 TouchBarController +11 行）。本脚本把「锚点漂移」从逐轮人工 grep
-  变为收口可复跑的机器检查，防第三次漂移。
+  round-27 A 卡合入 TouchBarController +11 行）、第 48 轮 +100（:1174/:1185 → :1274/:1285，
+  round-48 A 卡主题状态机纯函数抽取合入 TouchBarController +100 行；注册点 6 :331-368 → :422-472 +91 行）。
+  本脚本把「锚点漂移」从逐轮人工 grep 变为收口可复跑的机器检查，防再次漂移。
 
 用法
 ----
@@ -97,17 +98,17 @@ def _search(lines, pattern, regex=False):
 ANCHORS = [
     # ================= 114 口径（live） =================
     {"id": "114-1", "cat": "114 口径", "level": "live",
-     "doc": "ITEMS_REFERENCE.md:1709 锚点句", "desc": "TouchBarController.swift:1174 注释「≤114-item preset」在位",
-     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "line", "line": 1174,
+     "doc": "ITEMS_REFERENCE.md:1709 锚点句", "desc": "TouchBarController.swift:1274 注释「≤114-item preset」在位",
+     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "line", "line": 1274,
      "pattern": "≤114-item"},
     {"id": "114-2", "cat": "114 口径", "level": "live",
-     "doc": "ITEMS_REFERENCE.md:1709 锚点句", "desc": "TouchBarController.swift:1185 注释「≤ 114 items」在位",
-     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "line", "line": 1185,
+     "doc": "ITEMS_REFERENCE.md:1709 锚点句", "desc": "TouchBarController.swift:1285 注释「≤ 114 items」在位",
+     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "line", "line": 1285,
      "pattern": "≤ 114 items"},
     {"id": "114-3", "cat": "114 口径", "level": "live",
-     "doc": None, "desc": "ITEMS_REFERENCE.md:1711 锚点句在位（含 :1174/:1185 口径行号）",
+     "doc": None, "desc": "ITEMS_REFERENCE.md:1711 锚点句在位（含 :1274/:1285 口径行号）",
      "file": "LyricsMTMR/docs/ITEMS_REFERENCE.md", "kind": "line", "line": 1711,
-     "pattern": "114 口径锚点", "extra_pattern": "TouchBarController.swift:1174/:1185"},
+     "pattern": "114 口径锚点", "extra_pattern": "TouchBarController.swift:1274/:1285"},
     {"id": "114-4", "cat": "114 口径", "level": "live",
      "doc": None, "desc": "ITEMS_REFERENCE.md:3 头部口径句「全部 114 种 Item 类型」在位",
      "file": "LyricsMTMR/docs/ITEMS_REFERENCE.md", "kind": "line", "line": 3,
@@ -139,8 +140,8 @@ ANCHORS = [
      "file": "LyricsMTMR/MTMR/Core/ItemsParsing.swift", "kind": "range", "start": 83, "end": 254,
      "pattern": "displaySleep"},
     {"id": "REG-6", "cat": "注册点", "level": "live",
-     "doc": "ITEMS_REFERENCE.md:1705", "desc": "控制器运行时注册 :331-368",
-     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "range", "start": 331, "end": 368,
+     "doc": "ITEMS_REFERENCE.md:1705", "desc": "控制器运行时注册 :422-472（第 48 轮 A 卡主题状态机纯函数抽取 +91 行后更新）",
+     "file": "LyricsMTMR/MTMR/Core/TouchBarController.swift", "kind": "range", "start": 422, "end": 472,
      "pattern": "private override init"},
 
     # ================= 金丝雀锚点（live） =================

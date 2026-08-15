@@ -287,6 +287,97 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return mode == .disabled ? nil : mode
     }
 
+    /// Pure decision: what `updateActiveApp()` must do for the current
+    /// frontmost app. Encodes the branch order (blacklist → app rule →
+    /// freeze → rebuild/fast path) without any AppKit/state, so the whole
+    /// state machine is unit-testable. Behavior-preserving extraction
+    /// (round 48); the controller switches on the result.
+    enum AppThemeTransition: Equatable {
+        /// Frontmost app is blacklisted — dismiss the bar.
+        case dismiss
+        /// A rule matched — hand off to the auto-switch machinery.
+        case autoSwitch(appId: String, mode: AppThemeMode, appDidChange: Bool)
+        /// No rule: keep/present the existing bar (optionally reverting an
+        /// active auto-switch first). Covers freeze-on-app-switch and the
+        /// OPT-13 same-app fast path — both must never rebuild.
+        case present(shouldRevert: Bool)
+        /// No rule: rebuild the bar from the current preset (the present /
+        /// dismiss choice is made by the controller after the rebuild).
+        case rebuild(shouldRevert: Bool)
+    }
+
+    static func resolveAppThemeTransition(
+        appId: String?,
+        rules: [String: Int],
+        blacklist: [String],
+        isAutoSwitched: Bool,
+        frozen: Bool,
+        appDidChange: Bool,
+        barIsBuilt: Bool
+    ) -> AppThemeTransition {
+        if let appId = appId, blacklist.contains(appId) {
+            return .dismiss
+        }
+        if let appId = appId, let mode = resolveAppThemeMode(rules: rules, appId: appId) {
+            // Rules win over freezeOnAppSwitch: an app-specific theme must
+            // apply even when the bar would otherwise be frozen.
+            return .autoSwitch(appId: appId, mode: mode, appDidChange: appDidChange)
+        }
+        if frozen {
+            return barIsBuilt
+                ? .present(shouldRevert: isAutoSwitched)
+                : .rebuild(shouldRevert: isAutoSwitched)
+        }
+        if !appDidChange && barIsBuilt {
+            return .present(shouldRevert: isAutoSwitched)
+        }
+        return .rebuild(shouldRevert: isAutoSwitched)
+    }
+
+    /// Pure decision: what `handleAppThemeSwitch()` must do once a rule
+    /// matched. Kept free of the file system and reload machinery so the
+    /// auto-switch × manual-override × revert contract is unit-testable.
+    enum AppThemeSwitchDecision: Equatable {
+        /// The app's theme file is gone — remove the rule and restore the bar.
+        case ruleRemoved
+        /// The user manually overrode the theme since the app became
+        /// frontmost — keep the user's theme on the bar.
+        case respectUserOverride
+        /// This app's theme is already showing — nothing to do but present.
+        case alreadyShowing
+        /// Perform the auto-switch (save revert path, mark, reload).
+        case `switch`
+    }
+
+    static func resolveAppThemeSwitchDecision(
+        mode: AppThemeMode,
+        appId: String,
+        themePath: String,
+        themeFileExists: Bool,
+        appDidChange: Bool,
+        userOverrode: Bool,
+        isAutoSwitched: Bool,
+        autoSwitchedAppId: String?,
+        lastPresetPath: String
+    ) -> AppThemeSwitchDecision {
+        guard themeFileExists else { return .ruleRemoved }
+        // A manual override (themeSwitch / slot switch / editor apply /
+        // refresh) suspends the app theme while the app stays frontmost;
+        // userOverrodeAppTheme is reset on an actual app change, so the
+        // rule re-applies on the next activation. The guard covers every
+        // active mode — `.always` means "force when the app becomes
+        // frontmost", not "force on every re-evaluation while frontmost".
+        // (`.disabled` never reaches this function: resolveAppThemeMode
+        // filters it; the check is kept for totality.)
+        if mode != .disabled && !appDidChange && userOverrode {
+            return .respectUserOverride
+        }
+        if isAutoSwitched && autoSwitchedAppId == appId && lastPresetPath == themePath {
+            return .alreadyShowing
+        }
+        return .switch
+    }
+
     /// Pure show/hide decision for a preset item (TECHNICAL_DEBT ③).
     ///
     /// The only per-item hiding rule in presets is the `matchAppId` general
@@ -491,49 +582,33 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             userOverrodeAppTheme = false
         }
 
-        let frozen = AppSettings.freezeOnAppSwitch
-        if let appId = currentAppId, blacklistAppIdentifiers.contains(appId) {
+        // Pure decision (unit-tested in ThemeStateMachineContractTests):
+        // blacklist → dismiss; app rule → auto-switch; otherwise present
+        // (freeze / same-app fast path) or rebuild the bar.
+        switch Self.resolveAppThemeTransition(
+            appId: currentAppId,
+            rules: appThemeRules,
+            blacklist: blacklistAppIdentifiers,
+            isAutoSwitched: isAutoSwitched,
+            frozen: AppSettings.freezeOnAppSwitch,
+            appDidChange: appDidChange,
+            barIsBuilt: touchBarIsBuilt()
+        ) {
+        case .dismiss:
             dismissTouchBar()
-        } else if let appId = currentAppId,
-                  let mode = Self.resolveAppThemeMode(rules: appThemeRules, appId: appId) {
+        case let .autoSwitch(appId, mode, appDidChange):
             // App-specific theme rule matched and is active
             handleAppThemeSwitch(appId: appId, mode: mode, appDidChange: appDidChange)
-        } else if frozen {
+        case let .present(shouldRevert):
             // Leaving an auto-switched theme — revert
-            if isAutoSwitched {
+            if shouldRevert {
                 revertAutoSwitch()
             }
-            // Freeze-on-app-switch only applies to a bar that has already
-            // been built. An explicit preset reload (refresh / slot switch /
-            // editor apply) replaces `touchBar` with a fresh, unconfigured
-            // instance; presenting it as-is has no delegate or default item
-            // identifiers yet, which blanks the Touch Bar until restart.
-            if touchBarIsBuilt() {
-                presentTouchBar()
-            } else {
-                prepareTouchBar()
-                if touchBarContainsAnyItems() {
-                    presentTouchBar()
-                } else {
-                    dismissTouchBar()
-                }
-            }
-        } else {
+            presentTouchBar()
+        case let .rebuild(shouldRevert):
             // Leaving an auto-switched theme — revert
-            if isAutoSwitched {
+            if shouldRevert {
                 revertAutoSwitch()
-            }
-            // OPT-13 fast path: re-activating the same app with a bar that
-            // is already built needs no teardown/rebuild — the existing
-            // items are still correct, just make sure the bar is up. This
-            // skips the createItems() cascade (item re-subscription,
-            // AppleScript recompile, timer rebuild, CAAnimation churn).
-            // The guard only short-circuits when the target app equals the
-            // current one AND the bar is built, so real app switches and
-            // fresh preset loads (unbuilt bar) still rebuild as before.
-            if !appDidChange && touchBarIsBuilt() {
-                presentTouchBar()
-                return
             }
             prepareTouchBar()
             if touchBarContainsAnyItems() {
@@ -549,8 +624,23 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     private func handleAppThemeSwitch(appId: String, mode: AppThemeMode, appDidChange: Bool) {
         let themePath = appThemePath(for: appId)
 
-        // File cleanup: if the theme file was manually deleted, remove the rule and fallback
-        guard FileManager.default.fileExists(atPath: themePath) else {
+        // Pure decision (unit-tested in ThemeStateMachineContractTests):
+        // missing file → drop rule + restore; user override while the app
+        // is still frontmost → keep the manual theme; already showing →
+        // just present; otherwise perform the auto-switch.
+        switch Self.resolveAppThemeSwitchDecision(
+            mode: mode,
+            appId: appId,
+            themePath: themePath,
+            themeFileExists: FileManager.default.fileExists(atPath: themePath),
+            appDidChange: appDidChange,
+            userOverrode: userOverrodeAppTheme,
+            isAutoSwitched: isAutoSwitched,
+            autoSwitchedAppId: autoSwitchedAppId,
+            lastPresetPath: lastPresetPath
+        ) {
+        case .ruleRemoved:
+            // File cleanup: if the theme file was manually deleted, remove the rule and fallback
             AppLog.appEvent("App theme file missing for \(appId), removing rule")
             var rules = AppSettings.appThemeRules
             rules.removeValue(forKey: appId)
@@ -559,29 +649,24 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             if isAutoSwitched { revertAutoSwitch() }
             prepareTouchBar()
             if touchBarContainsAnyItems() { presentTouchBar() } else { dismissTouchBar() }
-            return
-        }
-
-        // .onActivation: only force on actual app change, respect user override
-        if mode == .onActivation && !appDidChange && userOverrodeAppTheme {
+        case .respectUserOverride:
+            // User manually overrode the theme since the app became
+            // frontmost (themeSwitch / slot switch / editor apply /
+            // refresh) — keep the user's theme on the bar.
             presentTouchBar()
-            return
-        }
-
-        // Already showing this app's theme
-        if isAutoSwitched && autoSwitchedAppId == appId && lastPresetPath == themePath {
+        case .alreadyShowing:
+            // Already showing this app's theme
             presentTouchBar()
-            return
-        }
+        case .switch:
+            // Save the current preset path so we can revert later
+            if !isAutoSwitched {
+                preAutoSwitchPresetPath = lastPresetPath
+            }
+            setAutoSwitched(true, appId: appId)
 
-        // Save the current preset path so we can revert later
-        if !isAutoSwitched {
-            preAutoSwitchPresetPath = lastPresetPath
+            AppLog.appEvent("App theme: loading \(themePath) for \(appId) (mode: \(mode))")
+            reloadPresetAsync(path: themePath)
         }
-        setAutoSwitched(true, appId: appId)
-
-        AppLog.appEvent("App theme: loading \(themePath) for \(appId) (mode: \(mode))")
-        reloadPresetAsync(path: themePath)
     }
 
     /// Call this when the user manually switches theme (e.g. via themeSwitch button).
@@ -589,6 +674,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         if isAutoSwitched {
             userOverrodeAppTheme = true
             setAutoSwitched(false, appId: nil)
+            // The revert target only has meaning while an auto-switch is
+            // active; clear it so a stale pre-auto-switch preset can never
+            // linger after the user takes over.
+            preAutoSwitchPresetPath = nil
         }
     }
 
@@ -638,6 +727,17 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func reloadPreset(path: String) {
+        // Any reload reaching this funnel is user/init-initiated (menu
+        // refresh, settings apply, slot switch, editor apply, config
+        // watcher, open-preset). While an app-specific theme is active,
+        // such a reload is an implicit user override: the freshly loaded
+        // preset must survive the updateActiveApp() that follows, and the
+        // next app switch must not revert to a stale pre-auto-switch
+        // preset. The auto-switch machinery (handleAppThemeSwitch /
+        // revertAutoSwitch / themeSwitch item) uses reloadPresetAsync and
+        // is unaffected.
+        markUserOverrideAppTheme()
+
         lastPresetPath = path
         guard let items = path.fileData?.barItemDefinitions() else {
             AppLog.error("预设文件解析失败，已回退到占位布局（可在设置面板修正配置）: \(path)")
