@@ -254,6 +254,7 @@
 		C1FF2E2A421783EC4B05F753 /* SecretsManagerContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE2E2A421783EC4B05F753 /* SecretsManagerContractTests.swift */; };
 		C1FF94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */; };
 		C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */; };
+		C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -536,6 +537,7 @@
 		C1FE2E2A421783EC4B05F753 /* SecretsManagerContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretsManagerContractTests.swift; sourceTree = "<group>"; };
 		C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRobustnessContractTests.swift; sourceTree = "<group>"; };
 		C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsContractTests.swift; sourceTree = "<group>"; };
+		C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStateMachineContractTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -689,6 +691,7 @@
 				C1FE2E2A421783EC4B05F753 /* SecretsManagerContractTests.swift */,
 				C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */,
 				C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */,
+				C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1367,6 +1370,7 @@
 				C1FF2E2A421783EC4B05F753 /* SecretsManagerContractTests.swift in Sources */,
 				C1FF94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift in Sources */,
 				C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */,
+				C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
