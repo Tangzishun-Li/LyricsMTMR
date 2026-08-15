@@ -481,7 +481,7 @@ ANCHORS = [
 
 # 报告文件名前缀（file-structure.zh.md 登记行与仓库根文件匹配用）
 REPORT_PREFIXES = ("回归报告", "核验报告", "核对报告", "清理报告", "验证报告",
-                   "评估报告", "考古报告", "文档报告", "内存修复报告")
+                   "评估报告", "考古报告", "文档报告", "内存修复报告", "修复报告")
 
 
 def check_registry():
@@ -498,11 +498,12 @@ def check_registry():
         if not m:
             continue
         name = m.group(1)
-        if name.startswith(REPORT_PREFIXES):
+        if os.path.basename(name).startswith(REPORT_PREFIXES):
             registered.append((i, name))
     names = [n for _, n in registered]
     dup = sorted({k for k, v in __import__("collections").Counter(names).items() if v > 1})
-    missing = sorted({n for _, n in registered} - set(os.listdir(ROOT)))
+    missing = sorted(n for _, n in registered
+                     if not os.path.exists(os.path.join(ROOT, *n.split("/"))))
     root_reports = sorted(f for f in os.listdir(ROOT)
                           if f.startswith(REPORT_PREFIXES) and f.endswith(".md"))
     unregistered = sorted(set(root_reports) - {n for _, n in registered})
