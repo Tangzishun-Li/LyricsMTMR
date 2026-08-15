@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~47 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~48 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -280,7 +280,8 @@ mindmap
 ├── 核对报告_第47轮_README更新日志补登v0.47.md # 第 47 轮子任务 B 核对报告（README 更新日志补登 v0.47：第 46 轮工程与稳定性变更条目——轮询链同步网络调用异步化评估与治理（后端服务维度：全仓盘点 sync API 调用点 20 处/13 消费文件、影响面结构事实（每 widget 独立串行队列、同步调用只拉长自身节奏、唯一线性放大面=RssUnread direct N feed 串行叠加 N×11s）、评估结论「不值得全量异步化」（阻塞已 R44 有界化/无主线程跨 widget 冻结/基类轮询循环重写改动面大收益边际）、落地代表性试点 RssUnread direct 并行扇出（DispatchGroup 并发 N×11s→≤11s，失败面/求和语义零变化）+NetworkRobustnessContractTests 4 用例（ParallelFeedURLProtocol 桩红 3 failures→绿 13/13 双跑断言零放宽）+475 用例实证 0 失败/锚点巡检连续第二十五轮 0 ERROR/Info.plist 0.46/471）+版本决策建议 0.47/472（未擅改）+12 项现状核对全过（grep 实证，剪贴板行号连续第十六轮零新漂移）+承接段注明第 47 轮 A 卡方向（UserDefaults 持久化层审计与治理·进行中）
 
 ├── 核验报告_第47轮_维护机制健在与文档一致性.md # 第 47 轮核验报告（第 41 次年度维护核验，r47/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 46 轮收口基线逐项一致零新漂移，连续第二十六轮 0 ERROR（REGISTRY 155 行=第 46 轮 4 份报告全部并入 main 后口径）；ITER-14 待办区引用 :409 第十八轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=2ac8c9d）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 46 轮 A/B/C 卡落地源码实证——RssUnread 并行扇出 DispatchGroup（:68/:69/:73/:83/:89）+ NetworkRobustnessContractTests 13 用例/README v0.46/Info.plist 0.46/471；遗留盘点：轮询链异步化评估被第 46 轮 A 卡闭环（源码实证）、round-46 清理由本轮承接；本轮新增发现 0 项）
-├── 清理报告_第47轮_round46遗留清理.md          # 第 47 轮子任务 C 仓库卫生报告（round-46 父卡+子卡遗留 worktree/分支清理，r46 全清 4 worktree+4 分支，r47/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@2ac8c9d=origin/main——第 46 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round46 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@2ac8c9d 与远端同步无偏差登记）
+├── 清理报告_第47轮_round46遗留清理.md          # 第 47 轮子任务 C 仓库卫生报告（round-46 父卡+子卡遗留 worktree/分支清理，r47/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@2ac8c9d=origin/main——第 46 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round46 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@2ac8c9d 与远端同步无偏差登记）
+├── 核对报告_第48轮_README更新日志补登v0.48.md # 第 48 轮子任务 B 核对报告（README 更新日志补登 v0.48：第 47 轮工程与稳定性变更条目——UserDefaults 持久化层审计与治理（数据与存储维度：全仓盘点 17 键组/15 文件、合规不动 13 组论证（Apple 系统键 2/无前缀键 3 行为自洽/SecretsManager R43 决策门/读写对称 7 组）+ 真实问题 5 项根因修复（releaseKey 死常量删除/AITabView 键字面量 ×4 收敛 UDKey/selectedThemeIndex ×2 收敛/synchronize 过时调用 5 处全删/UserDefaultsStore.override 注入钩子）+UserDefaultsContractTests 6 用例（红 10 errors→绿 6/6 双跑）+481 用例实证 0 失败/锚点巡检连续第二十六轮 0 ERROR/Info.plist 0.47/472）+版本决策建议 0.48/473（未擅改）+12 项现状核对全过（grep 实证，剪贴板行号连续第十七轮零新漂移）+承接段注明第 48 轮 A 卡方向（主题系统状态机一致性审计与治理·进行中），r48/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 
