@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~46 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~47 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -275,6 +275,8 @@ mindmap
 
 ├── 核验报告_第46轮_维护机制健在与文档一致性.md # 第 46 轮核验报告（第 40 次年度维护核验，r46/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 45 轮收口基线逐项一致零新漂移，连续第二十四轮 0 ERROR（REGISTRY 151 行=第 45 轮 3 份报告登记后口径）；ITER-14 待办区引用 :409 第十七轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=1fb5d54）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 45 轮 A/B/C 卡落地源码实证——NetworkRobustnessContractTests 9 用例+5 widget 失败态（WeatherOutfit mock 22° 废除/BilibiliFeed 加载失败/CiPipeline 两语义/DailyQuote 双 coral 点击重试/WordLookup 两态分离）/README v0.45/Info.plist 0.45/470；遗留盘点：5 widget 失败静默被第 45 轮 A 卡修复闭环、轮询链异步化评估被第 46 轮 A 卡承接、第 46 轮 A/B 卡均与 5154ab7 同点；本轮新增发现 0 项）
 ├── 清理报告_第46轮_round45遗留清理.md          # 第 46 轮子任务 C 仓库卫生报告（round-45 父卡+子卡遗留 worktree/分支清理，r45 全清 4 worktree+4 分支，r46/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@1fb5d54=origin/main——第 45 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round45 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@1fb5d54 与远端同步无偏差登记）
+├── 核对报告_第47轮_README更新日志补登v0.47.md # 第 47 轮子任务 B 核对报告（README 更新日志补登 v0.47：第 46 轮工程与稳定性变更条目——轮询链同步网络调用异步化评估与治理（后端服务维度：全仓盘点 sync API 调用点 20 处/13 消费文件、影响面结构事实（每 widget 独立串行队列、同步调用只拉长自身节奏、唯一线性放大面=RssUnread direct N feed 串行叠加 N×11s）、评估结论「不值得全量异步化」（阻塞已 R44 有界化/无主线程跨 widget 冻结/基类轮询循环重写改动面大收益边际）、落地代表性试点 RssUnread direct 并行扇出（DispatchGroup 并发 N×11s→≤11s，失败面/求和语义零变化）+NetworkRobustnessContractTests 4 用例（ParallelFeedURLProtocol 桩红 3 failures→绿 13/13 双跑断言零放宽）+475 用例实证 0 失败/锚点巡检连续第二十五轮 0 ERROR/Info.plist 0.46/471）+版本决策建议 0.47/472（未擅改）+12 项现状核对全过（grep 实证，剪贴板行号连续第十六轮零新漂移）+承接段注明第 47 轮 A 卡方向（UserDefaults 持久化层审计与治理·进行中）
+
 └── .gitignore / .gitattributes / README.md
 ```
 
