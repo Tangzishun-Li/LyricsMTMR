@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~46 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~47 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -275,6 +275,8 @@ mindmap
 
 ├── 核验报告_第46轮_维护机制健在与文档一致性.md # 第 46 轮核验报告（第 40 次年度维护核验，r46/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 45 轮收口基线逐项一致零新漂移，连续第二十四轮 0 ERROR（REGISTRY 151 行=第 45 轮 3 份报告登记后口径）；ITER-14 待办区引用 :409 第十七轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=1fb5d54）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 45 轮 A/B/C 卡落地源码实证——NetworkRobustnessContractTests 9 用例+5 widget 失败态（WeatherOutfit mock 22° 废除/BilibiliFeed 加载失败/CiPipeline 两语义/DailyQuote 双 coral 点击重试/WordLookup 两态分离）/README v0.45/Info.plist 0.45/470；遗留盘点：5 widget 失败静默被第 45 轮 A 卡修复闭环、轮询链异步化评估被第 46 轮 A 卡承接、第 46 轮 A/B 卡均与 5154ab7 同点；本轮新增发现 0 项）
 ├── 清理报告_第46轮_round45遗留清理.md          # 第 46 轮子任务 C 仓库卫生报告（round-45 父卡+子卡遗留 worktree/分支清理，r45 全清 4 worktree+4 分支，r46/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@1fb5d54=origin/main——第 45 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round45 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@1fb5d54 与远端同步无偏差登记）
+├── 核验报告_第47轮_维护机制健在与文档一致性.md # 第 47 轮核验报告（第 41 次年度维护核验，r47/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 46 轮收口基线逐项一致零新漂移，连续第二十六轮 0 ERROR（REGISTRY 155 行=第 46 轮 4 份报告全部并入 main 后口径）；ITER-14 待办区引用 :409 第十八轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=2ac8c9d）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 46 轮 A/B/C 卡落地源码实证——RssUnread 并行扇出 DispatchGroup（:68/:69/:73/:83/:89）+ NetworkRobustnessContractTests 13 用例/README v0.46/Info.plist 0.46/471；遗留盘点：轮询链异步化评估被第 46 轮 A 卡闭环（源码实证）、round-46 清理由本轮承接；本轮新增发现 0 项）
+├── 清理报告_第47轮_round46遗留清理.md          # 第 47 轮子任务 C 仓库卫生报告（round-46 父卡+子卡遗留 worktree/分支清理，r46 全清 4 worktree+4 分支，r47/review；前置确认 4 卡 board 均 done 收口+ps 无占用+4 worktree 干净；合并基准 main@2ac8c9d=origin/main——第 46 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round46 父分支残留；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@2ac8c9d 与远端同步无偏差登记）
 └── .gitignore / .gitattributes / README.md
 ```
 
