@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~44 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~45 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -266,6 +266,7 @@ mindmap
 ├── 核对报告_第44轮_README更新日志补登v0.44.md # 第 44 轮子任务 B 核对报告（README 更新日志补登 v0.44：第 43 轮工程与稳定性变更条目——SecretsManager 密钥存储审计与治理（安全与合规维度：全仓 20 个 APIService 生命周期盘点分类（存储介质/传输方式/泄漏面/ATS 例外域 6 个逐项）/Keychain 切换机制完整实施（读穿回退+存量迁移+回退迁移+SecItem 状态检查+测试钩子）但默认保持 false 不翻转（Debug 77R6HZNK93 vs Release D6D8BR2QNB 双 DEVELOPMENT_TEAM 跨配置 ACL 风险论证）/真实问题 7 处根因修复（clear 双后端全清/迁移删明文副本/回退反向迁移/单一权威/写失败降级/硬编码检测 12 形态键+值掩码/AppSettings 10 处死代码旁路删除）/SecretsManagerContractTests 13 用例（红 14 failures→绿 13/13 双跑实证未放宽断言）/462 用例实证 0 失败（95.8s）/锚点巡检连续第二十一轮 0 ERROR/Info.plist 0.43/468）+ 版本决策建议 0.44/469 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 72/WARN 11/INFO 5/ERROR 0，连续第二十二轮 0 ERROR 零新漂移），r44/changelog）
 ├── 核验报告_第44轮_维护机制健在与文档一致性.md # 第 44 轮核验报告（第 38 次年度维护核验，r44/review；锚点巡检复跑 PASS 72/WARN 11/INFO 5/ERROR 0 退出码 0 与第 43 轮收口基线逐项一致零新漂移，连续第二十二轮 0 ERROR；ITER-14 待办区引用 :393 第十五轮保持；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=a5a12b0）；114 口径 :1174/:1185 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 43 轮 A/B/C 卡落地源码实证——SecretsManager useKeychain=false 保持+12 形态键+ContractTests 13 用例/README v0.43/Info.plist 0.43/468；本轮新增发现 0 项）
 ├── 清理报告_第44轮_round43遗留清理.md          # 第 44 轮子任务 C 仓库卫生报告（round-43 父卡+子卡遗留 worktree/分支清理，r43 全清 4 worktree+4 分支，r44/review；前置确认 4 卡 board 均 done 收口；合并基准 main@a5a12b0=origin/main——第 43 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round43 父分支残留（与第 42 轮不同无需远端删除动作）；删除后清点与预告一致（.worktrees 5 项/本地分支 5 条/远端仅 main）；主仓库 checkout main@a5a12b0 与远端同步无偏差登记）
+├── 核对报告_第45轮_README更新日志补登v0.45.md # 第 45 轮子任务 B 核对报告（README 更新日志补登 v0.45：第 44 轮工程与稳定性变更条目——网络请求健壮性审计与治理（后端服务维度：全仓网络调用盘点分类（6 处信号量同步调用有界等待 + 7 处默认 60s 无显式超时站点 + 25 处合规站点 + 错误面盘点）/真实问题 3 类根因修复（TBNet.syncFetch 统一硬化——等待超时 task.cancel() 释放孤儿 dataTask + 合成 NSURLErrorTimedOut + 成功才读消除数据竞争，ApiLatency/PackageTracker/ApiTester 4 处调用点复用并修正 ApiTester 12s/10s 错配/RSS 失败面——四后端 + direct counter 改 Int?，RssUnreadItem fetchFailed 失败态「—」+coral 替代误导性 0/7 处默认 60s 站点补显式 timeoutInterval=15 + StockBarItem 单飞守卫防堆积）/NetworkRobustnessContractTests 4 用例（红 5 failures→绿 4/4 双跑实证未放宽断言）/466 用例实证 0 失败（102.8s）/锚点巡检连续第二十二轮 0 ERROR/Info.plist 0.44/469）+ 版本决策建议 0.45/470 + 12 项现状核对 grep 实证 + 锚点核对（anchor-patrol 复跑 PASS 67/WARN 16/INFO 5/ERROR 0，连续第二十三轮 0 ERROR 零新漂移），r45/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 

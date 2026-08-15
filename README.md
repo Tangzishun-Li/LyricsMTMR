@@ -149,9 +149,19 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 ### 版本史说明
 
-> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮），此前条目为发布时实况。
+> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮，v0.45=第 44 轮），此前条目为发布时实况。
 
-### v0.44（当前开发版本）
+### v0.45（当前开发版本）
+
+> 承接第 44 轮：网络请求健壮性审计与治理（后端服务维度——全仓网络调用盘点分类（6 处信号量同步调用有界等待 + 7 处默认 60s 无显式超时站点 + 25 处合规站点 + 错误面盘点）；发现并根因修复真实问题 3 类——TBNet.syncFetch 统一硬化（等待超时 task.cancel() 释放孤儿 dataTask + 合成 NSURLErrorTimedOut + 成功才读结构性消除数据竞争，ApiLatency/PackageTracker/ApiTester 4 处调用点复用并顺带修正 ApiTester 12s/10s 错配）、RSS 失败面（四后端 + direct counter 改 Int?，RssUnreadItem fetchFailed 失败态「—」+coral 替代误导性 0）、7 处默认 60s 站点补显式 timeoutInterval=15 + StockBarItem 单飞守卫防堆积；新增 NetworkRobustnessContractTests 4 用例（URLProtocol 桩零真实网络，红 5 failures→绿 4/4 双跑实证未放宽断言）；466 用例实证 0 失败（462 基线 + 新增 4 零偏差，102.8s））、锚点巡检收口复跑接入保持（连续第二十二轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.43/468 → 0.44/469）。第 45 轮 A 卡「网络 widget 失败面统一治理（第二批）」进行中（WeatherOutfit mock 22° 废除 + BilibiliFeed 失败 0 改「—」+ CiPipeline 失败语义区分 + DailyQuote 失败视觉/反馈 + 失败面契约测试 N 用例 + 全量 466+N 用例 0 失败实证，以收口记录为准）。
+
+#### 工程与稳定性
+
+- **网络请求健壮性审计与治理（后端服务维度）**：全仓网络调用盘点分类——6 处信号量同步调用有界等待（TBNet.syncFetch 统一入口）+ 7 处默认 60s 无显式超时站点 + 25 处合规站点 + 错误面盘点（失败静默保留旧值 5 widget 登记第 45 轮第二批治理候选）；**发现并根因修复真实问题 3 类**：① TBNet.syncFetch 统一硬化——等待超时 task.cancel() 释放孤儿 dataTask（防资源泄漏）+ 合成 NSURLErrorTimedOut（调用方语义一致）+ 成功才读（结构性消除 data 竞争），ApiLatency/PackageTracker/ApiTester 4 处调用点复用并顺带修正 ApiTester 12s/10s 超时错配；② RSS 失败面——四后端 + direct counter 改 Int?，RssUnreadItem fetchFailed 失败态「—」+coral 替代误导性 0（0 未读与加载失败不可区分）；③ 7 处默认 60s 站点补显式 timeoutInterval=15（天气/汇率/日历/快递/股票等）+ StockBarItem 单飞守卫防堆积；新增契约测试 NetworkRobustnessContractTests.swift 4 用例（URLProtocol 桩零真实网络，红 5 failures→绿 4/4 双跑实证未放宽断言）；**466 用例实证（462 基线 + 新增 4 零偏差，102.8s）0 失败**（金丝雀 StockMarketHoursTests 16 / WidgetLeakTests 30 / RegistryReconciliationTests 6 / ItemTypeDecodeRegistryTests 173 / WriteSideContractTests 6 / SecretsManagerContractTests 13 全绿）
+- **锚点巡检收口复跑接入保持**：scripts/anchor-patrol.py 收口复跑接入（第 29 轮 B 卡固化）连续第二十二轮保持——第 44 轮收口后复跑 PASS 67 / WARN 16 / INFO 5 / ERROR 0 退出码 0，与第 43 轮收口基线逐项一致零新漂移（StockBarItem +16 行触发 8 处锚点行号修正闭环），机器检查零回归
+- **工程版本号对齐**：Info.plist 0.43/468 → 0.44/469（第 44 轮收口落地，B 卡版本决策建议收口采纳、README v0.44 条目对齐，营销版本号与工程版本号对齐惯例延续）
+
+### v0.44
 
 > 承接第 43 轮：SecretsManager 密钥存储审计与治理（安全与合规维度——全仓 20 个 APIService 密钥生命周期盘点分类（存储介质/传输方式/泄漏面/ATS 例外域 6 个逐项）；Keychain 切换机制完整实施（读穿回退+存量迁移+回退迁移+SecItem 状态检查+测试钩子）但默认保持 false 不翻转（Debug 77R6HZNK93 vs Release D6D8BR2QNB 双 DEVELOPMENT_TEAM 跨配置 ACL 风险论证，翻转决策门登记）；发现并根因修复真实问题 7 处（clear 双后端全清/迁移删明文副本/回退反向迁移/单一权威/写失败降级/硬编码检测 12 形态键+值掩码/AppSettings 10 处死代码旁路删除）；新增 SecretsManagerContractTests 13 用例（读写对称×2+迁移×3+回退×2+清除×2+检测×4，红 14 failures→绿 13/13 双跑实证未放宽断言）；462 用例实证 0 失败（449 基线 + 新增 13 零偏差，95.8s））、锚点巡检收口复跑接入保持（连续第二十一轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.42/467 → 0.43/468）。
 
