@@ -14,6 +14,10 @@ class WeatherOutfitItem: TBPollItem {
     private var advice = "…"
     private var symbol = "cloud"
     private var tint = TB.sky
+    /// Round 45: any fetch failure flips this; apply() shows a failure state
+    /// instead of a mock 22° masquerading as a real reading — "it's cold
+    /// outside" must not be indistinguishable from "network dead".
+    private var fetchFailed = false
 
     init(identifier: NSTouchBarItem.Identifier, refreshInterval: Double, lat: Double, lon: Double) {
         self.lat = lat
@@ -29,12 +33,13 @@ class WeatherOutfitItem: TBPollItem {
         guard let json = TBNet.json(url) as? [String: Any],
               let current = json["current"] as? [String: Any],
               let t = current["temperature_2m"] as? Double else {
+            fetchFailed = true
             temp = nil
-            advice = localized("离线 mock 22°", "offline mock 22°")
             symbol = "cloud"
-            tint = TB.textTertiary
+            tint = TB.coral
             return
         }
+        fetchFailed = false
         temp = t
         let code = (current["weather_code"] as? Int) ?? 0
         symbol = Self.symbol(for: code)
@@ -43,6 +48,14 @@ class WeatherOutfitItem: TBPollItem {
     }
 
     override func apply() {
+        // Failure state first: a dead network must look dead, not a mock 22°.
+        if fetchFailed {
+            metric.value = "—"
+            metric.subValue = localized("获取失败", "offline")
+            metric.valueColor = TB.coral
+            metric.iconTint = TB.coral
+            return
+        }
         metric.iconName = symbol
         metric.iconTint = tint
         if let temp = temp {
