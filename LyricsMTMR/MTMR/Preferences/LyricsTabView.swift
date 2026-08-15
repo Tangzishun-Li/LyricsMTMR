@@ -78,6 +78,8 @@ struct LyricsTab: View {
     @State private var enabledCategories: Set<String> = Set(AppSettings.lyricsFilterEnabledCategories)
     @State private var archivedPlayers = AppSettings.archivedPlayerIds
     @State private var showArchived = false
+    @State private var desktopLyricsEnabled = AppSettings.desktopLyricsWindowEnabled
+    @State private var desktopLyricsFontSize = AppSettings.desktopLyricsFontSize
 
     var body: some View {
         ScrollView {
@@ -90,6 +92,7 @@ struct LyricsTab: View {
                 scrollSection
                 colorSection
                 fontSection
+                desktopLyricsSection
                 artworkSection
                 offsetSection
                 lrcDropSection
@@ -410,6 +413,46 @@ struct LyricsTab: View {
                             value: Binding(
                                 get: { Double(config.fontSize) },
                                 set: { config.fontSize = CGFloat($0) }))
+                            .frame(maxWidth: 260)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Desktop Lyrics (round 51)
+
+    private var desktopLyricsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(
+                title: localized("桌面歌词", "Desktop Lyrics"),
+                hint: localized("在屏幕上悬浮显示当前歌词（可拖动，点击隐藏）", "Floating current lyrics on screen (draggable, click to hide)"))
+            Deck.Card {
+                VStack(spacing: 12) {
+                    Deck.ToggleRow(
+                        title: localized("桌面歌词窗口", "Desktop Lyrics Window"),
+                        subtitle: localized("无边框透明悬浮窗，卡拉 OK 逐字高亮，含前/后一行上下文", "Borderless floating window with karaoke highlight and ±1 line context"),
+                        isOn: $desktopLyricsEnabled)
+                        .onChange(of: desktopLyricsEnabled) { _, isOn in
+                            AppSettings.desktopLyricsWindowEnabled = isOn
+                            if isOn {
+                                DesktopLyricsWindowController.shared.show()
+                            } else {
+                                DesktopLyricsWindowController.shared.hide()
+                            }
+                        }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("字号", "Size")) {
+                        Deck.ValueSlider(
+                            range: 12...40,
+                            unit: " pt",
+                            value: Binding(
+                                get: { desktopLyricsFontSize },
+                                set: {
+                                    desktopLyricsFontSize = $0
+                                    AppSettings.desktopLyricsFontSize = $0
+                                    DesktopLyricsWindowController.shared.applyFontSize()
+                                }))
                             .frame(maxWidth: 260)
                     }
                 }
