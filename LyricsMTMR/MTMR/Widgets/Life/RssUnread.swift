@@ -56,17 +56,47 @@ class RssUnreadItem: TBPollItem {
         }
         configured = true
         let window = AppSettings.rssUnreadWindowHours
+        // Round 46: parallel fan-out. The serial loop (≤ round 45) fetched
+        // feeds one after another on the widget's own polling queue — N dead
+        // feeds stretched a single cycle by N × (timeout+1s) and froze the
+        // badge for that whole time. Dispatching all fetches concurrently
+        // bounds the cycle by the slowest single feed instead of the sum.
+        // Each fetch keeps its own hard bound (TBNet timeout+1s), so the
+        // group wait below can never exceed ~11s at the 10s direct timeout.
+        // Failure semantics unchanged: any dead feed still invalidates the
+        // badge (fetchFailed = true); a full success sums all counts.
+        let group = DispatchGroup()
+        let lock = NSLock()
         var total = 0
+        var anyFailed = false
         for feed in feeds {
-            // nil = fetch failed: one dead feed already invalidates the
-            // whole badge, so stop instead of summing a partial count.
-            guard let count = RSSDirectCounter.unreadCount(feedURL: feed, windowHours: window) else {
-                fetchFailed = true
-                return
+            group.enter()
+            DispatchQueue.global().async {
+                let count = RSSDirectCounter.unreadCount(feedURL: feed, windowHours: window)
+                lock.lock()
+                if let count = count {
+                    total += count
+                } else {
+                    anyFailed = true
+                }
+                lock.unlock()
+                group.leave()
             }
-            total += count
         }
-        unread = total
+        // Safety net: each feed's own bound guarantees the group completes
+        // well inside 30s; this only guards against a future regression
+        // that removes the per-fetch timeout.
+        _ = group.wait(timeout: .now() + 30)
+        lock.lock()
+        let failed = anyFailed
+        let sum = total
+        lock.unlock()
+        if failed {
+            fetchFailed = true
+            unread = 0
+        } else {
+            unread = sum
+        }
     }
 
     // MARK: - Provider fetch

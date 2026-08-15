@@ -99,6 +99,64 @@ class NetworkRobustnessContractTests: XCTestCase {
         override func stopLoading() {}
     }
 
+    /// 并行扇出桩（round 46）：按 URL 路由成功 payload / 即时失败，每个
+    /// 请求延迟 delay 秒后完成，并统计「同时在途」请求数峰值。用于实证
+    /// RssUnread direct 模式多 feed 已并行抓取（串行实现下 maxConcurrent
+    /// 恒为 1，并行实现下 >= 2）。
+    private final class ParallelFeedURLProtocol: URLProtocol {
+        static let lock = NSLock()
+        static var delay: TimeInterval = 0
+        static var payloads: [String: Data] = [:]
+        static var failingURLs: Set<String> = []
+        static var inFlight = 0
+        static var maxConcurrent = 0
+
+        static func reset() {
+            lock.lock()
+            delay = 0
+            payloads = [:]
+            failingURLs = []
+            inFlight = 0
+            maxConcurrent = 0
+            lock.unlock()
+        }
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+        override func startLoading() {
+            ParallelFeedURLProtocol.lock.lock()
+            ParallelFeedURLProtocol.inFlight += 1
+            ParallelFeedURLProtocol.maxConcurrent = max(
+                ParallelFeedURLProtocol.maxConcurrent, ParallelFeedURLProtocol.inFlight)
+            ParallelFeedURLProtocol.lock.unlock()
+
+            let urlString = request.url?.absoluteString ?? ""
+            let shouldFail = ParallelFeedURLProtocol.failingURLs.contains(urlString)
+            let payload = ParallelFeedURLProtocol.payloads[urlString] ?? Data()
+            let delay = ParallelFeedURLProtocol.delay
+            DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+                ParallelFeedURLProtocol.lock.lock()
+                ParallelFeedURLProtocol.inFlight -= 1
+                ParallelFeedURLProtocol.lock.unlock()
+                guard let self = self else { return }
+                if shouldFail {
+                    self.client?.urlProtocol(self, didFailWithError:
+                        NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotConnectToHost))
+                } else {
+                    let response = HTTPURLResponse(url: self.request.url!, statusCode: 200,
+                                                   httpVersion: "HTTP/1.1",
+                                                   headerFields: ["Content-Type": "application/xml"])!
+                    self.client?.urlProtocol(self, didReceive: response,
+                                             cacheStoragePolicy: .notAllowed)
+                    self.client?.urlProtocol(self, didLoad: payload)
+                    self.client?.urlProtocolDidFinishLoading(self)
+                }
+            }
+        }
+        override func stopLoading() {}
+    }
+
     // MARK: - Helpers
 
     private var injectedTricklingSession: URLSession {
@@ -119,6 +177,12 @@ class NetworkRobustnessContractTests: XCTestCase {
         return URLSession(configuration: config)
     }
 
+    private var injectedParallelFeedSession: URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [ParallelFeedURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
     /// Round 35/45: pin Chinese so localized(zh, en) copy assertions are
     /// deterministic regardless of the host app's persisted language.
     private var previousAppLanguage: AppLanguage = .system
@@ -126,6 +190,7 @@ class NetworkRobustnessContractTests: XCTestCase {
     override func setUp() {
         super.setUp()
         TricklingURLProtocol.stopLoadingCount = 0
+        ParallelFeedURLProtocol.reset()
         // 隐藏态启动 widget：RssUnreadItem 是 TBPollItem，隐藏期不调度
         // 真实轮询周期，测试直接同步调用 compute()/apply() 不受后台循环干扰。
         TouchBarVisibilityState.shared.setBarHidden(true)
@@ -328,5 +393,125 @@ class NetworkRobustnessContractTests: XCTestCase {
                        "一言抓取失败必须呈现失败视觉（coral），不得与成功态同构")
         XCTAssertEqual(item.metric.value, localized("离线：心有所向，方能行远", "offline quote"),
                        "失败文案需保留离线前缀，诚实标注非在线内容")
+    }
+
+    // MARK: - 轮询链异步化评估（round 46：RssUnread direct 并行扇出试点）
+
+    /// 生成一段 item 日期在「现在」的 RSS 2.0 XML（direct 计数用）。
+    /// 日期用与 RSSDirectCounter.parseDate 相同的 RFC822 格式动态生成，
+    /// 保证无论测试何时运行都在未读窗口内。
+    private func rssFeedXML(itemCount: Int) -> Data {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        let dateStr = fmt.string(from: Date())
+        let items = (0..<itemCount).map { _ in
+            "<item><title>t</title><pubDate>\(dateStr)</pubDate></item>"
+        }.joined()
+        return Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel><title>stub</title>\(items)</channel></rss>
+        """.utf8)
+    }
+
+    private func saveRssSettings() -> (mode: String, feeds: [String], window: Double) {
+        let saved = (AppSettings.rssMode, AppSettings.rssFeeds, AppSettings.rssUnreadWindowHours)
+        AppSettings.rssMode = "direct"
+        AppSettings.rssUnreadWindowHours = 24
+        return saved
+    }
+
+    private func restoreRssSettings(_ saved: (mode: String, feeds: [String], window: Double)) {
+        AppSettings.rssMode = saved.mode
+        AppSettings.rssFeeds = saved.feeds
+        AppSettings.rssUnreadWindowHours = saved.window
+    }
+
+    /// 并行扇出契约：N 个 feed 必须同时在途（maxConcurrent >= 2）。
+    /// 串行实现（round 45 及之前：RssUnread.swift computeDirect for 循环
+    /// 逐个 TBNet.get）下每个请求完成才发起下一个，maxConcurrent 恒为 1
+    /// ——本用例在串行实现下必须红，证明断言未被放宽。
+    func testRssDirectParallelFetchesOverlap() {
+        let saved = saveRssSettings()
+        defer { restoreRssSettings(saved) }
+        let urls = (0..<3).map { "http://127.0.0.1:9/feed\($0).xml" }
+        AppSettings.rssFeeds = urls
+        ParallelFeedURLProtocol.delay = 0.5
+        for u in urls { ParallelFeedURLProtocol.payloads[u] = rssFeedXML(itemCount: 1) }
+        TBNet.sessionOverride = injectedParallelFeedSession
+
+        let item = makeRssItem()
+        item.compute()
+        item.apply()
+
+        ParallelFeedURLProtocol.lock.lock()
+        let maxConcurrent = ParallelFeedURLProtocol.maxConcurrent
+        ParallelFeedURLProtocol.lock.unlock()
+        XCTAssertGreaterThanOrEqual(maxConcurrent, 2,
+            "N 个 feed 必须并行抓取（实测同时在途峰值 \\(maxConcurrent)，串行实现恒为 1）")
+        XCTAssertEqual(item.metric.value, "3", "3 个 feed 各 1 条未读，合计必须为 3")
+    }
+
+    /// 有界等待契约：整轮 compute 必须由「单个 feed 的最坏等待」界定，
+    /// 而非 N 倍串行叠加。3 个 feed 各延迟 0.5s：串行 >= 1.5s，并行
+    /// ≈ 0.5s。断言 < 1.2s 在串行实现下必须红。
+    func testRssDirectParallelWallTimeBoundedBySingleFeed() {
+        let saved = saveRssSettings()
+        defer { restoreRssSettings(saved) }
+        let urls = (0..<3).map { "http://127.0.0.1:9/feed\($0).xml" }
+        AppSettings.rssFeeds = urls
+        ParallelFeedURLProtocol.delay = 0.5
+        for u in urls { ParallelFeedURLProtocol.payloads[u] = rssFeedXML(itemCount: 1) }
+        TBNet.sessionOverride = injectedParallelFeedSession
+
+        let start = Date()
+        let item = makeRssItem()
+        item.compute()
+        let elapsed = Date().timeIntervalSince(start)
+        item.apply()
+
+        XCTAssertLessThan(elapsed, 1.2,
+            "整轮 compute 必须受单个 feed 上界约束而非 N 倍叠加（实测 \\(elapsed)s）")
+    }
+
+    /// 失败面语义保持契约（并行后不得放宽）：任一 feed 失败 → 整轮失败态
+    /// 「—」+coral，不得把部分成功当成功。
+    func testRssDirectParallelAnyFailureShowsFailureState() {
+        let saved = saveRssSettings()
+        defer { restoreRssSettings(saved) }
+        let okURL = "http://127.0.0.1:9/feed-ok.xml"
+        let badURL = "http://127.0.0.1:9/feed-bad.xml"
+        AppSettings.rssFeeds = [badURL, okURL]
+        ParallelFeedURLProtocol.payloads[okURL] = rssFeedXML(itemCount: 2)
+        ParallelFeedURLProtocol.failingURLs = [badURL]
+        TBNet.sessionOverride = injectedParallelFeedSession
+
+        let item = makeRssItem()
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, "—",
+                       "并行抓取下任一 feed 失败仍必须显示失败态「—」，不得显示部分计数")
+        XCTAssertEqual(item.metric.valueColor, TB.coral)
+    }
+
+    /// 求和语义保持契约（并行后不得放宽）：全部成功时合计必须等于各 feed
+    /// 未读数之和（1+2+1=4），顺序无关。
+    func testRssDirectParallelSumsAllFeeds() {
+        let saved = saveRssSettings()
+        defer { restoreRssSettings(saved) }
+        let urls = (0..<3).map { "http://127.0.0.1:9/feed\($0).xml" }
+        AppSettings.rssFeeds = urls
+        ParallelFeedURLProtocol.payloads[urls[0]] = rssFeedXML(itemCount: 1)
+        ParallelFeedURLProtocol.payloads[urls[1]] = rssFeedXML(itemCount: 2)
+        ParallelFeedURLProtocol.payloads[urls[2]] = rssFeedXML(itemCount: 1)
+        TBNet.sessionOverride = injectedParallelFeedSession
+
+        let item = makeRssItem()
+        item.compute()
+        item.apply()
+        XCTAssertEqual(item.metric.value, "4",
+                       "全部 feed 成功时合计必须为各 feed 未读数之和（1+2+1=4）")
+        XCTAssertEqual(item.metric.iconTint, TB.gold,
+                       "成功态图标 tint 必须保持 gold（与失败态 coral 语义分离）")
     }
 }
