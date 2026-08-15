@@ -498,7 +498,7 @@ def check_registry():
         if not m:
             continue
         name = m.group(1)
-        if name.startswith(REPORT_PREFIXES):
+        if os.path.basename(name).startswith(REPORT_PREFIXES):
             registered.append((i, name))
     names = [n for _, n in registered]
     dup = sorted({k for k, v in __import__("collections").Counter(names).items() if v > 1})
