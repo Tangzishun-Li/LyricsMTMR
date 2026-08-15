@@ -321,7 +321,7 @@ class NetworkRobustnessContractTests: XCTestCase {
         XCTAssertEqual(item.metric.subValue, localized("获取失败", "offline"))
         XCTAssertEqual(item.metric.valueColor, TB.coral)
         XCTAssertEqual(item.metric.iconTint, TB.coral)
-        XCTAssertFalse((item.metric.value ?? "").contains("°"),
+        XCTAssertFalse(item.metric.value.contains("°"),
                        "失败态主值不得包含温度读数（°）")
         XCTAssertFalse((item.metric.subValue ?? "").contains("°"),
                        "失败态副值不得包含温度读数（°）")
