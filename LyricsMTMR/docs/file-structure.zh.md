@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~50 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~51 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -293,6 +293,8 @@ mindmap
 ├── logs/第50轮/验证报告_第50轮_隐私清单补建与敏感数据面审计治理.md # 第 50 轮子任务 A 验证报告（隐私清单补建与敏感数据面审计治理——安全与合规维度，R43 SecretsManager 后隔 6 轮：隐私 API 使用面 6 类盘点分类（剪贴板 6 文件/定位 3 文件/麦克风 2 文件/UserDefaults 17 文件/Keychain 2 文件/网络 8+ 文件）；对照 NSPrivacyAccessedAPITypes 实证声明 3 项必申（UserDefaults CA92.1/FileTimestamp C617.1/ActiveKeyboard 3B52.1，SystemBootTime/DiskSpace 全仓 0 命中不声明）+NSPrivacyCollectedDataTypes 诚实声明 2 项（Location/OtherUserContent，均 Linked=false/Tracking=false/AppFunctionality）+NSPrivacyTracking=false；新增 MTMR/PrivacyInfo.xcprivacy 并 pbxproj 四条目注册（C0FE26B2…/C0FF26B2…，add_files.py 同款确定性 UUID 方案）；敏感日志复检 29 处 print/NSLog 零泄漏（R43 结论保持）；PrivacyManifestContractTests 13 用例（红 1 失败→绿 13/13 双跑断言零放宽）；全量 513 用例 0 失败实证（500 基线+13 新增零偏差，101.0s，/tmp/LyricsMTMR-dd-r50a-full）；锚点巡检连续第二十九轮 0 ERROR，r50/privacy）
 ├── logs/第50轮/核验报告_第50轮_维护机制健在与文档一致性.md # 第 50 轮核验报告（第 44 次年度维护核验，r50/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 49 轮收口基线逐项一致零新漂移，连续第二十九轮 0 ERROR（REGISTRY 167 行=第 49 轮 4 份报告全部并入 main 后口径，第 49 轮 C 卡预测 165 为当时仅 C 卡 2 份口径属精度说明非漂移，本轮登记 2 份后预期 169）；ITER-14 待办区引用 :409 第二十一轮保持；2027 段复核 check_2027_r50.py 24 项 ALL PASS（32 日期分布 3+8+3+5+3+3+7/6 补班全周六/两表零重叠/金丝雀 7/7/防屏蔽 :195-196/唯一数据源；24 项=前轮 23 项同口径+1 项新增「防屏蔽直查恰 2 行」一致性检查）；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=9eaef99）；114 口径 :1274/:1285 复查零新漂移，ITEMS_REFERENCE :1711 在位；第 49 轮 A/B/C 卡落地源码实证——NetworkRobustnessContractTests :324 死代码 ?? 去除（item.metric.value.contains("°") 行为等价断言未放宽）+ :326 subValue ?? "" 有效兜底保留/README v0.49 条目 :154 + 版本史 :152/Info.plist 0.49/474；遗留盘点：issue #1 延续、ITER-15 决策门延续、ITER-14 第 44 次健在、R48 A 卡 4 项确认延续、R47 A 卡 3 项延续、round-49 清理由本轮承接；本轮新增发现 0 项）
 ├── logs/第50轮/清理报告_第50轮_round49遗留清理.md          # 第 50 轮子任务 C 仓库卫生报告（round-49 父卡+子卡遗留 worktree/分支清理，r49 全清 4 worktree+4 分支，r50/review；前置确认 4 卡 board 均 done 收口（父收口提交 9eaef99 实证）+ps 无占用+4 worktree 干净；合并基准 main@9eaef99=origin/main——第 49 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round49 父分支残留；删除后清点与预告一致（.worktrees 4 个 round50-* 子目录 + 主仓库（git worktree list 5 项）/本地分支 5 条=main+r50/*4 条/远端仅 main）；主仓库实测在 main@9eaef99 与远端同步无偏差登记）
+├── 核验报告_第51轮_维护机制健在与文档一致性.md # 第 51 轮核验报告（维护·轻量轮，r51/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 50 轮收口基线逐项一致零新漂移，连续第三十轮 0 ERROR（REGISTRY 172 行=R50 收口归档后实测口径，本卡登记 2 份后预期 174 由收口复跑确认）；年度维护全量核验按轻量轮规则不做（R50 已做第 44 次，下一轮全量第 55 轮）；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=c3cc83d）；报告归档登记适配核对（logs/ 子路径登记 + basename 判前缀，本轮新报告先落分支根目录收口 git mv）；遗留盘点：issue #1 延续、ITER-15 决策门延续、ITER-14 第 44 次健在本轮不重核、R48 A 卡 4 项确认延续、R47 A 卡 3 项延续、R50 A 卡 3 项挂账延续、各轮挂账延续；本轮新增发现 0 项）
+├── 清理报告_第51轮_round50遗留清理.md          # 第 51 轮子任务 C 仓库卫生报告（round-50 父卡+子卡遗留清理，r50 全清 4 worktree 孤儿目录+4 分支，r51/review；前置确认 4 卡 board 均 done 收口（父收口提交 68cf208 实证）+ps 无占用+4 分支 rev-list 0 ahead/merge-base 即分支头；worktree 侧特殊性：round50-* 4 目录为仓库路径迁移后的孤儿目录（.git 指向旧尾空格路径，git worktree list 已不显示）故删除对象为 rm 孤儿目录+branch -D 4 分支（was b7d4335/dd7357d/c27ab4c/68cf208 零丢失）；删除后清点与预告一致（.worktrees 5 项=round51-* 4 项+主仓库（git worktree list 5 项）/本地分支 5 条=main+r51/*4 条/远端仅 main）；主仓库实测在 main@c3cc83d 与远端同步无偏差登记）
 └── .gitignore / .gitattributes / README.md
 ```
 
