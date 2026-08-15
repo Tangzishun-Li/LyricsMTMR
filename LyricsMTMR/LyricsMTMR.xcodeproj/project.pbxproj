@@ -40,6 +40,7 @@
 		36C2ECDD207C723B003CDA33 /* ParseConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */; };
 		36C2ECDE207C82DE003CDA33 /* ItemsParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */; };
 		A1C0DE001A2B3C4D5E6F70819 /* ChinaCityCodes.json in Resources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */; };
+		C0FF26B2A637F7DC4079D5AB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C0FE26B2A637F7DC4079D5AB /* PrivacyInfo.xcprivacy */; };
 		A1C0DE001A2B3C4D5E6F70820 /* TabTOCScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70821 /* TabTOCScrollView.swift */; };
 		A1C0DE001A2B3C4D5E6F70822 /* ChinaWeatherProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE001A2B3C4D5E6F70823 /* ChinaWeatherProvider.swift */; };
 		36C2ECE0207CB1B0003CDA33 /* defaultPreset.json in Resources */ = {isa = PBXBuildFile; fileRef = 36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */; };
@@ -255,6 +256,7 @@
 		C1FF94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */; };
 		C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */; };
 		C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */; };
+		C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -315,6 +317,7 @@
 		36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemsParsing.swift; sourceTree = "<group>"; };
 		36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseConfigTests.swift; sourceTree = "<group>"; };
 		A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ChinaCityCodes.json; sourceTree = "<group>"; };
+		C0FE26B2A637F7DC4079D5AB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = defaultPreset.json; sourceTree = "<group>"; };
 		36FEF871235A1CFC00A0ABCE /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		3CEB3BCA3578474E9838D5A3 /* SlotManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SlotManager.swift; sourceTree = "<group>"; };
@@ -538,6 +541,7 @@
 		C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRobustnessContractTests.swift; sourceTree = "<group>"; };
 		C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsContractTests.swift; sourceTree = "<group>"; };
 		C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStateMachineContractTests.swift; sourceTree = "<group>"; };
+		C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyManifestContractTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -608,6 +612,7 @@
 				B082B258205C7D8000BC04DC /* Main.storyboard */,
 				B082B25B205C7D8000BC04DC /* Info.plist */,
 				B082B25C205C7D8000BC04DC /* MTMR.entitlements */,
+				C0FE26B2A637F7DC4079D5AB /* PrivacyInfo.xcprivacy */,
 				36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */,
 				A1C0DE001A2B3C4D5E6F70810 /* ChinaCityCodes.json */,
 				B2FBA932445D6054C62B1F5D /* Preferences */,
@@ -692,6 +697,7 @@
 				C1FE94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift */,
 				C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */,
 				C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */,
+				C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1106,6 +1112,7 @@
 				B0B17438207D6B590004B740 /* Vox.next.scpt in Resources */,
 				36C2ECE0207CB1B0003CDA33 /* defaultPreset.json in Resources */,
 				A1C0DE001A2B3C4D5E6F70819 /* ChinaCityCodes.json in Resources */,
+				C0FF26B2A637F7DC4079D5AB /* PrivacyInfo.xcprivacy in Resources */,
 				B0B17432207D6B590004B740 /* Weather.scpt in Resources */,
 				B0B17431207D6B590004B740 /* PlaySmart.scpt in Resources */,
 			);
@@ -1371,6 +1378,7 @@
 				C1FF94CB081CDB3CEBF0D601 /* NetworkRobustnessContractTests.swift in Sources */,
 				C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */,
 				C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */,
+				C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
