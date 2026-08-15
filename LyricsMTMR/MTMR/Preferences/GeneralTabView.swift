@@ -162,7 +162,6 @@ struct GeneralTab: View {
         } else {
             UserDefaults.standard.set([lang.rawValue], forKey: "AppleLanguages")
         }
-        UserDefaults.standard.synchronize()
 
         let alert = NSAlert()
         alert.messageText = Localized.languageChanged

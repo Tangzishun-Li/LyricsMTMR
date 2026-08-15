@@ -192,7 +192,6 @@ final class StatusBarMenuModel: ObservableObject {
         } else {
             UserDefaults.standard.set([lang.rawValue], forKey: "AppleLanguages")
         }
-        UserDefaults.standard.synchronize()
         onDismiss?()
         let alert = NSAlert()
         alert.messageText = Localized.languageChanged

@@ -72,6 +72,23 @@ enum AppLanguage: String, CaseIterable {
     }
 }
 
+/// UserDefaults 存储注入点（round 47 测试钩子，nil = UserDefaults.standard）。
+/// 与 SecretsManager.defaultsOverride 同型（SecretsManager.swift:183-196 先例）——
+/// 生产恒 nil，单测经 @testable 注入内存 suite 隔离，避免污染宿主进程真实偏好。
+/// 注：泛型属性包装器不支持 static stored property，故经此非泛型容器中转。
+enum UserDefaultsStore {
+    static var override: UserDefaults?
+    static var current: UserDefaults { override ?? .standard }
+}
+
+/// UserDefaults 键注册表（round 47 治理：散落字面量收敛，键名由契约测试锚定，
+/// 防重构改键导致存量用户偏好丢失——UserDefaults 无自动迁移机制）。
+enum UDKey {
+    static let aiStreamOutput = "com.lyricsmtmr.ai.streamOutput"
+    static let aiShowBalance = "com.lyricsmtmr.ai.showBalance"
+    static let themeSelectedIndex = "com.lyricsmtmr.theme.selectedIndex"
+}
+
 struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.settings.showControlStrip", defaultValue: false)
     static var showControlStripState: Bool
@@ -160,10 +177,9 @@ struct AppSettings {
     static var freezeOnAppSwitch: Bool
 
     static var selectedThemeIndex: Int {
-        get { UserDefaults.standard.integer(forKey: "com.lyricsmtmr.theme.selectedIndex") }
+        get { UserDefaultsStore.current.integer(forKey: UDKey.themeSelectedIndex) }
         set {
-            UserDefaults.standard.set(newValue, forKey: "com.lyricsmtmr.theme.selectedIndex")
-            UserDefaults.standard.synchronize()
+            UserDefaultsStore.current.set(newValue, forKey: UDKey.themeSelectedIndex)
             NotificationCenter.default.post(name: .themeIndexDidChange, object: nil, userInfo: ["index": newValue])
         }
     }
@@ -210,11 +226,11 @@ struct UserDefault<T> {
     let defaultValue: T
     var wrappedValue: T {
         get {
-            return UserDefaults.standard.object(forKey: key) as? T ?? defaultValue
+            return UserDefaultsStore.current.object(forKey: key) as? T ?? defaultValue
         }
         set {
             // No synchronize() — the system persists defaults automatically.
-            UserDefaults.standard.set(newValue, forKey: key)
+            UserDefaultsStore.current.set(newValue, forKey: key)
         }
     }
 }

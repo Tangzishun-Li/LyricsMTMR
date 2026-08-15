@@ -39,7 +39,6 @@ enum TBSpectrumSettings {
     static let lowGainKey  = "com.lyricsmtmr.spectrum.lowGain"  // 0...2
     static let midGainKey  = "com.lyricsmtmr.spectrum.midGain"  // 0...2
     static let highGainKey = "com.lyricsmtmr.spectrum.highGain" // 0...2
-    static let releaseKey  = "com.lyricsmtmr.spectrum.release"  // legacy single-band
     static let lowReleaseKey  = "com.lyricsmtmr.spectrum.lowRelease"  // 0.05...0.95
     static let midReleaseKey  = "com.lyricsmtmr.spectrum.midRelease"
     static let highReleaseKey = "com.lyricsmtmr.spectrum.highRelease"
