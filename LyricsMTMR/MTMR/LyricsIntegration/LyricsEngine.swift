@@ -1109,11 +1109,12 @@ class LyricsEngine: NSObject, ObservableObject {
             return
         }
 
-        let position = trackInfo.playbackTime
-        let timeDelay = lyrics.adjustedTimeDelay
-
-        karaokeProgress = line.timetags.map {
-            ($0.0 + line.position - timeDelay - position, $0.1)
-        }
+        // 纯函数映射（round 51 抽取，桌面歌词窗口共用同一公式，防两侧漂移）。
+        karaokeProgress = LyricsKaraokeMapper.progress(
+            timetags: line.timetags,
+            linePosition: line.position,
+            timeDelay: lyrics.adjustedTimeDelay,
+            playbackTime: trackInfo.playbackTime
+        )
     }
 }

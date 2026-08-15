@@ -173,6 +173,19 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
     static var showMirrorWindow: Bool
 
+    // MARK: - Desktop Lyrics Window (round 51)
+
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.enabled", defaultValue: false)
+    static var desktopLyricsWindowEnabled: Bool
+
+    /// 桌面歌词窗口字号（独立于 Touch Bar 歌词 fontSize；字体族/颜色复用 LyricsItemConfig）。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.fontSize", defaultValue: 22.0)
+    static var desktopLyricsFontSize: Double
+
+    /// 桌面歌词窗口位置记忆："x,y"（空串 = 未记忆，用主屏幕默认位置）。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.frame", defaultValue: "")
+    static var desktopLyricsFrame: String
+
     @UserDefault(key: "com.lyricsmtmr.settings.freezeOnAppSwitch", defaultValue: false)
     static var freezeOnAppSwitch: Bool
 

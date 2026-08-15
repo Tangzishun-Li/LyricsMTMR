@@ -257,6 +257,8 @@
 		C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */; };
 		C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */; };
 		C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */; };
+		C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */; };
+		C1FFA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -542,6 +544,8 @@
 		C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsContractTests.swift; sourceTree = "<group>"; };
 		C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeStateMachineContractTests.swift; sourceTree = "<group>"; };
 		C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyManifestContractTests.swift; sourceTree = "<group>"; };
+		C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindowController.swift; sourceTree = "<group>"; };
+		C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindowTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -647,6 +651,7 @@
 				BAF5AB5824317CAF00B04904 /* SwipeItem.swift */,
 				368EDDE620812A1D00E10953 /* ScrollViewItem.swift */,
 				B05600D22083E9BB00EB218D /* CustomSlider.swift */,
+				C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -698,6 +703,7 @@
 				C1FE1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift */,
 				C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */,
 				C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */,
+				C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1345,6 +1351,7 @@
 				C0FFB3400C3B5EE0211E19A3 /* TBPausableTimer.swift in Sources */,
 				C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */,
 				C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */,
+				C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1379,6 +1386,7 @@
 				C1FF1DAE95EA4BF3171BC8C5 /* UserDefaultsContractTests.swift in Sources */,
 				C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */,
 				C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */,
+				C1FFA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

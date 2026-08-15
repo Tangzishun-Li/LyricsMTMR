@@ -58,11 +58,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !isUnderTest {
             LyricsEngine.shared.start()
             SlotManager.shared.ensureSlotsDirectory()
+            // round 51: 桌面歌词窗口开关记忆 —— 上次开启则启动时恢复显示
+            // （默认关，开关打开才创建/显示）。
+            if AppSettings.desktopLyricsWindowEnabled {
+                DispatchQueue.main.async {
+                    DesktopLyricsWindowController.shared.show()
+                }
+            }
         }
     }
 
     func applicationWillTerminate(_: Notification) {
         LyricsEngine.shared.shutdown()
+        DesktopLyricsWindowController.shared.shutdown()
     }
 
     // MARK: - Memory Pressure
