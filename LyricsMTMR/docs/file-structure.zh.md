@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~49 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~50 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -289,6 +289,7 @@ mindmap
 ├── 验证报告_第49轮_编译警告复检清零与工程规范治理.md # 第 49 轮子任务 A 验证报告（编译警告复检清零与工程规范治理——代码质量与工程规范维度，R41 后 8 轮累积复检：全量 build-for-testing 采集 3 条 warning: 行（1 代码警告 + 2 工具提示）与 R41 基线逐条对比——新警告 1 条根因修复（NetworkRobustnessContractTests.swift:324 `item.metric.value ?? ""` 死代码，TBMetricView.value 非可选 String（WidgetKit.swift:121），第 45 轮断言同型化引入，去 ?? 行为等价断言未放宽；:326 疑似同型实测排除——subValue 为 String? 保持不动）+R41 修复面 10 条代码警告零复发+appintentsmetadataprocessor ×2 豁免复认；工程规范复检零新增（Sendable 边界/deprecated API/断言卫生）；红→绿双跑 13/13 断言零放宽；全量 500 用例 0 失败实证（R48 基线零偏差，101.5s，/tmp/LyricsMTMR-dd-r49a-full）；锚点巡检连续第二十八轮 0 ERROR（PASS 67/WARN 16/INFO 5/ERROR 0），r49/warnings）
 ├── 核验报告_第49轮_维护机制健在与文档一致性.md # 第 49 轮核验报告（第 43 次年度维护核验，r49/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 48 轮收口基线逐项一致零新漂移，连续第二十八轮 0 ERROR（REGISTRY 163 行=第 48 轮 4 份报告全部并入 main 后口径，第 48 轮 C 卡预测 161 为当时仅 C 卡 2 份口径属精度说明非漂移，本轮登记 2 份后预期 165）；ITER-14 待办区引用 :409 第二十轮保持；2027 段复核 check_2027_r49.py 23 项 ALL PASS（32 日期分布 3+8+3+5+3+3+7/6 补班全周六/两表零重叠/金丝雀 7/7/防屏蔽 :195-196/唯一数据源）；GitHub 4/4 全过（issue #1 OPEN/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=b8de4aa）；114 口径 :1274/:1285 复查零新漂移（第 48 轮 A 卡插入 ~100 行后行号），ITEMS_REFERENCE :1711 在位；第 48 轮 A/B/C 卡落地源码实证——ThemeStateMachineContractTests 19 用例 + resolveAppThemeTransition/resolveAppThemeSwitchDecision 纯函数 + markUserOverrideAppTheme 覆盖分支清 preAutoSwitchPresetPath + ThemeSupport 唯一真相源/README v0.48/Info.plist 0.48/473；遗留盘点：第 48 轮 A 卡新登记 4 项确认（修复落地 3+合规复认 1）、第 47 轮 A 卡 3 项延续、round-48 清理由本轮承接；本轮新增发现 0 项）
 ├── 清理报告_第49轮_round48遗留清理.md          # 第 49 轮子任务 C 仓库卫生报告（round-48 父卡+子卡遗留 worktree/分支清理，r48 全清 4 worktree+4 分支，r49/review；前置确认 4 卡 board 均 done 收口（t_02931ec6 board 实测 done）+ps 无占用+4 worktree 干净；合并基准 main@b8de4aa=origin/main——第 48 轮收口已 push+同步本地 main；远端实测 1 head 仅 main 无 round48 父分支残留；删除后清点与预告一致（.worktrees 4 个 round49-* 子目录 + 主仓库（git worktree list 5 项）/本地分支 5 条=main+r49/*4 条/远端仅 main）；主仓库实测在 main@b8de4aa 与远端同步无偏差登记）
+├── 验证报告_第50轮_隐私清单补建与敏感数据面审计治理.md # 第 50 轮子任务 A 验证报告（隐私清单补建与敏感数据面审计治理——安全与合规维度，R43 SecretsManager 后隔 6 轮：隐私 API 使用面 6 类盘点分类（剪贴板 6 文件/定位 3 文件/麦克风 2 文件/UserDefaults 17 文件/Keychain 2 文件/网络 8+ 文件）；对照 NSPrivacyAccessedAPITypes 实证声明 3 项必申（UserDefaults CA92.1/FileTimestamp C617.1/ActiveKeyboard 3B52.1，SystemBootTime/DiskSpace 全仓 0 命中不声明）+NSPrivacyCollectedDataTypes 诚实声明 2 项（Location/OtherUserContent，均 Linked=false/Tracking=false/AppFunctionality）+NSPrivacyTracking=false；新增 MTMR/PrivacyInfo.xcprivacy 并 pbxproj 四条目注册（C0FE26B2…/C0FF26B2…，add_files.py 同款确定性 UUID 方案）；敏感日志复检 29 处 print/NSLog 零泄漏（R43 结论保持）；PrivacyManifestContractTests 13 用例（红 1 失败→绿 13/13 双跑断言零放宽）；全量 513 用例 0 失败实证（500 基线+13 新增零偏差，101.0s，/tmp/LyricsMTMR-dd-r50a-full）；锚点巡检连续第二十九轮 0 ERROR，r50/privacy）
 └── .gitignore / .gitattributes / README.md
 ```
 
