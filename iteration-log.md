@@ -1938,3 +1938,10 @@
   - README.md 共 3 处改动：① 更新日志区置顶新增「v0.51（当前开发版本）」条目（承接段注明第 50 轮变更摘要 + 第 51 轮 A 卡方向「桌面歌词窗口 MVP」进行中（前端体验/UI 维度——歌词产品空白面补全，接 R50 收口基线 513——board 实测 t_15a0c3b0 running，细节以 A 卡收口记录为准）+ 「工程与稳定性」3 项——隐私清单补建与敏感数据面审计治理（安全与合规维度：承接 R43 SecretsManager 后隔 6 轮，补建项目缺失的 PrivacyInfo.xcprivacy 隐私清单——全仓隐私 API 使用面盘点分类 6 类（UserDefaults 17 文件/剪贴板 6/定位 3/麦克风 2/Keychain 2/网络 8+），必申 3 项（UserDefaults→CA92.1/FileTimestamp→C617.1/ActiveKeyboard→3B52.1），SystemBootTime/DiskSpace 全仓 0 命中不声明（3 项疑似面逐一排除实证），收集面诚实声明 2 项（Location/OtherUserContent，均 Linked=false/Tracking=false/AppFunctionality），NSPrivacyTracking=false，PrivacyInfo.xcprivacy 补建落地 + pbxproj 四条目注册（PBXBuildFile/PBXFileReference/group child/Resources phase，add_files.py 同款确定性 sha1 UUID 方案），敏感日志复检 29 处零泄漏（R43 结论保持），PrivacyManifestContractTests 13 用例（存在性 2/必申 3/收集面 3/注册 1/双向 3/反向锚定 1，红 1 失败→绿 13/13 断言零放宽）+ 513 用例实证 0 失败（101.0s））、锚点巡检收口复跑接入保持（连续第二十九轮 PASS 67/ERROR 0）、工程版本号对齐（Info.plist 0.49/474 → 0.50/475），全部来自第 50 轮 iteration-log 实证记录（父收口段 + A 卡 t_3821da31 + B 卡 t_def4fc28 + C 卡 t_d7b0c801 子任务记录）+ A 卡验证报告《验证报告_第50轮_隐私清单补建与敏感数据面审计治理.md》（同库实证），未虚构）；② v0.50 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.51=第 50 轮（v0.50=第 49 轮 后追加）。
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归（第 51 轮分解前不触发全量回归由父任务既定——隔代规则：第 50 轮已触发并实证 513，本卡纯文档不重复跑）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未建 cron/自触发；
   - 交付：核对报告《核对报告_第51轮_README更新日志补登v0.51.md》（本分支根目录，含版本决策与 0.51/476 建议/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/锚点核对（anchor-patrol 机器断言实证）/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加——父分支预建头 1f621af 在本卡 worktree 可见，「## 第 51 轮」+「### 父任务」预览行已在位，故仅补「### 子任务记录」小节头后追加本卡记录，标注「第 51 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~50 轮→第 7~51 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+
+## 第 52 轮（功能/优化迭代第 40 轮）
+
+### 父任务
+- 目标：功能/优化迭代第 40 轮——承接第 51 轮收口（main=e1527c5 已 push origin，第 51 轮整体实证 81 用例 0 失败，全量回归 533 由本轮承担）后的主线分解（A/B/C 方向由父任务分解时自定）。**分解前触发全量回归**（隔代规则：第 51 轮未触发，累积第 51 轮代码改动——桌面歌词窗口 MVP + DesktopLyricsWindowTests 20，届时基线口径 **533=513+20**，实证 533 用例 0 失败）。环境事项：main=e1527c5 未被并行推进（git fetch origin 核对一致）；3 子卡 worktree 预建于 main@e1527c5 同点（dir 类型 + 预建 worktree 方案，R51 A 卡遗留候选闭环）。
+- （分解记录与收口记录由父任务收口时重组补全）
