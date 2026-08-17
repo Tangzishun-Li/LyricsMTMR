@@ -84,6 +84,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         CoverCache.shared.clearMemoryCache()
         URLCache.shared.removeAllCachedResponses()
         NetEaseProvider.clearLyricsCache() // ITER-2: 内存警告兜底语义覆盖歌词 LRU
+        KugouProvider.clearLyricsCache()   // R52-A: 三源歌词 LRU 同步清空（与 NetEase 同兜底语义）
+        MiguProvider.clearLyricsCache()
+        QQMusicProvider.clearLyricsCache()
         // 窗口复用补充：隐藏状态的设置窗口整树直接释放（可见时不打扰用户）
         releaseSettingsWindowIfHidden()
     }

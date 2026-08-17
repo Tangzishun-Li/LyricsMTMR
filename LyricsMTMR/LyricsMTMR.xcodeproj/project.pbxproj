@@ -259,6 +259,8 @@
 		C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */; };
 		C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */; };
 		C1FFA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */; };
+		C0FF49F0775587C1AE963DDC /* LyricsLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE49F0775587C1AE963DDC /* LyricsLRUCache.swift */; };
+		C1FF82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -546,6 +548,8 @@
 		C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyManifestContractTests.swift; sourceTree = "<group>"; };
 		C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindowController.swift; sourceTree = "<group>"; };
 		C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindowTests.swift; sourceTree = "<group>"; };
+		C0FE49F0775587C1AE963DDC /* LyricsLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLRUCache.swift; sourceTree = "<group>"; };
+		C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsProviderCacheTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -704,6 +708,7 @@
 				C1FE60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift */,
 				C1FE5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift */,
 				C1FEA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift */,
+				C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -999,6 +1004,7 @@
 				A1B2C3D4E5F6478890AABB01 /* BrowserURLDetector.swift */,
 				A1B2C3D4E5F6478890AABB03 /* KugouProvider.swift */,
 				A1B2C3D4E5F6478890AABB05 /* MiguProvider.swift */,
+				C0FE49F0775587C1AE963DDC /* LyricsLRUCache.swift */,
 			);
 			path = LyricsIntegration;
 			sourceTree = "<group>";
@@ -1352,6 +1358,7 @@
 				C0FF698E7BFE281E92408E91 /* WeatherLocationSession.swift in Sources */,
 				C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */,
 				C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */,
+				C0FF49F0775587C1AE963DDC /* LyricsLRUCache.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1387,6 +1394,7 @@
 				C1FF60896F165072CD12DCAB /* ThemeStateMachineContractTests.swift in Sources */,
 				C1FF5526AFF4494A6FA4EEA8 /* PrivacyManifestContractTests.swift in Sources */,
 				C1FFA10881FA5135D200B0FE /* DesktopLyricsWindowTests.swift in Sources */,
+				C1FF82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

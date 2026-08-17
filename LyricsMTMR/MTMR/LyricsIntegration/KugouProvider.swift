@@ -30,6 +30,21 @@ enum KugouProvider {
         return URLSession(configuration: config)
     }()
 
+    // MARK: - Lyrics LRU Cache (R52-A)
+
+    /// Bounded in-memory cache for parsed lyrics, keyed by the song `hash`.
+    /// krcs.kugou.com resolves the current accesskey from the hash alone, so
+    /// the hash is the song's unique id (sourceId = "hash|accessKey").
+    /// `internal`（非 private）供 LyricsProviderCacheTests 预置/核对缓存
+    /// 内容（R52-A，@testable import 可见）。
+    static let lyricsCache = LyricsLRUCache<String>(capacity: 32)
+
+    /// R52-A memory-pressure fallback: same semantics as
+    /// NetEaseProvider.clearLyricsCache (ITER-2) — drops every Kugou entry.
+    static func clearLyricsCache() {
+        lyricsCache.clear()
+    }
+
     // MARK: - Search
 
     static func search(keyword: String, limit: Int = 10) async throws -> [KugouSong] {
@@ -62,6 +77,12 @@ enum KugouProvider {
     // MARK: - Fetch Lyrics
 
     static func fetchLyrics(hash: String, accessKey: String = "") async throws -> SimpleLyrics {
+        // R52-A: LRU cache hit — skip the network round-trip + KRC decrypt/parse.
+        if let cached = lyricsCache.object(forKey: hash) {
+            AppLog.lyrics("Kugou.fetchLyrics: cache HIT hash=\(hash)")
+            return cached
+        }
+
         let urlString = "https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&hash=\(hash)&accesskey=\(accessKey)"
         guard let url = URL(string: urlString) else { throw KugouError.parseFailed }
 
@@ -75,7 +96,10 @@ enum KugouProvider {
             throw KugouError.noLyrics
         }
 
-        return try await downloadKRC(id: krcId, key: krcKey)
+        let lyrics = try await downloadKRC(id: krcId, key: krcKey)
+        // R52-A: store on success so a playback switch back hits the LRU.
+        lyricsCache.setObject(lyrics, forKey: hash)
+        return lyrics
     }
 
     // MARK: - Download & Decrypt KRC
