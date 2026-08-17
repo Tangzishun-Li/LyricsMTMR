@@ -31,7 +31,9 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~51 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~52 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+├── 核验报告_第52轮_维护机制健在与文档一致性.md # 第 52 轮核验报告（维护·轻量轮，r52/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 与第 51 轮收口基线逐项一致零新漂移，连续第三十二轮 0 ERROR（REGISTRY 178 行=R51 收口 176+本卡登记 2 份，实测去重 178 文件）；年度维护全量核验按轻量轮规则不做（R50 已做第 44 次，下一轮全量第 55 轮）；GitHub 实测（issue #1 本轮维护者关闭 OPEN→CLOSED 为新增发现 1 项/#40 CLOSED/0 PR/origin/main 与本地 main 同步 0/0=e1527c5）；报告归档登记适配核对（logs/ 子路径登记 + basename 判前缀，本轮新报告先落分支根目录收口 git mv）；遗留盘点：issue #1 已闭环、ITER-15 决策门延续、ITER-14 第 44 次健在本轮不重核、R51 A 卡 4 项延续（marquee 本轮 A 卡 t_44faac65 闭环中）、R50 A 卡 3 项挂账延续、各轮挂账延续；另见歌词功能面并行线 5 卡在飞（t_a30596ce blocked 等）保留未触碰）
+├── 清理报告_第52轮_round51遗留清理.md          # 第 52 轮子任务 C 仓库卫生报告（round-51 父卡+子卡遗留清理，r51 全清 4 worktree+4 分支，r52/review；前置确认 4 卡 board 均 done 收口（父收口提交 e1527c5 实证在 main）+ps 无占用+4 分支 rev-list 0 ahead/main 祖先；worktree 为标准 linked（非 R50 孤儿目录场景）用 git worktree remove 删除；删除后清点如实登记差异（.worktrees 10 项=round52-* 4 项+主仓库+歌词功能面并行线 5 项（t_a30596ce blocked/t_33d5c9b0 running/t_4b465485 ready/t_a4373a2a todo/t_acd02062 todo）保留未触碰/本地分支 10 条=main+r52/*4+父分支+并行线 5/远端仅 main）；主仓库实测在 main@e1527c5 与远端同步无偏差登记）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
