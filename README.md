@@ -149,9 +149,22 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 ### 版本史说明
 
-> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮，v0.45=第 44 轮，v0.46=第 45 轮，v0.47=第 46 轮，v0.48=第 47 轮，v0.49=第 48 轮，v0.50=第 49 轮，v0.51=第 50 轮），此前条目为发布时实况。
+> **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮，v0.45=第 44 轮，v0.46=第 45 轮，v0.47=第 46 轮，v0.48=第 47 轮，v0.49=第 48 轮，v0.50=第 49 轮，v0.51=第 50 轮，v0.52=第 51 轮），此前条目为发布时实况。
 
-### v0.51（当前开发版本）
+### v0.52（当前开发版本）
+
+> 承接第 51 轮：桌面歌词窗口 MVP（歌词产品空白面补全——前端体验/UI 维度，R45 后隔 5 轮：NSPanel 非激活悬浮窗（透明+深色圆角底、可拖拽+单击隐藏）+ 三行竖排（前/后 1 行上下文 + 当前行 KaraokeLabel 卡拉 OK 逐字高亮）+ 占位三态（等待播放/已暂停/加载歌词）+ 位置记忆 + 设置歌词 Tab「桌面歌词」区（开关+字号滑块）+ 纯逻辑抽 3 组（LyricsKaraokeMapper 共享纯函数防公式漂移 / DesktopLyricsLayout / DesktopLyricsVisibility）+ 新增键全部带 com.lyricsmtmr.desktopLyrics. 前缀 + 新增 DesktopLyricsWindowTests 20 用例红→绿双跑 + 受影响套件+金丝雀 81 用例 0 失败——详见《验证报告_第51轮_桌面歌词窗口MVP.md》）、锚点巡检收口复跑接入保持（连续第三十一轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.50/475 → 0.51/476）。第 52 轮 A 卡「桌面歌词窗口长行 marquee」进行中（前端体验/UI 维度续面——R51 遗留候选闭环，接 R51 收口基线 533=513+20 + DesktopLyricsWindowTests 20，细节以 A 卡收口记录为准）。
+
+#### 新增
+
+- **桌面歌词窗口 MVP（歌词产品空白面补全，前端体验/UI 维度）**：新增 MTMR/Core/DesktopLyricsWindowController.swift——NSPanel（.nonactivatingPanel 非激活悬浮窗，透明+深色圆角底，isMovableByWindowBackground 拖拽 + 单击隐藏）；三行竖排=前/后 1 行上下文 NSTextField（透明度 0.55）+ 当前行 KaraokeLabel 卡拉 OK 逐字高亮；占位三态（无曲目「♪ 等待播放…」/暂停「♪ 已暂停」/播放无歌词「♪ 加载歌词…」）；行切换守卫 lastAnimatedLineIndex/ClickAction/LyricsId 每行仅重建 keyframes 一次，播放/暂停状态迁移冻结/解冻扫描；位置记忆=用户拖拽落盘 com.lyricsmtmr.desktopLyrics.frame（程序化 setFrame 不覆盖，屏幕变化回主屏底部居中默认位）；纯逻辑抽 3 组——LyricsKaraokeMapper（卡拉 OK 进度映射共享纯函数，LyricsEngine.updateKaraokeProgress 改调同一公式防两侧漂移）/DesktopLyricsLayout（三行上下文+占位决策）/DesktopLyricsVisibility（可见性状态机）；AppSettings 新增 3 键全部带 com.lyricsmtmr.desktopLyrics. 前缀（R47 结论）；设置页歌词 Tab 新增「桌面歌词」区（开关 ToggleRow + 字号滑块 12~40 实时 applyFontSize），字体族/文字色/进度色复用 LyricsItemConfig 同源；AppDelegate 接线（启动恢复显示 + applicationWillTerminate shutdown）；新增 DesktopLyricsWindowTests 20 用例红→绿双跑（红 7 failures→绿 20/20 断言零放宽），受影响套件+金丝雀 81 用例 0 失败（全量回归 533 由第 52 轮承担）
+
+#### 工程与稳定性
+
+- **锚点巡检收口复跑接入保持**：scripts/anchor-patrol.py 收口复跑接入（第 29 轮 B 卡固化）连续第三十一轮保持——第 51 轮收口后复跑 PASS 67 / WARN 16 / INFO 5 / ERROR 0 退出码 0（REGISTRY 176 行=第 51 轮收口归档后实测口径），机器检查零回归
+- **工程版本号对齐**：Info.plist 0.50/475 → 0.51/476（第 51 轮收口落地，B 卡版本决策建议收口采纳、README v0.51 条目对齐，营销版本号与工程版本号对齐惯例延续）
+
+### v0.51
 
 > 承接第 50 轮：隐私清单补建与敏感数据面审计治理（安全与合规维度——R43 后隔 6 轮：全仓隐私 API 使用面盘点分类 6 类（UserDefaults 17 文件 / 剪贴板 6 / 定位 3 / 麦克风 2 / Keychain 2 / 网络 8+）；必申 3 项（UserDefaults→CA92.1 / FileTimestamp→C617.1 / ActiveKeyboard→3B52.1），SystemBootTime/DiskSpace 全仓 0 命中不声明（3 项疑似面逐一排除实证）；收集面诚实声明 2 项（Location / OtherUserContent，均 Linked=false/Tracking=false/AppFunctionality）；NSPrivacyTracking=false；PrivacyInfo.xcprivacy 补建 + pbxproj 四条目注册；敏感日志复检 29 处零泄漏（R43 结论保持）；PrivacyManifestContractTests 13 用例（红 1 失败→绿 13/13 断言零放宽）；513 用例实证 0 失败（101.0s））、锚点巡检收口复跑接入保持（连续第二十九轮 0 ERROR），并完成工程版本号对齐（Info.plist 0.49/474 → 0.50/475）。第 51 轮 A 卡「桌面歌词窗口 MVP」进行中（前端体验/UI 维度——歌词产品空白面补全，接 R50 收口基线 513，细节以 A 卡收口记录为准）。
 
