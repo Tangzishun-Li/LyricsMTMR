@@ -186,6 +186,10 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.desktopLyrics.frame", defaultValue: "")
     static var desktopLyricsFrame: String
 
+    /// 桌面歌词长行横向滚动（follow/marquee）开关，默认开（round 52：长行不再截断丢信息）。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.marqueeEnabled", defaultValue: true)
+    static var desktopLyricsMarqueeEnabled: Bool
+
     @UserDefault(key: "com.lyricsmtmr.settings.freezeOnAppSwitch", defaultValue: false)
     static var freezeOnAppSwitch: Bool
 

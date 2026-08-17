@@ -86,6 +86,51 @@ enum DesktopLyricsVisibility: Equatable {
     mutating func toggle() { self = isVisible ? .hidden : .visible }
 }
 
+// MARK: - 纯逻辑：长行滚动（round 52）
+
+/// 桌面歌词窗口长行滚动的纯函数决策与相位（round 52 新增）。
+///
+/// 机制与 LyricsTouchBarItem（round 24）同源：对「文本宽 > 可视区宽」的长行，
+/// 有 timetag 的卡拉 OK 行走 follow 跟随滚动（让正在演唱的字保持在可视区），
+/// 无 timetag 长行走 0→overflowWidth 循环 marquee；两者均为 bounds.origin.x
+/// 平移——KaraokeLabel 的卡拉 OK 高亮 clip 随文本同移，逐字高亮不脱位
+/// （R51 D11 遗留点「滚动与逐字高亮共用当前行标签」评估结论）。
+enum DesktopLyricsMarquee {
+    /// 长行判定：文本渲染宽度超出可用区宽度即触发滚动。
+    static func needsMarquee(textWidth: CGFloat, availableWidth: CGFloat) -> Bool {
+        textWidth > availableWidth
+    }
+
+    /// 循环滚动总行程：文本尾+间距离开可视区右缘所需平移量，下限 0。
+    static func overflowWidth(textWidth: CGFloat, availableWidth: CGFloat, padding: CGFloat) -> CGFloat {
+        max(0, textWidth - availableWidth + padding)
+    }
+
+    /// 循环滚动可用时长：下一行歌词到来前的窗口（无下一行用默认预算），下限钳制。
+    static func nextLineTimeBudget(
+        nextLinePosition: TimeInterval?,
+        playbackTime: TimeInterval,
+        defaultBudget: TimeInterval,
+        minBudget: TimeInterval
+    ) -> TimeInterval {
+        let next = nextLinePosition ?? (playbackTime + defaultBudget)
+        return max(next - playbackTime, minBudget)
+    }
+
+    /// 循环 marquee 相位：0→overflowWidth 线性推进，达预算后回绕从头开始
+    /// （R24 先例：循环滚动相位从头开始无实质差异）。
+    static func marqueeOffset(elapsed: TimeInterval, budget: TimeInterval, overflowWidth: CGFloat) -> CGFloat {
+        guard budget > 0, overflowWidth > 0 else { return 0 }
+        let t = elapsed.truncatingRemainder(dividingBy: budget) / budget
+        return t * overflowWidth
+    }
+
+    /// follow 跟随目标偏移：让正在演唱的字符出现在可视区 ratio 处，夹在 [0, overflowWidth]。
+    static func followOffset(charX: CGFloat, clipWidth: CGFloat, ratio: CGFloat, overflowWidth: CGFloat) -> CGFloat {
+        min(overflowWidth, max(0, charX - clipWidth * ratio))
+    }
+}
+
 // MARK: - 桌面歌词窗口控制器
 
 final class DesktopLyricsWindowController: NSObject {
@@ -125,6 +170,27 @@ final class DesktopLyricsWindowController: NSObject {
     private var lastAnimatedLyricsId: ObjectIdentifier?
     private var lastPlaybackState: PlaybackState?
 
+    // MARK: 长行滚动（round 52）状态
+
+    /// 滚动时序常量（与 LyricsTouchBarItem.MarqueeMetrics 同源，round 24 审计值）。
+    private enum MarqueeMetrics {
+        static let fps: Double = 30.0
+        static let defaultTimeBudget: TimeInterval = 4.0
+        static let minTimeBudget: TimeInterval = 1.0
+        static let overflowPadding: CGFloat = 15
+        static let followVisibleRatio: CGFloat = 0.65
+        static let animationDuration: TimeInterval = 0.2
+    }
+
+    private var marqueeTimer: Timer?
+    private var marqueeStartTime: Date?
+    private var marqueeOverflowWidth: CGFloat = 0
+    private var marqueeTimeBudget: TimeInterval = MarqueeMetrics.defaultTimeBudget
+    /// OPT-5 ② 同款守卫：timer 当前服务的行/歌词对象——同一行复用 timer 不重建，
+    /// 仅行切换时重建（防 0.25s playback tick 反复重启导致滚动回跳）。
+    private var marqueeLineIndex: Int?
+    private var marqueeLyricsId: ObjectIdentifier?
+
     /// 程序化 setFrame 也会触发 didMove —— 用此标记区分用户拖拽，只在用户
     /// 拖动结束时持久化（程序化定位不写盘，避免启动/屏幕切换瞬间覆盖用户记忆位置）。
     private var isProgrammaticMove = false
@@ -154,6 +220,7 @@ final class DesktopLyricsWindowController: NSObject {
     /// 应用退出清理：停止订阅、关闭并释放面板。
     func shutdown() {
         cancellables.removeAll()
+        resetMarquee()
         panel?.orderOut(nil)
         panel = nil
         backgroundView = nil
@@ -185,6 +252,7 @@ final class DesktopLyricsWindowController: NSObject {
         visibility.hide()
         guard wasVisible else { return }
         currentLabel?.pauseProgressAnimation()
+        resetMarquee()
         panel?.orderOut(nil)
     }
 
@@ -200,6 +268,16 @@ final class DesktopLyricsWindowController: NSObject {
     func applyFontSize() {
         applyTypography()
         refreshContent()
+    }
+
+    /// 设置页长行滚动开关实时生效：关→立即停止并归位；开→按当前行重建。
+    func applyMarqueeSetting() {
+        guard visibility.isVisible else { return }
+        if AppSettings.desktopLyricsMarqueeEnabled {
+            refreshContent()
+        } else {
+            resetMarquee()
+        }
     }
 
     // MARK: - 面板构建
@@ -229,6 +307,9 @@ final class DesktopLyricsWindowController: NSObject {
         bg.layer?.cornerRadius = 10
         bg.layer?.borderWidth = 0.5
         bg.layer?.borderColor = NSColor(white: 0.55, alpha: 0.28).cgColor
+        // round 52：卡内裁剪——长行 marquee 滚动文本不越出圆角卡边界（Touch Bar
+        // 侧由 stackView.masksToBounds 承担，桌面窗口由背景视图承担同款职责）。
+        bg.layer?.masksToBounds = true
         bg.autoresizingMask = [.width, .height]
         panel.contentView?.addSubview(bg)
         backgroundView = bg
@@ -458,6 +539,8 @@ final class DesktopLyricsWindowController: NSObject {
             prevLabel?.stringValue = context.prev ?? ""
             currentLabel?.stringValue = context.current ?? ""
             nextLabel?.stringValue = context.next ?? ""
+            // round 52：行切换即归位滚动相位（新行从开头渲染，不继承旧行滚动偏移）。
+            currentLabel?.bounds.origin.x = 0
             hidePlaceholder()
 
             prevLabel?.isHidden = context.prev == nil
@@ -492,6 +575,7 @@ final class DesktopLyricsWindowController: NSObject {
         lastPlaybackState = track.playbackState
 
         relayout()
+        updateMarquee(active: active, lineIndex: idx, track: track)
     }
 
     /// 无歌词/暂停时直接刷新占位（不重建动画）。
@@ -502,6 +586,7 @@ final class DesktopLyricsWindowController: NSObject {
         currentLabel?.isHidden = true
         nextLabel?.isHidden = true
         currentLabel?.removeProgressAnimation()
+        resetMarquee()
         relayout()
     }
 
@@ -595,5 +680,127 @@ final class DesktopLyricsWindowController: NSObject {
             )
             y -= lineHeight + Metrics.lineSpacing
         }
+    }
+
+    // MARK: - 长行滚动（round 52）
+
+    /// 行绘制后按当前行宽度决策滚动方式（relayout 后调用，面板尺寸已定）。
+    /// 有 timetag 的卡拉 OK 行 → follow 跟随（正在演唱的字保持可视，无 timer）；
+    /// 无 timetag 长行 → 循环 marquee（30fps timer 仅此场景运行）。
+    private func updateMarquee(active: SimpleLyrics, lineIndex: Int, track: EngineTrackInfo) {
+        guard AppSettings.desktopLyricsMarqueeEnabled,
+              visibility.isVisible,
+              let current = currentLabel,
+              !current.isHidden,
+              let panel else {
+            resetMarquee()
+            return
+        }
+        let clipWidth = panel.frame.width - Metrics.horizontalPadding * 2
+        guard clipWidth > 0 else {
+            resetMarquee()
+            return
+        }
+        let textWidth = current.fullTextWidth
+        guard DesktopLyricsMarquee.needsMarquee(textWidth: textWidth, availableWidth: clipWidth) else {
+            resetMarquee()
+            return
+        }
+        let overflow = DesktopLyricsMarquee.overflowWidth(
+            textWidth: textWidth,
+            availableWidth: clipWidth,
+            padding: MarqueeMetrics.overflowPadding
+        )
+        let line = active.lines[lineIndex]
+
+        if !line.timetags.isEmpty {
+            // 卡拉 OK 行：follow 跟随滚动——不建 timer，动画式移动，
+            // 逐字高亮 clip 随 bounds.origin 同移，高亮与文本不脱位。
+            stopMarqueeTimer()
+            updateFollowScroll(timetags: line.timetags, line: line, active: active, track: track, overflowWidth: overflow)
+            return
+        }
+
+        // 无 timetag 长行：循环 marquee（OPT-5 ② 同款守卫——同一行复用 timer，
+        // 仅行切换时重建，防 0.25s tick 反复重启导致滚动回跳）。
+        let timeBudget = DesktopLyricsMarquee.nextLineTimeBudget(
+            nextLinePosition: lineIndex + 1 < active.lines.count ? active.lines[lineIndex + 1].position : nil,
+            playbackTime: track.playbackTime,
+            defaultBudget: MarqueeMetrics.defaultTimeBudget,
+            minBudget: MarqueeMetrics.minTimeBudget
+        )
+        if marqueeTimer != nil, marqueeLineIndex == lineIndex, marqueeLyricsId == ObjectIdentifier(active) {
+            marqueeOverflowWidth = overflow
+            marqueeTimeBudget = timeBudget
+            return
+        }
+
+        stopMarqueeTimer()
+        marqueeLineIndex = lineIndex
+        marqueeLyricsId = ObjectIdentifier(active)
+        marqueeOverflowWidth = overflow
+        marqueeTimeBudget = timeBudget
+        marqueeStartTime = Date()
+        let timer = Timer(timeInterval: 1.0 / MarqueeMetrics.fps, repeats: true) { [weak self] _ in
+            guard let self, let startTime = self.marqueeStartTime else { return }
+            let elapsed = Date().timeIntervalSince(startTime)
+            let offset = DesktopLyricsMarquee.marqueeOffset(
+                elapsed: elapsed,
+                budget: self.marqueeTimeBudget,
+                overflowWidth: self.marqueeOverflowWidth
+            )
+            if self.currentLabel?.bounds.origin.x != offset {
+                self.currentLabel?.bounds.origin.x = offset
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        marqueeTimer = timer
+    }
+
+    /// follow 跟随滚动：目标偏移 = 让正在演唱的字符出现在可视区 65% 处
+    /// （与 LyricsTouchBarItem.updateAutoScroll 同款公式，夹在 [0, overflowWidth]）。
+    private func updateFollowScroll(
+        timetags: [(TimeInterval, Int)],
+        line: SimpleLyrics.Line,
+        active: SimpleLyrics,
+        track: EngineTrackInfo,
+        overflowWidth: CGFloat
+    ) {
+        guard let current = currentLabel else { return }
+        let progress = LyricsKaraokeMapper.progress(
+            timetags: timetags,
+            linePosition: line.position,
+            timeDelay: active.adjustedTimeDelay,
+            playbackTime: track.playbackTime
+        )
+        guard let nextIdx = progress.firstIndex(where: { $0.0 > 0 }), nextIdx < timetags.count else { return }
+        let charX = current.charPosition(at: timetags[nextIdx].1)
+        let desired = DesktopLyricsMarquee.followOffset(
+            charX: charX,
+            clipWidth: current.frame.width,
+            ratio: MarqueeMetrics.followVisibleRatio,
+            overflowWidth: overflowWidth
+        )
+        if abs(current.bounds.origin.x - desired) > 2 {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = MarqueeMetrics.animationDuration
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                current.animator().setBoundsOrigin(NSPoint(x: desired, y: 0))
+            }
+        }
+    }
+
+    /// 停止滚动并归位（隐藏/占位/行切换/无溢出/开关关闭共用）。
+    private func resetMarquee() {
+        stopMarqueeTimer()
+        currentLabel?.bounds.origin.x = 0
+    }
+
+    private func stopMarqueeTimer() {
+        marqueeTimer?.invalidate()
+        marqueeTimer = nil
+        marqueeStartTime = nil
+        marqueeLineIndex = nil
+        marqueeLyricsId = nil
     }
 }

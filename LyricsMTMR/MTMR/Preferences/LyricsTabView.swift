@@ -80,6 +80,7 @@ struct LyricsTab: View {
     @State private var showArchived = false
     @State private var desktopLyricsEnabled = AppSettings.desktopLyricsWindowEnabled
     @State private var desktopLyricsFontSize = AppSettings.desktopLyricsFontSize
+    @State private var desktopLyricsMarqueeEnabled = AppSettings.desktopLyricsMarqueeEnabled
 
     var body: some View {
         ScrollView {
@@ -440,6 +441,15 @@ struct LyricsTab: View {
                             } else {
                                 DesktopLyricsWindowController.shared.hide()
                             }
+                        }
+                    Deck.RowDivider()
+                    Deck.ToggleRow(
+                        title: localized("长行滚动", "Marquee"),
+                        subtitle: localized("歌词长于窗口时横向滚动/跟随显示，信息不丢失", "Scroll long lines horizontally so no lyrics are truncated"),
+                        isOn: $desktopLyricsMarqueeEnabled)
+                        .onChange(of: desktopLyricsMarqueeEnabled) { _, isOn in
+                            AppSettings.desktopLyricsMarqueeEnabled = isOn
+                            DesktopLyricsWindowController.shared.applyMarqueeSetting()
                         }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("字号", "Size")) {
