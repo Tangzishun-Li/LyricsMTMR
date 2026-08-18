@@ -87,6 +87,8 @@ enum UDKey {
     static let aiStreamOutput = "com.lyricsmtmr.ai.streamOutput"
     static let aiShowBalance = "com.lyricsmtmr.ai.showBalance"
     static let themeSelectedIndex = "com.lyricsmtmr.theme.selectedIndex"
+    /// 歌词关联缓存（R53 治理：运行时缓存键，reset/export 豁免——见 SettingsSync.runtimeCacheKeys）。
+    static let lyricsSelectionCache = "com.lyricsmtmr.lyricsSelectionCache"
 }
 
 struct AppSettings {
