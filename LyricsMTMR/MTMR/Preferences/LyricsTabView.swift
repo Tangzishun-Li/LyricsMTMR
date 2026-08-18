@@ -81,6 +81,9 @@ struct LyricsTab: View {
     @State private var desktopLyricsEnabled = AppSettings.desktopLyricsWindowEnabled
     @State private var desktopLyricsFontSize = AppSettings.desktopLyricsFontSize
     @State private var desktopLyricsMarqueeEnabled = AppSettings.desktopLyricsMarqueeEnabled
+    @State private var desktopLyricsUseIndependentColors = AppSettings.desktopLyricsUseIndependentColors
+    @State private var desktopLyricsTextColor: NSColor = AppSettings.desktopLyricsColor(from: AppSettings.desktopLyricsTextColorHex) ?? .white
+    @State private var desktopLyricsProgressColor: NSColor = AppSettings.desktopLyricsColor(from: AppSettings.desktopLyricsProgressColorHex) ?? .green
 
     var body: some View {
         ScrollView {
@@ -397,6 +400,25 @@ struct LyricsTab: View {
         NSColor(srgbRed: 0.60, green: 0.95, blue: 0.75, alpha: 1),
     ]
 
+    /// 桌面歌词独立配色预设（与 Touch Bar 同源但独立数组，便于后续独立扩展）。
+    private static let desktopProgressPresets: [NSColor] = [
+        NSColor(srgbRed: 0.24, green: 0.86, blue: 0.55, alpha: 1),
+        NSColor(srgbRed: 1.00, green: 0.56, blue: 0.34, alpha: 1),
+        NSColor(srgbRed: 0.38, green: 0.72, blue: 0.96, alpha: 1),
+        NSColor(srgbRed: 1.00, green: 0.80, blue: 0.35, alpha: 1),
+        NSColor(srgbRed: 0.76, green: 0.44, blue: 0.97, alpha: 1),
+        NSColor(srgbRed: 1.00, green: 0.35, blue: 0.45, alpha: 1),
+    ]
+
+    private static let desktopTextPresets: [NSColor] = [
+        .white,
+        NSColor(srgbRed: 0.96, green: 0.95, blue: 0.93, alpha: 1),
+        NSColor(srgbRed: 0.73, green: 0.70, blue: 0.80, alpha: 1),
+        NSColor(srgbRed: 0.55, green: 0.85, blue: 1.00, alpha: 1),
+        NSColor(srgbRed: 1.00, green: 0.85, blue: 0.55, alpha: 1),
+        NSColor(srgbRed: 0.60, green: 0.95, blue: 0.75, alpha: 1),
+    ]
+
     // MARK: Typography
 
     private var fontSection: some View {
@@ -465,7 +487,34 @@ struct LyricsTab: View {
                                 }))
                             .frame(maxWidth: 260)
                     }
+                    Deck.RowDivider()
+                    Deck.ToggleRow(
+                        title: localized("独立配色", "Independent Colors"),
+                        subtitle: localized("桌面歌词窗口使用独立于 Touch Bar 的文字/进度颜色", "Use separate text/progress colors for the desktop lyrics window"),
+                        isOn: $desktopLyricsUseIndependentColors)
+                        .onChange(of: desktopLyricsUseIndependentColors) { _, isOn in
+                            AppSettings.desktopLyricsUseIndependentColors = isOn
+                            DesktopLyricsWindowController.shared.applyColors()
+                        }
+                    if desktopLyricsUseIndependentColors {
+                        Deck.LabeledRow(localized("文字颜色", "Text Color")) {
+                            Deck.Swatches(color: $desktopLyricsTextColor, presets: Self.desktopTextPresets)
+                        }
+                        .onChange(of: desktopLyricsTextColor) { _, newColor in
+                            AppSettings.desktopLyricsTextColorHex = AppSettings.hexString(from: newColor)
+                            DesktopLyricsWindowController.shared.applyColors()
+                        }
+                        Deck.LabeledRow(localized("进度颜色", "Progress Color")) {
+                            Deck.Swatches(color: $desktopLyricsProgressColor, presets: Self.desktopProgressPresets)
+                        }
+                        .onChange(of: desktopLyricsProgressColor) { _, newColor in
+                            AppSettings.desktopLyricsProgressColorHex = AppSettings.hexString(from: newColor)
+                            DesktopLyricsWindowController.shared.applyColors()
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
+                .animation(.spring(response: 0.3, dampingFraction: 0.85), value: desktopLyricsUseIndependentColors)
             }
         }
     }
