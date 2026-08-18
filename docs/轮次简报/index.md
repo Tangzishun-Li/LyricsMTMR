@@ -5,6 +5,7 @@
 
 | 轮 | 主题（维度） | 一句话结果 | 简报 |
 |----|--------------|-----------|------|
+| R54 | 构建性能分析与编译优化（代码质量） | clean build 48s/incremental 7.6~22.4s/SwiftUI 类型检查 56.3s 瓶颈定位/编译选项已最优/archive/ 死代码 1246 行可清理；561 用例 0 失败；Info.plist 0.54/479；锚点第 35 轮 0 ERROR | [第54轮简报](第54轮简报.md) |
 | R53 | R47 观察项双项治理（数据存储） | lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化；549 用例 0 失败；Info.plist 0.53/478；锚点第 33 轮 0 ERROR | [第53轮简报](第53轮简报.md) |
 | R52 | 桌面歌词窗口长行 marquee（前端体验/UI） | R51 遗留候选闭环：长行 follow 跟随（有 timetag）+ 循环 marquee（无 timetag），DesktopLyricsMarqueeTests 13 红→绿；109 用例 0 失败；全量回归 533 分解前实证；Info.plist 0.52/477；锚点第 32 轮 0 ERROR；issue #1 闭环 | [第52轮简报](第52轮简报.md) |
 | R51 | 桌面歌词窗口 MVP（前端体验/UI） | 歌词产品空白面补全：NSPanel 悬浮窗 + 卡拉OK逐字高亮 + 设置开关；新增 20 用例，81 受影响套件 0 失败；Info.plist 0.51/476；锚点第 31 轮 0 ERROR | [第51轮简报](第51轮简报.md) |
