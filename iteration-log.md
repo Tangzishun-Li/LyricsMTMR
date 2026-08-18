@@ -2023,3 +2023,13 @@
 ### 父任务
 - 目标：功能/优化迭代第 42 轮——承接第 53 轮收口（main=09f0900 已 push origin，第 53 轮 549 用例 0 失败，基线口径 549=533+13+3）。**第 54 轮分解前触发全量回归**（隔代规则：第 52 轮触发 533→R53 不触发→R54 触发，届时基线口径 549）。环境事项：main=09f0900；3 子卡 worktree 预建于 main@09f0900 同点（dir 类型 + 预建 worktree 方案）。
 - （分解记录与收口记录由父任务收口时重组补全）
+
+### 子任务记录
+
+- **t_4028eb5e 第54轮 C卡（维护·轻量轮）：锚点巡检复跑（连续第三十四轮 0 ERROR）+ round-53 清理（4 worktree + 4 分支）+ 遗留盘点（review-agent，分支 r54/review，第 54 轮 / 子任务 C）**：
+  - 锚点巡检复跑：python3 scripts/anchor-patrol.py 首跑 **ERROR 1**（REGISTRY：4 份 round-53 报告登记路径缺 `logs/第53轮/` 前缀，已登记但仓库根缺失）→ 修复 file-structure.zh.md 4 行路径前缀后复跑 **PASS 65 / WARN 18 / INFO 5 / ERROR 0 退出码 0**（连续**第三十四轮** 0 ERROR 保持；REGISTRY **184 行** 去重 184 个文件；WARN 18 项均为记录性位移，零新漂移；INFO 5 项：3 项预期消失 + 2 项记录性证据）。**年度维护全量核验按轻量轮规则不做**（仅第 5 的倍数轮做全量，R50 已做第 44 次，下一轮全量核验在第 55 轮——ITER-14 第 44 次核验健在状态延续，本轮不重核）。
+  - file-structure.zh.md 修复：4 份 round-53 报告登记路径从根修正为 `logs/第53轮/`（R53 收口时 git mv 移入后登记未同步更新路径前缀，本轮补齐）。
+  - round-53 遗留清理（父卡 lyricsmtmr/t_round53-53-lyricsmtmr-41-52 + 3 子卡 r53/storage-isolation / r53/changelog / r53/review）：前置确认 4 卡 board 均 done + ps 无占用 + 4 worktree 干净；合并确认 4 分支均已合入 main（git merge-base --is-ancestor 实证）；执行 git worktree remove × 4 + git update-ref -d refs/heads/ × 4；清理后 git worktree list 9 项（主仓库 + round54-* 4 项 + round54-parent + 歌词功能面并行线 4 项）；git branch | grep r53 为空——零残留。
+  - 遗留盘点（round-53 收口口径逐项确认）：issue #1 已闭环（延续闭环无新变化）/ ITER-15 决策门 4 问延续 / ITER-14 延续（本轮轻量轮不重核，下一轮全量在第 55 轮）/ R51 A 卡 3 项延续（真机观感冒烟/独立配色开关/无重置位置 UI）/ R50 A 卡 3 项挂账延续 / 各轮挂账延续；本轮新增发现 **0 项**（与预告一致）。
+  - GitHub 状态实测：issue #1 CLOSED / #40 CLOSED / open PR 0 / origin/main = 本地 main 同步。
+  - 交付：核验报告 + 清理报告（本分支根目录，收口时父任务 git mv 进 logs/第54轮/）+ 本记录（iteration-log 追加，标注第 54 轮 / 子任务 C）+ file-structure.zh.md 登记修复（R53 报告路径修正 + 本卡报告行登记）；未 push 远端；未开新分支/新子任务/无 parents 依赖；未改源码/Info.plist；完成自查 git status 干净 + commit 已提交。
