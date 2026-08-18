@@ -3,6 +3,8 @@
 //  LyricsMTMRTests
 //
 //  Round 47 (A): UserDefaults 持久化层审计与治理 — 数据与存储维度。
+//  Round 53 (A): R47 观察项双项治理 — lyricsSelectionCache 随 reset 清空隔离 +
+//  selectedThemeIndex 缺键默认 0 既有语义契约化（6 → 9 用例）。
 //
 //  契约（与《验证报告_第47轮_UserDefaults持久化层审计与治理.md》一致）：
 //  - 命名空间契约：SettingsSync.exportProfile 仅导出 com.lyricsmtmr. / com.toxblh.mtmr.
@@ -90,6 +92,61 @@ class UserDefaultsContractTests: XCTestCase {
                         "reset 不得清除无前缀 UI 状态键（侧栏可见性跨重置保留）")
         XCTAssertNotNil(defaults.object(forKey: "group.expanded.dev"),
                         "reset 不得清除无前缀 UI 状态键（分组展开跨重置保留）")
+    }
+
+    // MARK: - 运行时缓存豁免契约（round 53：lyricsSelectionCache 治理）
+
+    func testResetAllToDefaultsKeepsLyricsSelectionCache() {
+        // R47 观察项：resetAllToDefaults 前缀批量删会清空歌词关联缓存。
+        // R53 治理：lyricsSelectionCache 从重置中豁免（运行时缓存，可重建但有代价）。
+        let cacheKey = UDKey.lyricsSelectionCache
+        let cacheData = Data("fake-cached-associations".utf8)
+        defaults.set(cacheData, forKey: cacheKey)
+        defaults.set(true, forKey: "com.lyricsmtmr.ai.showBalance")
+
+        SettingsSync.resetAllToDefaults()
+
+        XCTAssertNotNil(defaults.data(forKey: cacheKey),
+                        "reset 必须保留歌词关联缓存（运行时缓存豁免）")
+        XCTAssertNil(defaults.object(forKey: "com.lyricsmtmr.ai.showBalance"),
+                     "豁免后其余前缀键仍必须被 reset 清除（大契约不变）")
+    }
+
+    func testExportProfileExcludesLyricsSelectionCache() {
+        // R47 观察项：exportProfile 会夹带歌词关联缓存（配置导出夹带运行时缓存噪音）。
+        // R53 治理：该键从导出排除；且缓存值是 Data，JSONSerialization 无法序列化——
+        // 若被夹带会导致 exportProfile() 返回 nil（整个导出静默失败）。
+        let cacheKey = UDKey.lyricsSelectionCache
+        let cacheData = Data("fake-cached-associations".utf8)
+        defaults.set(cacheData, forKey: cacheKey)
+        defaults.set(true, forKey: "com.lyricsmtmr.ai.streamOutput")
+
+        let profile = SettingsSync.exportProfile()
+        XCTAssertNotNil(profile, "夹带 Data 缓存键会令 exportProfile 返回 nil——治理后必须可导出")
+        let ud = try? JSONSerialization.jsonObject(with: profile ?? Data()) as? [String: Any]
+        let exported = (ud?["userDefaults"] as? [String: Any]) ?? [:]
+
+        XCTAssertNil(exported[cacheKey], "歌词关联缓存不得进入导出（运行时缓存噪音）")
+        XCTAssertEqual(exported["com.lyricsmtmr.ai.streamOutput"] as? Bool, true,
+                       "排除缓存键后其余前缀键仍必须正常导出")
+    }
+
+    // MARK: - 缺键默认语义契约（round 53：selectedThemeIndex）
+
+    func testSelectedThemeIndexMissingKeyDefaultsToZero() {
+        // R47 观察项：integer(forKey:) 缺键返回 0 = 第一主题（既有语义）。
+        // R53 契约化：钉住「缺键 → 0 → 首主题有效」，防未来改成 object(as:)? ?? -1
+        // 或 ?? 1 引入漂移。
+        UserDefaultsStore.current.removeObject(forKey: UDKey.themeSelectedIndex)
+
+        XCTAssertEqual(AppSettings.selectedThemeIndex, 0,
+                       "主题索引缺键默认 0（integer(forKey:) 语义 = 第一主题）")
+
+        // 反向断言：显式写 1（第二主题）后读回必须 1，证明 0 是「缺键默认」而非「值恒 0」。
+        AppSettings.selectedThemeIndex = 1
+        XCTAssertEqual(AppSettings.selectedThemeIndex, 1,
+                       "显式写 1 后读回 1（缺键默认 0 与显式值 1 可区分）")
+        AppSettings.selectedThemeIndex = 0
     }
 
     // MARK: - 导入契约（import 恢复前缀键且类型保真）

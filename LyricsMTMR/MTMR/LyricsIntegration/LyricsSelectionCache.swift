@@ -29,7 +29,7 @@ final class LyricsSelectionCache: ObservableObject {
 
     @Published private(set) var associations: [LyricsAssociation] = []
 
-    private let defaultsKey = "com.lyricsmtmr.lyricsSelectionCache"
+    private let defaultsKey = UDKey.lyricsSelectionCache
     private let defaults = UserDefaults.standard
 
     private init() {

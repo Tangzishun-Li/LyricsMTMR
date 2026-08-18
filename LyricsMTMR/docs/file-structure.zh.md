@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~52 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~53 轮回归/核验/评估/核对/修复/验证报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -303,6 +303,10 @@ mindmap
 ├── logs/第52轮/清理报告_第52轮_round51遗留清理.md          # 第 52 轮子任务 C 仓库卫生报告（round-51 父卡+子卡遗留清理，r51 全清 4 worktree+4 分支，r52/review；前置确认 4 卡 board 均 done 收口（父收口提交 e1527c5 实证在 main）+ps 无占用+4 分支 rev-list 0 ahead/main 祖先；worktree 为标准 linked（非 R50 孤儿目录场景）用 git worktree remove 删除；删除后清点如实登记差异（.worktrees 10 项=round52-* 4 项+主仓库+歌词功能面并行线 5 项（t_a30596ce blocked/t_33d5c9b0 running/t_4b465485 ready/t_a4373a2a todo/t_acd02062 todo）保留未触碰/本地分支 10 条=main+r52/*4+父分支+并行线 5/远端仅 main）；主仓库实测在 main@e1527c5 与远端同步无偏差登记）
 ├── logs/歌词功能面轮/审计报告_歌词功能面_四家源健壮性与缓存.md # 歌词功能面轮 A 卡审计报告（四家源健壮性审计与缓存补齐，t_33d5c9b0）
 ├── logs/歌词功能面轮/审计报告_歌词功能面_匹配翻译封面.md # 歌词功能面轮 B 卡审计报告（匹配体验+翻译现状+封面词图联动三合一审计，t_4b465485）
+├── 核对报告_第53轮_README更新日志补登v0.53.md # 第 53 轮子任务 B 核对报告（README 更新日志补登 v0.53，r53/changelog，commit 0043343）
+├── 核验报告_第53轮_维护机制健在与文档一致性.md                # 第 53 轮核验报告（维护·轻量轮，r53/review，commit f5732df；锚点 PASS 67/WARN 16/INFO 5/ERROR 0 连续第三十三轮 0 ERROR）
+├── 清理报告_第53轮_round52遗留清理.md                        # 第 53 轮子任务 C 仓库卫生报告（round-52 清理 0 残留确认，r53/review）
+├── 验证报告_第53轮_数据持久化观察项双项治理.md              # 第 53 轮子任务 A 验证报告（R47 观察项双项治理——数据与存储维度：lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化，549 用例 0 失败，r53/storage-isolation，commit 1354d41）
 └── .gitignore / .gitattributes / README.md
 ```
 
