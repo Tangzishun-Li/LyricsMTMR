@@ -2084,3 +2084,31 @@
   - README.md 共 3 处改动：① 更新日志区置顶新增「v0.55（当前开发版本）」条目（承接段注明第 54 轮变更摘要 + 第 55 轮 A 卡方向「桌面歌词独立配色开关」进行中）+「工程与稳定性」3 项——构建性能分析与编译优化（代码质量维度：clean build 48s / incremental 7.6~22.4s / SwiftUI 类型检查 56.3s 瓶颈定位 / 编译选项已最优 / archive/ 死代码 1,246 行可清理；561 用例 0 失败；锚点第 35 轮 0 ERROR；Info.plist 0.54/479），全部来自第 54 轮 iteration-log 实证记录（父收口段 + A 卡 t_bd3381c7 + B 卡 t_da54f553 + C 卡 t_4028eb5e 子任务记录）+ A 卡报告《构建性能分析报告_第54轮_t_bd3381c7.md》（同库实证），未虚构）；② v0.54 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.55=第 54 轮（v0.54=第 53 轮后追加）。
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未改 Info.plist 版本号；未触碰隐私清单/SecretsManager/Keychain 决策门；
   - 交付：核对报告《核对报告_第55轮_README更新日志补登v0.55.md》（本分支根目录，含版本决策与 0.55/480 建议/12 项逐项核对表（grep 实证 文件:行号）/锚点核对（anchor-patrol 机器断言实证）/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加，标注「第 55 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~54 轮→第 7~55 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交。
+
+## 第 56 轮（功能/优化迭代第 44 轮）
+
+### 父任务
+- 目标：功能/优化迭代第 44 轮——承接第 55 轮收口（main=c3f1592 已 push origin，第 55 轮 561 用例基线，基线口径 561）。**第 56 轮分解前触发全量回归**（隔代规则：第 55 轮不触发，第 56 轮触发，届时基线口径 561+）。环境事项：main=c3f1592；3 子卡 worktree 预建于 main@c3f1592 同点（dir 类型 + 预建 worktree 方案）。
+- 分解记录（第 56 轮，功能/优化迭代第 44 轮）：**第 56 轮分解前触发全量回归**（隔代规则：第 55 轮不触发、第 56 轮触发，基线口径 561）——独立全量回归待 A 卡执行时实证；**维度轮转选题**：R55 UI维度后，优先选隔最久维度——后端服务(R46后10轮)最长但候选登记段无未做后端项（轮询链异步化已在R46闭环「不值得全量异步化」+ RssUnread 并行扇出试点已落地，grep取证确认)、数据存储(R47后9轮)次长但候选已闭环（R43 Keychain 翻转决定不翻转+R53 已闭环 R47 登记 2 项）、安全合规(R50后6轮)有可做项（R43 登记候选「分发合规空白面：未开 App Sandbox / 未公证」，grep 取证 MTMR.entitlements:5 `com.apple.security.app-sandbox` = false 确认未做）；自主选题：**App Sandbox 启用与临时例外配置**（安全合规维度，R43 登记候选，grep 取证确认未做——entitlements sandbox=false + 无 entitlements 编译宏/Swift 条件分支）；3 子卡拆分（A t_pending_sandbox App Sandbox 启用与临时例外配置·安全合规维度（R43登记候选，基线561）/ B t_pending_changelog README 更新日志补登 v0.56+版本决策建议 0.56/481 / C t_pending_review 锚点巡检复跑+round-55 清理+遗留盘点（轻量轮，年度维护核验不做——R55 已做第 45 次，下次在 R60 第 46 次））；子卡编排理由：A=主线安全合规维度 App Sandbox 启用（R43 登记候选，grep取证「还没做」）、B=文档轮常规补登、C=轻量维护轮（round-55 清理+锚点巡检+遗留盘点）。
+
+## 第 56 轮（功能/优化迭代第 44 轮，接第 55 轮收口）
+
+### 子任务记录
+
+- **t_1cc6181c 第56轮 C卡（维护·轻量轮）：锚点巡检复跑 + round-55 清理 + 遗留盘点（default，分支 r56/review，第 56 轮 / 子任务 C）**：
+  - 锚点巡检复跑：python3 scripts/anchor-patrol.py **PASS 67 / WARN 16 / INFO 5 / ERROR 0** 退出码 0（REGISTRY 190 行，WARN 16 项全部为记录性位移零新漂移，INFO 5 项=3 预期消失+2 记录性证据）；连续**第三十七轮** 0 ERROR。
+  - round-55 清理：前置确认 4 卡（t_714b664a/t_f8a97579/t_1dbc7e88/t_da13b114）board 均 done + ps 无占用 → 删除 round55-A/B/C/parent 4 worktree（`git worktree remove --force`）+ 4 branch（`git update-ref -d`，4 分支均已合入 main）→ 清理后 `git worktree list` 9 项（主仓库 + round56-* 4 项 + t_* 5 项）零 r55 残留 + `git branch --list 'r55/*'` 空 + `git branch --list 'lyricsmtmr/t_round55*'` 空。
+  - 遗留盘点（第 56 轮收口口径逐项确认）：issue #1 已闭环（延续闭环无新变化）/ ITER-15 决策门 4 问延续（iteration-plan.md:238 维持可选项）/ ITER-14 延续（R55 第 45 次全量核验完成，下次在 R60 第 46 次）/ R51 A 卡 2 项延续（真机观感冒烟延续 + 无重置位置 UI 延续；独立配色开关 R55 闭环）/ R50 A 卡 3 项挂账延续（PrivacyInfo 真机生效/Coinbase 网络超时/剪贴板权限提示实机观察）/ 内存修复 3 项真机冒烟延续 / 各轮挂账延续 / archive/ 死代码 1246 行延续（11 文件，用户确认后再做）；本轮新增发现 **0 项**。
+  - 交付：核验报告《核验报告_第56轮_维护机制健在与文档一致性.md》+ 清理报告《清理报告_第56轮_round55遗留清理.md》（本分支根目录，收口时父任务 git mv 进 logs/第56轮/）+ 本记录（iteration-log 末尾追加，标注「第 56 轮 / 子任务 C」）+ file-structure.zh.md 登记（mindmap 第 7~55 轮→第 7~56 轮 + R56 报告行 2 行，无重复行）；未改源码/Info.plist；未 push 远端；未开新分支/新子任务/无 parents 依赖；完成自查 git status 干净 + commit 已提交。
+
+## 第 56 轮（文档轮，功能/优化迭代第 44 轮待分解）
+
+### 子任务记录
+
+- **t_0de94b8c 第56轮 B卡（文档）：README 更新日志补登 v0.56 + 现状核对 + 版本决策建议 0.56/481（default，分支 r56/changelog，第 56 轮 / 子任务 B）**：
+  - 版本决策：Info.plist 核对（LyricsMTMR/MTMR/Info.plist:21-24 CFBundleShortVersionString=0.55（:22）/ CFBundleVersion=480（:24），第 55 轮收口由 0.54/479 升入随 main=8850c75 落地）+ git tag 核对（仅 v1.0.0/v0.8 两枚，第 56 轮无新 tag 未发版）→ **新增「v0.56（当前开发版本）」条目**（任务既定口径；v0.55 条目降为历史段并移除「当前开发版本」标注，语义移交 v0.56；版本史说明段补记 v0.56=第 55 轮）；日志最高条目与 Info.plist 0.55/480 对齐（0.56/481 待收口），**建议**父任务收口时同步升 Info.plist 至 0.56（CFBundleShortVersionString 0.55→0.56、CFBundleVersion 480→481，第 24/28/30~55 轮先例），本卡仅建议不擅改；
+  - 现状核对（grep 实证 12 项）：✅ 114 种 widget（LyricsMTMR/docs/ITEMS_REFERENCE.md 口径 114，README:11/:25/:98 三处一致）/ ✅ 15 套主题（examples/presets theme1~15.json 实存 15 个）/ ✅ 22 个设置 Tab（UnifiedSettingsWindowController.swift:346 SettingsTab enum 7+4+4+7=22，Tab 名与 README:41 逐字吻合）/ ✅ holidayCountdown（README:28 在位 + HolidayCountdown.swift 在位）/ ✅ 应用专属主题（README:37/:103，issue #40，appThemeRules/app-themes 机制在位）/ ✅ MediaRemote 机制与风险段（README:50/:55/:57-66 在位）/ ✅ 剪贴板快捷查看（README:515 TODO 区勾选项在位；BarItemFactory.swift:212 case let .clipboardHistory + ItemsParsing.swift:358 case clipboardHistory——两 Swift 行号与第 31~55 轮修正后一致，连续第二十四轮零新漂移）/ ✅ 版本史说明段（README:152 考古结论在位，本轮补记 v0.56=第 55 轮）/ ✅ 第 55 轮能力均为内部变更（桌面歌词独立配色开关为用户功能增强非新增 widget；维护轮为内部变更——均不入功能列表（第 19 轮既定原则））/ ✅ 第 55 轮代码地标在位（DesktopLyricsColorContractTests.swift 8 个 test func 实测 + AppSettings.swift 3 新键 + DesktopLyricsWindowController.swift resolveDesktopTextColor/ProgressColor + Info.plist 0.55/480）/ ✅ 更新日志 v0.55 条目在位（README:167，本轮仅移除「（当前开发版本）」标注）/ ✅ 版本号一致性 + git tag 体系（Info.plist=0.55/480，日志最高 v0.56 对齐，0.56/481 待收口；git tag 两枚无新增）；
+  - 锚点核对：python3 scripts/anchor-patrol.py 复跑 **PASS 67 / WARN 16 / INFO 5 / ERROR 0**（REGISTRY 190 行，全部 live 锚点在位；WARN 16 项均为记录性位移，零新漂移；INFO 5 项：3 项预期消失 + 2 项记录性证据）
+  - README.md 共 3 处改动：① 更新日志区置顶新增「v0.56（当前开发版本）」条目（承接段注明第 55 轮变更摘要 + 第 56 轮 A 卡方向待定）+「新增」1 项——桌面歌词独立配色开关（UI 维度 R51 A 卡遗留候选：AppSettings 3 键+hex 编解码/resolveDesktopTextColor/ProgressColor+applyColors()/LyricsTabView Toggle+Swatches/DesktopLyricsColorContractTests 8 用例）+「工程与稳定性」2 项——锚点巡检收口复跑接入保持（连续第三十六轮）、工程版本号对齐（Info.plist 0.54/479 → 0.55/480），全部来自第 55 轮 iteration-log 实证记录（父收口段 + A 卡 t_f8a97579 + B 卡 t_1dbc7e88 + C 卡 t_da13b114 子任务记录）+ 验证报告《验证报告_第55轮_桌面歌词独立配色.md》（同库实证），未虚构）；② v0.55 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.56=第 55 轮（v0.55=第 54 轮 后追加）。
+  - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归；未 push 远端（父任务收口统一推送）；未改 Info.plist 版本号；
+  - 交付：核对报告《核对报告_第56轮_README更新日志补登v0.56.md》（本分支根目录，含版本决策与 0.56/481 建议/12 项逐项核对表/条目→轮次→iteration-log 出处对照表/锚点核对/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加，标注「第 56 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~55 轮→第 7~56 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交。
