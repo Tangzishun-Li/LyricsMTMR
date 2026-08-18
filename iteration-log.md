@@ -2023,3 +2023,15 @@
 ### 父任务
 - 目标：功能/优化迭代第 42 轮——承接第 53 轮收口（main=09f0900 已 push origin，第 53 轮 549 用例 0 失败，基线口径 549=533+13+3）。**第 54 轮分解前触发全量回归**（隔代规则：第 52 轮触发 533→R53 不触发→R54 触发，届时基线口径 549）。环境事项：main=09f0900；3 子卡 worktree 预建于 main@09f0900 同点（dir 类型 + 预建 worktree 方案）。
 - （分解记录与收口记录由父任务收口时重组补全）
+
+### 子任务记录
+
+- **t_bd3381c7 第54轮 A卡（实现/优化）：构建性能分析与编译优化·代码质量维度（自主选题，基线 549）（default，分支 r54/build-perf，第 54 轮 / 子任务 A）**：
+  - 构建时间分析：clean build 48s（arm64 Debug），incremental 叶文件 7.6s，incremental 核心文件 22.4s；SwiftUI 类型检查总耗时 56.3s（54,080 表达式），并行化后墙钟 ~42s
+  - Top 5 慢文件（类型检查）：KeyBindingTabView 3.4s / RibbonEditorView 3.2s / EditorSchema 2.9s / UnifiedSettingsWindowController 1.9s / StatusBarMenuView 1.3s
+  - 最慢单表达式：BindingInspectorPanel._ body getter 1394ms / EditorSchema.items static let 1308+1287ms / RibbonEditorView._ body getter 983ms
+  - 编译选项检查：Debug `-Onone`+incremental（隐式）+ENABLE_TESTABILITY=YES / Release `-O`+wholemodule / DEAD_CODE_STRIPPING=YES — 全部已最优，无需修改
+  - 增量构建效率：行为正确，不存在不必要的全量重编；核心文件变更触发模块重发射（Swift 语言固有限制）
+  - Dead Code 评估：archive/ 目录存在 11 文件 1,246 行死代码（dead-functions 5 + duplicate-LyricsRendering 6），不在 pbxproj 中不参与编译，可安全清理
+  - 结论：项目构建配置已最优，主要耗时在 SwiftUI 类型检查（框架固有特性），archive/ 死代码可安全清理
+  - 交付：构建性能分析报告（分支根目录）+ iteration-log 追加 + file-structure.zh.md 登记；未 push 远端；未改 Info.plist 版本号；完成自查 git status 干净 + commit 已提交

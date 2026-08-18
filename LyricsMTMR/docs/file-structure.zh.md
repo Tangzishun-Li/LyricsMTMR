@@ -31,7 +31,7 @@ mindmap
       backup 优化前调研文档归档
       iteration-log 迭代轨迹
       根目录 docs 自迭代规划/维护说明
-      第 7~53 轮回归/核验/评估/核对/修复/验证报告（仓库根）
+      第 7~54 轮回归/核验/评估/核对/修复/验证/分析报告（仓库根）
     示例与工具
       examples/presets 主题预设
       tools/mr-dump 调试
@@ -307,6 +307,7 @@ mindmap
 ├── 核验报告_第53轮_维护机制健在与文档一致性.md                # 第 53 轮核验报告（维护·轻量轮，r53/review，commit f5732df；锚点 PASS 67/WARN 16/INFO 5/ERROR 0 连续第三十三轮 0 ERROR）
 ├── 清理报告_第53轮_round52遗留清理.md                        # 第 53 轮子任务 C 仓库卫生报告（round-52 清理 0 残留确认，r53/review）
 ├── 验证报告_第53轮_数据持久化观察项双项治理.md              # 第 53 轮子任务 A 验证报告（R47 观察项双项治理——数据与存储维度：lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化，549 用例 0 失败，r53/storage-isolation，commit 1354d41）
+├── 构建性能分析报告_第54轮_t_bd3381c7.md                    # 第 54 轮子任务 A 报告（构建性能分析与编译优化·代码质量维度：clean build 48s/incremental 7.6~22.4s/SwiftUI 类型检查 56.3s 54080 exprs/编译选项已最优/archive/ 死代码 1246 行可清理）
 └── .gitignore / .gitattributes / README.md
 ```
 
