@@ -2034,3 +2034,16 @@
   - 遗留盘点（round-53 收口口径逐项确认）：issue #1 已闭环（延续闭环无新变化）/ ITER-15 决策门 4 问延续 / ITER-14 延续（本轮轻量轮不重核，下一轮全量在第 55 轮）/ R51 A 卡 3 项延续（真机观感冒烟/独立配色开关/无重置位置 UI）/ R50 A 卡 3 项挂账延续 / 各轮挂账延续；本轮新增发现 **0 项**（与预告一致）。
   - GitHub 状态实测：issue #1 CLOSED / #40 CLOSED / open PR 0 / origin/main = 本地 main 同步。
   - 交付：核验报告 + 清理报告（本分支根目录，收口时父任务 git mv 进 logs/第54轮/）+ 本记录（iteration-log 追加，标注第 54 轮 / 子任务 C）+ file-structure.zh.md 登记修复（R53 报告路径修正 + 本卡报告行登记）；未 push 远端；未开新分支/新子任务/无 parents 依赖；未改源码/Info.plist；完成自查 git status 干净 + commit 已提交。
+- （分解记录与收口记录由父任务收口时重组补全）
+
+### 子任务记录
+
+- **t_bd3381c7 第54轮 A卡（实现/优化）：构建性能分析与编译优化·代码质量维度（自主选题，基线 549）（default，分支 r54/build-perf，第 54 轮 / 子任务 A）**：
+  - 构建时间分析：clean build 48s（arm64 Debug），incremental 叶文件 7.6s，incremental 核心文件 22.4s；SwiftUI 类型检查总耗时 56.3s（54,080 表达式），并行化后墙钟 ~42s
+  - Top 5 慢文件（类型检查）：KeyBindingTabView 3.4s / RibbonEditorView 3.2s / EditorSchema 2.9s / UnifiedSettingsWindowController 1.9s / StatusBarMenuView 1.3s
+  - 最慢单表达式：BindingInspectorPanel._ body getter 1394ms / EditorSchema.items static let 1308+1287ms / RibbonEditorView._ body getter 983ms
+  - 编译选项检查：Debug `-Onone`+incremental（隐式）+ENABLE_TESTABILITY=YES / Release `-O`+wholemodule / DEAD_CODE_STRIPPING=YES — 全部已最优，无需修改
+  - 增量构建效率：行为正确，不存在不必要的全量重编；核心文件变更触发模块重发射（Swift 语言固有限制）
+  - Dead Code 评估：archive/ 目录存在 11 文件 1,246 行死代码（dead-functions 5 + duplicate-LyricsRendering 6），不在 pbxproj 中不参与编译，可安全清理
+  - 结论：项目构建配置已最优，主要耗时在 SwiftUI 类型检查（框架固有特性），archive/ 死代码可安全清理
+  - 交付：构建性能分析报告（分支根目录）+ iteration-log 追加 + file-structure.zh.md 登记；未 push 远端；未改 Info.plist 版本号；完成自查 git status 干净 + commit 已提交
