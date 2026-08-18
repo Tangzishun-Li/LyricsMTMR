@@ -354,10 +354,11 @@ final class DesktopLyricsWindowController: NSObject {
 
     private func applyTypography() {
         let font = desktopFont()
-        let textColor = config.textColor
+        let textColor = resolveDesktopTextColor()
+        let progressColor = resolveDesktopProgressColor()
         currentLabel?.font = font
         currentLabel?.textColor = textColor
-        currentLabel?.progressColor = config.progressColor
+        currentLabel?.progressColor = progressColor
         prevLabel?.font = font
         prevLabel?.textColor = textColor.withAlphaComponent(Metrics.contextAlpha)
         nextLabel?.font = font
@@ -366,8 +367,50 @@ final class DesktopLyricsWindowController: NSObject {
         placeholderLabel?.textColor = textColor.withAlphaComponent(Metrics.placeholderAlpha)
     }
 
+    // MARK: - 桌面歌词独立配色（round 55 A）
+
+    /// 设置页切换独立配色开关 / 更改颜色时调用：立即刷新当前显示。
+    func applyColors() {
+        guard visibility.isVisible else { return }
+        applyTypography()
+        // 卡拉 OK 动画颜色同步（若当前行有动画，需重建以使用新进度颜色）。
+        if let current = currentLabel, let lineIndex = lastAnimatedLineIndex,
+           let lyrics = engine.currentLyrics, lineIndex < lyrics.lines.count {
+            let line = lyrics.lines[lineIndex]
+            if !line.timetags.isEmpty {
+                let progress = LyricsKaraokeMapper.progress(
+                    timetags: line.timetags,
+                    linePosition: line.position,
+                    timeDelay: lyrics.adjustedTimeDelay,
+                    playbackTime: engine.trackInfo.playbackTime
+                )
+                let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
+                current.setProgressAnimation(color: resolveDesktopProgressColor(), progress: progress, style: style)
+            }
+        }
+    }
+
+    /// 解析桌面歌词文字颜色：独立配色开启时从 AppSettings hex 读取，否则回退全局。
+    private func resolveDesktopTextColor() -> NSColor {
+        if AppSettings.desktopLyricsUseIndependentColors,
+           let color = AppSettings.desktopLyricsColor(from: AppSettings.desktopLyricsTextColorHex) {
+            return color
+        }
+        return config.textColor
+    }
+
+    /// 解析桌面歌词进度颜色：独立配色开启时从 AppSettings hex 读取，否则回退全局。
+    private func resolveDesktopProgressColor() -> NSColor {
+        if AppSettings.desktopLyricsUseIndependentColors,
+           let color = AppSettings.desktopLyricsColor(from: AppSettings.desktopLyricsProgressColorHex) {
+            return color
+        }
+        return config.progressColor
+    }
+
     /// 桌面歌词窗口字号独立于 Touch Bar（com.lyricsmtmr.desktopLyrics.fontSize），
     /// 字体族/颜色复用 LyricsItemConfig（与 Touch Bar 歌词同源）。
+    /// round 55 A：开启独立配色时，文字/进度颜色从 AppSettings 独立键读取。
     private func desktopFont() -> NSFont {
         let size = CGFloat(AppSettings.desktopLyricsFontSize)
         if config.fontName == "System" {
@@ -554,7 +597,7 @@ final class DesktopLyricsWindowController: NSObject {
             )
             if !progress.isEmpty {
                 let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
-                currentLabel?.setProgressAnimation(color: config.progressColor, progress: progress, style: style)
+                currentLabel?.setProgressAnimation(color: resolveDesktopProgressColor(), progress: progress, style: style)
             } else {
                 currentLabel?.removeProgressAnimation()
             }

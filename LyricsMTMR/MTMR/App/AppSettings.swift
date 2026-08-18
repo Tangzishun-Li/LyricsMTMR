@@ -192,6 +192,41 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.desktopLyrics.marqueeEnabled", defaultValue: true)
     static var desktopLyricsMarqueeEnabled: Bool
 
+    /// 桌面歌词独立配色开关（round 55 A）：开启后桌面歌词窗口使用独立文字/进度颜色，
+    /// 关闭时回退到 LyricsItemConfig.shared 的全局配色。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.useIndependentColors", defaultValue: false)
+    static var desktopLyricsUseIndependentColors: Bool
+
+    /// 桌面歌词独立文字颜色（hex "#RRGGBB"），nil/空串时 fallback 到 LyricsItemConfig.shared.textColor。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.textColor", defaultValue: "")
+    static var desktopLyricsTextColorHex: String
+
+    /// 桌面歌词独立进度颜色（hex "#RRGGBB"），nil/空串时 fallback 到 LyricsItemConfig.shared.progressColor。
+    @UserDefault(key: "com.lyricsmtmr.desktopLyrics.progressColor", defaultValue: "")
+    static var desktopLyricsProgressColorHex: String
+
+    // MARK: - Desktop Lyrics 独立配色辅助（round 55 A）
+
+    /// 从 UserDefaults hex 字符串解析 NSColor，空串/非法格式返回 nil。
+    static func desktopLyricsColor(from hex: String) -> NSColor? {
+        let cleaned = hex.trimmingCharacters(in: .whitespaces)
+        guard cleaned.count == 7, cleaned.hasPrefix("#") else { return nil }
+        let r = UInt8(cleaned.dropFirst().prefix(2), radix: 16)
+        let g = UInt8(cleaned.dropFirst(3).prefix(2), radix: 16)
+        let b = UInt8(cleaned.dropFirst(5).prefix(2), radix: 16)
+        guard let r, let g, let b else { return nil }
+        return NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
+    }
+
+    /// 将 NSColor 序列化为 "#RRGGBB" hex 字符串。
+    static func hexString(from color: NSColor) -> String {
+        let c = color.usingColorSpace(.sRGB) ?? color
+        let r = Int(round(c.redComponent * 255))
+        let g = Int(round(c.greenComponent * 255))
+        let b = Int(round(c.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", r, g, b)
+    }
+
     @UserDefault(key: "com.lyricsmtmr.settings.freezeOnAppSwitch", defaultValue: false)
     static var freezeOnAppSwitch: Bool
 
