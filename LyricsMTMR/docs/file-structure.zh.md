@@ -310,15 +310,7 @@ mindmap
 ├── logs/第53轮/验证报告_第53轮_数据持久化观察项双项治理.md              # 第 53 轮子任务 A 验证报告（R47 观察项双项治理——数据与存储维度：lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化，549 用例 0 失败，r53/storage-isolation，commit 1354d41）
 ├── 核验报告_第54轮_维护机制健在与文档一致性.md                           # 第 54 轮核验报告（维护·轻量轮，r54/review；锚点巡检复跑 PASS 65/WARN 18/INFO 5/ERROR 0 退出码 0 连续第三十四轮 0 ERROR；REGISTRY 184 行；file-structure 修复 R53 报告路径；round-53 清理 4 worktree + 4 分支；遗留盘点 0 新发现）
 ├── 清理报告_第54轮_round53遗留清理.md                                  # 第 54 轮子任务 C 仓库卫生报告（round-53 遗留清理 4 worktree + 4 分支，r54/review；合并确认 + worktree remove + update-ref 删除；清理后 9 项 worktree / 零 r53 残留）
-├── 核对报告_第53轮_README更新日志补登v0.53.md # 第 53 轮子任务 B 核对报告（README 更新日志补登 v0.53，r53/changelog，commit 0043343）
-├── 核验报告_第53轮_维护机制健在与文档一致性.md                # 第 53 轮核验报告（维护·轻量轮，r53/review，commit f5732df；锚点 PASS 67/WARN 16/INFO 5/ERROR 0 连续第三十三轮 0 ERROR）
-├── 清理报告_第53轮_round52遗留清理.md                        # 第 53 轮子任务 C 仓库卫生报告（round-52 清理 0 残留确认，r53/review）
-├── 验证报告_第53轮_数据持久化观察项双项治理.md              # 第 53 轮子任务 A 验证报告（R47 观察项双项治理——数据与存储维度：lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化，549 用例 0 失败，r53/storage-isolation，commit 1354d41）
 ├── 构建性能分析报告_第54轮_t_bd3381c7.md                    # 第 54 轮子任务 A 报告（构建性能分析与编译优化·代码质量维度：clean build 48s/incremental 7.6~22.4s/SwiftUI 类型检查 56.3s 54080 exprs/编译选项已最优/archive/ 死代码 1246 行可清理）
-├── logs/第53轮/验证报告_第53轮_数据持久化观察项双项治理.md # 第 53 轮子任务 A 验证报告（R47 观察项双项治理——数据与存储维度：lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化，549 用例 0 失败，r53/storage-isolation，commit 1354d41）
-├── logs/第53轮/核对报告_第53轮_README更新日志补登v0.53.md # 第 53 轮子任务 B 核对报告（README 更新日志补登 v0.53，r53/changelog，commit 0043343）
-├── logs/第53轮/核验报告_第53轮_维护机制健在与文档一致性.md # 第 53 轮核验报告（维护·轻量轮，r53/review，commit f5732df；锚点 PASS 67/WARN 16/INFO 5/ERROR 0 连续第三十三轮 0 ERROR）
-├── logs/第53轮/清理报告_第53轮_round52遗留清理.md # 第 53 轮子任务 C 仓库卫生报告（round-52 清理 0 残留确认，r53/review）
 └── .gitignore / .gitattributes / README.md
 ```
 
