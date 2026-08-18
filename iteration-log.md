@@ -1978,3 +1978,12 @@
 ### 父任务
 - 目标：功能/优化迭代第 41 轮——承接第 52 轮收口（main=29c7400 已 push origin，第 52 轮整体实证 109 用例 0 失败，全量回归 533 已在本轮分解前实证）后的主线分解（A/B/C 方向由父任务分解时自定）。**分解前不触发全量回归**（隔代规则：第 52 轮已触发并实证 533，第 53 轮不触发，届时基线口径 533+13=546）。环境事项：main=29c7400 未被并行推进（git fetch origin 核对一致）；3 子卡 worktree 预建于 main@29c7400 同点（dir 类型 + 预建 worktree 方案）。
 - （分解记录与收口记录由父任务收口时重组补全）
+
+### 子任务记录
+
+- **t_1985a8dd 第53轮 C卡（维护·轻量轮）：锚点巡检复跑（连续第三十三轮 0 ERROR）+ round-52 清理（4 worktree + 4 分支）+ 遗留盘点（review-agent，分支 r53/review，第 53 轮 / 子任务 C）**：
+  - 锚点巡检复跑：python3 scripts/anchor-patrol.py **PASS 67 / WARN 16 / INFO 5 / ERROR 0 退出码 0**（与第 52 轮收口基线逐项一致零新漂移，第 29 轮落地后连续**第三十三轮** 0 ERROR 保持；REGISTRY **182 行** = R52 收口口径 180 行 + 本卡登记 2 份报告（核验报告 + 清理报告，实测去重 182 个文件）；**年度维护全量核验按轻量轮规则不做**（仅第 5 的倍数轮做全量，R50 已做第 44 次，下一轮全量核验在第 55 轮——ITER-14 第 44 次核验健在状态延续，本轮不重核））。
+  - round-52 遗留清理（父卡 lyricsmtmr/t_round52-52-lyricsmtmr-40-51 + 3 子卡 r52/marquee / r52/changelog / r52/review）：**已在 R52 C 卡完成**——第 52 轮子任务 C（t_5d1aec1a）已执行 round-51 遗留清理并如实登记，round-52 的 4 worktree + 4 分支均已在 R52 C 卡收口前清理完毕。本轮复核确认：git worktree list 10 项无 round52-* 残留（.worktrees = round53-* 4 项 + 主仓库 + 歌词功能面并行线 5 项）；git branch | grep r52 为空——r52/* 4 分支已全部删除；远端仅 main；主仓库实测在 main@29c7400 与 origin/main 同步 0/0。
+  - 遗留盘点（round-52 收口口径逐项确认）：issue #1 已闭环（2026-08-17 维护者关闭 COMPLETED，本轮 gh issue view 1 实测仍 CLOSED，延续闭环无新变化）/ ITER-15 决策门 4 问延续（iteration-plan.md:238 维持可选项 + :393 结论复核一致）/ ITER-14 延续（:7 唯一未勾选 + StockBarItem.swift:409 引用在位，本轮轻量轮不重核，下一轮全量在第 55 轮）/ R51 A 卡 4 项延续（长行截断无 marquee 已闭环（R52 A 卡 t_44faac65）/真机观感冒烟延续/独立配色开关延续/无重置位置 UI 延续）/ R50 A 卡 3 项挂账延续（真机验证 PrivacyInfo 生效/Coinbase 网络超时/剪贴板权限提示实机观察）/ 各轮挂账延续（真机冒烟系列含新增 marquee 真机观感、GPS 灯观感、t_aeb0b769 建议、R47 观察项等——与 A 卡双项治理形成对照，C 卡仅盘点不治理）；本轮新增发现 **0 项**（与预告一致）；另见歌词功能面并行线 5 卡状态更新（t_33d5c9b0 done / t_4b465485 done / t_a4373a2a done（INTEG 已收口）/ t_a30596ce running / t_acd02062 todo——3 done / 1 running / 1 todo，属并行任务正常进展，保留未触碰）。
+  - GitHub 状态实测：issue #1 CLOSED（延续闭环）/ #40 CLOSED / open PR 0 / origin/main = 本地 main = 29c7400 同步 / 远端仅 main。
+  - 交付：核验报告 + 清理报告（本分支根目录，收口时父任务 git mv 进 logs/第53轮/）+ 本记录（iteration-log 追加，标注第 53 轮 / 子任务 C）+ file-structure.zh.md 登记（mindmap 第 7~52 轮到第 7~53 轮 + 报告行 2 行根路径，无重复行）；未 push 远端；未开新分支/新子任务/无 parents 依赖；未改源码/Info.plist；完成自查 git status 干净 + commit 已提交。
