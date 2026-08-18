@@ -16,6 +16,20 @@ enum QQMusicProvider {
         return URLSession(configuration: config)
     }()
 
+    // MARK: - Lyrics LRU Cache (R52-A)
+
+    /// Bounded in-memory cache for parsed lyrics, keyed by the song `mid`
+    /// (the adapter's sourceId — the song's unique id).
+    /// `internal`（非 private）供 LyricsProviderCacheTests 预置/核对缓存
+    /// 内容（R52-A，@testable import 可见）。
+    static let lyricsCache = LyricsLRUCache<String>(capacity: 32)
+
+    /// R52-A memory-pressure fallback: same semantics as
+    /// NetEaseProvider.clearLyricsCache (ITER-2) — drops every QQMusic entry.
+    static func clearLyricsCache() {
+        lyricsCache.clear()
+    }
+
     // MARK: - Search
 
     static func search(keyword: String, limit: Int = 10) async throws -> [QQMusicSong] {
@@ -76,6 +90,12 @@ enum QQMusicProvider {
     // MARK: - Fetch Lyrics
 
     static func fetchLyrics(songMid: String) async throws -> SimpleLyrics {
+        // R52-A: LRU cache hit — skip the network round-trip + QRC decrypt/parse.
+        if let cached = lyricsCache.object(forKey: songMid) {
+            AppLog.lyrics("QQMusic.fetchLyrics: cache HIT songMid=\(songMid)")
+            return cached
+        }
+
         let formBody = "musicid=\(songMid)&version=15&miniversion=82&lrctype=4"
         guard let bodyData = formBody.data(using: .utf8) else {
             throw QQMusicError.parseFailed
@@ -105,6 +125,8 @@ enum QQMusicProvider {
             throw QQMusicError.noLyrics
         }
 
+        // R52-A: store on success so a playback switch back hits the LRU.
+        lyricsCache.setObject(result, forKey: songMid)
         return result
     }
 

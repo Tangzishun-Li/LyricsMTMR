@@ -21,67 +21,22 @@ enum NetEaseProvider {
 
     private static let eapiKey = "e82ckenh8dichen8".data(using: .utf8)!
 
-    // MARK: - Lyrics LRU Cache (OPT-18)
+    // MARK: - Lyrics LRU Cache (OPT-18 → R52-A shared container)
 
-    /// Bounded in-memory cache for parsed lyrics, keyed by song ID.
+    /// R52-A: the LRU container now lives in LyricsLRUCache.swift as a shared,
+    /// generic, thread-safe `LyricsLRUCache<Key>` reused by all four providers
+    /// (NetEase/Kugou/Migu/QQMusic). This nested name is kept as a module-
+    /// qualified alias so `NetEaseProvider.LyricsLRUCache` — the path used by
+    /// NetEaseLRUCacheTests — still compiles unchanged; no logic change.
+    typealias LyricsLRUCache = LyricsMTMR.LyricsLRUCache<Int>
+
+    /// Bounded in-memory cache for parsed lyrics, keyed by NetEase song ID.
     /// Background: every song switch used to re-download + re-parse the
     /// YRC/KRC/LRC payload from NetEase (memory-rendering-audit: NetEaseProvider
     /// had no cache). Switching back to a recently played track now hits this
     /// LRU instead of the network. SimpleLyrics is immutable (all `let` props),
     /// so sharing instances across the engine / adapter is safe.
     private static let lyricsCache = LyricsLRUCache(capacity: 32)
-
-    /// Thread-safe LRU container. Only ever mutated inside the serial queue.
-    /// `internal` (was `private`) so MTMRTests can unit-test the LRU semantics
-    /// via `@testable import` (ITER-6); no logic change.
-    final class LyricsLRUCache {
-        private var entries: [Int: SimpleLyrics] = [:]
-        private var order: [Int] = [] // MRU first
-        private let capacity: Int
-        private let queue = DispatchQueue(label: "com.lyricsmtmr.netease.lyrics-cache")
-
-        init(capacity: Int) {
-            self.capacity = max(1, capacity)
-        }
-
-        func object(forKey key: Int) -> SimpleLyrics? {
-            queue.sync {
-                guard let value = entries[key] else { return nil }
-                // Promote to MRU.
-                if let idx = order.firstIndex(of: key) {
-                    order.remove(at: idx)
-                    order.insert(key, at: 0)
-                }
-                return value
-            }
-        }
-
-        func setObject(_ value: SimpleLyrics, forKey key: Int) {
-            queue.sync {
-                if entries[key] == nil {
-                    order.insert(key, at: 0)
-                    if order.count > capacity {
-                        let evicted = order.removeLast()
-                        entries[evicted] = nil
-                    }
-                }
-                entries[key] = value
-            }
-        }
-
-        var count: Int {
-            queue.sync { entries.count }
-        }
-
-        /// Drop every entry. Used by the memory-pressure fallback (ITER-2):
-        /// unlike the bounded eviction path, this frees all parsed lyrics at once.
-        func clear() {
-            queue.sync {
-                entries.removeAll(keepingCapacity: false)
-                order.removeAll(keepingCapacity: false)
-            }
-        }
-    }
 
     // MARK: - Memory Pressure (ITER-2)
 
