@@ -473,6 +473,16 @@ class LyricsEngine: NSObject, ObservableObject {
 
     private override init() {
         super.init()
+        // R52-B: manual match「使用此歌词」(LyricsMatchView) → apply the chosen
+        // candidate immediately. Registered here (not in start()) so the wiring
+        // is alive for the singleton's whole lifetime — before this the
+        // notification had no observer and the button was a no-op (audit P1).
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMatchSelection(_:)),
+            name: .lyricsMatchSelectionDidChange,
+            object: nil
+        )
     }
 
     deinit {
@@ -775,6 +785,41 @@ class LyricsEngine: NSObject, ObservableObject {
             clickAction = newAction
             scheduleLineCheck()
             updateKaraokeProgress()
+        }
+    }
+
+    // MARK: - Manual Match (R52-B)
+
+    /// LyricsMatchView「使用此歌词」→ 用用户选中的候选即时替换引擎歌词。
+    /// 语义与 searchLyricsViaMusic 的缓存命中路径（:920-941）一致：拉取候选、
+    /// 过滤、注入标题行、一并接入译文/罗马音，并复位 searchFailed。
+    /// 守卫 lastTrackTitle == trackInfo.title 防「点击瞬间切歌」的过期回包。
+    @objc private func handleMatchSelection(_ note: Notification) {
+        guard let candidate = note.object as? LyricsCandidate else { return }
+        guard !lastTrackTitle.isEmpty, lastTrackTitle == trackInfo.title else {
+            AppLog.lyrics("LyricsEngine: manual match dropped — track changed mid-selection")
+            return
+        }
+        guard let provider = LyricsProviderRegistry.shared.get(candidate.provider) else { return }
+
+        AppLog.lyrics("LyricsEngine: manual match → \(candidate.provider.displayName) #\(candidate.sourceId)")
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await provider.fetch(for: candidate)
+                await MainActor.run {
+                    guard self.lastTrackTitle == self.trackInfo.title else { return }
+                    let filtered = result.lyrics.filtered
+                    self.currentLyrics = self.injectTitleLineIfNeeded(filtered, title: candidate.title, artist: candidate.artist)
+                    self.translationLyrics = result.translationLyrics
+                    self.romajiLyrics = result.romajiLyrics
+                    self.searchFailed = false
+                    self.scheduleLineCheck()
+                    AppLog.lyrics("LyricsEngine: manual match applied — \(filtered.lines.count) lines")
+                }
+            } catch {
+                AppLog.lyrics("LyricsEngine: manual match fetch failed: \(error)")
+            }
         }
     }
 

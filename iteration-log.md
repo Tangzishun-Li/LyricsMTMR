@@ -1939,7 +1939,8 @@
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归（第 51 轮分解前不触发全量回归由父任务既定——隔代规则：第 50 轮已触发并实证 513，本卡纯文档不重复跑）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未建 cron/自触发；
   - 交付：核对报告《核对报告_第51轮_README更新日志补登v0.51.md》（本分支根目录，含版本决策与 0.51/476 建议/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/锚点核对（anchor-patrol 机器断言实证）/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加——父分支预建头 1f621af 在本卡 worktree 可见，「## 第 51 轮」+「### 父任务」预览行已在位，故仅补「### 子任务记录」小节头后追加本卡记录，标注「第 51 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~50 轮→第 7~51 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
 
-## 第 52 轮（歌词功能面轮 / 功能·优化迭代）
+
+## 第 52 轮（歌词功能面轮 / 功能·优化迭代第 40 轮）
 
 ### 子任务记录
 
@@ -1952,3 +1953,11 @@
   - 实证：xcodebuild -scheme MTMR -configuration Debug CODE_SIGNING_ALLOWED=NO **BUILD SUCCEEDED 零代码警告**（仅 appintentsmetadataprocessor 工具提示 ×1 豁免复认）；
   - 红线自检：桌面歌词窗口 marquee 未触碰 / 无前缀键零改动 / 隐私清单+SecretsManager+Keychain 未关涉 / Info.plist 版本号未改 / 不 push 不 merge 不建 cron；
   - 交付：审计报告《审计报告_歌词功能面_四家源健壮性与缓存.md》（本分支根目录，含逐源审计表（文件:行号证据）/缓存补齐方案表/改动清单/验证记录（三跑+build 实测）/红线自检/未虚构声明/风险点 4 项）+ 本记录（iteration-log 末尾追加——父分支未预建第 52 轮头，本卡自建「## 第 52 轮（歌词功能面轮）」+「### 子任务记录」小节，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~51 轮→第 7~52 轮 + 报告行 logs/第52轮/，无重复行）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未建 cron/自触发；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+- **t_4b465485 歌词功能面 B卡（审计/报告）：匹配体验 + 翻译现状 + 封面词图联动三合一审计 — 功能面零迭代补课（ui-agent，分支 lyricsmtmr/t_4b465485-b，第 52 轮 / 子任务 B）**：
+  - 从哪儿发现：任务 t_a30596ce 点名三块从未被审计的功能面（匹配/翻译/封面）；40+ 轮零迭代只碰性能，功能正确性无人验。grep 取证 + git 历史复核逐个实锤：①「使用此歌词」按钮 LyricsMatchView.swift:171-177 post .lyricsMatchSelectionDidChange 全仓 **0 个 addObserver**（全仓 grep 仅声明+post 2 处命中；git -S 仅初始提交 3c80afc 引入，从未有过监听者）→ 按钮纯空操作，用户手动选中的歌词永远无法即时生效，只能靠「📌 记忆」等下一次切歌命中缓存（LyricsEngine.swift:919-942 缓存路径）；② 网易翻译/罗马音 fetchTranslation/fetchRomaji（NetEaseProvider.swift:193/220）无 LRU（对照 fetchLyrics 有 :32 缓存）、NetEaseProviderAdapter.swift:44-46 每候选无条件并行多拉 2 个 eapi 请求；③ 封面失败路径 CoverCache.swift:57-64 返回 nil 无占位，引擎仅日志（LyricsEngine.swift:823/:1010），词图联动展示面唯一=LyricsTouchBarItem.artworkView（LyricsTouchBarItem.swift:46/:137-141/:160-167）；
+  - 为什么做：功能面 40+ 轮零迭代补课——三块核心产品面审计闭环；顺手修复 ≤1 处低成本真实缺陷（P1 通知断链，不触碰红线：marquee/无前缀键/隐私决策门/版本号均零改动）；
+  - 有什么用：报告《审计报告_歌词功能面_匹配翻译封面.md》逐块给出 现状事实（文件:行号证据表）+ 问题清单（P1×1/P2×5/P3×9/P4×3，按严重度）+ 修复建议（低成本优先 + 本轮可落标注）+ 不动项论证 ×8；移交后续轮 7 项可落地建议（匹配桶序统一 providerOrder/译文罗马音并入 LRU/按需拉译文/封面失败占位+冷却/MyMemory 限流文案/行截断/artworkView 增删 arrangedSubview）；
+  - 落地修复（≤1 处）：LyricsEngine.swift init() 注册 .lyricsMatchSelectionDidChange 观察者 + 新增 handleMatchSelection（候选 fetch→filtered+injectTitleLineIfNeeded→译文/罗马音接入→searchFailed 复位→scheduleLineCheck；守卫 lastTrackTitle==trackInfo.title 防切歌过期回包；与缓存命中路径 :919-942 语义逐字段同构）；新增 MTMRTests/LyricsMatchSelectionTests.swift 3 用例（经 Scripts/add_files.py Tests: 注册，C1FE/C1FF 确定性 UUID）；
+  - 测试实证：红→绿双跑——红态（修复前）仅核心用例 3 断言失败（currentLyrics/译文/searchFailed 均未生效）、负向 2 用例过；绿态（修复后）3/3 通过（核心 0.055s）同一断言零放宽；**全量 UnitTests 536 用例 0 失败**（基线 533 + 新增 3，107.4s TEST SUCCEEDED）；**全量 build BUILD SUCCEEDED** 零代码警告（仅 appintentsmetadataprocessor 工具提示豁免复认）；git status 干净后 commit 已提交（第 14 轮 B 卡漏提交教训）；
+  - 交付：审计报告《审计报告_歌词功能面_匹配翻译封面.md》（本分支根目录，含证据表/问题清单分级/修复建议/不动项论证/P1 修复详情与红绿实证/约束自检/未虚构声明）+ 本记录（iteration-log 末尾追加，标注「歌词功能面轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~51 轮→第 7~52 轮 + logs/第52轮/ 审计报告行，无重复行）；未 push 远端（INTEG t_a4373a2a 统一合并）；未开新子任务/无 parents 依赖；未建 cron/自触发；R47 观察项（lyricsSelectionCache 随 reset 清空）只登记不改语义，附 reset 内存残留复活事实登记（SettingsSync.swift:188-199 删键 vs LyricsSelectionCache 常驻内存 persist 全量写回 :107-111），建议后续轮 reset 同步清内存。
