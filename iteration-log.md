@@ -2017,3 +2017,9 @@
   - 实证：受影响套件+金丝雀（UserDefaultsContractTests 9/9 + ThemeStateMachineContractTests 19/19 + DesktopLyricsWindowTests 20/20 + DesktopLyricsMarqueeTests 13/13 + PausableTimerTests 44/44 + SecretsManagerContractTests 13/13 = 118 用例 0 失败）；全量 549 用例 0 失败实证（533 基线+13 R52 marquee+3 新增零偏差，101.2s）；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0（与 R52 收口基线一致，零新漂移）；
   - 遗留登记：R47 A 卡 3 项中 2 项闭环（lyricsSelectionCache 观察项+selectedThemeIndex 契约化），无前缀键 3 处保持不动延续；本轮新增挂账 0 项；
   - 交付：验证报告《验证报告_第53轮_数据持久化观察项双项治理.md》（本分支根目录，收口时父任务 git mv 进 logs/第53轮/）+ 本记录（iteration-log 末尾追加，标注「第 53 轮 / 子任务 A」）+ file-structure.zh.md 登记（mindmap 第 7~52 轮→第 7~53 轮 + 报告行 1 行，无重复行）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未改无前缀键行为（R47 论证不动）；未触碰隐私清单/SecretsManager/Keychain 决策门；完成自查 git status 干净 + commit 已提交。
+
+## 第 54 轮（功能/优化迭代第 42 轮）
+
+### 父任务
+- 目标：功能/优化迭代第 42 轮——承接第 53 轮收口（main=09f0900 已 push origin，第 53 轮 549 用例 0 失败，基线口径 549=533+13+3）。**第 54 轮分解前触发全量回归**（隔代规则：第 52 轮触发 533→R53 不触发→R54 触发，届时基线口径 549）。环境事项：main=09f0900；3 子卡 worktree 预建于 main@09f0900 同点（dir 类型 + 预建 worktree 方案）。
+- （分解记录与收口记录由父任务收口时重组补全）
