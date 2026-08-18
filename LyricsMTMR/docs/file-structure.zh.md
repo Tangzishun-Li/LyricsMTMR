@@ -317,6 +317,7 @@ mindmap
 ├── logs/第55轮/核对报告_第55轮_README更新日志补登v0.55.md                  # 第 55 轮子任务 B 核对报告（README 更新日志补登 v0.55：第 54 轮变更条目——构建性能分析与编译优化·代码质量维度+版本决策建议 0.55/480+12 项现状核对全过+承接段注明第 55 轮 A 卡方向，r55/changelog）
 ├── logs/第56轮/核验报告_第56轮_维护机制健在与文档一致性.md                  # 第 56 轮核验报告（维护·轻量轮，r56/review；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0 连续第三十七轮 0 ERROR；REGISTRY 190 行；遗留盘点 11 项延续 0 新发现）
 ├── logs/第56轮/清理报告_第56轮_round55遗留清理.md                         # 第 56 轮子任务 C 仓库卫生报告（round-55 遗留清理 4 worktree + 4 branch，r56/review；worktree remove + update-ref 删除；清理后零 r55 残留）
+├── logs/第56轮/核对报告_第56轮_README更新日志补登v0.56.md                             # 第 56 轮子任务 B 核对报告（README 更新日志补登 v0.56：第 55 轮变更条目——桌面歌词独立配色开关·UI 维度+版本决策建议 0.56/481+12 项现状核对全过+锚点巡检 PASS 67/WARN 16/INFO 5/ERROR 0，r56/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 
