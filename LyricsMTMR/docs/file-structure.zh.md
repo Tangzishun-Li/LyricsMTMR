@@ -314,6 +314,7 @@ mindmap
 ├── logs/第55轮/核验报告_第55轮_维护机制健在与文档一致性.md                  # 第 55 轮核验报告（维护·轻量轮，r55/review；第 45 次年度维护核验；锚点巡检 PASS 66/WARN 16/INFO 5/ERROR 1 初始→修复后预期 0 ERROR；REGISTRY 186 行；ITER-14 健在/2027 节假日表复核/金丝雀 7/7/GitHub 4/4/文档三方一致；遗留盘点 0 新发现）
 ├── logs/第55轮/清理报告_第55轮_round54遗留清理.md                         # 第 55 轮子任务 C 仓库卫生报告（round-54 遗留清理 4 worktree + 4 branch，r55/review；worktree remove + update-ref 删除；清理后零 r54 残留）
 ├── logs/第55轮/验证报告_第55轮_桌面歌词独立配色.md                        # 第 55 轮子任务 A 验证报告（桌面歌词独立配色开关·UI 维度 R51 遗留候选：AppSettings 3 键+hex 编解码/resolveDesktopTextColor/ProgressColor+applyColors()/LyricsTabView Toggle+Swatches/DesktopLyricsColorContractTests 8 用例/BUILD SUCCEEDED；测试 bootstrap 崩溃为环境预存在问题非本轮引入）
+├── logs/第55轮/核对报告_第55轮_README更新日志补登v0.55.md                  # 第 55 轮子任务 B 核对报告（README 更新日志补登 v0.55：第 54 轮变更条目——构建性能分析与编译优化·代码质量维度+版本决策建议 0.55/480+12 项现状核对全过+承接段注明第 55 轮 A 卡方向，r55/changelog）
 └── .gitignore / .gitattributes / README.md
 ```
 
