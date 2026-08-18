@@ -1978,3 +1978,13 @@
 ### 父任务
 - 目标：功能/优化迭代第 41 轮——承接第 52 轮收口（main=29c7400 已 push origin，第 52 轮整体实证 109 用例 0 失败，全量回归 533 已在本轮分解前实证）后的主线分解（A/B/C 方向由父任务分解时自定）。**分解前不触发全量回归**（隔代规则：第 52 轮已触发并实证 533，第 53 轮不触发，届时基线口径 533+13=546）。环境事项：main=29c7400 未被并行推进（git fetch origin 核对一致）；3 子卡 worktree 预建于 main@29c7400 同点（dir 类型 + 预建 worktree 方案）。
 - （分解记录与收口记录由父任务收口时重组补全）
+
+### 子任务记录
+
+- **t_a40074a8 第53轮 A卡（实现/优化）：R47 观察项双项治理 — 数据与存储维度（lyricsSelectionCache 随 reset 清空隔离 + selectedThemeIndex 缺键默认 0 既有语义契约化）（database-agent，分支 r53/storage-isolation，第 53 轮 / 子任务 A）**：
+  - 背景：R47 A 卡登记 3 项延续中 2 项——①lyricsSelectionCache 观察项（LyricsSelectionCache.swift:32 键带 com.lyricsmtmr. 前缀，受 resetAllToDefaults 前缀批量删清除+exportProfile 导入（Data 类型 JSONSerialization 无法序列化致整包 nil 静默失败），自 R47 登记后 R48/R49/R51/R52 均「延续观察」从未治理）②selectedThemeIndex 缺键默认 0（integer(forKey:) 缺键返回 0 = 第一主题有效，R47 登记后 R48 A 卡复认「合规不动」但无契约单测钉住既有语义）；维度轮转选题——R51/R52 连续前端体验/UI 维度，下一主线优先隔最久维度；grep 取证「还没做」确认；
+  - 盘点分类：全仓 UserDefaults 键 vs reset/export/import 三入口覆盖——合规不动 7 组（Apple 系统键 2/无前缀键 3/SecretsManager R43 决策门/其余前缀键对称）+ 需治理 1 项（lyricsSelectionCache）+ 既有语义需契约化 1 项（selectedThemeIndex）；
+  - 实现：①lyricsSelectionCache 隔离——方案 A 前缀排除列表（最小改动~15 行生产代码，大契约不变，扩展性好），SettingsSync.swift 新增 `static let runtimeCacheKeys: Set<String> = [UDKey.lyricsSelectionCache]` + resetAllToDefaults/exportProfile 过滤条件增加 `&& !runtimeCacheKeys.contains(key)` + AppSettings.swift UDKey 新增 lyricsSelectionCache 键定义 + LyricsSelectionCache.swift 字面量→UDKey 引用；②selectedThemeIndex 契约化——UserDefaultsContractTests.swift 新增 `testSelectedThemeIndexMissingKeyDefaultsToZero` 正/反断言（缺键=0+显式写1后读回1）；新增 `testResetAllToDefaultsKeepsLyricsSelectionCache` + `testExportProfileExcludesLyricsSelectionCache` 共 3 用例（6→9）；
+  - 实证：受影响套件+金丝雀（UserDefaultsContractTests 9/9 + ThemeStateMachineContractTests 19/19 + DesktopLyricsWindowTests 20/20 + DesktopLyricsMarqueeTests 13/13 + PausableTimerTests 44/44 + SecretsManagerContractTests 13/13 = 118 用例 0 失败）；全量 549 用例 0 失败实证（533 基线+13 R52 marquee+3 新增零偏差，101.2s）；锚点巡检复跑 PASS 67/WARN 16/INFO 5/ERROR 0 退出码 0（与 R52 收口基线一致，零新漂移）；
+  - 遗留登记：R47 A 卡 3 项中 2 项闭环（lyricsSelectionCache 观察项+selectedThemeIndex 契约化），无前缀键 3 处保持不动延续；本轮新增挂账 0 项；
+  - 交付：验证报告《验证报告_第53轮_数据持久化观察项双项治理.md》（本分支根目录，收口时父任务 git mv 进 logs/第53轮/）+ 本记录（iteration-log 末尾追加，标注「第 53 轮 / 子任务 A」）+ file-structure.zh.md 登记（mindmap 第 7~52 轮→第 7~53 轮 + 报告行 1 行，无重复行）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未改无前缀键行为（R47 论证不动）；未触碰隐私清单/SecretsManager/Keychain 决策门；完成自查 git status 干净 + commit 已提交。

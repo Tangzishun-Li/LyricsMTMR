@@ -16,6 +16,15 @@ class SettingsSync {
             .first!.appending("/LyricsMTMR")
     }
 
+    /// 运行时缓存键集合（round 53 治理）：这些键虽然带应用前缀（参与 reset/export
+    /// 命名空间匹配），但属于运行时重建型缓存而非用户显式配置——重置时跳过清除、
+    /// 导出时跳过夹带，避免配置导出噪音和不必要的缓存重建代价。
+    /// 入列条件：① 带 com.lyricsmtmr. 前缀；② 值为运行时可重建缓存（非用户显式
+    /// 设置）；③ 导出夹带会导致 Data 类型 JSONSerialization 失败（整包 nil）。
+    static let runtimeCacheKeys: Set<String> = [
+        UDKey.lyricsSelectionCache,  // 歌词关联缓存：用户确认的歌词选择，可重建但有代价
+    ]
+
     /// 测试钩子（round 42 写入侧审计）：把 items.json 读写重定向到临时目录，
     /// 与 ClipboardHistoryItem.persistHistory 同型——生产恒为 nil 走真实路径，
     /// 单测隔离用，避免污染用户配置。@testable 可见即可。
@@ -149,7 +158,8 @@ class SettingsSync {
         let defaults = UserDefaultsStore.current
         var udDict: [String: Any] = [:]
         for (key, value) in defaults.dictionaryRepresentation()
-        where key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr.") {
+        where (key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr."))
+              && !runtimeCacheKeys.contains(key) {
             udDict[key] = value
         }
         var itemsArray: [[String: Any]] = []
@@ -188,7 +198,8 @@ class SettingsSync {
     static func resetAllToDefaults() {
         let defaults = UserDefaultsStore.current
         for key in defaults.dictionaryRepresentation().keys
-        where key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr.") {
+        where (key.hasPrefix("com.lyricsmtmr.") || key.hasPrefix("com.toxblh.mtmr."))
+              && !runtimeCacheKeys.contains(key) {
             defaults.removeObject(forKey: key)
         }
         if !defaultPresetPath.isEmpty,
