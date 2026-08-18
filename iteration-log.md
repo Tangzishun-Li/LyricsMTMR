@@ -2054,3 +2054,12 @@
   - README.md 共 3 处改动：① 更新日志区置顶新增「v0.54（当前开发版本）」条目（承接段注明第 53 轮变更摘要 + 第 54 轮 A 卡方向待定）+ 「工程与稳定性」3 项——R47 观察项双项治理（数据存储维度：承接 R47 A 卡登记 3 项中 2 项，lyricsSelectionCache reset/export 隔离 + selectedThemeIndex 缺键默认 0 契约化 + UserDefaultsContractTests 6→9 + 549 用例实证 0 失败）、锚点巡检收口复跑接入保持（连续第三十三轮）、工程版本号对齐（Info.plist 0.53/478 → 0.54/479），全部来自第 53 轮 iteration-log 实证记录（父收口段 + A 卡 t_a40074a8 + B 卡 t_b275a853 + C 卡 t_1985a8dd 子任务记录）+ A 卡验证报告《验证报告_第53轮_数据持久化观察项双项治理.md》（同库实证），未虚构）；② v0.53 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.54=第 53 轮（v0.53=第 52 轮 后追加）。
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归（纯文档轮，零 Swift 源码改动不触发构建/测试）；未 push 远端（父任务收口统一推送）；未开新分支/新子任务/无 parents 依赖；未建 cron/自触发；
   - 交付：核对报告《核对报告_第54轮_README更新日志补登v0.54.md》（本分支根目录，含版本决策与 0.54/479 建议/12 项逐项核对表（grep 实证 文件:行号）/条目→轮次→iteration-log 出处对照表/锚点核对（anchor-patrol 机器断言实证）/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加——父分支预建头 ef3c40f 提供「## 第 54 轮」+「### 父任务」预览行，补建「### 子任务记录」小节头后追加本卡记录，标注「第 54 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~53 轮→第 7~54 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交（第 14 轮 B 卡漏提交教训）。
+
+- **t_f8a97579 第55轮 A卡（实现/优化）：桌面歌词独立配色开关·UI维度（R51遗留候选，基线561）（default，分支 r55/desktop-color，第 55 轮 / 子任务 A）**：
+  - 选题：R54 代码质量维度后优先选隔最久维度；UI 维度（R48 后 7 轮）有 R51 A 卡遗留候选「独立配色开关」，grep 取证确认未实现
+  - 实现：AppSettings 新增 3 键（com.lyricsmtmr.desktopLyrics.useIndependentColors 默认 false / textColor hex "" / progressColor hex ""）+ hex 编解码辅助（NSColor<->"#RRGGBB"）；DesktopLyricsWindowController 新增 resolveDesktopTextColor/resolveDesktopProgressColor（独立配色开启时从 AppSettings hex 读取，否则 fallback LyricsItemConfig.shared）+ applyColors()（设置页切换/颜色变化时调用，含卡拉 OK 动画颜色同步）；LyricsTabView desktopLyricsSection 新增独立配色 Toggle + 两个 Deck.Swatches 颜色选择器（各 6 色预设）+ 收起/展开动画
+  - 测试：新增 DesktopLyricsColorContractTests.swift 8 用例（toggle/fallback/persistence/hex roundtrip/边界），UserDefaultsStore.override 注入内存 suite 隔离
+  - 编译：build-for-testing BUILD SUCCEEDED 零代码警告
+  - 测试执行：xcodebuild test bootstrap 阶段 Main.storyboard `-[__NSCFNumber length]` 崩溃，主分支 main@56683a2 同款复现，属环境预存在问题非本轮引入（前轮 R50~R54 iteration-log 记录均 TEST SUCCEEDED）
+  - 遗留：R51 A 卡遗留 4 项：①长行截断无 marquee R52 闭环 ②真机观感冒烟延续 ③**独立配色开关本轮闭环** ④无重置位置 UI 延续
+  - 交付：验证报告《验证报告_第55轮_桌面歌词独立配色.md》（本分支根目录）+ iteration-log 追加 + file-structure.zh.md 登记；commit 300e671；未 push 远端；未改 Info.plist 版本号；完成自查 git status 干净 + commit 已提交
