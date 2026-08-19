@@ -264,6 +264,7 @@
 		C0FF49F0775587C1AE963DDC /* LyricsLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE49F0775587C1AE963DDC /* LyricsLRUCache.swift */; };
 		C1FF82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */; };
 		C1FFF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift */; };
+		A1FF60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1FE60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -556,6 +557,7 @@
 		C0FE49F0775587C1AE963DDC /* LyricsLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLRUCache.swift; sourceTree = "<group>"; };
 		C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsProviderCacheTests.swift; sourceTree = "<group>"; };
 		C1FEF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsMatchSelectionTests.swift; sourceTree = "<group>"; };
+		A1FE60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxConfigContractTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -718,6 +720,7 @@
 				C1FEA10981FA5135D200B0FE /* DesktopLyricsColorContractTests.swift */,
 				C1FE82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift */,
 				C1FEF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift */,
+				A1FE60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1407,6 +1410,7 @@
 				C1FFA10981FA5135D200B0FE /* DesktopLyricsColorContractTests.swift in Sources */,
 				C1FF82C3DA42EDE112F6998D /* LyricsProviderCacheTests.swift in Sources */,
 				C1FFF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift in Sources */,
+				A1FF60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
