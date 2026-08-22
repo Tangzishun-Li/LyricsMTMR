@@ -275,6 +275,7 @@
 		F726FFC56B6E1CEA7253B1E7 /* PaperProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483C335D29B872C329E6B67B /* PaperProgress.swift */; };
 		F946048BC4954FD69E7D447A /* KeyBindingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E934999DE9040A4840FC85D /* KeyBindingModel.swift */; };
 		C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */; };
+		C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -586,6 +587,7 @@
 		FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseProvider.swift; sourceTree = "<group>"; };
 		FCDAFA7AEB1283D190FCE91B /* SettingsSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSync.swift; sourceTree = "<group>"; };
 		C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadSettingContractTests.swift; sourceTree = "<group>"; };
+		C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsSchemaBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -961,6 +963,7 @@
 				54D50C2A58718B948CCF51CF /* Editor */,
 				C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */,
 				C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */,
+				C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -1440,6 +1443,7 @@
 				C0FF3800F754186AED98A490 /* SettingsWindowGCStrategy.swift in Sources */,
 				C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */,
 				C0FF49F0775587C1AE963DDC /* LyricsLRUCache.swift in Sources */,
+				C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
