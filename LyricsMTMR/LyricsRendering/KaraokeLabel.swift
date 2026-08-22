@@ -207,9 +207,61 @@ class KaraokeLabel: NSTextField {
     private var karaokePausedElapsed: TimeInterval?
     private var karaokeTimer: Timer?
 
+    /// 可见性守卫的挂起参数（r57-g）：面板 orderOut 后引擎 tick 仍会调
+    /// setProgressAnimation，此时不建表只记参数，待窗口可见时 flushPendingProgressIfNeeded()
+    /// 补启动（避免 30fps needsDisplay 离屏重绘照建照跑）。nil = 无挂起。
+    private struct PendingProgress {
+        let color: NSColor
+        let progress: [(TimeInterval, Int)]
+        let style: KaraokeStyle
+    }
+    private var pendingProgress: PendingProgress?
+
+    /// 是否存在待窗口可见后补启动的进度动画（测试可见性用）。
+    var hasPendingProgressAnimation: Bool { pendingProgress != nil }
+
+    // MARK: - 测试钩子（@testable 契约：仅 MTMRTests 使用，生产代码零调用）
+
+    /// 动画 timer 是否在跑（r57-g 可见性守卫验收探针）。
+    var isProgressAnimationActiveForTesting: Bool { karaokeTimer != nil }
+
+    /// 是否存在已构建的进度动画（冻结≠移除的区分探针）。
+    var hasProgressAnimationForTesting: Bool { !karaokeKeyframes.isEmpty && _progressCTFrame != nil }
+
+    /// 注入挂起参数（模拟隐藏期 setProgressAnimation 记下的 pending，
+    /// 无窗口测试环境无法触发 DEFERRED 分支本身）。
+    func injectPendingProgressForTesting(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle) {
+        pendingProgress = PendingProgress(color: color, progress: progress, style: style)
+    }
+
     @objc dynamic var progressColor: NSColor?
 
     func setProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle = .progressive) {
+        // r57-g 可见性守卫：窗口存在且明确不可见 → 只记 pending 不启动动画。
+        // Optional 判等语义：window 为 nil（Touch Bar 宿主/无窗口测试环境）不触发
+        // pending，保持历史行为——只有「有窗口且不可见」才挂起。
+        if let window = self.window, !window.isVisible {
+            // 先移除旧动画再记 pending（removeProgressAnimation 会清 pending，
+            // 顺序不能反）——显式移除语义永远压过旧挂起。
+            removeProgressAnimation()
+            pendingProgress = PendingProgress(color: color, progress: progress, style: style)
+            AppLog.lyrics("KaraokeLabel.setProgressAnimation: DEFERRED — window not visible, pending flush")
+            return
+        }
+        pendingProgress = nil
+        startProgressAnimation(color: color, progress: progress, style: style)
+    }
+
+    /// 窗口恢复可见时补启动挂起的进度动画（面板 show()/setVisibility 路径调用）。
+    /// 无挂起或窗口仍不可见时为 no-op；补启动成功后清空 pending。
+    func flushPendingProgressIfNeeded() {
+        guard let pending = pendingProgress else { return }
+        if let window = self.window, !window.isVisible { return }
+        pendingProgress = nil
+        startProgressAnimation(color: pending.color, progress: pending.progress, style: pending.style)
+    }
+
+    private func startProgressAnimation(color: NSColor, progress: [(TimeInterval, Int)], style: KaraokeStyle) {
         removeProgressAnimation()
         progressColor = color
 
@@ -295,6 +347,7 @@ class KaraokeLabel: NSTextField {
 
     func removeProgressAnimation() {
         stopKaraokeTimer()
+        pendingProgress = nil
         karaokeKeyframes = []
         karaokeDuration = 0
         karaokeFullExtent = 0
@@ -302,6 +355,20 @@ class KaraokeLabel: NSTextField {
         karaokePausedElapsed = nil
         _progressCTFrame = nil
         needsDisplay = true
+    }
+
+    // MARK: - Visibility Gate (r57-g)
+
+    /// 窗口可见性变化时由窗口控制器调用：恢复可见 → 补启动挂起动画；
+    /// 转为不可见 → 冻结在当前进度（与 pauseProgressAnimation 同语义，防
+    /// 隐藏期 30fps 离屏重绘空转）。无窗口（Touch Bar 宿主）时 no-op。
+    func windowVisibilityDidChange(isVisible: Bool) {
+        if isVisible {
+            flushPendingProgressIfNeeded()
+            resumeProgressAnimation()
+        } else {
+            pauseProgressAnimation()
+        }
     }
 
     // MARK: - Karaoke Drawing

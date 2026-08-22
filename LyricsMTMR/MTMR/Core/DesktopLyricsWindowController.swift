@@ -243,6 +243,11 @@ final class DesktopLyricsWindowController: NSObject {
         }
         positionPanel(restoreSaved: true)
         panel?.orderFront(nil)
+        // r57-g：面板已 orderFront，恢复可见 → 补启动挂起的卡拉 OK 动画 +
+        // 解冻既有动画（隐藏期 windowVisibilityDidChange(false) 冻结在当前进度）。
+        currentLabel?.windowVisibilityDidChange(isVisible: true)
+        // marquee 侧：隐藏期引擎 tick 只存参数不建表（updateMarquee 竞态复查），
+        // 恢复可见后按当前行重建（refreshContent → onLyricsUpdate → updateMarquee）。
         setupSubscriptions()
         refreshContent()
     }
@@ -252,6 +257,8 @@ final class DesktopLyricsWindowController: NSObject {
         visibility.hide()
         guard wasVisible else { return }
         currentLabel?.pauseProgressAnimation()
+        // r57-g：冻结卡拉 OK 动画（防 orderOut 后引擎 tick 重建 30fps 离屏重绘）。
+        currentLabel?.windowVisibilityDidChange(isVisible: false)
         resetMarquee()
         panel?.orderOut(nil)
     }
@@ -747,6 +754,25 @@ final class DesktopLyricsWindowController: NSObject {
         let textWidth = current.fullTextWidth
         guard DesktopLyricsMarquee.needsMarquee(textWidth: textWidth, availableWidth: clipWidth) else {
             resetMarquee()
+            return
+        }
+        // r57-g 竞态复查：visibility 状态与真实窗口可见性可能短暂错位
+        // （hide 已执行但引擎 tick 先到重建路径）。Timer 创建前以窗口实际
+        // isVisible 为准——不可见只存参数不建表，恢复可见由 show() 补建。
+        if let window = panel as NSPanel?, window.isVisible == false {
+            marqueeOverflowWidth = DesktopLyricsMarquee.overflowWidth(
+                textWidth: textWidth,
+                availableWidth: clipWidth,
+                padding: MarqueeMetrics.overflowPadding
+            )
+            marqueeTimeBudget = DesktopLyricsMarquee.nextLineTimeBudget(
+                nextLinePosition: lineIndex + 1 < active.lines.count ? active.lines[lineIndex + 1].position : nil,
+                playbackTime: track.playbackTime,
+                defaultBudget: MarqueeMetrics.defaultTimeBudget,
+                minBudget: MarqueeMetrics.minTimeBudget
+            )
+            marqueeStartTime = nil
+            stopMarqueeTimer()
             return
         }
         let overflow = DesktopLyricsMarquee.overflowWidth(
