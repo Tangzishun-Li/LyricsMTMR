@@ -10,9 +10,22 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - r57-d 跳转契约（docs/轨道文本_R57_设置体系治理.md §6，Notification.Name 冻结）
+
+extension Notification.Name {
+    /// 设置窗口 → 编辑器：定位并选中某 item。userInfo: ["type": String, "index": Int?]
+    static let settingsNavigateToItem = Notification.Name("com.lyricsmtmr.settings.navigateToItem")
+    /// 编辑器 → 设置窗口：打开某域 tab。userInfo: ["tab": String]  // SettingsTab.rawValue
+    static let editorRequestOpenSettings = Notification.Name("com.lyricsmtmr.editor.openSettings")
+}
+
 struct PropertyInspector: View {
     @ObservedObject var model: RibbonModel
     @State private var showKeyCapture: Bool = false
+    /// r57-d：设置窗口请求的待定位 item（type + index）。
+    /// 直接通知路径立即消费；编辑器 tab 未构建时由 UnifiedSettingsWindowController
+    /// 的 pendingNavigation 暂存，经 .settingsNavigateToItem 二次投递后在此消费。
+    @State private var pendingNavigationItem: (type: String, index: Int?)? = nil
 
     private let gridColumns = [
         GridItem(.flexible(minimum: 180), spacing: 16),
@@ -33,6 +46,104 @@ struct PropertyInspector: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // r57-d ①设置→编辑器（直接路径）：编辑器已挂载时立即定位选中；
+        // 数据尚未加载（首开）则先暂存，等 items 就绪后由下方兜底路径消费。
+        .onReceive(NotificationCenter.default.publisher(for: .settingsNavigateToItem)) { note in
+            guard let type = note.userInfo?["type"] as? String else { return }
+            let index = note.userInfo?["index"] as? Int
+            if model.items.isEmpty {
+                pendingNavigationItem = (type, index)
+            } else {
+                consumeNavigation(type: type, index: index)
+            }
+        }
+        // 兜底路径：编辑器 tab 后构建 / 首次加载完成，items 就绪后补投递一次。
+        .onReceive(model.$items) { _ in
+            guard let pending = pendingNavigationItem else { return }
+            pendingNavigationItem = nil
+            consumeNavigation(type: pending.type, index: pending.index)
+        }
+    }
+
+    // MARK: - r57-d 双向跳转
+
+    /// ①设置→编辑器：定位并选中目标 item（顶层索引；容器子项仅按 type 匹配顶层）。
+    /// 成功消费后清空窗口侧的 pendingNavigation，防止二次投递重复触发。
+    private func consumeNavigation(type: String, index: Int?) {
+        var target = index
+        // 校验或按 type 搜索顶层 item；JSON 桥接的 items 可能是 NSNumber，做数值归一比较。
+        if let i = target, i >= model.items.count || itemType(at: i) != type {
+            target = nil
+        }
+        if target == nil {
+            target = model.items.firstIndex { itemTypeMatches($0, type) }
+        }
+        guard let idx = target, idx < model.items.count else { return }
+
+        // 回到根层级再选中（drill-in 状态下 activeItems 是子项数组）。
+        if !model.navigationPath.isEmpty {
+            model.navigateToRoot()
+        }
+        model.select(idx)
+        model.scrollAnchor = idx   // 触发模拟条滚动到该 pill 并居中
+        SettingsWindowState.shared.pendingNavigation = nil
+    }
+
+    private func itemType(at index: Int) -> String? {
+        guard index >= 0, index < model.items.count else { return nil }
+        let raw = model.items[index]["type"]
+        return (raw as? String) ?? (raw as? NSNumber)?.stringValue
+    }
+
+    /// JSON 桥接下 type 可能是 String 也可能是 NSNumber（纯数字键），归一比较。
+    private func itemTypeMatches(_ item: [String: Any], _ expected: String?) -> Bool {
+        guard let raw = item["type"] else { return false }
+        let value = (raw as? String) ?? (raw as? NSNumber)?.stringValue
+        guard let value else { return false }
+        guard let expected else { return true }
+        return value == expected
+    }
+
+    /// ②编辑器→设置：item type → 域级设置 tab 映射（§7 D 卡验收：≥1 处真实入口）。
+    /// music/lyrics 类 item → 歌词 tab，stock → 股票 tab……未映射的类型不显示按钮。
+    private var domainSettingsTab: SettingsTab? {
+        guard let index = model.selectedIndex,
+              index < model.activeItems.count,
+              let type = model.activeItems[index]["type"] as? String else { return nil }
+        switch type {
+        case "lyrics", "music", "upnext", "playbackProgress", "audioSpectrum":
+            return .lyrics
+        case "stock":
+            return .stock
+        case "pomodoro":
+            return .pomodoro
+        case "weather":
+            return .weather
+        case "rssUnread":
+            return .rss
+        case "packageTracker":
+            return .package
+        case "meetingCountdown", "holidayCountdown", "classCountdown", "ddlList":
+            return .calendar
+        case "homekitScene":
+            return .homekit
+        case "deepseekBalance", "aiSelectedText", "apiTester", "apiLatency":
+            return .ai
+        case "expenseTracker", "creditCardDue", "savingsGoal", "billSplit", "taxEstimate":
+            return .expense
+        case "dock":
+            return .dock
+        case "dnd", "slackUnread", "emailBadge", "quickReply":
+            return .notification
+        case "cpu", "networkSpeed", "systemTemp", "diskIO", "serverMonitor", "dockerStatus":
+            return .systemMonitor
+        case "postureReminder", "readTimer", "breathingGuide", "readingProgress":
+            return .wellness
+        case "foodDelivery", "weatherOutfit", "pixelPet":
+            return .lifestyle
+        default:
+            return nil
+        }
     }
 
     private var emptyState: some View {
@@ -413,6 +524,34 @@ struct PropertyInspector: View {
             }
 
             Spacer()
+
+            // r57-d ②：编辑器→设置域 tab 跳转入口（有映射的类型才显示）
+            if let domainTab = domainSettingsTab {
+                Button(action: {
+                    NotificationCenter.default.post(
+                        name: .editorRequestOpenSettings,
+                        object: nil,
+                        userInfo: ["tab": domainTab.rawValue]   // §6 契约：userInfo ["tab": String]
+                    )
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(localized("域设置…", "Domain Settings…"))
+                            .font(.system(size: 10.5, weight: .medium))
+                    }
+                    .foregroundStyle(EditorColors.textSecondarySwift)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background {
+                        Capsule()
+                            .fill(EditorColors.cardSwift)
+                            .overlay(Capsule().strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.6))
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(localized("打开「\(domainTab.title)」设置", "Open \(domainTab.title) settings"))
+            }
 
             Button(action: { model.duplicateSelected() }) {
                 Image(systemName: "plus.square.on.square")

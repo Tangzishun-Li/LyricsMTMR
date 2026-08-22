@@ -35,6 +35,13 @@ final class SettingsWindowState: ObservableObject {
     /// previews (e.g. the karaoke line) observe it so their TimelineView
     /// redraws pause while their own tab is hidden.
     @Published var activeTab: SettingsTab? = nil
+
+    /// r57-d：设置窗口请求的待定位 item（type + index），由「在编辑器中打开…」入口写入。
+    /// 编辑器 tab 已挂载时通知直达 PropertyInspector 消费；未挂载（LRU 驱逐/首开）
+    /// 时在此暂存，SettingsRootView 切到编辑器 tab 后经 .settingsNavigateToItem
+    /// 二次投递。消费后立即清空，避免下次切 tab 误跳。
+    @Published var pendingNavigation: (type: String, index: Int?)? = nil
+
     private init() {}
 }
 
@@ -1191,6 +1198,53 @@ struct SettingsRootView: View {
             sidebarVisible = true
             selection = .keyBindings
         }
+        // r57-d ②：编辑器 → 设置窗口，打开 item 所属域 tab。
+        // userInfo: ["tab": String]（SettingsTab.rawValue，§6 冻结契约）。
+        .onReceive(NotificationCenter.default.publisher(for: .editorRequestOpenSettings)) { note in
+            guard let raw = note.userInfo?["tab"] as? String,
+                  let tab = SettingsTab(rawValue: raw) else { return }
+            if !sidebarVisible {
+                // 编辑器专注模式藏了侧栏；跳域设置前恢复，否则用户看不到导航反馈
+                sidebarVisible = true
+                UserDefaults.standard.set(true, forKey: sidebarVisibilityKey)
+            }
+            withAnimation(.easeOut(duration: 0.12)) {
+                selection = tab
+            }
+        }
+        // r57-d ①兜底路径的二次投递：切到编辑器 tab 且其视图树重建完成后，
+        // 把暂存的定位请求经冻结通知转给 PropertyInspector（编辑器未挂载时
+        // 首次通知无人接收）。PropertyInspector 消费后清空 pendingNavigation。
+        .onChange(of: selection) { _, newValue in
+            guard newValue == .editor,
+                  let pending = windowState.pendingNavigation else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                guard windowState.pendingNavigation != nil else { return }
+                NotificationCenter.default.post(
+                    name: .settingsNavigateToItem,
+                    object: nil,
+                    userInfo: ["type": pending.type, "index": pending.index as Any]
+                )
+            }
+        }
+        // r57-d ①：设置 → 编辑器 item 级跳转的「切到编辑器 tab」信号
+        // （EditorHostTab 发出；仅窗口内部路由用，非 §6 冻结契约）。
+        .onReceive(NotificationCenter.default.publisher(for: .editorRequestSwitchToEditor)) { _ in
+            if selection != .editor {
+                withAnimation(.easeOut(duration: 0.12)) {
+                    selection = .editor
+                }
+            } else {
+                // 编辑器 tab 已在前台（视图常驻）：直接重投暂存请求，立即定位。
+                if let pending = windowState.pendingNavigation {
+                    NotificationCenter.default.post(
+                        name: .settingsNavigateToItem,
+                        object: nil,
+                        userInfo: ["type": pending.type, "index": pending.index as Any]
+                    )
+                }
+            }
+        }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: sidebarVisible)
     }
 
@@ -1512,6 +1566,10 @@ struct GroupSection: View {
 // MARK: - Editor tab host (modern SwiftUI ribbon editor)
 
 struct EditorHostTab: View {
+    /// r57-d ①：「在编辑器中打开」菜单的数据源——编辑器同源数据（items.json）
+    /// 的顶层 item 快照，菜单弹出时刷新。
+    @State private var topLevelItems: [(index: Int, type: String, label: String)] = []
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             editorFocusHint
@@ -1532,6 +1590,9 @@ struct EditorHostTab: View {
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Deck.textTertiary)
             Spacer()
+            // r57-d ①：设置 → 编辑器 item 级入口（需求指定位置：编辑器 tab 顶部按钮）
+            openInEditorMenu
+                .padding(.trailing, 6)
             Button {
                 NotificationCenter.default.post(name: .editorFocusModeRequested, object: nil)
             } label: {
@@ -1556,6 +1617,72 @@ struct EditorHostTab: View {
         .padding(.horizontal, 26)
         .padding(.top, 34)
         .padding(.bottom, 10)
+    }
+
+    /// r57-d ①：枚举 items.json 顶层 item，「在编辑器中打开…」→ 携带 type/index
+    /// 经 settingsNavigateToItem 定位选中；编辑器未挂载时由 pendingNavigation
+    /// 暂存、切换到编辑器 tab 后二次投递。
+    private var openInEditorMenu: some View {
+        Menu {
+            if topLevelItems.isEmpty {
+                Text(localized("（无元素）", "(no items)"))
+            } else {
+                ForEach(topLevelItems, id: \.index) { entry in
+                    Button {
+                        openInEditor(type: entry.type, index: entry.index)
+                    } label: {
+                        Label(entry.label, systemImage: EditorSchema.schema(for: entry.type).symbol)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.right.circle")
+                    .font(.system(size: 9, weight: .bold))
+                Text(localized("在编辑器中打开…", "Open in Editor…"))
+                    .font(.system(size: 10.5, weight: .semibold))
+            }
+            .foregroundStyle(Deck.mint)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4.5)
+            .background(
+                Capsule()
+                    .fill(Deck.mint.opacity(0.12))
+                    .overlay(Capsule().strokeBorder(Deck.mint.opacity(0.28), lineWidth: 0.8))
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help(localized("按类型定位并选中 Touch Bar 元素", "Locate & select a Touch Bar item by type"))
+        .onAppear { refreshTopLevelItems() }
+    }
+
+    private func refreshTopLevelItems() {
+        guard let data = FileManager.default.contents(atPath: ThemeSupport.itemsJSONPath()),
+              let raw = try? JSONSerialization.jsonObject(with: data),
+              let items = raw as? [[String: Any]] else {
+            topLevelItems = []
+            return
+        }
+        let schemaNames = Dictionary(uniqueKeysWithValues:
+            EditorSchema.supportedTypes.map { ($0, EditorSchema.schema(for: $0).displayName) })
+        topLevelItems = items.enumerated().compactMap { idx, item in
+            guard let type = item["type"] as? String else { return nil }
+            let label = schemaNames[type] ?? type
+            return (index: idx, type: type, label: label)
+        }
+    }
+
+    private func openInEditor(type: String, index: Int) {
+        SettingsWindowState.shared.pendingNavigation = (type, index)
+        NotificationCenter.default.post(
+            name: .settingsNavigateToItem,
+            object: nil,
+            userInfo: ["type": type, "index": index]   // §6 契约：userInfo ["type": String, "index": Int]
+        )
+        // 编辑器 tab 未挂载时首次通知无人接收：切过去触发 onChange 二次投递。
+        // 已挂载时切 tab 无副作用（selection 本来就在 .editor 则不触发）。
+        NotificationCenter.default.post(name: .editorRequestSwitchToEditor, object: nil)
     }
 }
 
@@ -1625,4 +1752,8 @@ extension Notification.Name {
     static let editorFocusModeRequested = Notification.Name("LyricsMTMREditorFocusModeRequestedNotification")
     /// Posted by the editor toolbar to request switching to the keyBindings tab.
     static let keyBindingTabRequested = Notification.Name("LyricsMTMRKeyBindingTabRequestedNotification")
+    /// r57-d ①：EditorHostTab「在编辑器中打开…」→ SettingsRootView 切到编辑器 tab。
+    /// 窗口内部路由信号，非 §6 冻结契约（冻结契约是 settingsNavigateToItem /
+    /// editorRequestOpenSettings 两个）。
+    static let editorRequestSwitchToEditor = Notification.Name("LyricsMTMREditorRequestSwitchToEditorNotification")
 }
