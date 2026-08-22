@@ -277,6 +277,7 @@
 		C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */; };
 		C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */; };
 		C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */; };
+		C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -590,6 +591,7 @@
 		C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadSettingContractTests.swift; sourceTree = "<group>"; };
 		C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsSchemaBridge.swift; sourceTree = "<group>"; };
 		C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTouchBarItemPrecisionTests.swift; sourceTree = "<group>"; };
+		C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverLifecycleTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -855,6 +857,7 @@
 				A1FE60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift */,
 				C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */,
 				C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */,
+				C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1489,6 +1492,7 @@
 				A1FF60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift in Sources */,
 				C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */,
 				C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */,
+				C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

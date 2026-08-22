@@ -96,6 +96,29 @@ class StandupTimerItem: TBPopoverItem {
         super.closeOverlay()
     }
 
+    /// Stop the 0.5s countdown timer as soon as the overlay closes, whatever
+    /// dismissed it (close button or a direct dismissOverlay path).
+    /// buildOverlay() recreates it on the next Start tap. deinit invalidate
+    /// stays as a backstop.
+    override func overlayDidDismiss() {
+        running = false
+        timer?.invalidate()
+        timer = nil
+    }
+
+    /// Test seam: non-nil while the countdown timer is installed.
+    var timerIsActiveForTesting: Bool { timer != nil }
+
+    /// Test seam: starts the countdown the way the Start button would.
+    func startForTesting() {
+        let start = NSButton(title: "Start", target: nil, action: nil)
+        start.tag = 0
+        control(start)
+    }
+
+    /// Test seam: true while the countdown is running.
+    var isRunningForTesting: Bool { running }
+
     private static func fmt(_ seconds: Double) -> String {
         let s = Int(seconds.rounded(.up))
         return "\(s / 60):\(String(format: "%02d", s % 60))"

@@ -80,6 +80,27 @@ class ReadTimerItem: TBPopoverItem {
         super.closeOverlay()
     }
 
+    /// Stop the 1s accumulation timer as soon as the overlay closes, whatever
+    /// dismissed it. The accumulated total is process-level and survives;
+    /// re-opening shows it and the next Start tap rebuilds the timer.
+    /// deinit invalidate stays as a backstop.
+    override func overlayDidDismiss() {
+        running = false
+        timer?.invalidate()
+        timer = nil
+    }
+
+    /// Test seam: non-nil while the accumulation timer is installed.
+    var timerIsActiveForTesting: Bool { timer != nil }
+
+    /// Test seam: starts accumulation the way the Start button would.
+    func startForTesting() {
+        toggle()
+    }
+
+    /// Test seam: true while accumulation is running.
+    var isRunningForTesting: Bool { running }
+
     private static func fmt(_ seconds: TimeInterval) -> String {
         let s = Int(seconds)
         return "\(s / 3600):\(String(format: "%02d", (s % 3600) / 60)):\(String(format: "%02d", s % 60))"
