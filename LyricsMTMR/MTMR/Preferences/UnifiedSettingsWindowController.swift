@@ -355,6 +355,11 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// R57-C ②: 该 tab 是否属于某个侧栏分组（About 在组外一级渲染）。
+    func isInGroup(_ group: SettingsGroup) -> Bool {
+        group.tabs.contains(self)
+    }
+
     var title: String {
         switch self {
         case .general: return localized("通用", "General")
@@ -436,66 +441,81 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Keywords for search (includes setting item titles)
+    /// Keywords for search (includes setting item titles).
+    ///
+    /// R57-C ③: 全部 22 个 tab 强制覆盖（取消 `default: []` 盲区）——
+    /// 低频域折叠进「更多设置」组后，搜索是它们的等价直达路径，可达性不许回退。
+    /// 关键词取自各 tab 内真实设置行的标题（中英双语）；新增设置行时应同步补录。
     var searchKeywords: [String] {
         switch self {
+        case .general: return ["通用", "General", "开机自启", "Start at Login", "启动", "语言", "界面语言", "Language", "黑名单", "Blacklist", "触觉反馈", "Haptic", "Control Strip", "滑动手势", "Gestures", "镜像窗口", "Mirror", "预览", "Preview"]
+        case .lyrics: return ["歌词", "Lyrics", "显示模式", "Display Mode", "卡拉OK", "Karaoke", "桌面歌词", "Desktop Lyrics", "滚动", "Marquee", "字体", "Font", "字号", "Size", "颜色", "Colors", "进度颜色", "Progress", "封面", "Artwork", "时间轴偏移", "Offset", "同步", "Sync", "歌词过滤", "Filter", "LRC", "lrcx", "歌词文件", "导入", "Import", "音乐源", "网易云", "NetEase", "QQ音乐", "QQ Music", "翻译", "Translation", "罗马音", "Romaji"]
+        case .slots: return ["槽位", "Slots", "配置", "Profile", "切换", "Switch", "归档", "Archive", "恢复", "Restore", "布局规则", "Layout Rules", "新建槽位", "New Slot"]
+        case .editor: return ["编辑器", "Editor", "可视化", "Visual", "元素", "Element", "属性", "Properties", "检查器", "Inspector", "草稿", "Draft", "Touch Bar"]
         case .keyBindings: return ["键位", "Keys", "快捷键", "Shortcut", "绑定", "Binding", "keyCode", "组合键", "Combo"]
-        case .stock: return ["股票", "Stock", "代码", "Symbol", "刷新", "Refresh", "图表", "Chart"]
-        case .pomodoro: return ["番茄钟", "Pomodoro", "工作", "Work", "休息", "Rest", "时长", "Duration"]
-        case .weather: return ["天气", "Weather", "城市", "City", "温度", "Temperature", "单位", "Unit"]
-        case .rss: return ["RSS", "订阅", "Feed", "订阅源", "Source", "未读", "Unread", "Feedly", "Miniflux", "FreshRSS", "RSSHub"]
-        case .package: return ["快递", "Package", "单号", "Tracking", "物流", "Delivery"]
-        case .calendar: return ["日历", "Calendar", "日程", "Event", "会议", "Meeting"]
-        case .homekit: return ["智能家居", "HomeKit", "米家", "MiJia", "场景", "Scene"]
-        case .ai: return ["AI", "DeepSeek", "模型", "Model", "Prompt", "提示词"]
-        case .expense: return ["记账", "Expense", "类别", "Category", "预算", "Budget", "储蓄", "Savings"]
-        case .dock: return ["Dock", "应用", "App", "图标", "Icon"]
-        case .notification: return ["通知", "Notification", "提醒", "Alert", "免打扰", "DND"]
-        case .systemMonitor: return ["系统监控", "Monitor", "CPU", "网络", "Network", "温度", "Temp"]
-        case .wellness: return ["健康", "Wellness", "久坐", "Posture", "阅读", "Reading", "呼吸", "Breathing"]
-        case .lifestyle: return ["生活", "Lifestyle", "外卖", "Food", "穿衣", "Outfit", "宠物", "Pet"]
-        case .tools: return ["快捷工具", "Tools", "剪贴板", "Clipboard", "哈希", "Hash", "窗口", "Window"]
-        default: return []
+        case .services: return ["服务", "Services", "API", "密钥", "API Key", "Token", "OpenWeatherMap", "快递100", "Kuaidi100", "Slack", "GitHub", "米家", "MiJia", "Home Assistant", "SSH", "RSS", "OpenCode"]
+        case .about: return ["关于", "About", "版本", "Version", "致谢", "Credits", "上游项目", "Upstream", "项目构造", "Architecture", "链接", "Links"]
+        case .stock: return ["股票", "Stock", "A股", "代码", "Symbol", "刷新", "Refresh", "图表", "Chart", "日K", "Daily", "迷你走势图", "mini chart", "沪深", "板块", "BK", "统计", "Statistics", "主题", "Theme"]
+        case .pomodoro: return ["番茄钟", "Pomodoro", "工作", "Work", "短休息", "Short Break", "长休息", "Long Break", "时长", "Duration", "每日目标", "Daily Goal", "自动开始", "Auto Start", "提示音", "Sound"]
+        case .weather: return ["天气", "Weather", "城市", "City", "温度", "Temperature", "单位", "Unit", "预报", "Forecast", "湿度", "Humidity", "风速", "Wind", "定位", "Location", "OpenWeather", "国内天气", "China", "图标样式", "Icon"]
+        case .rss: return ["RSS", "订阅", "Feed", "订阅源", "Source", "未读", "Unread", "角标", "Badge", "Feedly", "Miniflux", "FreshRSS", "RSSHub", "直接抓取", "Direct", "云端", "Cloud", "自建", "Self-hosted", "推荐订阅源", "订阅服务", "Aggregator", "未读窗口"]
+        case .package: return ["快递", "Package", "单号", "Tracking", "物流", "Delivery", "签收", "自动识别", "Auto Detect", "刷新", "Refresh", "通知", "Notify"]
+        case .calendar: return ["日历", "Calendar", "日程", "Event", "会议", "Meeting", "日历源", "Source", "Outlook", "提醒", "Reminder", "提前分钟", "最大条数", "Max Events", "已过事件", "Past Events", "地点", "Location"]
+        case .homekit: return ["智能家居", "HomeKit", "米家", "MiJia", "场景", "Scene", "设备", "Device", "设备状态", "执行前确认", "Confirm", "Token"]
+        case .ai: return ["AI", "DeepSeek", "通义", "Qwen", "Kimi", "Ollama", "模型", "Model", "Prompt", "提示词", "流式输出", "Stream", "余额", "Balance", "服务地址", "Base URL", "连通性测试", "测试连接", "Test Connection"]
+        case .expense: return ["记账", "Expense", "类别", "Category", "预算", "Budget", "储蓄", "Savings", "BeeCount", "蜜蜂记账", "货币", "Currency", "超支", "Overspend", "NAS", "PAT"]
+        case .dock: return ["Dock", "固定应用", "Pinned Apps", "应用", "App", "图标大小", "Icon Size", "运行中", "Running", "自动缩放", "Auto Resize", "作用范围", "Scope", "所有主题", "All Themes", "最大数量", "Max Apps"]
+        case .notification: return ["通知", "Notification", "启用通知", "Enable", "提醒", "Alert", "声音", "Sound", "免打扰", "DND", "快递更新", "Package Updates", "番茄钟结束", "Pomodoro End", "DDL", "生日", "Birthday"]
+        case .systemMonitor: return ["系统监控", "Monitor", "CPU", "网络", "Network", "温度", "Temp", "单位", "Unit", "核心", "Cores", "历史图表", "History Chart", "上传下载", "Upload Download", "刷新率", "Refresh Rate"]
+        case .wellness: return ["健康", "Wellness", "久坐", "Posture", "站会", "Standup", "阅读", "Reading", "呼吸", "Breathing", "生日", "Birthday", "4-7-8"]
+        case .lifestyle: return ["生活", "Lifestyle", "外卖", "Food", "美团", "饿了么", "UberEats", "穿衣", "Outfit", "城市", "City", "像素宠物", "Pixel Pet", "宠物", "Pet", "猫", "Cat", "狗", "Dog", "兔", "Bunny"]
+        case .tools: return ["快捷工具", "Tools", "剪贴板", "Clipboard", "哈希", "Hash", "sha256", "正则", "Regex", "快捷回复", "Quick Replies", "音量律动", "Audio Spectrum", "频谱", "麦克风", "Mic", "延迟测试", "Latency", "测速", "窗口布局", "Window Layout", "左半", "右半", "居中", "全屏"]
         }
     }
 }
 
 // MARK: - Groups
 
+/// R57-C ② 侧栏信息架构：5 组 22 平铺 → 3 组收敛。
+///
+/// - `common`（常用）：核心域 + 高频数据域，置顶展开——用户每天碰的都在这。
+/// - `more`（更多设置）：低频域二级收纳，**默认折叠**；选中其中 tab 时自动
+///   展开（见 GroupSection 的 auto-expand），所有设置仍可达，纯收纳不删功能。
+/// - `about` 不进组：规范 §1 要求 about 保持一级入口，作为侧栏底部固定项渲染。
 enum SettingsGroup: String, CaseIterable, Identifiable {
-    case basic, data, productivity, life, tools
+    case common, data, more
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .basic: return localized("基础", "Basic")
+        case .common: return localized("常用", "Common")
         case .data: return localized("数据", "Data")
-        case .productivity: return localized("效率", "Productivity")
-        case .life: return localized("生活", "Life")
-        case .tools: return localized("工具", "Tools")
+        case .more: return localized("更多设置", "More")
         }
     }
 
     var symbol: String {
         switch self {
-        case .basic: return "gearshape.2"
+        case .common: return "gearshape.2"
         case .data: return "chart.line.uptrend.xyaxis"
-        case .productivity: return "timer"
-        case .life: return "heart"
-        case .tools: return "wrench.and.screwdriver"
+        case .more: return "ellipsis.circle"
         }
     }
 
+    /// 低频域清单（R57-C ① 逐 tab 分类结论）：
+    /// expense/dock/notification/systemMonitor/wellness/lifestyle/tools/homekit/ai/pomodoro
+    /// → 折叠进「更多设置」；general/lyrics/slots/editor/keyBindings/services/about 保持一级。
     var tabs: [SettingsTab] {
         switch self {
-        case .basic: return [.general, .lyrics, .slots, .editor, .keyBindings, .services]
+        case .common: return [.general, .lyrics, .slots, .editor, .keyBindings, .services]
         case .data: return [.stock, .weather, .calendar, .package, .rss]
-        case .productivity: return [.pomodoro, .homekit, .ai]
-        case .life: return [.expense, .wellness, .lifestyle, .dock]
-        case .tools: return [.systemMonitor, .notification, .tools, .about]
+        case .more: return [.pomodoro, .ai, .homekit, .expense, .dock, .notification, .systemMonitor, .wellness, .lifestyle, .tools]
         }
     }
+
+    /// 「更多设置」组默认折叠；其余组默认展开。用户手动开合后以 UserDefaults 为准。
+    var defaultExpanded: Bool { self != .more }
 }
 
 
@@ -1292,6 +1312,11 @@ struct SettingsRootView: View {
                     ForEach(SettingsGroup.allCases) { group in
                         GroupSection(group: group, selection: $selection, namespace: navNamespace)
                     }
+                    // R57-C ②: About 保持一级入口（规范 §1），不折叠进任何组。
+                    NavItem(tab: .about, isSelected: selection == .about, namespace: navNamespace) {
+                        selection = .about
+                    }
+                    .padding(.top, 6)
                 } else {
                     ForEach(matchingTabs, id: \.id) { tab in
                         NavItem(tab: tab, isSelected: selection == tab, namespace: navNamespace) {
@@ -1304,6 +1329,8 @@ struct SettingsRootView: View {
         }
     }
 
+    /// R57-C ③: 搜索匹配 = 标题 + 副标题 + searchKeywords（22 tab 全覆盖）。
+    /// 命中「更多设置」里的低频域时，搜索结果是它的等价直达路径，可达性不回退。
     private var matchingTabs: [SettingsTab] {
         let q = searchText.lowercased()
         return SettingsTab.allCases.filter { tab in
@@ -1468,6 +1495,16 @@ struct GroupSection: View {
 
     private var expandKey: String { "group.expanded.\(group.rawValue)" }
 
+    /// R57-C ②: 同步读取持久化的开合状态做初值——「更多设置」组从第一帧起
+    /// 就是折叠的，不靠 onAppear 二次修正（避免首帧闪现整组平铺）。
+    init(group: SettingsGroup, selection: Binding<SettingsTab>, namespace: Namespace.ID) {
+        self.group = group
+        self._selection = selection
+        self.namespace = namespace
+        let saved = UserDefaults.standard.object(forKey: "group.expanded.\(group.rawValue)") as? Bool
+        self._isExpanded = State(initialValue: saved ?? group.defaultExpanded)
+    }
+
     var body: some View {
         VStack(spacing: 2) {
             Button {
@@ -1494,6 +1531,13 @@ struct GroupSection: View {
             .onChange(of: isExpanded) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: expandKey)
             }
+            // R57-C ② 可达性兜底：选中折叠组内的 tab（搜索直达 / 程序化跳转）
+            // 时自动展开该组，保证目标 tab 可见——收纳不等于藏没。
+            .onChange(of: selection) { _, newValue in
+                if newValue.isInGroup(group) && !isExpanded {
+                    withAnimation(.easeOut(duration: 0.2)) { isExpanded = true }
+                }
+            }
 
             if isExpanded {
                 ForEach(group.tabs) { tab in
@@ -1502,9 +1546,6 @@ struct GroupSection: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            isExpanded = UserDefaults.standard.object(forKey: expandKey) as? Bool ?? true
         }
     }
 }
