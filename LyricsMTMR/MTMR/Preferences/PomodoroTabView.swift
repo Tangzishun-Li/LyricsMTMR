@@ -3,25 +3,75 @@
 //  LyricsMTMR
 //
 //  Settings → 番茄钟 / Pomodoro tab
+//  R57-B schema 驱动试点：字段定义收敛到 SettingsSchema.domainFields["pomodoro"]，
+//  本视图只做 Header + 分区渲染；读写经 SettingsFieldStore 闭包，
+//  渲染事实源为 SettingsFieldModel（onAppear reload 对齐改造前 loadFromJSON）。
 //
 
 import SwiftUI
 
 struct PomodoroTab: View {
-    @State private var workMinutes: Int = 25
-    @State private var restMinutes: Int = 5
-    @State private var longRestMinutes: Int = 15
-    @State private var longRestInterval: Int = 4
-    @State private var autoNext: Bool = false
-    @State private var soundEnabled: Bool = true
-    @State private var dailyGoal: Int = 8
+    /// 防抖落盘（原 saveDebounced 语义）：分钟行连续点击只触发一次写盘三连。
+    @State private var model: SettingsFieldModel?
+
+    private static let store = SettingsFieldStore(
+        intReader: { key in
+            // items.json 存秒数，UI 用分钟；缺省与改造前 @State 初值一致
+            let item = SettingsSync.readItem(type: "pomodoro")
+            let seconds = item?[key] as? Double ?? (key == "workTime" ? 1500 : 300)
+            return Int(seconds) / 60
+        },
+        intWriter: { key, minutes in
+            pendingMinutes[key] = minutes
+            flushDurations()
+        },
+        boolReader: { key in
+            key == "notificationsPomodoro" ? AppSettings.notificationsPomodoro : true
+        },
+        boolWriter: { key, value in
+            if key == "notificationsPomodoro" {
+                AppSettings.notificationsPomodoro = value
+            }
+        })
+
+    private static var pendingMinutes: [String: Int] = [:]
+    private static var saveWork: DispatchWorkItem?
+
+    private static func flushDurations() {
+        saveWork?.cancel()
+        let work = DispatchWorkItem {
+            // 优先取防抖暂存值：连续调整两个键时，后一次落盘不得回滚先前的修改
+            let settings: [String: Any] = [
+                "workTime": (pendingMinutes["workTime"] ?? currentMinutes("workTime")) * 60,
+                "restTime": (pendingMinutes["restTime"] ?? currentMinutes("restTime")) * 60,
+            ]
+            pendingMinutes.removeAll()
+            SettingsSync.writeBack(type: "pomodoro", settings: settings)
+            SettingsSync.postGlobalConfigChanged(domain: "pomodoro", key: "durations", newValue: settings)
+            TouchBarController.shared.reloadStandardConfig()
+        }
+        saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    private static func currentMinutes(_ key: String) -> Int {
+        let item = SettingsSync.readItem(type: "pomodoro")
+        let seconds = item?[key] as? Double ?? (key == "workTime" ? 1500 : 300)
+        return Int(seconds) / 60
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.pomodoro.title, subtitle: SettingsTab.pomodoro.subtitle)
-                durationSection
-                behaviorSection
+                if let model {
+                    ForEach(groupedSections(model.fields), id: \.name) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Deck.SectionHeader(title: section.name)
+                            SettingsSchemaSectionCard(fields: section.fields, model: model)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -29,95 +79,23 @@ struct PomodoroTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: loadFromJSON)
-    }
-
-    private var durationSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("时长", "Duration"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    TimePickerField(label: localized("工作", "Work"), range: 5...60, step: 5, minutes: $workMinutes)
-                        .onChange(of: workMinutes) { saveDebounced() }
-                    Deck.RowDivider()
-                    TimePickerField(label: localized("短休息", "Short Break"), range: 1...30, step: 1, minutes: $restMinutes)
-                        .onChange(of: restMinutes) { saveDebounced() }
-                    Deck.RowDivider()
-                    TimePickerField(label: localized("长休息", "Long Break"), range: 5...60, step: 5, minutes: $longRestMinutes)
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("长休息周期", "Long Every")) {
-                        HStack(spacing: 8) {
-                            Button { if longRestInterval > 2 { longRestInterval -= 1 } } label: {
-                                Image(systemName: "minus.circle").foregroundStyle(Deck.textSecondary)
-                            }.buttonStyle(.plain)
-                            Text("\(longRestInterval) \(localized("个番茄", "pomodoros"))")
-                                .font(Deck.monoFont).foregroundStyle(Deck.textPrimary).frame(minWidth: 80)
-                            Button { if longRestInterval < 8 { longRestInterval += 1 } } label: {
-                                Image(systemName: "plus.circle").foregroundStyle(Deck.textSecondary)
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
+        .onAppear {
+            // 每次 tab 出现都重建模型：等价改造前 onAppear(perform: loadFromJSON)
+            model = SettingsFieldModel(fields: pomodoroFields(), store: Self.store)
         }
     }
 
-    private var behaviorSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("行为", "Behavior"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    Deck.ToggleRow(
-                        title: localized("自动开始下一阶段", "Auto Start Next"),
-                        subtitle: localized("当前阶段结束后自动开始下一阶段", "Auto-start next phase when current ends"),
-                        isOn: $autoNext)
-                    Deck.RowDivider()
-                    Deck.ToggleRow(
-                        title: localized("阶段结束提示音", "Phase End Sound"),
-                        subtitle: localized("番茄结束时播放提示音", "Play sound when a phase ends"),
-                        isOn: $soundEnabled)
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("每日目标", "Daily Goal")) {
-                        HStack(spacing: 8) {
-                            Button { if dailyGoal > 1 { dailyGoal -= 1 } } label: {
-                                Image(systemName: "minus.circle").foregroundStyle(Deck.textSecondary)
-                            }.buttonStyle(.plain)
-                            Text("\(dailyGoal) \(localized("个", "pcs"))")
-                                .font(Deck.monoFont).foregroundStyle(Deck.textPrimary).frame(minWidth: 40)
-                            Button { if dailyGoal < 20 { dailyGoal += 1 } } label: {
-                                Image(systemName: "plus.circle").foregroundStyle(Deck.textSecondary)
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
+    private func pomodoroFields() -> [SettingsField] {
+        SettingsSchema.domainFields["pomodoro"] ?? []
+    }
+
+    private func groupedSections(_ all: [SettingsField]) -> [(name: String, fields: [SettingsField])] {
+        var order: [String] = []
+        var grouped: [String: [SettingsField]] = [:]
+        for field in all {
+            if grouped[field.section] == nil { order.append(field.section) }
+            grouped[field.section, default: []].append(field)
         }
+        return order.map { (name: $0, fields: grouped[$0] ?? []) }
     }
-
-    private func loadFromJSON() {
-        if let item = SettingsSync.readItem(type: "pomodoro") {
-            if let work = item["workTime"] as? Double { workMinutes = Int(work) / 60 }
-            if let rest = item["restTime"] as? Double { restMinutes = Int(rest) / 60 }
-        }
-    }
-
-    private func saveToJSON() {
-        let settings: [String: Any] = [
-            "workTime": workMinutes * 60,
-            "restTime": restMinutes * 60,
-        ]
-        SettingsSync.writeBack(type: "pomodoro", settings: settings)
-        SettingsSync.postGlobalConfigChanged(domain: "pomodoro", key: "durations", newValue: settings)
-        TouchBarController.shared.reloadStandardConfig()
-    }
-
-    private func saveDebounced() {
-        Self.saveWork?.cancel()
-        let work = DispatchWorkItem { self.saveToJSON() }
-        Self.saveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
-    }
-
-    /// Static scratch so the value-type View can debounce without @State churn.
-    private static var saveWork: DispatchWorkItem?
 }
