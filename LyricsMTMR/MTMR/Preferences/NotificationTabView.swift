@@ -9,10 +9,10 @@ import SwiftUI
 
 struct NotificationTab: View {
     @State private var globalEnabled: Bool = true
-    @State private var packageNotify: Bool = true
+    // R57 死设置审计：package/ddl/birthday 三开关已隐藏（对应 AppSettings 键
+    // 无通知生产者，只写不读——见 AppSettings deprecated 注释与审计清单）。
+    // @State 一并移除，防止「活跃 UI 只写不读」残留；pomodoro/sound 已接线。
     @State private var pomodoroNotify: Bool = true
-    @State private var ddlNotify: Bool = true
-    @State private var birthdayNotify: Bool = true
     @State private var soundEnabled: Bool = true
 
     var body: some View {
@@ -54,17 +54,10 @@ struct NotificationTab: View {
             Deck.SectionHeader(title: localized("按功能", "Per Feature"))
             Deck.Card {
                 VStack(spacing: 0) {
-                    Deck.ToggleRow(title: localized("快递更新", "Package Updates"), isOn: $packageNotify)
-                        .onChange(of: packageNotify) { saveToSettings() }
-                    Deck.RowDivider()
+                    // R57 死设置审计：快递/DDL/生日三行已移除——无通知生产者，
+                    // 开关此前只写不读（§5 规则 2：隐藏 UI + 键 deprecated）。
                     Deck.ToggleRow(title: localized("番茄钟结束", "Pomodoro End"), isOn: $pomodoroNotify)
                         .onChange(of: pomodoroNotify) { saveToSettings() }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("DDL 提醒", "DDL Alerts"), isOn: $ddlNotify)
-                        .onChange(of: ddlNotify) { saveToSettings() }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("生日提醒", "Birthday Alerts"), isOn: $birthdayNotify)
-                        .onChange(of: birthdayNotify) { saveToSettings() }
                 }
             }
         }
@@ -75,18 +68,12 @@ struct NotificationTab: View {
     private func loadFromSettings() {
         globalEnabled = AppSettings.notificationsGlobalEnabled
         soundEnabled = AppSettings.notificationsSound
-        packageNotify = AppSettings.notificationsPackage
         pomodoroNotify = AppSettings.notificationsPomodoro
-        ddlNotify = AppSettings.notificationsDDL
-        birthdayNotify = AppSettings.notificationsBirthday
     }
 
     private func saveToSettings() {
         AppSettings.notificationsGlobalEnabled = globalEnabled
         AppSettings.notificationsSound = soundEnabled
-        AppSettings.notificationsPackage = packageNotify
         AppSettings.notificationsPomodoro = pomodoroNotify
-        AppSettings.notificationsDDL = ddlNotify
-        AppSettings.notificationsBirthday = birthdayNotify
     }
 }
