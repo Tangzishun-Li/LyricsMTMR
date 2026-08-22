@@ -2112,3 +2112,20 @@
   - README.md 共 3 处改动：① 更新日志区置顶新增「v0.56（当前开发版本）」条目（承接段注明第 55 轮变更摘要 + 第 56 轮 A 卡方向待定）+「新增」1 项——桌面歌词独立配色开关（UI 维度 R51 A 卡遗留候选：AppSettings 3 键+hex 编解码/resolveDesktopTextColor/ProgressColor+applyColors()/LyricsTabView Toggle+Swatches/DesktopLyricsColorContractTests 8 用例）+「工程与稳定性」2 项——锚点巡检收口复跑接入保持（连续第三十六轮）、工程版本号对齐（Info.plist 0.54/479 → 0.55/480），全部来自第 55 轮 iteration-log 实证记录（父收口段 + A 卡 t_f8a97579 + B 卡 t_1dbc7e88 + C 卡 t_da13b114 子任务记录）+ 验证报告《验证报告_第55轮_桌面歌词独立配色.md》（同库实证），未虚构）；② v0.55 条目标题移除「（当前开发版本）」标注；③ 版本史说明段补记 v0.56=第 55 轮（v0.55=第 54 轮 后追加）。
   - 纯文档轮零 Swift 源码改动（README.md 为唯一生产文件改动），未触发构建/测试/全量回归；未 push 远端（父任务收口统一推送）；未改 Info.plist 版本号；
   - 交付：核对报告《核对报告_第56轮_README更新日志补登v0.56.md》（本分支根目录，含版本决策与 0.56/481 建议/12 项逐项核对表/条目→轮次→iteration-log 出处对照表/锚点核对/改动清单/未虚构声明/风险点）+ 本记录（iteration-log 末尾追加，标注「第 56 轮 / 子任务 B」，收口时父任务重组）+ file-structure.zh.md 登记（mindmap 第 7~55 轮→第 7~56 轮 + 报告行，无重复行）；完成自查 git status 干净 + commit 已提交。
+
+## 第 57 轮（设置体系统一治理 + 性能减脂，双波 INTEG 收口）
+
+### INTEG 收口记录（t_416a043e，分支 lyricsmtmr/t_416a043e-r57-integ-4）
+
+- **合并链**：main 基线 4601020 → 按序 merge A→B→C→D→E→F→G 七张执行卡（de2ca35 r57-a 死设置审计接线 / 82d0af8 r57-b SettingsSchemaBridge / 9354463 r57-c 侧栏信息架构重排 / 550b5cf r57-d 设置⇄编辑器双向跳转 / c0528cd r57-e 时钟精度分档 / 7636b08 r57-f popover 停表 / 6b8cc6b r57-g 歌词动画可见性守卫），合并提交 434cc31/36aee70/4a00e74/242950f/6a1ef7b/7767af5/05c3890。
+- **冲突解决**：project.pbxproj 追加段冲突 ×4 处（B/E/F/G 各自新增 Tests 文件登记），按编排者预案「保留双方」全部解清；`grep '^<<<<<<<'` 全仓 0 残留；其余文件零冲突（轨道 §4 目录所有权表生效实证——第一波与第二波源文件交集为空）。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×7；整体构建 BUILD SUCCEEDED。
+- **测试**：受影响套件 DeadSettingContractTests(5) + SettingsTabCacheTests(6) + ItemTypeDecodeRegistryTests(173) = **184 用例 0 失败**（UnitTests scheme 定向，xcresult Staging 日志实读；xcodebuild 主进程因代理 PAC 解析挂起未正常退出已终止，测试本体 04:34:36 已全部通过）。
+- **锚点巡检**：python3 scripts/anchor-patrol.py **PASS 67 / WARN 16 / INFO 5 / ERROR 0** 退出码 0（REGISTRY 194 行）；IP-151 examples/presets/items.json 路径随 R56 后 presets 目录迁移同步为 LyricsMTMR/MTMR/presets/items.json（record 级路径修正，非漂移）。
+- **收口产物**：docs/R57_死设置审计清单.md git mv 进 logs/第57轮/（与调研报告_性能减脂.md 同目录）+ file-structure.zh.md 登记行同步 2 行 + Info.plist 0.56/481→0.57/482 + README 更新日志补登 v0.57（当前开发版本，7 项变更+工程稳定性 2 项+版本史说明段 v0.57=第 57 轮待下一文档轮复核）。
+- **空间释放**：r57 七执行卡 worktree remove + branch -d + prune（du -sh .worktrees/ 前后对比写入本卡 comment）。
+
+## 第 58 轮候选（本轮新发现登记）
+- @State 即烬开关 ~20 处（TabView 内 @State 开关不持久化，A 卡审计清单第二节建议 R58 立卡）
+- Expense savings.json 四键无消费者（同上清单，R58 建议）
+- ITER-15 镜像窗事件驱动刷新第一决策门=用户使用场景 4 问（延续挂账）

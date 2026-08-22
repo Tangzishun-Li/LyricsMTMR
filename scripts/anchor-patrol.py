@@ -251,7 +251,7 @@ ANCHORS = [
      "note": "同步逻辑重写后插入点移位（+20）"},
     {"id": "IP-151", "cat": "iteration-plan 引用", "level": "record",
      "doc": "docs/iteration-plan.md:151", "desc": "ITER-5 验证：items.json:210 awk 死代码清理（%.0f）",
-     "file": "examples/presets/items.json", "kind": "line", "line": 210,
+     "file": "LyricsMTMR/MTMR/presets/items.json", "kind": "line", "line": 210,
      "pattern": "%.0f"},
     {"id": "IP-152a", "cat": "iteration-plan 引用", "level": "record",
      "doc": "docs/iteration-plan.md:152", "desc": "ITER-6 验证：TBMWC:203 private→internal",

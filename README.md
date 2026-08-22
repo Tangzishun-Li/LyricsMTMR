@@ -151,7 +151,29 @@ make archive   # 生成通用（arm64 + x86_64）未签名归档
 
 > **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮，v0.45=第 44 轮，v0.46=第 45 轮，v0.47=第 46 轮，v0.48=第 47 轮，v0.49=第 48 轮，v0.50=第 49 轮，v0.51=第 50 轮，v0.52=第 51 轮，v0.53=第 52 轮，v0.54=第 53 轮，v0.55=第 54 轮，v0.56=第 55 轮），此前条目为发布时实况。
 
-### v0.56（当前开发版本）
+### v0.57（当前开发版本）
+
+> 承接第 57 轮：设置体系统一治理（双波 INTEG——第一波设置 UX 4 卡：A 死设置审计接线/B SettingsSchemaBridge 共享层+C 侧栏信息架构重排/D 设置⇄编辑器双向跳转；第二波性能减脂 3 卡：E 时钟精度分档/F popover 停表/G 歌词动画可见性守卫；受影响套件 184 用例 0 失败、锚点巡检连续第三十八轮 0 ERROR）。第 58 轮方向待定。
+
+#### 新增
+
+- **死设置审计与接线（r57-a，commit de2ca35）**：全量 grep 审计 AppSettings 全部 38 个 @UserDefault 键 × 21 个 TabView 的读写闭环——notificationsSound 按 §5 规则1 接线（PomodoroBarItem.sendNotification 补读，content.sound 由开关控制）；notificationsPackage/DDL/Birthday 无生产者走规则2（NotificationTabView 隐藏三开关 + AppSettings 标 deprecated 注释保留键）；rssRSSHubBase 复核降级 F2 误报（resolvedURL(base:) 消费链实证活键）；产出 logs/第57轮/R57_死设置审计清单.md（38 键处置表+各 tab 非 UD 通道审计）+ DeadSettingContractTests 5 用例 + scripts/audit_ud_keys.py
+- **SettingsSchemaBridge 共享层与 pomodoro schema 驱动试点（r57-b，commit 82d0af8）**：新建 Preferences/Components/SettingsSchemaBridge.swift（§6 冻结三签名转发 EditorSchema + SettingsField/Store/Model/SectionCard 扩展层，头注释含 Phase2 批量迁移路径）；PomodoroTabView 改 schema 驱动渲染（时长防抖写盘三连行为不变）；5 个零运行时读者死装饰控件移除（longRestMinutes/longRestInterval/autoNext/soundEnabled/dailyGoal）；notificationsPomodoro 补 live 字段（消费者 PomodoroBarItem.swift:126）
+- **设置⇄编辑器双向跳转（r57-d，commit 550b5cf）**：设置→编辑器「在编辑器中打开…」菜单（枚举 items.json 顶层 item，type/index 经冻结通知定位选中，三层时序兜底）；编辑器→设置 inspector 头部「域设置…」按钮（14 个域 tab 映射）；契约 Notification.Name 与 userInfo 字段级符合 §6（settingsNavigateToItem / editorRequestOpenSettings）
+- **TimeTouchBarItem 模板精度分档（r57-e，commit c0528cd）**：新增 refreshInterval(for:)（模板含 S/ss→1s 否则 30s），init 接线分档 cadence 与 tolerance（1s 档 0.1 / 30s 档 5），分钟格式时钟刷新开销 1s→30s；新增 TimeTouchBarItemPrecisionTests 7 用例
+- **TBPopoverItem overlayDidDismiss 生命周期钩子（r57-f，commit 7636b08）**：TBPopoverItem 新增空默认 dismissOverlay 钩子，浮层关闭即停表——BreathingGuideItem(20Hz)/StandupTimerItem(0.5s)/ReadTimerItem(1s) 三循环 timer 子类 override 离屏停转置 nil，离屏空转泄漏清零；reloadPreset 异常未重建不再泄漏会话；新增 PopoverLifecycleTests 7 用例
+- **桌面歌词动画定时器可见性守卫（r57-g，commit 6b8cc6b）**：KaraokeLabel.setProgressAnimation 入口可见性守卫（window 不可见记 pending 不启动，flushPendingProgressIfNeeded 补启动）+ marquee Timer 创建前 isVisible 竞态复查 + show/hide 接 windowVisibilityDidChange 冻结/续播；新增 KaraokeVisibilityTests 7 用例
+
+#### 改进
+
+- **侧栏信息架构重排（r57-c，commit 9354463）**：SettingsGroup 5 组 22 平铺收敛为常用(6)/数据(5)/更多设置(10, 默认折叠) 3 组 + About 组外一级；searchKeywords 取消 default 盲区 22 tab 全覆盖；折叠组选中自动展开保可达；纯导航重排 22 个 *TabView 文件级零改动
+
+#### 工程与稳定性
+
+- **锚点巡检收口复跑接入保持**：scripts/anchor-patrol.py 收口复跑接入（第 29 轮 B 卡固化）连续第三十八轮保持——第 57 轮收口后复跑 PASS 67 / WARN 16 / INFO 5 / ERROR 0 退出码 0（REGISTRY 194 行；IP-151 examples/presets/items.json 路径随 presets 目录迁移同步 LyricsMTMR/MTMR/presets/items.json），机器检查零回归
+- **工程版本号对齐**：Info.plist 0.56/481 → 0.57/482（第 57 轮收口落地，INTEG 版本统一动作，营销版本号与工程版本号对齐惯例延续）
+
+### v0.56
 
 > 承接第 55 轮：桌面歌词独立配色开关·UI维度（R51 遗留候选——AppSettings 新增 3 键 + hex 编解码 + resolveDesktopTextColor/ProgressColor + applyColors() + Toggle + Swatches + 8 用例 contract tests；561 用例 0 失败实证、锚点巡检连续第三十六轮 0 ERROR）。第 56 轮 A 卡方向待定。
 

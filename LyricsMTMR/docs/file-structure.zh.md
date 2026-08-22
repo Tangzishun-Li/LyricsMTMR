@@ -319,6 +319,8 @@ mindmap
 ├── logs/第56轮/清理报告_第56轮_round55遗留清理.md                         # 第 56 轮子任务 C 仓库卫生报告（round-55 遗留清理 4 worktree + 4 branch，r56/review；worktree remove + update-ref 删除；清理后零 r55 残留）
 ├── logs/第56轮/核对报告_第56轮_README更新日志补登v0.56.md                             # 第 56 轮子任务 B 核对报告（README 更新日志补登 v0.56：第 55 轮变更条目——桌面歌词独立配色开关·UI 维度+版本决策建议 0.56/481+12 项现状核对全过+锚点巡检 PASS 67/WARN 16/INFO 5/ERROR 0，r56/changelog）
 ├── logs/第56轮/验证报告_第56轮_App_Sandbox启用与临时例外配置.md            # 第 56 轮子任务 A 验证报告（App Sandbox 启用与临时例外配置·安全合规维度 R43 候选：entitlements sandbox false→true + 7 条 entitlements + SandboxConfigContractTests 15 断言全 PASS + BUILD SUCCEEDED，r56/sandbox）
+├── logs/第57轮/调研报告_性能减脂.md                                        # 第 57 轮第二波调研报告（性能减脂主线：3 缺口 A1 时钟精度/A2 popover 停表/A3 歌词动画可见性 + 2 登记候选 ITER-15/16 + 已论证不动复核，orchestrator-r57-wave2 commit 4601020）
+├── logs/第57轮/R57_死设置审计清单.md                                       # 第 57 轮 A 卡产出（死设置审计：38 @UserDefault 键 × 21 Tab 读写闭环全量审计处置表 + 各 tab 非 UD 通道审计 + 第二发现 @State 即烬开关 ~20 处/Expense savings.json 四键无消费者记 R58 建议，r57-a commit de2ca35）
 └── .gitignore / .gitattributes / README.md
 ```
 
