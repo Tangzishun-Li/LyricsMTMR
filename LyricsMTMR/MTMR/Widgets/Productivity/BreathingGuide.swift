@@ -138,4 +138,16 @@ class BreathingGuideItem: TBPopoverItem {
         timer = nil
         super.closeOverlay()
     }
+
+    /// Stop the 0.05s animation timer the moment the overlay closes — even
+    /// when dismiss is triggered outside closeOverlay (e.g. another item
+    /// dismissing, or reloadPreset failing to swap this item out). Re-showing
+    /// restarts it in buildOverlay(). deinit invalidate stays as a backstop.
+    override func overlayDidDismiss() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    /// Test seam: non-nil while the overlay animation timer is installed.
+    var timerIsActiveForTesting: Bool { timer != nil }
 }

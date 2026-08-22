@@ -527,7 +527,18 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         isShowing = false
         HapticFeedback.instance.tap(type: .back)
         TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
+        // Overlay-scoped resources (e.g. per-item timers) must stop here, not
+        // wait for reloadPreset to swap the item out: the funnel above can be
+        // slow or fail to rebuild entirely, and a live timer keeps driving
+        // off-screen draws until deinit. Subclasses override to tear down.
+        overlayDidDismiss()
     }
+
+    /// Called at the end of dismissOverlay() after isShowing flips false.
+    /// Base implementation intentionally empty; subclasses owning overlay-
+    /// scoped resources invalidate them here. Re-showing via showOverlay()
+    /// rebuilds everything through buildOverlay().
+    func overlayDidDismiss() {}
 
     @objc func closeOverlay() { dismissOverlay() }
 
