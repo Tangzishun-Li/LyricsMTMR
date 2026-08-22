@@ -127,7 +127,9 @@ class PomodoroBarItem: CustomButtonTouchBarItem, Widget {
         let content = UNMutableNotificationContent()
         content.title = "Pomodoro"
         content.body = typeTime == .work ? "it's time to rest your mind!" : "It's time to work!"
-        content.sound = .default
+        // R57 死设置审计接线：notificationsSound 此前只写不读（唯一生产者是本方法，
+        // 却硬编码 .default）——现在由设置 → 通知的「通知声音」开关真实控制。
+        content.sound = AppSettings.notificationsSound ? .default : nil
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }

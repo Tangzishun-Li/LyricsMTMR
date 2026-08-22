@@ -141,15 +141,24 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.notifications.sound", defaultValue: true)
     static var notificationsSound: Bool
 
+    /// R57 死设置审计：无生产者——PackageTracker 不发 UNNotification，此键只写不读。
+    /// 开关 UI 已从 NotificationTabView 隐藏；键与存量用户数据保留（红线），勿删。
+    @available(*, deprecated, message: "无通知生产者，仅保留存量数据；UI 已隐藏")
     @UserDefault(key: "com.lyricsmtmr.notifications.package", defaultValue: true)
     static var notificationsPackage: Bool
 
     @UserDefault(key: "com.lyricsmtmr.notifications.pomodoro", defaultValue: true)
     static var notificationsPomodoro: Bool
 
+    /// R57 死设置审计：无生产者——DdlList 无提醒发送方，此键只写不读。
+    /// 开关 UI 已从 NotificationTabView 隐藏；键与存量用户数据保留（红线），勿删。
+    @available(*, deprecated, message: "无通知生产者，仅保留存量数据；UI 已隐藏")
     @UserDefault(key: "com.lyricsmtmr.notifications.ddl", defaultValue: true)
     static var notificationsDDL: Bool
 
+    /// R57 死设置审计：无生产者——BirthdayCountdown 无提醒发送方，此键只写不读。
+    /// 开关 UI 已从 NotificationTabView 隐藏；键与存量用户数据保留（红线），勿删。
+    @available(*, deprecated, message: "无通知生产者，仅保留存量数据；UI 已隐藏")
     @UserDefault(key: "com.lyricsmtmr.notifications.birthday", defaultValue: true)
     static var notificationsBirthday: Bool
 
@@ -269,6 +278,9 @@ struct AppSettings {
     static var rssShowBadge: Bool
 
     /// Base URL of the RSSHub instance used to expand recommended RSSHub routes.
+    /// R57 死设置审计复核：非死键——RSSTabView.swift:545 是 init 水合读；
+    /// :229/:576 经 RSSRecommendedSource.resolvedURL(base:) 真实消费
+    /// （展开后的 URL 落入 rssFeeds，由 RssUnreadItem direct 模式抓取）。
     @UserDefault(key: "com.lyricsmtmr.rss.rsshubBase", defaultValue: "https://rsshub.app")
     static var rssRSSHubBase: String
 
