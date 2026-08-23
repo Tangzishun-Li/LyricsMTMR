@@ -203,6 +203,7 @@ struct AITab: View {
             : SecretsManager.shared.retrieve(.deepseekModel)
         streamOutput = UserDefaultsStore.current.object(forKey: UDKey.aiStreamOutput) as? Bool ?? true
         showBalance = UserDefaultsStore.current.object(forKey: UDKey.aiShowBalance) as? Bool ?? true
+        promptTemplates = AppSettings.aiPromptTemplates
     }
 
     /// Persist the connection triple; debounced so typing doesn't hammer disk.
@@ -224,6 +225,7 @@ struct AITab: View {
         let work = DispatchWorkItem {
             UserDefaultsStore.current.set(self.streamOutput, forKey: UDKey.aiStreamOutput)
             UserDefaultsStore.current.set(self.showBalance, forKey: UDKey.aiShowBalance)
+            AppSettings.aiPromptTemplates = self.promptTemplates
             // round 42 写入侧审计：删去对 items.json 的死写——item 类型是
             // aiSelectedText（仅 model/prompt 两个属性），不存在 type "ai"，
             // writeBack 永不匹配；streamOutput/showBalance 是 UserDefaults

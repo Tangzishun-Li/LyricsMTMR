@@ -43,6 +43,7 @@ struct LifestyleTab: View {
                             set: { on in
                                 if on { if !foodPlatforms.contains(platform) { foodPlatforms.append(platform) } }
                                 else { foodPlatforms.removeAll { $0 == platform } }
+                                saveDebounced()
                             }
                         ))
                         .toggleStyle(DeckToggleStyle())
@@ -58,6 +59,7 @@ struct LifestyleTab: View {
                             RoundedRectangle(cornerRadius: 7).fill(Deck.insetFill)
                                 .overlay { RoundedRectangle(cornerRadius: 7).strokeBorder(Deck.hairline) }
                         }
+                        .onChange(of: outfitCity) { saveDebounced() }
                 }
             }
         }
@@ -69,6 +71,7 @@ struct LifestyleTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     Deck.ToggleRow(title: localized("显示宠物", "Show Pet"), isOn: $showPixelPet)
+                        .onChange(of: showPixelPet) { saveDebounced() }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("宠物种类", "Pet Type")) {
                         Deck.Segmented(
@@ -84,12 +87,17 @@ struct LifestyleTab: View {
         }
     }
 
-    // MARK: - Sync with pixelPet widget
+    // MARK: - Sync with pixelPet widget + UI 态持久化（R58-b G4）
 
+    /// 从 items.json 读 widget 侧 petType，从 UserDefaults 读四个 UI 态键。
     private func loadFromJSON() {
         if let item = SettingsSync.readItem(type: "pixelPet") {
             if let pt = item["petType"] as? String { petType = pt }
         }
+        foodPlatforms = AppSettings.lifestyleFoodPlatforms.isEmpty ? foodPlatforms : AppSettings.lifestyleFoodPlatforms
+        outfitCity = AppSettings.lifestyleOutfitCity
+        quoteCategories = AppSettings.lifestyleQuoteCategories.isEmpty ? quoteCategories : AppSettings.lifestyleQuoteCategories
+        showPixelPet = AppSettings.lifestyleShowPixelPet
     }
 
     private func saveToJSON() {
@@ -100,9 +108,21 @@ struct LifestyleTab: View {
         TouchBarController.shared.reloadStandardConfig()
     }
 
+    /// 四个 UI 态键落盘：数组/字符串/布尔直接写 UserDefaults；空数组不覆盖存量
+    /// （首次进入未动过时保留代码内默认选中项，避免空态闪断）。
+    private func persistUIState() {
+        if !foodPlatforms.isEmpty { AppSettings.lifestyleFoodPlatforms = foodPlatforms }
+        AppSettings.lifestyleOutfitCity = outfitCity
+        if !quoteCategories.isEmpty { AppSettings.lifestyleQuoteCategories = quoteCategories }
+        AppSettings.lifestyleShowPixelPet = showPixelPet
+    }
+
     private func saveDebounced() {
         Self.saveWork?.cancel()
-        let work = DispatchWorkItem { self.saveToJSON() }
+        let work = DispatchWorkItem {
+            self.saveToJSON()
+            self.persistUIState()
+        }
         Self.saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }

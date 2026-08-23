@@ -85,4 +85,5 @@ com.lyricsmtmr.ai.promptTemplates               [String] 默认 []（JSON 编码
 ```
 R58-open | 2026-08-23 | 父卡建立本轨道文本 | base: 44320f3 (main, R57 收口+wave2 报告)
 R58-a | 2026-08-23 | G1~G3 七键落盘完成：AppSettings 新增「UI State (homekit/package/wellness)」MARK 区段 7 个 @UserDefault（键名照抄 §5）+ Homekit/Package/Wellness 三 TabView init 水合+onChange 即时写回（仿 R55 先例）；构建 SUCCEEDED；验证：缺键启动水合=契约默认(1/0/1/0/0/20/45)，plist 注入非默认值(0/1/0/1/1/90/25)→杀进程冷启动读回逐项一致。分歧标注：§5 与既有 UI 三处出入——①package.notifyOnUpdate 契约默认 false vs UI 旧硬编码 true（已按契约切为 false）；②wellness.readingGoal 契约 Int 页/天默认 20 vs 滑杆 Double 分/天默认 60（按契约 Int 落盘滑杆值，单位文案未动）；③wellness.standupMinutes 契约默认 45 vs 滑杆范围 5...30（缺键水合 45 会以超程显示至首拖，待编排者裁决契约或 UI 修订）
+r58-b | 2026-08-23 | t_56d255e0 G4/G5 落地：AppSettings 新增「UI State (lifestyle/ai)」区段五键（§5 逐字照抄）；LifestyleTabView 四键 onAppear 回读+onChange/saveDebounced 双向接线；AITabView promptTemplates load/save 接入 saveDebounced。编码二选一：选 [String] 整存整取（UI 是 EditableListView 整行编辑器，非名/内容成对），已记 AppSettings comment | BUILD SUCCEEDED（scheme MTMR Debug）
 ```
