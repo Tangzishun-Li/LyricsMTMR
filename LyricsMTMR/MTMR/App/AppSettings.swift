@@ -247,6 +247,49 @@ struct AppSettings {
         }
     }
 
+    // MARK: - UI State (homekit/package/wellness)
+
+    /// R58-a（G1~G3）：Homekit/Package/Wellness 三域共 7 个「UI 态即焚」开关落盘
+    /// （需求出处 logs/第57轮/R57_死设置审计清单.md 第二节）。键名/类型/默认值按
+    /// 《docs/轨道文本_R58_UI态持久化与Phase2.md》§5 契约冻结照抄，消费者为对应
+    /// 设置 TabView（init 水合 + onChange 即时写回，仿 R55 桌面歌词配色开关先例）。
+    /// 注：§5 与既有 UI 初始值存在三处出入（package.notifyOnUpdate 契约默认 false
+    /// vs UI 旧初始 true；wellness.readingGoal 契约 Int 20 页/天 vs 滑杆 Double 分/天；
+    /// wellness.standupMinutes 契约默认 45 vs 滑杆范围 5...30）——本卡按「契约优先」
+    /// 处理，分歧已在轨道文本 §8 日志行标注，待编排者裁决是否修订契约或 UI。
+    /// 新键走 com.lyricsmtmr. 前缀，自动进入 SettingsSync 导出/重置契约域
+    /// （UserDefaultsContractTests 命名空间断言兼容，无豁免需要）。
+
+    /// Homekit：显示设备状态（HomekitTab 行为区开关一）。
+    @UserDefault(key: "com.lyricsmtmr.ui.homekit.showDeviceStatus", defaultValue: true)
+    static var homekitShowDeviceStatus: Bool
+
+    /// Homekit：执行前确认（行为区开关二）。
+    @UserDefault(key: "com.lyricsmtmr.ui.homekit.confirmBeforeRun", defaultValue: false)
+    static var homekitConfirmBeforeRun: Bool
+
+    /// Package：自动识别快递公司。
+    @UserDefault(key: "com.lyricsmtmr.ui.package.autoDetect", defaultValue: true)
+    static var packageAutoDetect: Bool
+
+    /// Package：签收后自动移除。
+    @UserDefault(key: "com.lyricsmtmr.ui.package.removeOnDelivery", defaultValue: false)
+    static var packageRemoveOnDelivery: Bool
+
+    /// Package：状态更新通知（§5 冻结默认 false；UI 开关初值随之从旧硬编码 true 切换）。
+    @UserDefault(key: "com.lyricsmtmr.ui.package.notifyOnUpdate", defaultValue: false)
+    static var packageNotifyOnUpdate: Bool
+
+    /// Wellness：阅读目标。§5 契约为 Int「页/天」默认 20；现滑杆控件单位「分/天」，
+    /// 本卡仅按契约类型落盘滑杆数值（Double→Int 取整），不改单位文案。
+    @UserDefault(key: "com.lyricsmtmr.ui.wellness.readingGoal", defaultValue: 20)
+    static var wellnessReadingGoal: Int
+
+    /// Wellness：站会时长（分钟）。§5 契约默认 45；现滑杆范围 5...30，缺键水合出的 45
+    /// 在用户首次拖动前会以超程数值显示（Slider 视觉钳制在最大刻度），见区块头分歧标注。
+    @UserDefault(key: "com.lyricsmtmr.ui.wellness.standupMinutes", defaultValue: 45)
+    static var wellnessStandupMinutes: Int
+
     // MARK: - Services (API keys configured in Settings → 服务 / Services)
     // Widgets read these lazily; an empty value means "未配置" and falls back to mock data.
 
