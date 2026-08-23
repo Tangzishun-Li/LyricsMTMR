@@ -84,4 +84,5 @@ com.lyricsmtmr.ai.promptTemplates               [String] 默认 []（JSON 编码
 
 ```
 R58-open | 2026-08-23 | 父卡建立本轨道文本 | base: 44320f3 (main, R57 收口+wave2 报告)
+r58-b | 2026-08-23 | t_56d255e0 G4/G5 落地：AppSettings 新增「UI State (lifestyle/ai)」区段五键（§5 逐字照抄）；LifestyleTabView 四键 onAppear 回读+onChange/saveDebounced 双向接线；AITabView promptTemplates load/save 接入 saveDebounced。编码二选一：选 [String] 整存整取（UI 是 EditableListView 整行编辑器，非名/内容成对），已记 AppSettings comment | BUILD SUCCEEDED（scheme MTMR Debug）
 ```

@@ -162,6 +162,30 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.notifications.birthday", defaultValue: true)
     static var notificationsBirthday: Bool
 
+    // MARK: - UI State (lifestyle/ai)（R58-b G4/G5，键名契约见 docs/轨道文本_R58_UI态持久化与Phase2.md §5，冻结）
+
+    /// 外卖平台白名单（生活 Tab 多选）。
+    @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.foodPlatforms", defaultValue: [])
+    static var lifestyleFoodPlatforms: [String]
+
+    /// 穿衣推荐城市。
+    @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.outfitCity", defaultValue: "")
+    static var lifestyleOutfitCity: String
+
+    /// 每日一句分类多选。
+    @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.quoteCategories", defaultValue: [])
+    static var lifestyleQuoteCategories: [String]
+
+    /// 像素宠物显示开关（widget 侧 petType 走 SettingsSync/items.json，此处只存 UI 开关态）。
+    @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.showPixelPet", defaultValue: true)
+    static var lifestyleShowPixelPet: Bool
+
+    /// AI Prompt 模板列表（§5 编码二选一：现有 UI 是 EditableListView 的 [String]
+    /// 整行编辑器——一行一条完整提示词，非「名\n内容」成对结构，故整存整取 [String]，
+    /// 经 JSONSerialization 编码进 UserDefaults，与 blacklistedAppIds 等 [String] 键同型）。
+    @UserDefault(key: "com.lyricsmtmr.ai.promptTemplates", defaultValue: [])
+    static var aiPromptTemplates: [String]
+
     // MARK: - Lyrics Filter
 
     @UserDefault(key: "com.toxblh.mtmr.lyrics.filterEnabled", defaultValue: true)
