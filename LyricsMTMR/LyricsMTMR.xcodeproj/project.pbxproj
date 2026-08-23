@@ -279,6 +279,7 @@
 		C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */; };
 		C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */; };
 		C1FF8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */; };
+		C1FF9D78C1D5646401699623 /* PopoverDismissTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -594,6 +595,7 @@
 		C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTouchBarItemPrecisionTests.swift; sourceTree = "<group>"; };
 		C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverLifecycleTests.swift; sourceTree = "<group>"; };
 		C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokeVisibilityTests.swift; sourceTree = "<group>"; };
+		C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverDismissTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -861,6 +863,7 @@
 				C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */,
 				C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */,
 				C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */,
+				C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1497,6 +1500,7 @@
 				C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */,
 				C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */,
 				C1FF8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift in Sources */,
+				C1FF9D78C1D5646401699623 /* PopoverDismissTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
