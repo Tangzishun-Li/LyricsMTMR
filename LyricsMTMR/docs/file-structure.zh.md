@@ -97,7 +97,7 @@ mindmap
 │   │   ├── gen_themes.py / gen_functional_themes.py / update_slots.py  # 主题生成
 │   │   └── fix_createitem.py                 # 一次性补 createItem 分支
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
-│   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
+│   └── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 ├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit / anchor-patrol 锚点巡检用法）
 ├── backup/                          # 优化前调研文档归档（17 份，存档点 pre-opt-20260812-0114；第8轮收尾新增 优化计划_OPT任务清单.md）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
