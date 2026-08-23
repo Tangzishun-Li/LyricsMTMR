@@ -84,4 +84,5 @@ com.lyricsmtmr.ai.promptTemplates               [String] 默认 []（JSON 编码
 
 ```
 R58-open | 2026-08-23 | 父卡建立本轨道文本 | base: 44320f3 (main, R57 收口+wave2 报告)
+R58-d | 2026-08-23 | SchemaBridge Phase2 stock 域试点完成：domainFields["stock"] 注册 6 字段（refreshInterval/displayMode/chartMode/showChart/chartWidth/textWidth），bridge 规则③首批控件扩展 .slider/.segmented + Store 可选 string 通道（pomodoro 四参调用零破坏）；StockTabView 显示段改 schema 驱动渲染，防抖写盘/切主题重水合/add 默认值取界面现值语义保持；EditorSchema 零改动 | build: BUILD SUCCEEDED (Debug, 0 warning) | commit: 见本分支
 ```

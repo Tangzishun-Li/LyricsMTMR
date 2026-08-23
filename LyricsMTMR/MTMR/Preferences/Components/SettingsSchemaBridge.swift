@@ -17,7 +17,8 @@
 //  3. 新增控件种类：先扩 SettingsField.ControlKind 枚举值，再在
 //     SettingsSchemaSectionCard.fieldRow 补对应 Deck 控件分支；
 //     禁止在业务 tab 里私接新控件类型（保持视觉一致性归口此处）。
-//  迁移节奏：试点 pomodoro → 其余 tab 按 §5 死设置审计结论逐个搬迁；
+//  迁移节奏：试点 pomodoro（R57-b）、stock（R58-d，首个带滑条/分段选择的域，
+//  借此验证规则③的控件扩展路径）→ 其余 tab 按 §5 死设置审计结论逐个搬迁；
 //  EditorSchema 的静态元数据未来可迁来此处转发（§4-B 所有权行已预留），
 //  但 152 条属性的 key/displayName/type 值冻结禁改。
 //
@@ -51,7 +52,7 @@ enum SettingsSchema {
 
     // MARK: 域级字段注册表（Phase2 各 tab 的接入点）
 
-    /// 各设置域的全局字段序列。key 与域标识同名（试点 "pomodoro"）。
+    /// 各设置域的全局字段序列。key 与域标识同名（试点 "pomodoro"、"stock"）。
     /// 字段取舍遵循 §5：无运行时读者的死开关不注册（从 UI 隐藏）。
     static let domainFields: [String: [SettingsField]] = [
         "pomodoro": [
@@ -71,6 +72,43 @@ enum SettingsSchema {
                 control: .toggle,
                 section: localized("行为", "Behavior")),
         ],
+        // R58-d：股票显示设置（应用到所选主题的全部 stock item，经 tab 侧
+        // 防抖闭包落盘 preset 文件；键名与 StockBarItem/BarItemFactory 消费链逐字一致）
+        "stock": [
+            SettingsField(
+                id: "refreshInterval", displayName: localized("刷新间隔", "Refresh"),
+                control: .slider(range: 5...60, step: 5, unit: localized("秒", "s")),
+                section: localized("数据", "Data")),
+            SettingsField(
+                id: "displayMode", displayName: localized("显示模式", "Mode"),
+                control: .segmented(options: [
+                    (id: "compact", label: localized("紧凑", "Compact")),
+                    (id: "marquee", label: localized("跑马灯", "Marquee")),
+                ]),
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "chartMode", displayName: localized("图表模式", "Chart Mode"),
+                control: .segmented(options: [
+                    (id: "fenzhong", label: localized("分钟", "Minute")),
+                    (id: "daily", label: localized("日K", "Daily")),
+                ]),
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "showChart",
+                displayName: localized("显示图表", "Show Chart"),
+                subtitle: localized("在 Touch Bar 上显示迷你走势图",
+                                    "Show mini chart on Touch Bar"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "chartWidth", displayName: localized("图表宽度", "Chart W"),
+                control: .slider(range: 80...200, step: 10, unit: "px"),
+                section: localized("布局", "Layout")),
+            SettingsField(
+                id: "textWidth", displayName: localized("文本宽度", "Text W"),
+                control: .slider(range: 40...120, step: 10, unit: "px"),
+                section: localized("布局", "Layout")),
+        ],
     ]
 }
 
@@ -83,6 +121,8 @@ struct SettingsField: Identifiable {
         case minutes(range: ClosedRange<Int>, step: Int)    // TimePickerField
         case counter(range: ClosedRange<Int>, unit: String) // +/- 步进计数行
         case toggle                                         // Deck.ToggleRow
+        case slider(range: ClosedRange<Double>, step: Double, unit: String) // Deck.ValueSlider（R58-d）
+        case segmented(options: [(id: String, label: String)])              // Deck.Segmented（R58-d）
     }
 
     let id: String               // items.json 键或 AppSettings 语义键
@@ -94,11 +134,15 @@ struct SettingsField: Identifiable {
 
 /// 字段值的存取通道：reader/writer 由各 tab 提供（决定持久化目标与节奏——
 /// 如分钟类防抖、开关类即时）。Phase2 各 tab 用它替换手写 load/save 对。
+/// string 通道（R58-d）为可选：仅注册 .segmented 字段的域需要提供；
+/// 未提供时该域不得注册 .segmented 字段（read 会断言拦截）。
 struct SettingsFieldStore {
     var intReader: (String) -> Int
     var intWriter: (String, Int) -> Void
     var boolReader: (String) -> Bool
     var boolWriter: (String, Bool) -> Void
+    var stringReader: ((String) -> String)? = nil
+    var stringWriter: ((String, String) -> Void)? = nil
 }
 
 /// 渲染事实源：init 时经 store.reader 拉一次初值，之后绑定驱动重绘，
@@ -107,12 +151,13 @@ final class SettingsFieldModel: ObservableObject {
     let fields: [SettingsField]
     @Published private(set) var ints: [String: Int]
     @Published private(set) var bools: [String: Bool]
+    @Published private(set) var strings: [String: String]
     private let store: SettingsFieldStore
 
     init(fields: [SettingsField], store: SettingsFieldStore) {
         self.fields = fields
         self.store = store
-        (ints, bools) = Self.read(fields: fields, store: store)
+        (ints, bools, strings) = Self.read(fields: fields, store: store)
     }
 
     /// tab onAppear 时调用：从磁盘重拉，等价改造前 loadFromJSON 的每次出现刷新。
@@ -120,19 +165,26 @@ final class SettingsFieldModel: ObservableObject {
         let fresh = Self.read(fields: fields, store: store)
         ints = fresh.ints
         bools = fresh.bools
+        strings = fresh.strings
     }
 
     private static func read(fields: [SettingsField],
-                             store: SettingsFieldStore) -> (ints: [String: Int], bools: [String: Bool]) {
+                             store: SettingsFieldStore) -> (ints: [String: Int], bools: [String: Bool], strings: [String: String]) {
         var i: [String: Int] = [:]
         var b: [String: Bool] = [:]
+        var s: [String: String] = [:]
         for field in fields {
             switch field.control {
             case .minutes, .counter: i[field.id] = store.intReader(field.id)
             case .toggle: b[field.id] = store.boolReader(field.id)
+            case .slider: i[field.id] = store.intReader(field.id)
+            case .segmented:
+                if let reader = store.stringReader {
+                    s[field.id] = reader(field.id)
+                }
             }
         }
-        return (i, b)
+        return (i, b, s)
     }
 
     func intBinding(_ field: SettingsField) -> Binding<Int> {
@@ -152,12 +204,35 @@ final class SettingsFieldModel: ObservableObject {
                 self.store.boolWriter(field.id, newValue)
             })
     }
+
+    /// 滑条行绑定：模型内部以 Int 存值（Deck.ValueSlider 是 Double 绑定，桥接换算），
+    /// 写侧仍走 intWriter——items.json 数值键的既有读写语义不变。
+    func sliderBinding(_ field: SettingsField) -> Binding<Double> {
+        Binding(
+            get: { Double(self.ints[field.id] ?? 0) },
+            set: { newValue in
+                let rounded = Int(newValue.rounded())
+                guard rounded != self.ints[field.id] else { return }
+                self.ints[field.id] = rounded
+                self.store.intWriter(field.id, rounded)
+            })
+    }
+
+    func stringBinding(_ field: SettingsField) -> Binding<String> {
+        Binding(
+            get: { self.strings[field.id] ?? "" },
+            set: { newValue in
+                self.strings[field.id] = newValue
+                self.store.stringWriter?(field.id, newValue)
+            })
+    }
 }
 
 // MARK: - Schema 驱动的通用分区卡片（复用现有 Deck 视觉组件）
 
 /// 把一串 SettingsField 渲染成 Deck.Card 内的行序列：
-/// 分钟行 = TimePickerField，计数行 = +/- mono 数值，开关行 = Deck.ToggleRow。
+/// 分钟行 = TimePickerField，计数行 = +/- mono 数值，开关行 = Deck.ToggleRow，
+/// 滑条行 = Deck.ValueSlider，分段选择行 = Deck.Segmented（后两类 R58-d）。
 struct SettingsSchemaSectionCard: View {
     let fields: [SettingsField]
     @ObservedObject var model: SettingsFieldModel
@@ -196,6 +271,20 @@ struct SettingsSchemaSectionCard: View {
                 title: field.displayName,
                 subtitle: field.subtitle,
                 isOn: model.boolBinding(field))
+        case .slider(let range, let step, let unit):
+            Deck.LabeledRow(field.displayName) {
+                Deck.ValueSlider(
+                    range: range,
+                    step: step,
+                    unit: unit,
+                    value: model.sliderBinding(field))
+            }
+        case .segmented(let options):
+            Deck.LabeledRow(field.displayName) {
+                Deck.Segmented(
+                    options: options.map { Deck.SegmentOption(id: $0.id, label: $0.label) },
+                    selection: model.stringBinding(field))
+            }
         }
     }
 }

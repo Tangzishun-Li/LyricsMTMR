@@ -11,6 +11,12 @@
 //  so you always know which stock lives in which theme and can change
 //  exactly that one.
 //
+//  R58-d SchemaBridge Phase2：显示设置段改 schema 驱动渲染。字段定义收敛到
+//  SettingsSchema.domainFields["stock"]（bridge 规则③首批控件扩展：
+//  .slider/.segmented），本视图只做分区渲染；读写经 SettingsFieldStore 闭包
+//  落盘所选主题 preset 文件的全部 stock item，渲染事实源为
+//  SettingsFieldModel（切主题即 reload 重水合）。
+//
 
 import SwiftUI
 
@@ -39,13 +45,8 @@ struct ThemeStockSummary: Identifiable {
 // MARK: - Tab
 
 struct StockTab: View {
-    // Display settings — applied to all stock items of the selected theme.
-    @State private var refreshInterval: Double = 10
-    @State private var displayMode: String = "compact"
-    @State private var chartMode: String = "fenzhong"
-    @State private var chartWidth: Double = 130
-    @State private var textWidth: Double = 70
-    @State private var showChart: Bool = true
+    /// 显示设置模型（schema 驱动）：onAppear 建、切主题 reload 重水合。
+    @State private var model: SettingsFieldModel?
 
     // Theme management.
     @State private var summaries: [ThemeStockSummary] = []
@@ -77,7 +78,15 @@ struct StockTab: View {
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: reloadAll)
+        .onAppear {
+            // 先定位所选主题（供 store 读初值），再建模型；再次出现走 reload 重水合。
+            reloadAll()
+            if model == nil {
+                model = SettingsFieldModel(
+                    fields: SettingsSchema.domainFields["stock"] ?? [],
+                    store: makeStore())
+            }
+        }
         .onChange(of: selectedThemeID) { _, _ in reloadSelectedTheme() }
     }
 
@@ -263,56 +272,121 @@ struct StockTab: View {
         }
     }
 
-    // MARK: - 显示设置 (applies to every stock item of the selected theme)
+    // MARK: - 显示设置 (schema 驱动；applies to every stock item of the selected theme)
 
     private var displaySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Deck.SectionHeader(title: localized("该主题显示设置", "Theme Display Settings"),
                                hint: localized("应用到所选主题的全部股票组件", "Applied to all stock widgets in the selected theme"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    Deck.LabeledRow(localized("刷新间隔", "Refresh")) {
-                        Deck.ValueSlider(range: 5...60, step: 5, unit: localized("秒", "s"), value: $refreshInterval)
-                            .onChange(of: refreshInterval) { applyDisplaySettings() }
-                    }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("显示模式", "Mode")) {
-                        Deck.Segmented(
-                            options: [
-                                Deck.SegmentOption(id: "compact", label: localized("紧凑", "Compact")),
-                                Deck.SegmentOption(id: "marquee", label: localized("跑马灯", "Marquee")),
-                            ],
-                            selection: $displayMode)
-                            .onChange(of: displayMode) { applyDisplaySettings() }
-                    }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("图表模式", "Chart")) {
-                        Deck.Segmented(
-                            options: [
-                                Deck.SegmentOption(id: "fenzhong", label: localized("分钟", "Minute")),
-                                Deck.SegmentOption(id: "daily", label: localized("日K", "Daily")),
-                            ],
-                            selection: $chartMode)
-                            .onChange(of: chartMode) { applyDisplaySettings() }
-                    }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(
-                        title: localized("显示图表", "Show Chart"),
-                        subtitle: localized("在 Touch Bar 上显示迷你走势图", "Show mini chart on Touch Bar"),
-                        isOn: $showChart)
-                        .onChange(of: showChart) { applyDisplaySettings() }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("图表宽度", "Chart W")) {
-                        Deck.ValueSlider(range: 80...200, step: 10, unit: "px", value: $chartWidth)
-                            .onChange(of: chartWidth) { applyDisplaySettings() }
-                    }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("文本宽度", "Text W")) {
-                        Deck.ValueSlider(range: 40...120, step: 10, unit: "px", value: $textWidth)
-                            .onChange(of: textWidth) { applyDisplaySettings() }
+            if let model {
+                ForEach(groupedSections(model.fields), id: \.name) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Deck.SectionHeader(title: group.name)
+                        SettingsSchemaSectionCard(fields: group.fields, model: model)
                     }
                 }
             }
+        }
+    }
+
+    /// 字段按注册顺序分区（与 PomodoroTab 同款分组逻辑）。
+    private func groupedSections(_ all: [SettingsField]) -> [(name: String, fields: [SettingsField])] {
+        var order: [String] = []
+        var grouped: [String: [SettingsField]] = [:]
+        for field in all {
+            if grouped[field.section] == nil { order.append(field.section) }
+            grouped[field.section, default: []].append(field)
+        }
+        return order.map { (name: $0, fields: grouped[$0] ?? []) }
+    }
+
+    // MARK: - Schema 读写通道（R58-d）
+
+    /// 字段值类型归一：滑条三键在 items.json 里存 Double（与改造前写入类型一致），
+    /// 其余键按闭包传入类型原样落盘。
+    private static let sliderKeys: Set<String> = ["refreshInterval", "chartWidth", "textWidth"]
+
+    /// 改造前手写 @State 的初值（字段一一对应的缺省基线）。
+    private static let displayDefaults: [String: Any] = [
+        "refreshInterval": 10.0, "displayMode": "compact", "chartMode": "fenzhong",
+        "chartWidth": 130.0, "textWidth": 70.0, "showChart": true,
+    ]
+
+    /// 防抖暂存（原 applyDisplaySettings 的 @State 即时值语义）：writer 只进暂存，
+    /// 0.5s 后统一落盘，期间重复调整只保留最新值。
+    private static var pendingValues: [String: Any] = [:]
+
+    /// 组装本 tab 的存取通道：读侧从所选主题文件的首个 stock item 水合
+    /// （缺键/无 item 回落改造前 @State 初值）；写侧进防抖暂存并排程落盘。
+    private func makeStore() -> SettingsFieldStore {
+        SettingsFieldStore(
+            intReader: { key in
+                switch firstStockRaw(key) {
+                case let d as Double: return Int(d)
+                case let i as Int: return i
+                default: return Self.displayDefaults[key] as? Int ?? (Self.displayDefaults[key] as? Double).map(Int.init) ?? 0
+                }
+            },
+            intWriter: { key, value in
+                Self.pendingValues[key] = Double(value)
+                scheduleDisplayFlush()
+            },
+            boolReader: { key in
+                (firstStockRaw(key) as? Bool) ?? (Self.displayDefaults[key] as? Bool ?? false)
+            },
+            boolWriter: { key, value in
+                Self.pendingValues[key] = value
+                scheduleDisplayFlush()
+            },
+            stringReader: { key in
+                (firstStockRaw(key) as? String) ?? (Self.displayDefaults[key] as? String ?? "")
+            },
+            stringWriter: { key, value in
+                Self.pendingValues[key] = value
+                scheduleDisplayFlush()
+            })
+    }
+
+    /// 所选主题文件中首个 stock item 的某键现值（无路径/无文件/无 item → nil）。
+    private func firstStockRaw(_ key: String) -> Any? {
+        guard !selectedPath.isEmpty,
+              let array = SettingsSync.loadPresetFile(at: selectedPath),
+              let item = array.first(where: { ($0["type"] as? String) == "stock" }) else { return nil }
+        return item[key]
+    }
+
+    /// 防抖排程（原 applyDisplaySettings 外壳语义：0.5s 合并连击）。
+    private func scheduleDisplayFlush() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.flushDisplaySettings() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// 落盘全部 6 个显示键到所选主题的每个 stock item：
+    /// 本轮触碰的键取防抖暂存值，未触碰的键保持盘上现值（不回滚、不重置为默认）。
+    private func flushDisplaySettings() {
+        guard !selectedPath.isEmpty,
+              var array = SettingsSync.loadPresetFile(at: selectedPath) else { return }
+        var changed = false
+        for i in array.indices where (array[i]["type"] as? String) == "stock" {
+            for key in Self.displayDefaults.keys {
+                let raw = Self.pendingValues[key] ?? (array[i][key] ?? Self.displayDefaults[key]!)
+                array[i][key] = Self.normalized(key: key, raw)
+            }
+            changed = true
+        }
+        Self.pendingValues.removeAll()
+        guard changed else { return }
+        commit(array)
+    }
+
+    private static func normalized(key: String, _ value: Any) -> Any {
+        guard sliderKeys.contains(key) else { return value }
+        switch value {
+        case let d as Double: return d
+        case let i as Int: return Double(i)
+        default: return value
         }
     }
 
@@ -359,6 +433,7 @@ struct StockTab: View {
     }
 
     private func reloadSelectedTheme() {
+        defer { model?.reload() }  // 切主题后按新文件重水合显示设置
         guard let summary = summaries.first(where: { $0.id == selectedThemeID }) else {
             selectedPath = ""
             selectedName = ""
@@ -408,38 +483,18 @@ struct StockTab: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
 
-    private func applyDisplaySettings() {
-        Self.saveWork?.cancel()
-        let work = DispatchWorkItem {
-            guard var array = SettingsSync.loadPresetFile(at: self.selectedPath) else { return }
-            var changed = false
-            for i in array.indices where (array[i]["type"] as? String) == "stock" {
-                array[i]["refreshInterval"] = self.refreshInterval
-                array[i]["displayMode"] = self.displayMode
-                array[i]["chartMode"] = self.chartMode
-                array[i]["chartWidth"] = self.chartWidth
-                array[i]["textWidth"] = self.textWidth
-                array[i]["showChart"] = self.showChart
-                changed = true
-            }
-            guard changed else { return }
-            self.commit(array)
-        }
-        Self.saveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
-    }
-
     private func addStockItem() {
         guard var array = SettingsSync.loadPresetFile(at: selectedPath) else { return }
+        // 新组件默认值取当前界面显示值（模型已按所选主题水合），与改造前 @State 语义一致
         var item: [String: Any] = [
             "type": "stock",
             "stocks": ["sh600519"],
-            "refreshInterval": refreshInterval,
-            "displayMode": displayMode,
-            "chartMode": chartMode,
-            "chartWidth": chartWidth,
-            "textWidth": textWidth,
-            "showChart": showChart,
+            "refreshInterval": Double(model?.ints["refreshInterval"] ?? 10),
+            "displayMode": model?.strings["displayMode"] ?? "compact",
+            "chartMode": model?.strings["chartMode"] ?? "fenzhong",
+            "chartWidth": Double(model?.ints["chartWidth"] ?? 130),
+            "textWidth": Double(model?.ints["textWidth"] ?? 70),
+            "showChart": model?.bools["showChart"] ?? true,
         ]
         if let after = array.last, let type = after["type"] as? String, type == "stock" {
             item["title"] = "股票"
