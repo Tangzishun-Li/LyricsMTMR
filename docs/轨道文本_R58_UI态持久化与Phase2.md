@@ -84,4 +84,5 @@ com.lyricsmtmr.ai.promptTemplates               [String] 默认 []（JSON 编码
 
 ```
 R58-open | 2026-08-23 | 父卡建立本轨道文本 | base: 44320f3 (main, R57 收口+wave2 报告)
+r58-c | 2026-08-23 | t_95190f0b G6/G7 落地：SavingsGoalItem 消费 savings.json 四键（键名禁改照抄 ExpenseTabView.saveToJSON）——ExpenseBudget 纯函数解析（parseBudget 测试入口）+ 进度条 savingsGoal 键优先/缺省回退既有 saved/goal 子树 + 月预算超支 ⚠ 前缀（overspendAlert=false 关闭）+ currency 后缀渲染（CNY→¥/USD→$/MOP 原样，缺省 ¥）；G7 BeeCount 今日收支摘要——SecretsManager 取 beecountURL/beecountPAT，GET {base}/api/read/day Bearer PAT，收/支拼进副行「 · 今日」，凭据缺失/网络失败/超时一律静默回退原显示不拖垮记账；ExpenseTabView 仅注释级改动。验证：BUILD SUCCEEDED + ExpenseBudgetContractTests 5 用例 0 失败 + 临时探针实证改预算→widget value/subValue 联动（⚠50%→50%、¥→$）后已删
 ```

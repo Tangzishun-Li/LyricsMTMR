@@ -186,7 +186,15 @@ struct ExpenseTab: View {
         let settings: [String: Any] = ["categories": categories.joined(separator: ",")]
         SettingsSync.writeBack(type: "expenseTracker", settings: settings)
 
-        // Budget / goal are consumed by ExpenseTrackerItem from savings.json.
+        // Budget / goal are consumed by SavingsGoalItem from savings.json.
+        // R58-c (G6): the four sibling keys monthlyBudget/savingsGoal/currency/
+        // overspendAlert are now consumed by the savingsGoal widget — progress
+        // bar (saved/goal), ⚠ prefix on overspend (suppressed when
+        // overspendAlert=false) and currency suffix rendering. Key names are
+        // frozen here: they were shipped by this writer first, consumers must
+        // not rename them. R58-c (G7): beecountURL/beecountPAT stored below are
+        // consumed by the same widget for a today income/expense summary, which
+        // silently falls back when the credentials or network are unavailable.
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let savingsPath = appSupport + "/savings.json"
         let dict: [String: Any] = [
