@@ -88,12 +88,18 @@ class CustomButtonTouchBarItem: NSCustomTouchBarItem, NSGestureRecognizerDelegat
         didSet {
             button?.imagePosition = attributedTitle.length > 0 ? .imageLeading : .imageOnly
             button?.attributedTitle = attributedTitle
+            // ITER-15: 内容变更事件化——镜像窗不再依赖 10Hz 轮询兜底发现按钮文案变化。
+            // 线程安全：本 didSet 可能在任意队列被调（网络回调等），noteContentDirty 内部
+            // 自行置脏 + hop 主线程合并同步（coalesce）。
+            TouchBarMirrorWindowController.shared.noteContentDirty(identifier: identifier)
         }
     }
 
     var image: NSImage? {
         didSet {
             button.image = image
+            // ITER-15: 同 attributedTitle didSet——图片变更也走事件驱动同步。
+            TouchBarMirrorWindowController.shared.noteContentDirty(identifier: identifier)
         }
     }
 
