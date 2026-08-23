@@ -131,6 +131,30 @@ enum DesktopLyricsMarquee {
     }
 }
 
+// MARK: - 纯逻辑：位置记忆屏幕边界校验（round 59 c）
+
+/// 位置记忆恢复前的屏幕边界守卫（R51 A 卡遗留 4）：用户改坏 frame 后记忆原点
+/// 可能完全落到所有屏幕之外，仅靠「原点在屏内」判定拦不住（原点在外=整窗外，
+/// 但若只查原点、窗口主体在屏内的情况又会被误杀）——统一按「记忆 frame 与
+/// 任一屏幕 frame 有交集」判定：部分越界保留（macOS 允许窗口半藏屏外，可能
+/// 是用户有意为之），完全在外 → 忽略记忆值用默认位。
+enum DesktopLyricsFrameGuard {
+    /// 记忆 frame 是否至少与一块屏幕相交（相交即可恢复，完全在外才回退）。
+    static func isRecoverable(frame: NSRect, screens: [NSRect]) -> Bool {
+        screens.contains { $0.intersects(frame) }
+    }
+
+    /// 从记忆字符串求可恢复的原点：空串/垃圾串/解码失败/完全屏外一律 nil
+    /// （调用方走 R51 默认位置计算），屏内原点原样返回。
+    static func recoverableOrigin(raw: String, size: NSSize, screens: [NSRect]) -> NSPoint? {
+        guard let origin = DesktopLyricsWindowController.decodeFrameOrigin(raw),
+              isRecoverable(frame: NSRect(origin: origin, size: size), screens: screens) else {
+            return nil
+        }
+        return origin
+    }
+}
+
 // MARK: - 桌面歌词窗口控制器
 
 final class DesktopLyricsWindowController: NSObject {
@@ -285,6 +309,16 @@ final class DesktopLyricsWindowController: NSObject {
         } else {
             resetMarquee()
         }
+    }
+
+    /// 设置页「重置窗口位置」（R51 A 卡遗留 4，round 59 c）：清空位置记忆键，
+    /// 运行中的窗口立即回主屏幕默认位（复用 R51 defaultOrigin 计算逻辑）；
+    /// 窗口未显示时仅清键——下次 show() 恢复时记忆为空自然落默认位。
+    /// 清键与定位均属程序化移动（不触发 didMove 落盘），不会回写记忆值。
+    func resetPosition() {
+        AppSettings.desktopLyricsFrame = ""
+        guard visibility.isVisible, panel != nil else { return }
+        positionPanel(restoreSaved: false)
     }
 
     // MARK: - 面板构建
@@ -447,7 +481,11 @@ final class DesktopLyricsWindowController: NSObject {
         }
 
         var origin: NSPoint?
-        if restoreSaved, let saved = Self.savedFrameOrigin(), savedIsOnAnyScreen(saved) {
+        if restoreSaved, let saved = DesktopLyricsFrameGuard.recoverableOrigin(
+            raw: AppSettings.desktopLyricsFrame,
+            size: size,
+            screens: NSScreen.screens.map(\.frame)
+        ) {
             origin = saved
         }
         let target = origin ?? defaultOrigin(for: size)
@@ -457,8 +495,14 @@ final class DesktopLyricsWindowController: NSObject {
         isProgrammaticMove = false
     }
 
-    private func savedIsOnAnyScreen(_ point: NSPoint) -> Bool {
-        NSScreen.screens.contains { $0.frame.contains(point) }
+    @objc private func screenParametersDidChange() {
+        guard visibility.isVisible, let panel else { return }
+        // 主屏幕变化后：记忆位置若与所有屏幕均无交集 → 回主屏幕默认位置
+        // （round 59 c 起与启动恢复共用 DesktopLyricsFrameGuard 矩形相交判定）。
+        let frame = panel.frame
+        if !DesktopLyricsFrameGuard.isRecoverable(frame: frame, screens: NSScreen.screens.map(\.frame)) {
+            positionPanel(restoreSaved: false)
+        }
     }
 
     /// 窗口位置持久化："x,y" 字符串（缺省空串 = 未记忆，用默认位置）。
@@ -477,25 +521,12 @@ final class DesktopLyricsWindowController: NSObject {
         return NSPoint(x: x, y: y)
     }
 
-    private static func savedFrameOrigin() -> NSPoint? {
-        decodeFrameOrigin(AppSettings.desktopLyricsFrame)
-    }
-
     @objc private func windowDidMove(_ notification: Notification) {
         guard !isProgrammaticMove,
               visibility.isVisible,
               let panel = notification.object as? NSPanel, panel === self.panel else { return }
         // 用户拖动期间 didMove 多次触发，直接覆盖即可，最终值即用户停手位置。
         AppSettings.desktopLyricsFrame = Self.encodeFrameOrigin(panel.frame.origin)
-    }
-
-    @objc private func screenParametersDidChange() {
-        guard visibility.isVisible, let panel else { return }
-        // 主屏幕变化后：记忆位置若已不在任何屏幕内 → 回到主屏幕默认位置。
-        let origin = panel.frame.origin
-        if !savedIsOnAnyScreen(origin) {
-            positionPanel(restoreSaved: false)
-        }
     }
 
     @objc private func handleClick() {
