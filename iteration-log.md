@@ -2146,3 +2146,21 @@
 - SchemaBridge Phase2 剩余 tab 推广（d 卡试点后主线候选，速查表已登记顺序建议与验收惯例）
 - §5 契约三处分歧裁决（package.notifyOnUpdate 默认值已按契约/wellness.readingGoal 单位文案/standupMinutes 缺省超程）
 - BeeCount widget GUI 端到端实测（挂真机冒烟系列）
+
+## 第 59 轮（契约裁决落 UI + SchemaBridge Phase2 两域 + 桌面歌词位置守护，单 INTEG 收口）
+
+### INTEG 收口记录（t_1dacd1ab，分支 lyricsmtmr/t_1dacd1ab-r59-integ-a-b-c-main-0.59）
+
+- **合并链**：main 基线 7e619ce（R58 收口）→ 按序 merge 三张执行卡（06d700b r59-a 契约分歧裁决落 UI / b529797 r59-b SchemaBridge Phase2 systemMonitor+calendar 两域 / d08451a r59-c 桌面歌词重置位置 UI+FrameGuard 屏外回退守卫），合并提交 ebca49a/d8533a0/9784883。merge-base 校验三 tip 全为收口分支祖先。
+- **冲突解决**：0——三卡变更文件交集为空（a: WellnessTabView+PackageTabView；b: SettingsSchemaBridge+SystemMonitorTabView+CalendarTabView；c: DesktopLyricsWindowController+LyricsTabView+pbxproj+新测试文件），git ort 自动合并；`grep '^<<<<<<<|^>>>>>>>'` 全仓残留扫描 0。轨道 §4 所有权表连续第三轮生效实证。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×3（scheme MTMR Debug, CODE_SIGNING_ALLOWED=NO, .build/DerivedData 复用）；整体构建 BUILD SUCCEEDED。
+- **测试**：受影响套件 DesktopLyricsFrameGuardTests(8 新增) + DesktopLyricsWindowTests(20) + DesktopLyricsColorContractTests(9) + DesktopLyricsMarqueeTests(13) + DeadSettingContractTests(5) + UserDefaultsContractTests(9) = **64 用例 0 失败**（UnitTests scheme 定向）。**全量回归本轮触发**（隔代规则 R56 触发 → R57/R58 未触发 → R59 到轮）：首次全量 641 用例 0 断言失败（testTimerImmediateFireOnResume 计时敏感偶发超时一次，唯一 Failing 条目）；单套件重跑 44/44 + 第二次全量复跑 **TEST SUCCEEDED 642 用例 0 失败** 双重复验非代码回归——R26 时序敏感健壮化遗产用例在满载机器上的残余偶发，与 R54「全量回归节奏隔代规则」观察一致。
+- **锚点巡检**：python3 scripts/anchor-patrol.py **PASS 60 / WARN 23 / INFO 5 / ERROR 0** 退出码 0（REGISTRY 196 行=新增本报告登记行）；本轮无 record 级位移（三卡均未触碰锚点登记区域）。
+- **收口产物**：logs/第59轮/核验报告_第59轮_INTEG收口.md 新建 + file-structure.zh.md 登记行同步 1 行 + Info.plist 0.58/483→0.59/484 + README 更新日志补登 v0.59（新增 2 项+改进 1 项+工程稳定性 3 项+版本史序列追加 v0.59=第 59 轮）+ 简报三件套（第59轮简报/index 追加/速查表滚动表 R59 行）+ 轨道文本 R58 §8 追加 INTEG 日志行 + 本记录。
+- **空间释放**：r59 三执行卡 worktree remove + branch -d（merge-base 校验通过后删；远端无对应分支未 push 过）；du -sh .worktrees/ 前后对比写入本卡 comment。
+
+## 第 60 轮候选（R59 收口登记）
+- SchemaBridge Phase2 剩余 tab 推广（b 卡消化 systemMonitor/calendar 后余量减少，速查表候选段保留顺序建议与验收惯例）
+- remindEnabled/remindMinutes 展示态复核（R59-b 登记：改造前即无运行时读者，待 §5 审计口径定夺隐藏或接线）
+- ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后）
+- 真机冒烟系列延续挂账（含桌面歌词重置位置按钮真机观感）

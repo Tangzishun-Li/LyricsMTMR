@@ -4,16 +4,18 @@
 //
 //  Settings → 日历 / Calendar tab
 //
+//  R59-b SchemaBridge Phase2：显示范围/提醒两段改 schema 驱动渲染。字段定义收敛到
+//  SettingsSchema.domainFields["calendar"]，本视图只做 Header + 日历源说明段 +
+//  分区渲染；range/maxToShow 读写经 SettingsFieldStore 闭包落盘 items.json（upnext 域，
+//  range 经 to 键三值映射），其余四键为 UI 展示态（内存暂存）；渲染事实源为
+//  SettingsFieldModel（onAppear 重建模型对齐改造前 loadFromJSON 每次出现刷新语义）。
+//
 
 import SwiftUI
 
 struct CalendarTab: View {
-    @State private var range: String = "today"
-    @State private var maxEvents: Double = 3
-    @State private var showPastEvents: Bool = false
-    @State private var showLocation: Bool = true
-    @State private var remindMinutes: Double = 15
-    @State private var remindEnabled: Bool = true
+    /// 显示设置模型（schema 驱动）：onAppear 重建，等价改造前 onAppear(loadFromJSON)。
+    @State private var model: SettingsFieldModel?
 
     var body: some View {
         TabTOCScrollView(sections: [
@@ -24,8 +26,15 @@ struct CalendarTab: View {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.calendar.title, subtitle: SettingsTab.calendar.subtitle)
                 sourceSection.id("calendar-source")
-                rangeSection.id("calendar-range")
-                reminderSection.id("calendar-reminder")
+                if let model {
+                    ForEach(groupedSections(model.fields), id: \.name) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Deck.SectionHeader(title: section.name)
+                            SettingsSchemaSectionCard(fields: section.fields, model: model)
+                        }
+                        .id(section.id)
+                    }
+                }
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -33,7 +42,10 @@ struct CalendarTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: loadFromJSON)
+        .onAppear {
+            model = SettingsFieldModel(fields: SettingsSchema.domainFields["calendar"] ?? [],
+                                       store: makeStore())
+        }
     }
 
     // MARK: - 日历源（调研结论）
@@ -65,92 +77,142 @@ struct CalendarTab: View {
         }
     }
 
-    private var rangeSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("显示范围", "Range"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    Deck.LabeledRow(localized("时间范围", "Range")) {
-                        Deck.Segmented(
-                            options: [
-                                Deck.SegmentOption(id: "today", label: localized("今天", "Today")),
-                                Deck.SegmentOption(id: "24h", label: localized("24小时", "24h")),
-                                Deck.SegmentOption(id: "7d", label: localized("7天", "7d")),
-                            ], selection: $range)
-                            .onChange(of: range) { saveDebounced() }
-                    }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("最大条数", "Max Events")) {
-                        Deck.ValueSlider(range: 1...10, step: 1, unit: "", value: $maxEvents)
-                            .onChange(of: maxEvents) { saveDebounced() }
-                    }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("显示已过事件", "Show Past Events"), isOn: $showPastEvents)
-                        .onChange(of: showPastEvents) { saveDebounced() }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("显示地点", "Show Location"), isOn: $showLocation)
-                        .onChange(of: showLocation) { saveDebounced() }
-                }
-            }
+    /// 字段按注册顺序分区（与 Pomodoro/Stock/SystemMonitor tab 同款分组逻辑）。
+    private func groupedSections(_ all: [SettingsField]) -> [(id: String, name: String, fields: [SettingsField])] {
+        let tocID: [String: String] = [
+            localized("显示范围", "Range"): "calendar-range",
+            localized("提醒", "Reminder"): "calendar-reminder",
+        ]
+        var order: [String] = []
+        var grouped: [String: [SettingsField]] = [:]
+        for field in all {
+            if grouped[field.section] == nil { order.append(field.section) }
+            grouped[field.section, default: []].append(field)
+        }
+        return order.map { (id: tocID[$0] ?? $0, name: $0, fields: grouped[$0] ?? []) }
+    }
+
+    // MARK: - Schema 读写通道（R59-b）
+
+    /// 改造前手写 @State 的初值（字段一一对应的缺省基线）。
+    private static let displayDefaults: [String: Any] = [
+        "range": "today", "maxEvents": 3.0,
+        "showPastEvents": false, "showLocation": true,
+        "remindMinutes": 15.0, "remindEnabled": true,
+    ]
+
+    /// UI 字段 id ↔ upnext item 存储键/值的映射：
+    /// range → to（today→0 / 24h→24 / 7d→168 小时），maxEvents → maxToShow；
+    /// 其余四键改造前即无持久化链路，保持内存态。
+    private static func storageKey(for id: String) -> String? {
+        switch id {
+        case "range": return "to"
+        case "maxEvents": return "maxToShow"
+        default: return nil
         }
     }
 
-    private var reminderSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("提醒", "Reminder"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    Deck.ToggleRow(title: localized("提前提醒", "Early Reminder"), isOn: $remindEnabled)
-                        .onChange(of: remindEnabled) { saveDebounced() }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("提前分钟", "Minutes Before")) {
-                        Deck.ValueSlider(range: 5...60, step: 5, unit: localized("分", "min"), value: $remindMinutes)
-                            .onChange(of: remindMinutes) { saveDebounced() }
-                    }
-                }
-            }
+    /// to 小时数 → range 段选 id（与改造前 loadFromJSON 三值映射逐字一致）。
+    private static func rangeID(forHours to: Double) -> String {
+        switch to {
+        case 0: return "today"
+        case 24: return "24h"
+        default: return "7d"
         }
     }
 
-    // MARK: - Sync with the `upnext` widget
-
-    private func loadFromJSON() {
-        if let item = SettingsSync.readItem(type: "upnext") {
-            if let to = item["to"] as? Double {
-                switch to {
-                case 0: range = "today"
-                case 24: range = "24h"
-                default: range = "7d"
-                }
-            }
-            if let max = item["maxToShow"] as? Double { maxEvents = max }
+    /// range 段选 id → to 小时数（与改造前 saveToJSON 映射逐字一致）。
+    private static func hours(forRangeID id: String) -> Double {
+        switch id {
+        case "today": return 0
+        case "24h": return 24
+        default: return 168
         }
     }
 
-    private func saveToJSON() {
-        let toHours: Double
-        switch range {
-        case "today": toHours = 0
-        case "24h": toHours = 24
-        default: toHours = 168
-        }
+    /// 防抖暂存：writer 只进暂存，0.5s 后统一落盘（原 saveDebounced 合并连击语义）。
+    private static var pendingValues: [String: Any] = [:]
+    private static var saveWork: DispatchWorkItem?
+
+    /// 组装本 tab 的存取通道：
+    /// 读侧——range/maxEvents 从 items.json 首个 upnext item 水合（缺键回落初值）；
+    /// 其余四键读暂存/默认值。写侧——两落盘键进防抖暂存并排程写回 upnext item；
+    /// 展示态四键仅进内存暂存（行为不变）。
+    private func makeStore() -> SettingsFieldStore {
+        SettingsFieldStore(
+            intReader: { key in
+                guard let storage = Self.storageKey(for: key),
+                      let raw = Self.firstUpNextRaw(storage) else {
+                    return (Self.displayDefaults[key] as? Double).map(Int.init) ?? 0
+                }
+                if key == "range" { return Int(Self.hours(forRangeID: Self.rangeID(forHours: (raw as? Double) ?? 0))) }
+                return (raw as? Double).map(Int.init) ?? (raw as? Int) ?? 0
+            },
+            intWriter: { key, value in
+                if key == "range" {
+                    Self.pendingValues["range"] = Self.rangeID(forHours: Double(value))
+                } else {
+                    Self.pendingValues[key] = Double(value)
+                }
+                scheduleSave()
+            },
+            boolReader: { key in
+                (Self.pendingValues[key] as? Bool) ?? (Self.displayDefaults[key] as? Bool ?? false)
+            },
+            boolWriter: { key, value in
+                Self.pendingValues[key] = value
+            },
+            stringReader: { key in
+                if key == "range", let storage = Self.storageKey(for: key),
+                   let raw = Self.firstUpNextRaw(storage), let hours = raw as? Double {
+                    return Self.rangeID(forHours: hours)
+                }
+                return (Self.pendingValues[key] as? String) ?? (Self.displayDefaults[key] as? String ?? "")
+            },
+            stringWriter: { key, value in
+                Self.pendingValues[key] = value
+                scheduleSave()
+            })
+    }
+
+    /// items.json 中首个 upnext item 的某键现值（无 item → nil）。
+    private static func firstUpNextRaw(_ storageKey: String) -> Any? {
+        SettingsSync.readItem(type: "upnext")?[storageKey]
+    }
+
+    /// 防抖排程（原 saveToJSON 外壳语义：0.5s 合并连击 + 全量广播重载）。
+    private func scheduleSave() {
+        Self.saveWork?.cancel()
+        let work = DispatchWorkItem { self.flushUpNextSettings() }
+        Self.saveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    /// 落盘 upnext 两键：本轮触碰的键取防抖暂存值，未触碰的键保持盘上现值。
+    /// autoResize 恒 true（与改造前 saveToJSON 一致）。
+    private func flushUpNextSettings() {
+        guard SettingsSync.readItem(type: "upnext") != nil else { return }
+        let range: String = {
+            if let pending = Self.pendingValues["range"] as? String { return pending }
+            if let raw = Self.firstUpNextRaw("to"), let hours = raw as? Double {
+                return Self.rangeID(forHours: hours)
+            }
+            return "today"
+        }()
+        let maxEvents: Int = {
+            if let pending = Self.pendingValues["maxEvents"] as? Double { return Int(pending) }
+            if let raw = Self.firstUpNextRaw("maxToShow") {
+                return (raw as? Int) ?? (raw as? Double).map(Int.init) ?? 3
+            }
+            return 3
+        }()
         let settings: [String: Any] = [
-            "to": toHours,
-            "maxToShow": Int(maxEvents),
+            "to": Self.hours(forRangeID: range),
+            "maxToShow": maxEvents,
             "autoResize": true,
         ]
         SettingsSync.writeBack(type: "upnext", settings: settings)
         SettingsSync.postGlobalConfigChanged(domain: "upnext", key: "config", newValue: settings)
         TouchBarController.shared.reloadStandardConfig()
     }
-
-    private func saveDebounced() {
-        Self.saveWork?.cancel()
-        let work = DispatchWorkItem { self.saveToJSON() }
-        Self.saveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
-    }
-
-    /// Static scratch so the value-type View can debounce without @State churn.
-    private static var saveWork: DispatchWorkItem?
 }
