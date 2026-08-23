@@ -488,6 +488,16 @@ struct LyricsTab: View {
                             .frame(maxWidth: 260)
                     }
                     Deck.RowDivider()
+                    Deck.LabeledRow(localized("窗口位置", "Window Position")) {
+                        Button(localized("重置窗口位置", "Reset Window Position")) {
+                            DesktopLyricsWindowController.shared.resetPosition()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Deck.accent)
+                        .help(localized("清空位置记忆，窗口回到主屏幕底部居中", "Clear the saved position and return to the main screen default"))
+                    }
+                    Deck.RowDivider()
                     Deck.ToggleRow(
                         title: localized("独立配色", "Independent Colors"),
                         subtitle: localized("桌面歌词窗口使用独立于 Touch Bar 的文字/进度颜色", "Use separate text/progress colors for the desktop lyrics window"),
