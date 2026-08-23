@@ -63,7 +63,9 @@ struct PackageTab: View {
                     Deck.ToggleRow(title: localized("签收后自动移除", "Auto Remove on Delivery"), isOn: $removeOnDelivery)
                         .onChange(of: removeOnDelivery) { AppSettings.packageRemoveOnDelivery = $0 }
                     Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("状态更新通知", "Notify on Update"), isOn: $notifyOnUpdate)
+                    Deck.ToggleRow(title: localized("状态更新通知", "Notify on Update"),
+                                   subtitle: localized("默认关闭", "Off by default"),
+                                   isOn: $notifyOnUpdate)
                         .onChange(of: notifyOnUpdate) { AppSettings.packageNotifyOnUpdate = $0 }
                 }
             }
