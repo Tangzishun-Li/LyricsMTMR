@@ -9,9 +9,11 @@ import SwiftUI
 
 struct WellnessTab: View {
     @State private var postureInterval: Double = 30
-    @State private var readingGoal: Double = 60
+    // R58-a（G3）：阅读目标/站会时长落盘。§5 契约键为 Int，滑杆控件为 Double——
+    // 按契约类型取整存取，单位文案不动（契约与 UI 单位分歧标注见 AppSettings 区块头）。
+    @State private var readingGoal: Double = Double(AppSettings.wellnessReadingGoal)
     @State private var breathingPattern: String = "4-7-8"
-    @State private var standupMinutes: Double = 15
+    @State private var standupMinutes: Double = Double(AppSettings.wellnessStandupMinutes)
     @State private var birthdays: [String] = []
 
     var body: some View {
@@ -42,6 +44,7 @@ struct WellnessTab: View {
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("阅读目标", "Reading")) {
                         Deck.ValueSlider(range: 10...180, step: 10, unit: localized("分/天", "min/d"), value: $readingGoal)
+                            .onChange(of: readingGoal) { AppSettings.wellnessReadingGoal = Int($0) }
                     }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("呼吸练习", "Breathing")) {
@@ -56,6 +59,7 @@ struct WellnessTab: View {
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("站会时长", "Standup")) {
                         Deck.ValueSlider(range: 5...30, step: 5, unit: localized("分", "min"), value: $standupMinutes)
+                            .onChange(of: standupMinutes) { AppSettings.wellnessStandupMinutes = Int($0) }
                     }
                 }
             }

@@ -9,8 +9,8 @@ import SwiftUI
 
 struct HomekitTab: View {
     @State private var scenes: [String] = ["回家", "离家", "睡眠"]
-    @State private var showDeviceStatus: Bool = true
-    @State private var confirmBeforeRun: Bool = false
+    @State private var showDeviceStatus: Bool = AppSettings.homekitShowDeviceStatus
+    @State private var confirmBeforeRun: Bool = AppSettings.homekitConfirmBeforeRun
 
     var body: some View {
         ScrollView {
@@ -49,8 +49,10 @@ struct HomekitTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     Deck.ToggleRow(title: localized("显示设备状态", "Show Device Status"), isOn: $showDeviceStatus)
+                        .onChange(of: showDeviceStatus) { AppSettings.homekitShowDeviceStatus = $0 }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("执行前确认", "Confirm Before Run"), isOn: $confirmBeforeRun)
+                        .onChange(of: confirmBeforeRun) { AppSettings.homekitConfirmBeforeRun = $0 }
                 }
             }
         }

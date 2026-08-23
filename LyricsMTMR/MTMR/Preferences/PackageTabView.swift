@@ -9,10 +9,11 @@ import SwiftUI
 
 struct PackageTab: View {
     @State private var trackingNumbers: [String] = []
-    @State private var autoDetect: Bool = true
+    @State private var autoDetect: Bool = AppSettings.packageAutoDetect
     @State private var refreshMinutes: Double = 30
-    @State private var removeOnDelivery: Bool = false
-    @State private var notifyOnUpdate: Bool = true
+    @State private var removeOnDelivery: Bool = AppSettings.packageRemoveOnDelivery
+    // §5 契约默认 false；旧硬编码 true 已按契约切换（分歧标注见 AppSettings UI State 区块头）。
+    @State private var notifyOnUpdate: Bool = AppSettings.packageNotifyOnUpdate
 
     var body: some View {
         ScrollView {
@@ -52,6 +53,7 @@ struct PackageTab: View {
             Deck.Card {
                 VStack(spacing: 0) {
                     Deck.ToggleRow(title: localized("自动识别快递公司", "Auto Detect Company"), isOn: $autoDetect)
+                        .onChange(of: autoDetect) { AppSettings.packageAutoDetect = $0 }
                     Deck.RowDivider()
                     Deck.LabeledRow(localized("刷新间隔", "Refresh")) {
                         Deck.ValueSlider(range: 10...120, step: 10, unit: localized("分", "min"), value: $refreshMinutes)
@@ -59,8 +61,10 @@ struct PackageTab: View {
                     }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("签收后自动移除", "Auto Remove on Delivery"), isOn: $removeOnDelivery)
+                        .onChange(of: removeOnDelivery) { AppSettings.packageRemoveOnDelivery = $0 }
                     Deck.RowDivider()
                     Deck.ToggleRow(title: localized("状态更新通知", "Notify on Update"), isOn: $notifyOnUpdate)
+                        .onChange(of: notifyOnUpdate) { AppSettings.packageNotifyOnUpdate = $0 }
                 }
             }
         }
