@@ -319,6 +319,7 @@ mindmap
 ├── logs/第56轮/验证报告_第56轮_App_Sandbox启用与临时例外配置.md            # 第 56 轮子任务 A 验证报告（App Sandbox 启用与临时例外配置·安全合规维度 R43 候选：entitlements sandbox false→true + 7 条 entitlements + SandboxConfigContractTests 15 断言全 PASS + BUILD SUCCEEDED，r56/sandbox）
 ├── logs/第57轮/调研报告_性能减脂.md                                        # 第 57 轮第二波调研报告（性能减脂主线：3 缺口 A1 时钟精度/A2 popover 停表/A3 歌词动画可见性 + 2 登记候选 ITER-15/16 + 已论证不动复核，orchestrator-r57-wave2 commit 4601020）
 ├── logs/第57轮/R57_死设置审计清单.md                                       # 第 57 轮 A 卡产出（死设置审计：38 @UserDefault 键 × 21 Tab 读写闭环全量审计处置表 + 各 tab 非 UD 通道审计 + 第二发现 @State 即烬开关 ~20 处/Expense savings.json 四键无消费者记 R58 建议，r57-a commit de2ca35）
+├── logs/第58轮/核验报告_第58轮_INTEG收口.md                                # 第 58 轮 INTEG 收口报告（UI 态持久化 G1~G7 + SchemaBridge Phase2 试点：a/b/c/d 四卡按序合并 + r57-W3 补链 fast-forward；冲突 §8 日志行 ×3 保双方 + pbxproj ×4 保双方；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 16 用例 0 失败；Info.plist 0.57/482→0.58/483；锚点 0 ERROR，t_bc1957c7 收口）
 └── .gitignore / .gitattributes / README.md
 ```
 

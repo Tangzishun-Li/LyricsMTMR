@@ -2129,3 +2129,20 @@
 - @State 即烬开关 ~20 处（TabView 内 @State 开关不持久化，A 卡审计清单第二节建议 R58 立卡）
 - Expense savings.json 四键无消费者（同上清单，R58 建议）
 - ITER-15 镜像窗事件驱动刷新第一决策门=用户使用场景 4 问（延续挂账）
+
+## 第 58 轮（UI 态持久化 + 记账消费闭环 + SchemaBridge Phase2 试点，单 INTEG 收口）
+
+### INTEG 收口记录（t_bc1957c7，分支 lyricsmtmr/t_bc1957c7-r58-integ-a-b-c-d-0.58）
+
+- **合并链**：main 基线 4ec9d6d → 先补并 r57-W3 分支 a790011（h/i/j 减脂合并链 fast-forward，W3 此前未进 main）→ 按序 merge 四张执行卡（3f90a62 r58-a G1~G3 七键 / 32f14d7 r58-b G4/G5 五键 / ce1e1cd r58-c G6/G7 记账消费 / 555373a r58-d stock 域 schema 试点），合并提交 71f81d0/d2ff1b3/34f721c/57e5095。merge-base 校验五 tip 全为收口分支祖先。
+- **冲突解决**：×7 全部按预案「保双方」——轨道文本 §8 日志行 ×3（a/b/c、c/d 各自追加）、project.pbxproj ×4（W3 PopoverDismissTests vs c 卡 ExpenseBudgetContractTests，PBXBuildFile/PBXFileReference/group children/Sources phase 四段）；AppSettings.swift 双 MARK 区段自动共存零冲突；`grep '^<<<<<<<|^>>>>>>>'` 全仓 0 残留。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×4；整体构建 BUILD SUCCEEDED。
+- **测试**：受影响套件 ExpenseBudgetContractTests(5 新增) + DeadSettingContractTests(5) + SettingsTabCacheTests(6) = **16 用例 0 失败**（UnitTests scheme 定向，xcresult summary 实读 passedTests=16/failedTests=0）。注意：MTMRTests 是测试组名、目标名为 LyricsMTMRTests，`-scheme MTMR -only-testing:MTMRTests/*` 会报「not a member of test plan」，须用 `-scheme UnitTests -only-testing:LyricsMTMRTests/*`。全量回归本轮不触发（隔代规则顺延，R59 收口卡决定）。
+- **锚点巡检**：python3 scripts/anchor-patrol.py **PASS 60 / WARN 23 / INFO 5 / ERROR 0** 退出码 0（REGISTRY 195 行）。W3 补链带出 record 级位移 7 处修正登记：IP-149a(:180→262)/IP-149b(:165→247)/IP-169(:22→71)/IP-202a(:226→372)/IP-202b(:288→434)（h 卡重写 TBMWC），IP-327(:55→54)/IP-375(:59→58)（j 卡摘 archive 段）；note 均记「第 58 轮收口修正」。
+- **收口产物**：logs/第58轮/核验报告_第58轮_INTEG收口.md 新建（REPORT_PREFIXES 匹配「核验报告」前缀，命名从惯例）+ file-structure.zh.md 登记行同步 1 行 + Info.plist 0.57/482→0.58/483 + README 更新日志补登 v0.58（当前开发版本，新增 3 项+工程稳定性 2 项+版本史说明 v0.57/v0.58 序列追加）+ 简报三件套（第58轮简报/index 追加/速查表滚动表 R58 行+候选段更新）+ 轨道文本 §8 追加 INTEG 日志行。
+- **空间释放**：r58 四执行卡 worktree remove + branch -d（merge-base 校验通过后删）+ r57 第三波残留四卡清理；du -sh .worktrees/ 前后对比写入本卡 comment。
+
+## 第 59 轮候选（R58 收口登记）
+- SchemaBridge Phase2 剩余 tab 推广（d 卡试点后主线候选，速查表已登记顺序建议与验收惯例）
+- §5 契约三处分歧裁决（package.notifyOnUpdate 默认值已按契约/wellness.readingGoal 单位文案/standupMinutes 缺省超程）
+- BeeCount widget GUI 端到端实测（挂真机冒烟系列）

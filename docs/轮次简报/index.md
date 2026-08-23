@@ -5,6 +5,7 @@
 
 | 轮 | 主题（维度） | 一句话结果 | 简报 |
 |----|--------------|-----------|------|
+| R58 | UI 态持久化 + 记账消费闭环 + Schema 试点二（数据存储/UI） | a/b/c/d 四卡全并：G1~G5 十六键落盘(Homekit/Package/Wellness/Lifestyle/AI)+G6 SavingsGoalItem 消费 savings.json 四键+G7 BeeCount 今日收支摘要静默回退+d 卡 stock 域 schema 驱动试点；16 用例 0 失败；Info.plist 0.58/483；锚点第 39 轮 0 ERROR；REGISTRY 195 | [第58轮简报](第58轮简报.md) |
 | R57 | 设置体系统一治理 + 性能减脂（双波 INTEG） | 7 执行卡全并：死设置审计/schema桥接试点/侧栏重排/双向跳转/时钟降频/popover停表/歌词动画守卫；184 用例 0 失败；Info.plist 0.57/482；锚点第 38 轮 0 ERROR | [第57轮简报](第57轮简报.md) |
 | R55 | 桌面歌词独立配色开关（UI） | R51 遗留候选闭环：AppSettings 3 键+hex 编解码/Toggle+Swatches/8 contract tests；BUILD SUCCEEDED；Info.plist 0.55/480；锚点第 36 轮 0 ERROR；REGISTRY 190 | [第55轮简报](第55轮简报.md) |
 | R54 | 构建性能分析与编译优化（代码质量） | clean build 48s/incremental 7.6~22.4s/SwiftUI 类型检查 56.3s 瓶颈定位/编译选项已最优/archive/ 死代码 1246 行可清理；561 用例 0 失败；Info.plist 0.54/479；锚点第 35 轮 0 ERROR | [第54轮简报](第54轮简报.md) |
@@ -25,3 +26,11 @@
 - **C/D卡**：侧栏 5组22页 → 常用/数据/更多设置 3 组折叠 + About 外置；设置⇄编辑器双向跳转（冻结通知契约）
 - **E/F/G卡**：时钟分钟格式 1s→30s 分档；TBPopoverItem overlayDidDismiss 停表钩子（20Hz/0.5s/1s 三子类）；KaraokeLabel/marquee 可见性守卫
 - **INTEG**：合并链 A→G 完整、pbxproj 保双方 ×4 解清、每卡增量构建 SUCCEEDED、受影响套件 184 用例 0 失败、锚点 0 ERROR、版本 0.57/482、报告归档 + r57 worktree/分支清理
+
+## 第58轮
+- **主题**：UI 态持久化收尾（G1~G5）+ 记账 widget 消费闭环（G6/G7）+ SchemaBridge Phase2 stock 域试点，单 INTEG 收口（a/b/c/d 四卡）
+- **a卡**：Homekit/Package/Wellness 7 开关落盘——AppSettings 新 UI State 区段 + 三 TabView 水合/写回双向接线，缺键默认与注入值重启保留双验证；§5 与既有 UI 三处分歧标注待裁决
+- **b卡**：Lifestyle 四开关+城市输入防抖落盘 + AI promptTemplates [String] 整存整取
+- **c卡**：SavingsGoalItem 消费 savings.json 四键（进度条+⚠超支前缀+currency 后缀）+ BeeCount 今日收支摘要静默回退；ExpenseBudgetContractTests 5 用例新增
+- **d卡**：stock 域 6 字段注册 domainFields + bridge 首批 .slider/.segmented 控件扩展；StockTabView 显示段 schema 驱动渲染；EditorSchema 97/152 不变
+- **INTEG**：先补并 r57-W3 分支再按序合 a→b→c→d；冲突保双方 ×7（§8 日志 ×3+pbxproj ×4）；16 用例 0 失败；锚点 0 ERROR（record 位移修正 7 处）；版本 0.58/483；报告归档 logs/第58轮/
