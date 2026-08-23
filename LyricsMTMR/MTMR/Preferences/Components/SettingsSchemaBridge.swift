@@ -18,7 +18,8 @@
 //     SettingsSchemaSectionCard.fieldRow 补对应 Deck 控件分支；
 //     禁止在业务 tab 里私接新控件类型（保持视觉一致性归口此处）。
 //  迁移节奏：试点 pomodoro（R57-b）、stock（R58-d，首个带滑条/分段选择的域，
-//  借此验证规则③的控件扩展路径）→ 其余 tab 按 §5 死设置审计结论逐个搬迁；
+//  借此验证规则③的控件扩展路径）→ systemMonitor/calendar（R59-b）→
+//  其余 tab 按 §5 死设置审计结论逐个搬迁；
 //  EditorSchema 的静态元数据未来可迁来此处转发（§4-B 所有权行已预留），
 //  但 152 条属性的 key/displayName/type 值冻结禁改。
 //
@@ -52,7 +53,8 @@ enum SettingsSchema {
 
     // MARK: 域级字段注册表（Phase2 各 tab 的接入点）
 
-    /// 各设置域的全局字段序列。key 与域标识同名（试点 "pomodoro"、"stock"）。
+    /// 各设置域的全局字段序列。key 与域标识同名（试点 "pomodoro"、"stock"，
+    /// R59-b 增 "systemMonitor"、"calendar"）。
     /// 字段取舍遵循 §5：无运行时读者的死开关不注册（从 UI 隐藏）。
     static let domainFields: [String: [SettingsField]] = [
         "pomodoro": [
@@ -108,6 +110,74 @@ enum SettingsSchema {
                 id: "textWidth", displayName: localized("文本宽度", "Text W"),
                 control: .slider(range: 40...120, step: 10, unit: "px"),
                 section: localized("布局", "Layout")),
+        ],
+        // R59-b：系统监控设置（cpu/networkSpeed 两域的 refreshInterval 经
+        // SettingsSync.writeBack(type:) 落盘 items.json；显示段四键为 UI 展示态，
+        // 与 StockTab 同款防抖闭包通道，键名与本文件原手写 @State 一致）
+        "systemMonitor": [
+            SettingsField(
+                id: "cpuInterval", displayName: localized("CPU 刷新", "CPU"),
+                control: .slider(range: 1...10, step: 1, unit: localized("秒", "s")),
+                section: localized("刷新率", "Refresh Rate")),
+            SettingsField(
+                id: "networkInterval", displayName: localized("网络刷新", "Network"),
+                control: .slider(range: 1...10, step: 1, unit: localized("秒", "s")),
+                section: localized("刷新率", "Refresh Rate")),
+            SettingsField(
+                id: "separateUploadDownload",
+                displayName: localized("分开显示上传/下载", "Separate Up/Down"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "tempUnit", displayName: localized("温度单位", "Temp Unit"),
+                control: .segmented(options: [
+                    (id: "C", label: "°C"),
+                    (id: "F", label: "°F"),
+                ]),
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "showCores", displayName: localized("显示每个核心", "Show Each Core"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "showHistory", displayName: localized("历史图表", "History Chart"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+        ],
+        // R59-b：日历显示与提醒（upnext 域：range/maxToShow 落盘 items.json 的
+        // to/maxToShow 键；其余四键为 tab 展示态。remindMinutes/remindEnabled
+        // 改造前即无落盘链路——按 §5「无运行时读者的死开关不注册」本应隐藏，
+        // 但两行有真实控件且用户可感知，故保留注册、读写走内存暂存（不落盘），
+        // 待 §5 审计复核后再定去留）
+        "calendar": [
+            SettingsField(
+                id: "range", displayName: localized("时间范围", "Range"),
+                control: .segmented(options: [
+                    (id: "today", label: localized("今天", "Today")),
+                    (id: "24h", label: localized("24小时", "24h")),
+                    (id: "7d", label: localized("7天", "7d")),
+                ]),
+                section: localized("显示范围", "Range")),
+            SettingsField(
+                id: "maxEvents", displayName: localized("最大条数", "Max Events"),
+                control: .slider(range: 1...10, step: 1, unit: ""),
+                section: localized("显示范围", "Range")),
+            SettingsField(
+                id: "showPastEvents", displayName: localized("显示已过事件", "Show Past Events"),
+                control: .toggle,
+                section: localized("显示范围", "Range")),
+            SettingsField(
+                id: "showLocation", displayName: localized("显示地点", "Show Location"),
+                control: .toggle,
+                section: localized("显示范围", "Range")),
+            SettingsField(
+                id: "remindEnabled", displayName: localized("提前提醒", "Early Reminder"),
+                control: .toggle,
+                section: localized("提醒", "Reminder")),
+            SettingsField(
+                id: "remindMinutes", displayName: localized("提前分钟", "Minutes Before"),
+                control: .slider(range: 5...60, step: 5, unit: localized("分", "min")),
+                section: localized("提醒", "Reminder")),
         ],
     ]
 }
