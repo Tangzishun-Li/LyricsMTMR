@@ -159,7 +159,7 @@ tell application "System Events"
 end tell
 ```
 
-> 注意：`.scpt` 是编译产物，`filePath` 需指向绝对路径；源码见仓库 `archive/legacy-applescripts/`。
+> 注意：`.scpt` 是编译产物，`filePath` 需指向绝对路径。
 
 ---
 

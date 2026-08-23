@@ -159,7 +159,7 @@ tell application "System Events"
 end tell
 ```
 
-> Note: `.scpt` files are compiled; `filePath` must be absolute. Plain-text sources live in `archive/legacy-applescripts/`.
+> Note: `.scpt` files are compiled; `filePath` must be absolute.
 
 ---
 

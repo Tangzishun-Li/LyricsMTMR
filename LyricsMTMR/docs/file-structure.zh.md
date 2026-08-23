@@ -38,7 +38,6 @@ mindmap
       tools/mr-dump 调试
       tools/virtual-keyboard 原型
       Scripts 构建与生成脚本
-      archive 死代码归档
     工程配置
       .github CI
       .gitignore / .gitattributes
@@ -98,8 +97,7 @@ mindmap
 │   │   ├── gen_themes.py / gen_functional_themes.py / update_slots.py  # 主题生成
 │   │   └── fix_createitem.py                 # 一次性补 createItem 分支
 │   ├── Resources/                    # 上游 MTMR README 素材（logo、截图、示例配置）
-│   ├── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
-│   └── archive/                      # 死代码归档（duplicate-LyricsRendering、dead-functions…）
+│   └── docs/                         # 文档体系（用户册/开发者册/文件结构说明）
 ├── docs/                            # 自迭代规划与维护说明（iteration-plan 置顶待办 / maintenance-notes 年度流程 / backup-note / optimization-plan / memory-rendering-audit / anchor-patrol 锚点巡检用法）
 ├── backup/                          # 优化前调研文档归档（17 份，存档点 pre-opt-20260812-0114；第8轮收尾新增 优化计划_OPT任务清单.md）
 ├── iteration-log.md                 # 迭代轨迹（kanban 自迭代链逐轮追加，本文档之外的总轨迹）
@@ -338,7 +336,6 @@ mindmap
 | `LyricsMTMR/docs/` | 文档（zh/en） | 代码 |
 | `examples/presets/` | 主题/配置示例 | 用户私有数据 |
 | `tools/` | 调试工具与原型 | 参与编译的代码 |
-| `LyricsMTMR/archive/` | 死代码、孤儿资源、废弃脚本 | 活跃代码 |
 
 ## 四、新增文件去哪（流程）
 
