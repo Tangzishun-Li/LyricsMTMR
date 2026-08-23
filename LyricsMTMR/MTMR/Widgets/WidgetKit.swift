@@ -526,12 +526,73 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         guard isShowing else { return }
         isShowing = false
         HapticFeedback.instance.tap(type: .back)
-        TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
+        dismissOverlayWithoutRebuild()
         // Overlay-scoped resources (e.g. per-item timers) must stop here, not
-        // wait for reloadPreset to swap the item out: the funnel above can be
-        // slow or fail to rebuild entirely, and a live timer keeps driving
+        // wait for a rebuild to swap the item out: the funnel above can be
+        // slow or fail to restore entirely, and a live timer keeps driving
         // off-screen draws until deinit. Subclasses override to tear down.
         overlayDidDismiss()
+    }
+
+    /// Collapses the overlay back to the main bar WITHOUT the full preset
+    /// reload (ITER-16). showOverlay() only borrows the controller's shared
+    /// NSTouchBar — it rewrites `delegate` + `defaultItemIdentifiers` and
+    /// presents that same object; the controller's items dictionary is never
+    /// touched. The minimal inverse is therefore: hand the bar configuration
+    /// back to the controller and re-present the SAME object. Zero JSON
+    /// parsing, zero item construction, no Touch Bar flash.
+    ///
+    /// The restore below unconditionally rewrites defaultItemIdentifiers to
+    /// the main-bar layout, so a stale fullView identifier can never be
+    /// presented — no delegate-ownership check is needed. Fallback to the
+    /// legacy reloadPreset path only when there is no bar object or nothing
+    /// left in the item dictionaries (an explicit preset reload mid-session).
+    /// While the whole bar is globally hidden (blacklisted app / exitTouchbar)
+    /// the minimize still lands but we must NOT re-present over the user's
+    /// current bar — presentTouchBar() resumes that on the next reveal.
+    private func dismissOverlayWithoutRebuild() {
+        guard let controller = TouchBarController.shared as? TouchBarController else {
+            TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
+            return
+        }
+        guard let bar = controller.touchBar, !controller.items.isEmpty || !controller.swipeItems.isEmpty else {
+            controller.reloadPreset(path: controller.lastPresetPath)
+            return
+        }
+
+        // Structural inverse of presentTouchBarWithCurrentItems(): fresh
+        // basic-view identifiers over the unchanged item dictionaries.
+        let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
+        let centerScrollArea = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollArea.".appending(UUID().uuidString))
+        let scrollArea = ScrollViewItem(identifier: centerScrollArea, items: centerItems)
+
+        controller.basicViewIdentifier = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollView.".appending(UUID().uuidString))
+
+        bar.delegate = controller
+        bar.defaultItemIdentifiers = [controller.basicViewIdentifier]
+
+        let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
+        let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
+        controller.basicView = BasicView(identifier: controller.basicViewIdentifier, items: leftItems + [scrollArea] + rightItems, swipeItems: controller.swipeItems)
+        controller.basicView?.legacyGesturesEnabled = AppSettings.multitouchGestures
+
+        if #available(OSX 10.14, *) {
+            NSTouchBar.minimizeSystemModalTouchBar(bar)
+        } else {
+            NSTouchBar.minimizeSystemModalFunctionBar(bar)
+        }
+        if !TouchBarVisibilityState.shared.isBarHidden {
+            if AppSettings.showControlStripState {
+                presentSystemModal(bar, systemTrayItemIdentifier: .controlStripItem)
+            } else {
+                presentSystemModal(bar, placement: 1, systemTrayItemIdentifier: .controlStripItem)
+            }
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard self != nil else { return }
+            TouchBarMirrorWindowController.shared.syncFromTouchBar()
+        }
     }
 
     /// Called at the end of dismissOverlay() after isShowing flips false.
