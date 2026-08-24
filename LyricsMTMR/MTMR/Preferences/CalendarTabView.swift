@@ -103,7 +103,10 @@ struct CalendarTab: View {
 
     /// UI 字段 id ↔ upnext item 存储键/值的映射：
     /// range → to（today→0 / 24h→24 / 7d→168 小时），maxEvents → maxToShow；
-    /// 其余四键改造前即无持久化链路，保持内存态。
+    /// 其余四键改造前即无持久化链路，保持内存态。R61-b 复核定案：
+    /// remindEnabled/remindMinutes 无落盘链路无 widget 行为
+    /// （UpNextScrubberTouchBarItem.swift 全文无消费），维持内存暂存展示态，
+    /// 勿再重开复核；互指注释见 SettingsSchemaBridge.swift calendar 注册段。
     private static func storageKey(for id: String) -> String? {
         switch id {
         case "range": return "to"

@@ -322,6 +322,7 @@ mindmap
 ├── logs/第58轮/核验报告_第58轮_INTEG收口.md                                # 第 58 轮 INTEG 收口报告（UI 态持久化 G1~G7 + SchemaBridge Phase2 试点：a/b/c/d 四卡按序合并 + r57-W3 补链 fast-forward；冲突 §8 日志行 ×3 保双方 + pbxproj ×4 保双方；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 16 用例 0 失败；Info.plist 0.57/482→0.58/483；锚点 0 ERROR，t_bc1957c7 收口）
 ├── logs/第59轮/核验报告_第59轮_INTEG收口.md                                # 第 59 轮 INTEG 收口报告（契约分歧裁决落 UI + SchemaBridge Phase2 两域 + 桌面歌词位置守护：a/b/c 三卡按序合并零冲突（文件交集为空）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 64 用例 0 失败；全量回归触发 641 用例 0 断言失败；Info.plist 0.58/483→0.59/484；锚点 0 ERROR，t_1dacd1ab 收口）
 ├── logs/第60轮/核验报告_第60轮_INTEG收口.md                                # 第 60 轮 INTEG 收口报告（启动 TCC 弹窗防线 + 设置项全量审计死控件处置 + 设置热更新与需刷新提示：a/b/c 三卡按序合并（a∩c 仅 pbxproj 各自追加行保双方）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 243 用例 0 失败；全量回归不触发（隔代规则）；Info.plist 0.59/484→0.60/485；锚点 0 ERROR，t_00925f27 收口）
+├── logs/第61轮/核验报告_第61轮_INTEG收口.md                                # 第 61 轮 INTEG 收口报告（SchemaBridge Phase2 三域收编 + 日历提醒展示态复核定案：a/b 两卡按序合并零冲突（bridge 行区间不相交+pbxproj 各自追加行，所有权表连续第五轮实证）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 35 用例 0 失败（含 INTEG 接线修正 f0ef8ce static let 文案烤死合跑炸）；全量回归到轮触发 675 用例 0 失败；Info.plist 0.60/485→0.61/486；锚点 0 ERROR，t_1cf812bd 收口）
 └── .gitignore / .gitattributes / README.md
 ```
 

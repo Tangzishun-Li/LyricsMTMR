@@ -204,9 +204,9 @@ enum SettingsSchema {
         ],
         // R59-b：日历显示与提醒（upnext 域：range/maxToShow 落盘 items.json 的
         // to/maxToShow 键；其余四键为 tab 展示态。remindMinutes/remindEnabled
-        // 改造前即无落盘链路——按 §5「无运行时读者的死开关不注册」本应隐藏，
-        // 但两行有真实控件且用户可感知，故保留注册、读写走内存暂存（不落盘），
-        // 待 §5 审计复核后再定去留）
+        // 改造前即无落盘链路。R61-b 复核定案：无落盘链路无 widget 行为
+        // （UpNextScrubberTouchBarItem.swift 全文无消费），维持内存暂存展示态，
+        // 勿再重开复核；互指注释见 CalendarTabView.swift 内存暂存段）
         "calendar": [
             SettingsField(
                 id: "range", displayName: localized("时间范围", "Range"),
@@ -236,6 +236,53 @@ enum SettingsSchema {
                 id: "remindMinutes", displayName: localized("提前分钟", "Minutes Before"),
                 control: .slider(range: 5...60, step: 5, unit: localized("分", "min")),
                 section: localized("提醒", "Reminder")),
+        ],
+        // R61-a：智能家居两键（UD 通道，AppSettings UI State 区块）。
+        // 读者证据：HomekitTabView.swift:12,52 / :13,55；场景列表
+        // （EditableListView，items.json homekitScene 通道）保留 tab 手写区不注册。
+        "homekit": [
+            SettingsField(
+                id: "showDeviceStatus", displayName: localized("显示设备状态", "Show Device Status"),
+                control: .toggle,
+                section: localized("行为", "Behavior")),
+            SettingsField(
+                id: "confirmBeforeRun", displayName: localized("执行前确认", "Confirm Before Run"),
+                control: .toggle,
+                section: localized("行为", "Behavior")),
+        ],
+        // R61-a：快递三开关（UD 通道）。读者证据：PackageTabView.swift:12,56 /
+        // :14,64 / :16,69。单号列表与刷新间隔（items.json packageTracker 通道）
+        // 保留 tab 手写区不注册；notifyOnUpdate 副标题「默认关闭」沿用现文案。
+        "package": [
+            SettingsField(
+                id: "autoDetect", displayName: localized("自动识别快递公司", "Auto Detect Company"),
+                control: .toggle,
+                section: localized("行为", "Behavior")),
+            SettingsField(
+                id: "removeOnDelivery", displayName: localized("签收后自动移除", "Auto Remove on Delivery"),
+                control: .toggle,
+                section: localized("行为", "Behavior")),
+            SettingsField(
+                id: "notifyOnUpdate",
+                displayName: localized("状态更新通知", "Notify on Update"),
+                subtitle: localized("默认关闭", "Off by default"),
+                control: .toggle,
+                section: localized("行为", "Behavior")),
+        ],
+        // R61-a：健康两滑杆（UD Int 键 ×滑杆 Double 取整存取，r59-a 先例；
+        // readingGoal 水合钳制语义随迁——旧滑杆 10...180 可能已落盘 >100，
+        // 读侧钳入新范围避免超程显示）。读者证据：WellnessTabView.swift:15,48 /
+        // :17,63。久坐间隔/呼吸模式（items.json）、生日编辑器（birthdays.json）
+        // 保留 tab 手写区不注册。
+        "wellness": [
+            SettingsField(
+                id: "readingGoal", displayName: localized("阅读目标", "Reading"),
+                control: .slider(range: 5...100, step: 1, unit: localized("页/天", "pages/d")),
+                section: localized("提醒", "Reminders")),
+            SettingsField(
+                id: "standupMinutes", displayName: localized("站会时长", "Standup"),
+                control: .slider(range: 5...90, step: 1, unit: localized("分", "min")),
+                section: localized("提醒", "Reminders")),
         ],
     ]
 }
