@@ -2194,6 +2194,26 @@
 - **锚点巡检**：python3 scripts/anchor-patrol.py ERROR 0（REGISTRY 新增本报告登记行）；本轮无 live 锚点位移。
 - **收口产物**：logs/第61轮/核验报告_第61轮_INTEG收口.md 新建 + file-structure.zh.md 登记行同步 1 行 + Info.plist 0.60/485→0.61/486 + README 更新日志补登 v0.61（新增 2+改进 1+工程稳定性 3+版本史追加 v0.61=第 61 轮）+ 简报三件套（第61轮简报新建/index 追加/速查表滚动 R49 滚出+remindEnabled 候选转已闭环+维度设置治理 ×3）+ 轨道文本 R61 §8 追加 INTEG 日志行 + 本记录。
 
+## 第 62 轮（启动韧性与构建资源护栏 P0 应急轮，单 INTEG 收口）
+
+### INTEG 收口记录（t_10669277，分支 lyricsmtmr/t_10669277-r62-integ-integ）
+
+- **合并链**：main 基线 c46c6a6（R61 收口）→ 按序 merge 三分支：b 卡 dd0a2c3（合并提交 cd7b8d0）→ a 卡 9bb61ec（c5c2a1c）→ d 卡 4c8ebb0（4c74e87）。merge-base 校验三 tip 全为收口分支祖先。
+- **冲突解决**：0——三卡文件交集为空（b: 锁脚本+护栏文档 / a: AppDelegate+StartupSequence+测试+pbxproj / d: 调研报告+测量脚本），git ort 自动合并；残留扫描 0；plutil OK。轨道 §3 所有权表连续第六轮生效实证。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×3（scheme MTMR Debug, CODE_SIGNING_ALLOWED=NO），全程经 r62-b 锁脚本执行（自动注入 -jobs 4 + COMPILER_INDEX_STORE_ENABLE=NO）——锁脚本本仓首次实战即承担 INTEG 全部构建自证。
+- **测试**：金标准定向 StartupSequenceTests **6/6 passed TEST SUCCEEDED**（§4.1 三档分区/相对顺序/BACKGROUND 无 UI/注入隔离）。**全量回归用户点名里程碑触发**（优先于隔代规则）：UnitTests scheme 全量 **681 用例 0 失败 TEST SUCCEEDED**（104s 一次通过；675 基线+a 卡新增 6 例；PausableTimer 计时敏感段无偶发；经锁脚本 -jobs 4 实证并发约束下稳定性）。
+- **锚点巡检**：python3 scripts/anchor-patrol.py ERROR 0（88 项 PASS 59/WARN 24/INFO 5）；REGISTRY 新增本报告登记行。
+- **收口产物**：logs/第62轮/核验报告_第62轮_INTEG收口.md 新建（§4 原样转述轨道 §1 七条取证链）+ file-structure.zh.md 登记行同步 + Info.plist 0.61/486→0.62/487 + README v0.62 补登（新增 3+工程稳定性 3+版本史追加 v0.62=第 62 轮）+ 简报三件套（第62轮简报新建/index 追加/速查表滚动 R50 滚出+r62-d 落地候选与 jobs 缺省复核登记）+ 轨道文本 R62 §8 追加 INTEG 日志行 + 本记录。
+
+## 第 63 轮候选（R62 收口登记）
+
+- r62-d 内存治理路线图落地：P1 Top 慢文件逐文件小卡 → P2 DerivedData 卫生（19 份约 3.8GB）→ P3 target 拆分/Xcode 26 官方 CAS（升级后首选）；测量脚本 scripts/measure_r62d.sh 可复现
+- MTMR_BUILD_JOBS 缺省调优复核（r62-d 建议 -jobs 2 省 ~30% 内存让前台 ~550MB；当前缺省 4 待用户拍板后改锁脚本一处）
+- EditorTabView 死代码簇处置（r60-b 移交决策项延续：删除或接线需用户拍板方向后开专项卡；t_32f6ffe1 简报卡链路）
+- SchemaBridge Phase2 剩余 tab 推广（九域已消化：pomodoro/stock/systemMonitor/calendar/notification/weather/homekit/package/wellness；余量减少，速查表候选段保留顺序建议）
+- ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后执行；窗口未到如实顺延）
+- 真机冒烟系列延续挂账（新增启动韧性「首帧就绪+后台扫描」真机体感确认；TCC/Banner 合窗延续）
+
 ## 第 62 轮候选（R61 收口登记）
 - EditorTabView 死代码簇处置（r60-b 移交决策项延续：删除或接线需用户拍板方向后开专项卡；t_32f6ffe1 简报卡链路）
 - SchemaBridge Phase2 剩余 tab 推广（六域已消化：pomodoro/stock/systemMonitor/calendar/notification/weather + 本轮 homekit/package/wellness 三域；余量减少，速查表候选段保留顺序建议）
