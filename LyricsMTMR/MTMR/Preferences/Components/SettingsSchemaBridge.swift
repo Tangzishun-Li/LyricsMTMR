@@ -54,9 +54,67 @@ enum SettingsSchema {
     // MARK: 域级字段注册表（Phase2 各 tab 的接入点）
 
     /// 各设置域的全局字段序列。key 与域标识同名（试点 "pomodoro"、"stock"，
-    /// R59-b 增 "systemMonitor"、"calendar"）。
+    /// R59-b 增 "systemMonitor"、"calendar"，R60-b 增 "notification"、"weather"）。
     /// 字段取舍遵循 §5：无运行时读者的死开关不注册（从 UI 隐藏）。
     static let domainFields: [String: [SettingsField]] = [
+        // R60-b：通知域三开关（UD 通道）。读者证据（对照表 §二.18）：
+        // globalEnabled/pomodoro → PomodoroBarItem.swift:126，
+        // sound → PomodoroBarItem.swift:132 content.sound（R57 接线）。
+        "notification": [
+            SettingsField(
+                id: "notificationsGlobalEnabled",
+                displayName: localized("启用通知", "Enable Notifications"),
+                subtitle: localized("总开关，关闭后所有提醒静音",
+                                    "Master switch — mute all alerts when off"),
+                control: .toggle,
+                section: localized("全局", "Global")),
+            SettingsField(
+                id: "notificationsSound",
+                displayName: localized("通知声音", "Notification Sound"),
+                control: .toggle,
+                section: localized("全局", "Global")),
+            SettingsField(
+                id: "notificationsPomodoro",
+                displayName: localized("番茄钟结束", "Pomodoro End"),
+                control: .toggle,
+                section: localized("按功能", "Per Feature")),
+        ],
+        // R60-b：天气显示段五键（IJ weather item 通道，键名与 WeatherBarItem
+        // init 消费链逐字一致——apiSource/units/icon_type/showHumidity/showWind；
+        // cities 为列表控件走 tab 内 EditableListView 既有通道不进 bridge）。
+        // 读者证据（对照表 §二.10）：WeatherBarItem.swift:71,78-80,84-92。
+        "weather": [
+            SettingsField(
+                id: "apiSource", displayName: localized("天气服务", "Provider"),
+                control: .segmented(options: [
+                    (id: "china", label: localized("国内天气", "China")),
+                    (id: "openweather", label: "OpenWeather"),
+                ]),
+                section: localized("数据源", "Data Source")),
+            SettingsField(
+                id: "units", displayName: localized("温度单位", "Unit"),
+                control: .segmented(options: [
+                    (id: "metric", label: "°C"),
+                    (id: "imperial", label: "°F"),
+                ]),
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "iconType", displayName: localized("图标样式", "Icon"),
+                control: .segmented(options: [
+                    (id: "text", label: localized("文字", "Text")),
+                    (id: "images", label: localized("拟物", "Image")),
+                    (id: "emoji", label: localized("表情", "Emoji")),
+                ]),
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "showHumidity", displayName: localized("显示湿度", "Show Humidity"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+            SettingsField(
+                id: "showWind", displayName: localized("显示风速", "Show Wind"),
+                control: .toggle,
+                section: localized("显示", "Display")),
+        ],
         "pomodoro": [
             SettingsField(
                 id: "workTime", displayName: localized("工作", "Work"),
