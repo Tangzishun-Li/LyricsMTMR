@@ -24,6 +24,7 @@
 		36A778BE20A6C27100B38714 /* GeneralExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A778BD20A6C27100B38714 /* GeneralExtensions.swift */; };
 		36C2ECD7207B6DAE003CDA33 /* TimeTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECD6207B6DAE003CDA33 /* TimeTouchBarItem.swift */; };
 		36C2ECD9207B74B4003CDA33 /* AppleScriptTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECD8207B74B4003CDA33 /* AppleScriptTouchBarItem.swift */; };
+		C1FEBCC1A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCC0A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift */; };
 		36C2ECDB207C3FE7003CDA33 /* ItemsParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */; };
 		36C2ECDD207C723B003CDA33 /* ParseConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */; };
 		36C2ECE0207CB1B0003CDA33 /* defaultPreset.json in Resources */ = {isa = PBXBuildFile; fileRef = 36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */; };
@@ -282,6 +283,7 @@
 		C1FF9D78C1D5646401699623 /* PopoverDismissTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */; };
 		C1FF4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */; };
 		C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */; };
+		C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -328,6 +330,7 @@
 		36C2ECD2207B3B1D003CDA33 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		36C2ECD6207B6DAE003CDA33 /* TimeTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTouchBarItem.swift; sourceTree = "<group>"; };
 		36C2ECD8207B74B4003CDA33 /* AppleScriptTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTouchBarItem.swift; sourceTree = "<group>"; };
+		C1FEBCC0A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTCCGuard.swift; sourceTree = "<group>"; };
 		36C2ECDA207C3FE7003CDA33 /* ItemsParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemsParsing.swift; sourceTree = "<group>"; };
 		36C2ECDC207C723B003CDA33 /* ParseConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseConfigTests.swift; sourceTree = "<group>"; };
 		36C2ECDF207CB1B0003CDA33 /* defaultPreset.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = defaultPreset.json; sourceTree = "<group>"; };
@@ -600,6 +603,7 @@
 		C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverDismissTests.swift; sourceTree = "<group>"; };
 		C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseBudgetContractTests.swift; sourceTree = "<group>"; };
 		C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsFrameGuardTests.swift; sourceTree = "<group>"; };
+		C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTCCGuardTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -870,6 +874,7 @@
 				C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */,
 				C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */,
 				C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */,
+				C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1086,6 +1091,7 @@
 				BAF5AB5624317B4300B04904 /* BasicView.swift */,
 				B059D623205E04F3006E6B86 /* CustomButtonTouchBarItem.swift */,
 				36C2ECD8207B74B4003CDA33 /* AppleScriptTouchBarItem.swift */,
+				C1FEBCC0A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift */,
 				4CDC6E4F22FCA93F0069ADD4 /* ShellScriptTouchBarItem.swift */,
 				BAF5AB5824317CAF00B04904 /* SwipeItem.swift */,
 				368EDDE620812A1D00E10953 /* ScrollViewItem.swift */,
@@ -1269,6 +1275,7 @@
 				CA8F2B8D2FC5000000D189D7 /* BarItemFactory.swift in Sources */,
 				B05600D32083E9BB00EB218D /* CustomSlider.swift in Sources */,
 				36C2ECD9207B74B4003CDA33 /* AppleScriptTouchBarItem.swift in Sources */,
+				C1FEBCC1A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift in Sources */,
 				BAF5AB5724317B4300B04904 /* BasicView.swift in Sources */,
 				B0846A752220C968000288A7 /* NetworkBarItem.swift in Sources */,
 				B0F8771A207AC1EA00D6E430 /* TouchBarSupport.m in Sources */,
@@ -1509,6 +1516,7 @@
 				C1FF9D78C1D5646401699623 /* PopoverDismissTests.swift in Sources */,
 				C1FF4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift in Sources */,
 				C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */,
+				C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

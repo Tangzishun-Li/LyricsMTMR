@@ -1207,6 +1207,12 @@ struct MusicSourceRow: View {
     let player: MusicPlayer
     @Binding var isOn: Bool
 
+    /// R60-a 安装态徽标（轨道 §4.2）：按 bundle id 探测安装态，未安装的
+    /// 播放器行尾加灰字「未安装」。开关仍可操作（预装后即生效），不做禁用。
+    private var isInstalled: Bool {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: player.rawValue) != nil
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: player.symbol)
@@ -1217,9 +1223,20 @@ struct MusicSourceRow: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(isOn ? Deck.accent.opacity(0.14) : Color.white.opacity(0.05)))
             VStack(alignment: .leading, spacing: 1) {
-                Text(player.displayName)
-                    .font(Deck.rowFont)
-                    .foregroundStyle(Deck.textPrimary)
+                HStack(spacing: 6) {
+                    Text(player.displayName)
+                        .font(Deck.rowFont)
+                        .foregroundStyle(Deck.textPrimary)
+                    if !isInstalled {
+                        Text(localized("未安装", "Not Installed"))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Deck.textTertiary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(
+                                Capsule().fill(Color.white.opacity(0.06)))
+                    }
+                }
                 Text(player.blurb)
                     .font(Deck.captionFont)
                     .foregroundStyle(Deck.textTertiary)
