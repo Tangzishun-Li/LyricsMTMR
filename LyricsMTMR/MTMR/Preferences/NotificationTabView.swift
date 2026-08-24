@@ -4,23 +4,52 @@
 //
 //  Settings → 通知 / Notification tab
 //
+//  R60-b SchemaBridge Phase2（§4.4 注册试点一）：三开关改 schema 驱动渲染。
+//  字段定义收敛到 SettingsSchema.domainFields["notification"]，本视图只做
+//  Header + 分区渲染；读写经 SettingsFieldStore 闭包落盘 AppSettings
+//  （UD 通道），渲染事实源为 SettingsFieldModel（onAppear 重建模型）。
+//  读者证据：PomodoroBarItem.swift:126,132。
+//
 
 import SwiftUI
 
 struct NotificationTab: View {
-    @State private var globalEnabled: Bool = true
-    // R57 死设置审计：package/ddl/birthday 三开关已隐藏（对应 AppSettings 键
-    // 无通知生产者，只写不读——见 AppSettings deprecated 注释与审计清单）。
-    // @State 一并移除，防止「活跃 UI 只写不读」残留；pomodoro/sound 已接线。
-    @State private var pomodoroNotify: Bool = true
-    @State private var soundEnabled: Bool = true
+    /// 渲染模型（schema 驱动）：onAppear 重建，等价改造前 onAppear(loadFromSettings)。
+    @State private var model: SettingsFieldModel?
+
+    private static let store = SettingsFieldStore(
+        // 本域无滑条/计数行，占位闭包满足通道完整性（与 CalendarTab 同款做法）。
+        intReader: { _ in 0 },
+        intWriter: { _, _ in },
+        boolReader: { key in
+            switch key {
+            case "notificationsGlobalEnabled": return AppSettings.notificationsGlobalEnabled
+            case "notificationsSound": return AppSettings.notificationsSound
+            case "notificationsPomodoro": return AppSettings.notificationsPomodoro
+            default: return true
+            }
+        },
+        boolWriter: { key, value in
+            switch key {
+            case "notificationsGlobalEnabled": AppSettings.notificationsGlobalEnabled = value
+            case "notificationsSound": AppSettings.notificationsSound = value
+            case "notificationsPomodoro": AppSettings.notificationsPomodoro = value
+            default: break
+            }
+        })
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.notification.title, subtitle: SettingsTab.notification.subtitle)
-                globalSection
-                perWidgetSection
+                if let model {
+                    ForEach(groupedSections(model.fields), id: \.name) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Deck.SectionHeader(title: section.name)
+                            SettingsSchemaSectionCard(fields: section.fields, model: model)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 30)
             .padding(.top, 40)
@@ -28,52 +57,21 @@ struct NotificationTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: loadFromSettings)
-    }
-
-    private var globalSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("全局", "Global"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    Deck.ToggleRow(
-                        title: localized("启用通知", "Enable Notifications"),
-                        subtitle: localized("总开关，关闭后所有提醒静音", "Master switch — mute all alerts when off"),
-                        isOn: $globalEnabled)
-                        .onChange(of: globalEnabled) { saveToSettings() }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(title: localized("通知声音", "Notification Sound"), isOn: $soundEnabled)
-                        .onChange(of: soundEnabled) { saveToSettings() }
-                }
-            }
+        .onAppear {
+            // 每次 tab 出现都重建模型：等价改造前 onAppear(perform: loadFromSettings)。
+            model = SettingsFieldModel(fields: SettingsSchema.domainFields["notification"] ?? [],
+                                       store: Self.store)
         }
     }
 
-    private var perWidgetSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Deck.SectionHeader(title: localized("按功能", "Per Feature"))
-            Deck.Card {
-                VStack(spacing: 0) {
-                    // R57 死设置审计：快递/DDL/生日三行已移除——无通知生产者，
-                    // 开关此前只写不读（§5 规则 2：隐藏 UI + 键 deprecated）。
-                    Deck.ToggleRow(title: localized("番茄钟结束", "Pomodoro End"), isOn: $pomodoroNotify)
-                        .onChange(of: pomodoroNotify) { saveToSettings() }
-                }
-            }
+    /// 字段按注册顺序分区（与 Pomodoro/Stock tab 同款分组逻辑）。
+    private func groupedSections(_ all: [SettingsField]) -> [(name: String, fields: [SettingsField])] {
+        var order: [String] = []
+        var grouped: [String: [SettingsField]] = [:]
+        for field in all {
+            if grouped[field.section] == nil { order.append(field.section) }
+            grouped[field.section, default: []].append(field)
         }
-    }
-
-    // MARK: - Persistence (UserDefaults, consumed by widgets)
-
-    private func loadFromSettings() {
-        globalEnabled = AppSettings.notificationsGlobalEnabled
-        soundEnabled = AppSettings.notificationsSound
-        pomodoroNotify = AppSettings.notificationsPomodoro
-    }
-
-    private func saveToSettings() {
-        AppSettings.notificationsGlobalEnabled = globalEnabled
-        AppSettings.notificationsSound = soundEnabled
-        AppSettings.notificationsPomodoro = pomodoroNotify
+        return order.map { (name: $0, fields: grouped[$0] ?? []) }
     }
 }
