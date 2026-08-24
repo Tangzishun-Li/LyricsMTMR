@@ -6,8 +6,11 @@ class AppleScriptTouchBarItem: CustomButtonTouchBarItem, TBPollPausable {
     private var forceHideConstraint: NSLayoutConstraint!
     private let alternativeImages: [String: SourceProtocol]
     /// R60-a：脚本原文快照（deferred 放行时从文本重建 NSAppleScript；
-    /// filePath 型 source 经 string/fileString 兜底，取不到则按无脚本处理）。
+    /// filePath 型 source 经 string/fileString 兜底；仍取不到时回退记录原
+    /// source（R60 CI 回归修复：预编译型 source 只有 appleScript 无文本，
+    /// 编译段必须保留 source.appleScript 兜底路径）。
     private let sourceText: String?
+    private let source: SourceProtocol
 
     /// round 24 收官审计：隐藏暂停门。AppleScript 自循环与 bar 显隐零关联
     /// ——隐藏期仍按 interval 执行用户脚本（任意开销）；本卡纳入暂停：
@@ -25,7 +28,8 @@ class AppleScriptTouchBarItem: CustomButtonTouchBarItem, TBPollPausable {
     init?(identifier: NSTouchBarItem.Identifier, source: SourceProtocol, interval: TimeInterval, alternativeImages: [String: SourceProtocol]) {
         self.interval = interval
         self.alternativeImages = alternativeImages
-        self.sourceText = source.string ?? source.data?.utf8string
+        self.source = source
+        self.sourceText = source.string ?? source.data?.utf8string ?? source.appleScript?.source
         super.init(identifier: identifier, title: "⏳")
         forceHideConstraint = view.widthAnchor.constraint(equalToConstant: 0)
         // R60-a 守卫判定：deferred → 占位「▶」（title 语义非 alert）+ 接管
@@ -88,11 +92,14 @@ class AppleScriptTouchBarItem: CustomButtonTouchBarItem, TBPollPausable {
         }
     }
 
-    /// 取可编译脚本：已编译的复用；deferred 首次放行从保存的原文重建。
+    /// 取可编译脚本：已编译的复用；deferred 首次放行从保存的原文重建；
+    /// 无文本的预编译型 source 回退 source.appleScript（R60 前原路径）。
     private func makeAppleScript() -> NSAppleScript? {
         if let existing = script { return existing }
-        guard let text = sourceText else { return nil }
-        return NSAppleScript(source: text)
+        if let text = sourceText, let fromText = NSAppleScript(source: text) {
+            return fromText
+        }
+        return source.appleScript
     }
 
     /// round 24：隐藏暂停——gate 变更检测（重复广播幂等）；恢复时补刷跳到
