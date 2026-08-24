@@ -4,24 +4,75 @@
 //
 //  Settings → 健康 / Wellness tab
 //
+//  R61-a SchemaBridge Phase2：阅读目标/站会时长两滑杆改 schema 驱动渲染
+//  （UD Int 键 ×滑杆 Double 取整存取，r59-a 先例）。字段定义收敛到
+//  SettingsSchema.domainFields["wellness"]；久坐间隔/呼吸模式（items.json
+//  通道）与生日编辑器（birthdays.json 通道）保留手写区。
+//  读者证据：AppSettings.swift:310,315（键 com.lyricsmtmr.ui.wellness.*）。
+//
 
 import SwiftUI
 
 struct WellnessTab: View {
     @State private var postureInterval: Double = 30
-    // R58-a（G3）落盘，r59-a 按编排者裁决对齐 §5 契约：readingGoal 单位「页」、范围 5...100，
-    // standupMinutes 范围扩至 5...90 使契约缺省 45 可达。滑杆控件 Double、契约键 Int——取整存取。
-    // 水合钳制：旧滑杆 10...180 可能已落盘 >100，钳入新范围避免超程显示（首拖即写回钳制值）。
-    @State private var readingGoal: Double = min(max(Double(AppSettings.wellnessReadingGoal), 5), 100)
     @State private var breathingPattern: String = "4-7-8"
-    @State private var standupMinutes: Double = Double(AppSettings.wellnessStandupMinutes)
     @State private var birthdays: [String] = []
+    /// 两滑杆渲染模型（schema 驱动）：onAppear 重建，等价改造前 onAppear(loadFromJSON)。
+    @State private var model: SettingsFieldModel?
+
+    // MARK: - Schema 读写通道（R61-a）
+
+    /// 改造前手写 @State 的初值与水合钳制基线：
+    /// - readingGoal：R58-a（G3）落盘、r59-a 对齐 §5 契约（单位「页/天」、范围
+    ///   5...100）；水合钳制——旧滑杆 10...180 可能已落盘 >100，钳入新范围避免
+    ///   超程显示（首拖即写回钳制值），语义随 schema 迁移进读侧。
+    /// - standupMinutes：范围扩至 5...90 使契约缺省 45 可达。
+    private static let sliderDefaults: [String: Int] = [
+        "readingGoal": 20, "standupMinutes": 45,
+    ]
+
+    private static let clampedReadingGoal: Int = {
+        min(max(AppSettings.wellnessReadingGoal, 5), 100)
+    }()
+
+    private static let store = SettingsFieldStore(
+        // UD 存 Int、滑杆 Double：intReader 做水合钳制 + 缺省回落，
+        // intWriter 做 Double→Int 取整（照抄 r59-a 取整存取先例）。
+        intReader: { key in
+            key == "readingGoal" ? clampedReadingGoal
+                : (sliderDefaults[key] ?? 0)
+        },
+        intWriter: { key, value in
+            switch key {
+            case "readingGoal": AppSettings.wellnessReadingGoal = value
+            case "standupMinutes": AppSettings.wellnessStandupMinutes = value
+            default: break
+            }
+            notifyAdvisor()
+        },
+        // 本域无开关行，占位闭包满足通道完整性（与 NotificationTab 同款做法）。
+        boolReader: { _ in true },
+        boolWriter: { _, _ in })
+
+    /// R60-c 落盘统一接线：wellness 域不在 hotReloadableDomains，Advisor 返回
+    /// false 即走既有 Banner 提示路径（r60-c 机制零改动）。
+    private static func notifyAdvisor() {
+        _ = SettingsRefreshAdvisor.notifyChange(domain: "wellness")
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.wellness.title, subtitle: SettingsTab.wellness.subtitle)
                 reminderSection
+                if let model {
+                    ForEach(groupedSections(model.fields), id: \.name) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Deck.SectionHeader(title: section.name)
+                            SettingsSchemaSectionCard(fields: section.fields, model: model)
+                        }
+                    }
+                }
                 birthdaySection
             }
             .padding(.horizontal, 30)
@@ -30,8 +81,14 @@ struct WellnessTab: View {
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
         }
-        .onAppear(perform: loadFromJSON)
+        .onAppear {
+            loadFromJSON()
+            model = SettingsFieldModel(fields: SettingsSchema.domainFields["wellness"] ?? [],
+                                       store: Self.store)
+        }
     }
+
+    // MARK: - 手写保留区（久坐/呼吸 items.json + 生日 birthdays.json 通道）
 
     private var reminderSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -43,11 +100,6 @@ struct WellnessTab: View {
                             .onChange(of: postureInterval) { saveDebounced() }
                     }
                     Deck.RowDivider()
-                    Deck.LabeledRow(localized("阅读目标", "Reading")) {
-                        Deck.ValueSlider(range: 5...100, step: 1, unit: localized("页/天", "pages/d"), value: $readingGoal)
-                            .onChange(of: readingGoal) { AppSettings.wellnessReadingGoal = Int($0) }
-                    }
-                    Deck.RowDivider()
                     Deck.LabeledRow(localized("呼吸练习", "Breathing")) {
                         Deck.Segmented(
                             options: [
@@ -56,11 +108,6 @@ struct WellnessTab: View {
                                 Deck.SegmentOption(id: "custom", label: localized("自定义", "Custom")),
                             ], selection: $breathingPattern)
                             .onChange(of: breathingPattern) { saveDebounced() }
-                    }
-                    Deck.RowDivider()
-                    Deck.LabeledRow(localized("站会时长", "Standup")) {
-                        Deck.ValueSlider(range: 5...90, step: 5, unit: localized("分", "min"), value: $standupMinutes)
-                            .onChange(of: standupMinutes) { AppSettings.wellnessStandupMinutes = Int($0) }
                     }
                 }
             }
@@ -80,6 +127,17 @@ struct WellnessTab: View {
                 .onChange(of: birthdays) { saveDebounced() }
             }
         }
+    }
+
+    /// 字段按注册顺序分区（与 Pomodoro/Stock tab 同款分组逻辑）。
+    private func groupedSections(_ all: [SettingsField]) -> [(name: String, fields: [SettingsField])] {
+        var order: [String] = []
+        var grouped: [String: [SettingsField]] = [:]
+        for field in all {
+            if grouped[field.section] == nil { order.append(field.section) }
+            grouped[field.section, default: []].append(field)
+        }
+        return order.map { (name: $0, fields: grouped[$0] ?? []) }
     }
 
     // MARK: - Sync with postureReminder / breathingGuide widgets + birthdays.json

@@ -277,6 +277,7 @@
 		F946048BC4954FD69E7D447A /* KeyBindingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E934999DE9040A4840FC85D /* KeyBindingModel.swift */; };
 		C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */; };
 		C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */; };
+		C1FF5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift */; };
 		C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */; };
 		C0FF5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */; };
 		C0FF5A7DCE85F758969AA679 /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7DCE85F758969AA679 /* Deck.swift */; };
@@ -600,6 +601,7 @@
 		FCDAFA7AEB1283D190FCE91B /* SettingsSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSync.swift; sourceTree = "<group>"; };
 		C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadSettingContractTests.swift; sourceTree = "<group>"; };
 		C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRefreshAdvisorTests.swift; sourceTree = "<group>"; };
+		C1FE5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaDomainMigrationContractTests.swift; sourceTree = "<group>"; };
 		C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsSchemaBridge.swift; sourceTree = "<group>"; };
 		C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsRefreshAdvisor.swift; sourceTree = "<group>"; };
 		C0FE5A7DCE85F758969AA679 /* Deck.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
@@ -882,6 +884,7 @@
 				C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */,
 				C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */,
 				C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */,
+				C1FE5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1529,6 +1532,7 @@
 				C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */,
 				C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */,
 				C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */,
+				C1FF5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
