@@ -60,9 +60,15 @@ final class SchemaDomainMigrationContractTests: XCTestCase {
             }
         }
         // notifyOnUpdate 副标题「默认关闭」契约随迁（R59-a 裁决成果）。
+        // R61-INTEG 修正：domainFields 为 static let，localized() 文案在进程内
+        // 首次触达时按当时语言态烤死（实测 CalendarReminderDisplayStateTests
+        // 先跑+真实 UD 中文 → 烤入中文；本类 setUp 换新隔离套件后语言回落
+        // System → 现算英文，单跑各自绿、合跑必炸）。故断言只锁「副标题存在
+        // 且为两语言文案之一」，与渲染语言解耦。
         let notify = (SettingsSchema.domainFields["package"] ?? []).first { $0.id == "notifyOnUpdate" }
-        XCTAssertEqual(notify?.subtitle, localized("默认关闭", "Off by default"),
-                       "notifyOnUpdate 必须保留「默认关闭」副标题")
+        let notifySubtitleCopies: Set<String> = ["默认关闭", "Off by default"]
+        XCTAssertTrue(notifySubtitleCopies.contains(notify?.subtitle ?? ""),
+                      "notifyOnUpdate 必须保留「默认关闭/Off by default」副标题，实际 \(notify?.subtitle ?? "nil")")
     }
 
     func testWellnessDomainFieldIDsMatchBlueprint() {
