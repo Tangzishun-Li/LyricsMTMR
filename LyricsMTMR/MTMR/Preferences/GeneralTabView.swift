@@ -211,6 +211,11 @@ struct GeneralTab: View {
     private func remove(_ bundleId: String) {
         blacklist.removeAll { $0 == bundleId }
         AppSettings.blacklistedAppIds = blacklist
+        // R60-c：黑名单删除走热更新通道——general 域（true）。Advisor 内部
+        // 同步 TouchBarController.blacklistAppIdentifiers 缓存并 updateActiveApp，
+        // 被移除的应用立即恢复本应用 Touch Bar；叠加去抖 reload 保持契约一致。
+        // （新增路径经 addCurrentAppRule→saveRules 后由主题规则接管，无需此链路。）
+        _ = SettingsRefreshAdvisor.notifyChange(domain: "general")
     }
 
     // MARK: - App-Specific Themes

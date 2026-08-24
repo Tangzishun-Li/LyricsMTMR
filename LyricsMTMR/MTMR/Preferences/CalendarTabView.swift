@@ -213,6 +213,8 @@ struct CalendarTab: View {
         ]
         SettingsSync.writeBack(type: "upnext", settings: settings)
         SettingsSync.postGlobalConfigChanged(domain: "upnext", key: "config", newValue: settings)
-        TouchBarController.shared.reloadStandardConfig()
+        // R60-c：热更新统一入口——calendar(upnext) 域可安全热更新（true），
+        // 落盘后由 Advisor 去抖触发 reloadStandardConfig，显示范围即时生效。
+        _ = SettingsRefreshAdvisor.notifyChange(domain: "calendar")
     }
 }

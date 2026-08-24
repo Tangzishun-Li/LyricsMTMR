@@ -275,7 +275,10 @@
 		F726FFC56B6E1CEA7253B1E7 /* PaperProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483C335D29B872C329E6B67B /* PaperProgress.swift */; };
 		F946048BC4954FD69E7D447A /* KeyBindingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E934999DE9040A4840FC85D /* KeyBindingModel.swift */; };
 		C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */; };
+		C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */; };
 		C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */; };
+		C0FF5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */; };
+		C0FF5A7DCE85F758969AA679 /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7DCE85F758969AA679 /* Deck.swift */; };
 		C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */; };
 		C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */; };
 		C1FF8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */; };
@@ -593,7 +596,10 @@
 		FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseProvider.swift; sourceTree = "<group>"; };
 		FCDAFA7AEB1283D190FCE91B /* SettingsSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSync.swift; sourceTree = "<group>"; };
 		C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadSettingContractTests.swift; sourceTree = "<group>"; };
+		C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRefreshAdvisorTests.swift; sourceTree = "<group>"; };
 		C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsSchemaBridge.swift; sourceTree = "<group>"; };
+		C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsRefreshAdvisor.swift; sourceTree = "<group>"; };
+		C0FE5A7DCE85F758969AA679 /* Deck.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
 		C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTouchBarItemPrecisionTests.swift; sourceTree = "<group>"; };
 		C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverLifecycleTests.swift; sourceTree = "<group>"; };
 		C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraokeVisibilityTests.swift; sourceTree = "<group>"; };
@@ -870,6 +876,7 @@
 				C1FE9D78C1D5646401699623 /* PopoverDismissTests.swift */,
 				C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */,
 				C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */,
+				C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -982,6 +989,8 @@
 				C0FE698E7BFE281E92408E91 /* WeatherLocationSession.swift */,
 				C0FE3800F754186AED98A490 /* SettingsWindowGCStrategy.swift */,
 				C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */,
+				C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */,
+				C0FE5A7DCE85F758969AA679 /* Deck.swift */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -1462,6 +1471,8 @@
 				C0FF8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift in Sources */,
 				C0FF49F0775587C1AE963DDC /* LyricsLRUCache.swift in Sources */,
 				C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */,
+				C0FF5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift in Sources */,
+				C0FF5A7DCE85F758969AA679 /* Deck.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1509,6 +1520,7 @@
 				C1FF9D78C1D5646401699623 /* PopoverDismissTests.swift in Sources */,
 				C1FF4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift in Sources */,
 				C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */,
+				C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
