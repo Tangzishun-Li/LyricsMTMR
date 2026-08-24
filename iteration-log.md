@@ -2164,3 +2164,20 @@
 - remindEnabled/remindMinutes 展示态复核（R59-b 登记：改造前即无运行时读者，待 §5 审计口径定夺隐藏或接线）
 - ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后）
 - 真机冒烟系列延续挂账（含桌面歌词重置位置按钮真机观感）
+
+### INTEG 收口记录（t_00925f27，分支 lyricsmtmr/t_00925f27-r60-integ-a-b-c-0.60）
+
+- **合并链**：main 基线 79699ef（R60 轨道文本提交）→ 按序 merge 三张执行卡（ee70b1a r60-a 启动 TCC 弹窗防线 / 294912c r60-b 设置项全量审计+死控件处置+两域 schema 注册 / 8cd69ae r60-c SettingsRefreshAdvisor+Banner+五域接线），a 卡 fast-forward、合并提交 862e38e（b）/ e752493（c）。merge-base 校验三 tip 全为收口分支祖先。
+- **冲突解决**：pbxproj ×2 保双方（a 注册 AppleScriptTCCGuardTests、c 注册 SettingsRefreshAdvisorTests，各自追加行互不相干）；其余零冲突。文件交集实证：a∩b=∅、b∩c=∅、a∩c=pbxproj（§3 所有权表连续第四轮生效）。`grep '^<<<<<<<|^>>>>>>>'` 源码目录残留扫描 0。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×3（scheme MTMR Debug, CODE_SIGNING_ALLOWED=NO, .build/DerivedData 复用）；整体构建 BUILD SUCCEEDED。
+- **测试**：受影响套件 AppleScriptTCCGuardTests(12 新增) + SettingsRefreshAdvisorTests(10 新增) + AppleScriptDefinition(5) + BarItemFactory(18) + DeadSettingContract(5) + ItemTypeDecodeRegistry(173) + PollingPause(5) + SettingsTabCache(6) + UserDefaultsContract(9) = **243 用例 0 失败**（UnitTests scheme 定向）。**全量回归本轮不触发**（轨道文本 §6 隔代规则：R59 已触发 → R60 跳过，R61 候选触发轮）。
+- **锚点巡检**：python3 scripts/anchor-patrol.py **PASS 60 / WARN 23 / INFO 5 / ERROR 0** 退出码 0（REGISTRY 196→197 行=新增本报告登记行）；本轮无 live 锚点位移。
+- **收口产物**：logs/第60轮/核验报告_第60轮_INTEG收口.md 新建 + file-structure.zh.md 登记行同步 1 行 + Info.plist 0.59/484→0.60/485 + README 更新日志补登 v0.60（新增 3 项+改进 2 项+工程稳定性 3 项+版本史序列追加 v0.60=第 60 轮）+ 简报三件套（第60轮简报/index 追加/速查表滚动表 R60 行+候选段更新+R48 行滚出）+ 轨道文本 R60 §8 追加 INTEG 日志行 + 本记录。
+- **遗留移交**：EditorTabView.swift 等 4 文件 ~1683 行死代码簇（r57-d 定性/r60-b 复核仍零调用）转后续专项处置卡（速查表候选段已登记）；remindEnabled/remindMinutes 复核与 ITER-14 第 46 次核验（窗口未到如实顺延）延续挂账。
+
+## 第 61 轮候选（R60 收口登记）
+- EditorTabView 死代码簇处置（r60-b 移交决策项：删除或接线需用户拍板方向后开专项卡）
+- SchemaBridge Phase2 剩余 tab 推广（五域已消化后余量减少，速查表候选段保留顺序建议）
+- remindEnabled/remindMinutes 展示态复核（延续挂账）
+- ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后执行；R60 收口时窗口未到如实顺延）
+- 真机冒烟系列延续挂账（含 TCC 首次「▶」点按放行真机观感、Banner 去抖合窗真机演示）

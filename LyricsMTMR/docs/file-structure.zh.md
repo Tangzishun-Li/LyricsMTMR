@@ -321,6 +321,7 @@ mindmap
 ├── logs/第57轮/R57_死设置审计清单.md                                       # 第 57 轮 A 卡产出（死设置审计：38 @UserDefault 键 × 21 Tab 读写闭环全量审计处置表 + 各 tab 非 UD 通道审计 + 第二发现 @State 即烬开关 ~20 处/Expense savings.json 四键无消费者记 R58 建议，r57-a commit de2ca35）
 ├── logs/第58轮/核验报告_第58轮_INTEG收口.md                                # 第 58 轮 INTEG 收口报告（UI 态持久化 G1~G7 + SchemaBridge Phase2 试点：a/b/c/d 四卡按序合并 + r57-W3 补链 fast-forward；冲突 §8 日志行 ×3 保双方 + pbxproj ×4 保双方；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 16 用例 0 失败；Info.plist 0.57/482→0.58/483；锚点 0 ERROR，t_bc1957c7 收口）
 ├── logs/第59轮/核验报告_第59轮_INTEG收口.md                                # 第 59 轮 INTEG 收口报告（契约分歧裁决落 UI + SchemaBridge Phase2 两域 + 桌面歌词位置守护：a/b/c 三卡按序合并零冲突（文件交集为空）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 64 用例 0 失败；全量回归触发 641 用例 0 断言失败；Info.plist 0.58/483→0.59/484；锚点 0 ERROR，t_1dacd1ab 收口）
+├── logs/第60轮/核验报告_第60轮_INTEG收口.md                                # 第 60 轮 INTEG 收口报告（启动 TCC 弹窗防线 + 设置项全量审计死控件处置 + 设置热更新与需刷新提示：a/b/c 三卡按序合并（a∩c 仅 pbxproj 各自追加行保双方）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 243 用例 0 失败；全量回归不触发（隔代规则）；Info.plist 0.59/484→0.60/485；锚点 0 ERROR，t_00925f27 收口）
 └── .gitignore / .gitattributes / README.md
 ```
 

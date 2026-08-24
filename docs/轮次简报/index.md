@@ -35,6 +35,13 @@
 - **c卡**：LyricsTabView 新增「重置窗口位置」（清键+回主屏默认位）；DesktopLyricsFrameGuard 矩形相交判定（部分越界保留/完全在外或垃圾串回退 R51 默认位），启动恢复与屏幕变化通知共用；DesktopLyricsFrameGuardTests 8 用例新增
 - **INTEG**：a→b→c 按序合并零冲突（三卡文件交集为空）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 64 用例 0 失败；全量回归触发 641 用例 0 断言失败（PausableTimer 计时敏感用例偶发超时一次、单套件复跑 44/44 全绿非回归）；锚点 0 ERROR；版本 0.59/484；报告归档 logs/第59轮/
 
+## 第60轮
+- **主题**：启动 TCC 弹窗防线（a）+ 设置项×item 全量审计与死控件处置（b）+ 设置热更新与需刷新提示（c），单 INTEG 收口（a/b/c 三卡）
+- **a卡**：AppleScriptTCCGuard 守卫——引用外部应用的脚本首次自动执行前占位「▶」点按放行；defaultPreset 清理 Spotify/Music/iTunes 三组示例块；MusicSourceRow 未安装灰字徽标；修复 Range.map(String.init) 误返回与放行误清 actions 两缺陷
+- **b卡**：docs/设置项对照表_R60.md（22 tab × 87 设置项 文件:行号 级证据 0 待核）；移除死控件 5 处（weather 预报小时数/tools 历史条数·默认哈希·默认布局·快捷回复）；domainFields 补注册 notification/weather 两域 schema 化渲染；EditorSchema 152 条零触碰
+- **c卡**：SettingsRefreshAdvisor 归类表+≥0.5s 去抖合窗+refreshNow；Deck.RefreshBanner 横幅；Pomodoro/Stock/SystemMonitor/Calendar/General 五域接线统一入口；General 黑名单缓存同步缺口修复
+- **INTEG**：a→b→c 按序合并（a∩c 仅 pbxproj 各自追加行保双方解清，其余零冲突）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 243 用例 0 失败；全量回归不触发（隔代规则）；锚点 0 ERROR；版本 0.60/485；报告归档 logs/第60轮/
+
 ## 第58轮
 - **主题**：UI 态持久化收尾（G1~G5）+ 记账 widget 消费闭环（G6/G7）+ SchemaBridge Phase2 stock 域试点，单 INTEG 收口（a/b/c/d 四卡）
 - **a卡**：Homekit/Package/Wellness 7 开关落盘——AppSettings 新 UI State 区段 + 三 TabView 水合/写回双向接线，缺键默认与注入值重启保留双验证；§5 与既有 UI 三处分歧标注待裁决
