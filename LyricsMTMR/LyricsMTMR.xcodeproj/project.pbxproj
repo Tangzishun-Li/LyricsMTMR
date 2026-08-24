@@ -276,6 +276,7 @@
 		F726FFC56B6E1CEA7253B1E7 /* PaperProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483C335D29B872C329E6B67B /* PaperProgress.swift */; };
 		F946048BC4954FD69E7D447A /* KeyBindingModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E934999DE9040A4840FC85D /* KeyBindingModel.swift */; };
 		C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */; };
+		C1FF61B0000061BB0A0C1FE /* CalendarReminderDisplayStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE61B0000061BB0A0C1FE /* CalendarReminderDisplayStateTests.swift */; };
 		C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */; };
 		C0FF5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */; };
 		C0FF5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */; };
@@ -599,6 +600,7 @@
 		FBA5E7BC96264BE2A3FF5CEF /* NetEaseProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseProvider.swift; sourceTree = "<group>"; };
 		FCDAFA7AEB1283D190FCE91B /* SettingsSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSync.swift; sourceTree = "<group>"; };
 		C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadSettingContractTests.swift; sourceTree = "<group>"; };
+		C1FE61B0000061BB0A0C1FE /* CalendarReminderDisplayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReminderDisplayStateTests.swift; sourceTree = "<group>"; };
 		C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRefreshAdvisorTests.swift; sourceTree = "<group>"; };
 		C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsSchemaBridge.swift; sourceTree = "<group>"; };
 		C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/SettingsRefreshAdvisor.swift; sourceTree = "<group>"; };
@@ -874,6 +876,7 @@
 				C1FEF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift */,
 				A1FE60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift */,
 				C1FE8A7B296D049EE89F0340 /* DeadSettingContractTests.swift */,
+				C1FE61B0000061BB0A0C1FE /* CalendarReminderDisplayStateTests.swift */,
 				C1FE6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift */,
 				C1FE07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift */,
 				C1FE8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift */,
@@ -1521,6 +1524,7 @@
 				C1FFF6E8E00C9EBA3B5403E3 /* LyricsMatchSelectionTests.swift in Sources */,
 				A1FF60980A1B2C3D4E5F6098 /* SandboxConfigContractTests.swift in Sources */,
 				C1FF8A7B296D049EE89F0340 /* DeadSettingContractTests.swift in Sources */,
+				C1FF61B0000061BB0A0C1FE /* CalendarReminderDisplayStateTests.swift in Sources */,
 				C1FF6419BBE53F1375410920 /* TimeTouchBarItemPrecisionTests.swift in Sources */,
 				C1FF07B21CD2A3B57546AB53 /* PopoverLifecycleTests.swift in Sources */,
 				C1FF8D610D5B397CB22D9110 /* KaraokeVisibilityTests.swift in Sources */,

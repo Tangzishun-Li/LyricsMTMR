@@ -204,9 +204,9 @@ enum SettingsSchema {
         ],
         // R59-b：日历显示与提醒（upnext 域：range/maxToShow 落盘 items.json 的
         // to/maxToShow 键；其余四键为 tab 展示态。remindMinutes/remindEnabled
-        // 改造前即无落盘链路——按 §5「无运行时读者的死开关不注册」本应隐藏，
-        // 但两行有真实控件且用户可感知，故保留注册、读写走内存暂存（不落盘），
-        // 待 §5 审计复核后再定去留）
+        // 改造前即无落盘链路。R61-b 复核定案：无落盘链路无 widget 行为
+        // （UpNextScrubberTouchBarItem.swift 全文无消费），维持内存暂存展示态，
+        // 勿再重开复核；互指注释见 CalendarTabView.swift 内存暂存段）
         "calendar": [
             SettingsField(
                 id: "range", displayName: localized("时间范围", "Range"),
