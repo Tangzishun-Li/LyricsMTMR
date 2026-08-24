@@ -135,6 +135,8 @@ struct SystemMonitorTab: View {
         }
         SettingsSync.postGlobalConfigChanged(domain: "systemMonitor", key: "refresh",
                                              newValue: ["cpu": cpuSeconds, "network": networkSeconds])
-        TouchBarController.shared.reloadStandardConfig()
+        // R60-c：热更新统一入口——systemMonitor 域可安全热更新（true），
+        // 落盘后由 Advisor 去抖触发 reloadStandardConfig，轮询间隔即时生效。
+        _ = SettingsRefreshAdvisor.notifyChange(domain: "systemMonitor")
     }
 }

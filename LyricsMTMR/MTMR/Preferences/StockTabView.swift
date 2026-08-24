@@ -516,7 +516,9 @@ struct StockTab: View {
         reloadAll()
         if selectedPath == Self.appSupportDir + "/items.json" {
             SettingsSync.postGlobalConfigChanged(domain: "stock", key: "config", newValue: ["stocks": stockItems])
-            TouchBarController.shared.reloadStandardConfig()
+            // R60-c：编辑目标是激活配置 → stock 域可热更新（Advisor 去抖 reload）；
+            // 非激活主题无需 reload，也不亮横幅（切回该主题时自然生效）。
+            _ = SettingsRefreshAdvisor.notifyChange(domain: "stock")
         }
     }
 

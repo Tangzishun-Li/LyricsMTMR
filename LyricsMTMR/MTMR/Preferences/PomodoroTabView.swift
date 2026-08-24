@@ -48,7 +48,9 @@ struct PomodoroTab: View {
             pendingMinutes.removeAll()
             SettingsSync.writeBack(type: "pomodoro", settings: settings)
             SettingsSync.postGlobalConfigChanged(domain: "pomodoro", key: "durations", newValue: settings)
-            TouchBarController.shared.reloadStandardConfig()
+            // R60-c：热更新统一入口——pomodoro 域可安全热更新（true），
+            // 落盘后由 Advisor 去抖触发 reloadStandardConfig，Touch Bar 即时生效。
+            _ = SettingsRefreshAdvisor.notifyChange(domain: "pomodoro")
         }
         saveWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
