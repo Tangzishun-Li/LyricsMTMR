@@ -287,6 +287,8 @@
 		C1FF4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */; };
 		C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */; };
 		C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */; };
+		C1FEBCE1A1D2E3F4A5B6C7D8 /* StartupSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCE0A1D2E3F4A5B6C7D8 /* StartupSequence.swift */; };
+		C1FEBCE3A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -610,6 +612,8 @@
 		C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseBudgetContractTests.swift; sourceTree = "<group>"; };
 		C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsFrameGuardTests.swift; sourceTree = "<group>"; };
 		C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTCCGuardTests.swift; sourceTree = "<group>"; };
+		C1FEBCE0A1D2E3F4A5B6C7D8 /* StartupSequence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSequence.swift; sourceTree = "<group>"; };
+		C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSequenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -881,6 +885,7 @@
 				C1FE4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift */,
 				C1FEABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift */,
 				C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */,
+				C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */,
 				C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */,
 			);
 			path = MTMRTests;
@@ -1101,6 +1106,7 @@
 				B059D623205E04F3006E6B86 /* CustomButtonTouchBarItem.swift */,
 				36C2ECD8207B74B4003CDA33 /* AppleScriptTouchBarItem.swift */,
 				C1FEBCC0A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift */,
+				C1FEBCE0A1D2E3F4A5B6C7D8 /* StartupSequence.swift */,
 				4CDC6E4F22FCA93F0069ADD4 /* ShellScriptTouchBarItem.swift */,
 				BAF5AB5824317CAF00B04904 /* SwipeItem.swift */,
 				368EDDE620812A1D00E10953 /* ScrollViewItem.swift */,
@@ -1285,6 +1291,7 @@
 				B05600D32083E9BB00EB218D /* CustomSlider.swift in Sources */,
 				36C2ECD9207B74B4003CDA33 /* AppleScriptTouchBarItem.swift in Sources */,
 				C1FEBCC1A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuard.swift in Sources */,
+				C1FEBCE1A1D2E3F4A5B6C7D8 /* StartupSequence.swift in Sources */,
 				BAF5AB5724317B4300B04904 /* BasicView.swift in Sources */,
 				B0846A752220C968000288A7 /* NetworkBarItem.swift in Sources */,
 				B0F8771A207AC1EA00D6E430 /* TouchBarSupport.m in Sources */,
@@ -1528,6 +1535,7 @@
 				C1FF4B5870D6249174D64A66 /* ExpenseBudgetContractTests.swift in Sources */,
 				C1FFABBBCB1EECFED80064CF /* DesktopLyricsFrameGuardTests.swift in Sources */,
 				C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */,
+				C1FEBCE3A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift in Sources */,
 				C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

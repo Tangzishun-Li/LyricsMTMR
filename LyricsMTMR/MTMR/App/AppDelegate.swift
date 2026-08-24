@@ -22,6 +22,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isBlockedApp: Bool = false
 
     private var fileSystemSource: DispatchSourceFileSystemObject?
+    /// R62-a: kernel-level CRITICAL memory-pressure monitor (see installMemoryPressureMonitor).
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
     private var statusPopover: NSPopover?
     private var menuModel: StatusBarMenuModel?
     private var eventMonitor: Any?
@@ -31,23 +33,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Mac mini without a Touch Bar — the private Touch Bar / haptics APIs
         // below would hang or crash there. Skip hardware init in that case.
         let isUnderTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+        // R62-a (t_9d4a5fb3): three-tier launch choreography (track §4.1).
+        // Timing only — behavior externally equivalent. The MAIN_IMMEDIATE
+        // tier keeps the pre-R62 synchronous order verbatim (the strict AX →
+        // control-strip presence → first preset load order is load-bearing);
+        // everything not needed for the Touch Bar / status-bar first frame
+        // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
-            AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary)
-
-            HapticFeedback.instance.scanAllDeviceIDs()
-            TouchBarController.shared.setupControlStripPresence()
-            // `shared` is fully initialized now, so the first preset load is safe
-            // (TouchBarController.init must not load it — see comment there).
-            TouchBarController.shared.reloadStandardConfig()
+            StartupSequence.run(
+                hooks: StartupSequence.Hooks(
+                    checkAccessibilityPermissions: {
+                        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString: true] as NSDictionary)
+                    },
+                    setupControlStripPresence: { TouchBarController.shared.setupControlStripPresence() },
+                    // By the time this runs, `shared` is fully initialized, so
+                    // the first preset load is safe (TouchBarController.init
+                    // must not load it — see comment there).
+                    reloadStandardConfig: { TouchBarController.shared.reloadStandardConfig() },
+                    setupStatusBarAndPopover: { self.setupStatusBarAndPopover() },
+                    startLyricsEngine: { LyricsEngine.shared.start() },
+                    ensureSlotsDirectory: { SlotManager.shared.ensureSlotsDirectory() },
+                    restoreDesktopLyricsWindowIfNeeded: {
+                        // round 51: 桌面歌词窗口开关记忆 —— 上次开启则启动时恢复显示
+                        // （默认关，开关打开才创建/显示）。
+                        if AppSettings.desktopLyricsWindowEnabled {
+                            DispatchQueue.main.async {
+                                DesktopLyricsWindowController.shared.show()
+                            }
+                        }
+                    },
+                    scanAllHapticDevices: { HapticFeedback.instance.scanAllDeviceIDs() }
+                ),
+                scheduler: DefaultStartupScheduler.shared
+            )
+        } else {
+            // Test host: only the status-bar shell — no private hardware APIs.
+            setupStatusBarAndPopover()
         }
-
-        if let button = statusItem.button {
-            button.image = #imageLiteral(resourceName: "StatusImage")
-            button.action = #selector(togglePopover)
-            button.target = self
-        }
-
-        setupPopover()
 
         reloadOnDefaultConfigChanged()
 
@@ -55,17 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(updateIsBlockedApp), name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
-        if !isUnderTest {
-            LyricsEngine.shared.start()
-            SlotManager.shared.ensureSlotsDirectory()
-            // round 51: 桌面歌词窗口开关记忆 —— 上次开启则启动时恢复显示
-            // （默认关，开关打开才创建/显示）。
-            if AppSettings.desktopLyricsWindowEnabled {
-                DispatchQueue.main.async {
-                    DesktopLyricsWindowController.shared.show()
-                }
-            }
-        }
+        installMemoryPressureMonitor()
     }
 
     func applicationWillTerminate(_: Notification) {
@@ -75,11 +88,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Memory Pressure
 
+    /// R62-a: kernel-level CRITICAL memory-pressure monitor. The system
+    /// notifies this process before its own `applicationDidReceiveMemoryWarning:`
+    /// would (which only fires when the app itself allocates under pressure),
+    /// so a whole-system paging storm — the R62 P0 incident shape — now
+    /// reuses the same reclamation chain. One os_log line per event.
+    private func installMemoryPressureMonitor() {
+        guard memoryPressureSource == nil else { return }
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: .critical, queue: .main
+        )
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            AppLog.warn("memory pressure CRITICAL → running cache reclamation chain")
+            self.performCacheReclamation()
+        }
+        source.resume()
+        memoryPressureSource = source
+    }
+
     /// OPT-8: system memory pressure fallback. Drops every on-demand cache
     /// — settings tab view hierarchies, cover artwork bitmaps, URL
-    /// response bodies, and the NetEase lyrics LRU (ITER-2) — all
+    /// response bodies, and the lyrics LRUs (ITER-2 / R52-A) — all
     /// rebuildable on next access.
-    func applicationDidReceiveMemoryWarning(_ notification: Notification) {
+    ///
+    /// R62-a: extracted as the single shared chain; both entry points call it:
+    ///   - applicationDidReceiveMemoryWarning (system→app notification), and
+    ///   - the DISPATCH_SOURCE_TYPE_MEMORYPRESSURE CRITICAL monitor above.
+    func performCacheReclamation() {
         NotificationCenter.default.post(name: .settingsMemoryWarning, object: nil)
         CoverCache.shared.clearMemoryCache()
         URLCache.shared.removeAllCachedResponses()
@@ -91,7 +127,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         releaseSettingsWindowIfHidden()
     }
 
+    func applicationDidReceiveMemoryWarning(_ notification: Notification) {
+        performCacheReclamation()
+    }
+
     // MARK: - Popover
+
+    /// R62-a: status-item button configuration + popover construction as one
+    /// MAIN_IMMEDIATE hook (was inline + setupPopover in applicationDidFinishLaunching).
+    private func setupStatusBarAndPopover() {
+        if let button = statusItem.button {
+            button.image = #imageLiteral(resourceName: "StatusImage")
+            button.action = #selector(togglePopover)
+            button.target = self
+        }
+        setupPopover()
+    }
 
     private func setupPopover() {
         let model = StatusBarMenuModel()
