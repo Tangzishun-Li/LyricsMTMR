@@ -2181,3 +2181,21 @@
 - remindEnabled/remindMinutes 展示态复核（延续挂账）
 - ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后执行；R60 收口时窗口未到如实顺延）
 - 真机冒烟系列延续挂账（含 TCC 首次「▶」点按放行真机观感、Banner 去抖合窗真机演示）
+
+## 第 61 轮（SchemaBridge Phase2 三域收编 + 日历提醒复核定案，单 INTEG 收口）
+
+### INTEG 收口记录（t_1cf812bd，分支 lyricsmtmr/t_1cf812bd-r61-integ-a-b-0.61）
+
+- **合并链**：main 基线 453c99f（R60 CI 修复）→ 按序 merge 两张执行卡（5ee81e1 r61-a 三域收编 fast-forward / 74092f0 r61-b 复核固化，合并提交 949f1f3）→ INTEG 接线修正 f0ef8ce。merge-base 校验两 tip 全为收口分支祖先。
+- **冲突解决**：0——a∩b={SettingsSchemaBridge.swift, pbxproj}；bridge 行区间不相交（a 仅 :237 后追加 homekit/package/wellness 三新键、b 仅 :204 calendar 键内注释行），pbxproj 各自四段追加登记，git ort 自动合并；残留扫描 0。轨道 §3 所有权表连续第五轮生效实证。合并后 grep 核查双方改动均在（bridge 双注册段+双注释、pbxproj 双测试文件各 4 行）。
+- **构建验证**：每张卡合并后增量构建 BUILD SUCCEEDED ×2（scheme MTMR Debug, CODE_SIGNING_ALLOWED=NO, .build/DerivedData 复用）；整体构建 BUILD SUCCEEDED。
+- **测试**：受影响套件 SchemaDomainMigrationContractTests(8 新增) + CalendarReminderDisplayStateTests(3 新增) + UserDefaultsContract(9) + DeadSettingContract(5) + SettingsRefreshAdvisorTests(10) = **35 用例 0 失败**（UnitTests scheme 定向）。**全量回归本轮触发**（隔代规则勘误后口径 R59 触发→R60 跳过→R61 到轮）：UnitTests scheme 全量 **675 用例 0 失败 TEST SUCCEEDED**（104s 一次通过，计时敏感用例无偶发）。
+- **INTEG 接线修正（f0ef8ce）**：首轮合跑 testPackageDomainFieldIDsMatchBlueprint 1 例失败——domainFields 为 static let，localized() 文案进程内首触烤死（b 卡套件先跑不钉语言走真实 UD 中文烤入；a 卡 setUp 换新隔离套件语言回落 System 现算英文），单跑各自绿、合跑必炸。修正为语言无关「两语言文案之一」存在性校验+机制注释；钉语言方案不可取（static let 已烤死，总存在与烤入值相反的顺序），生产行为零变更。
+- **锚点巡检**：python3 scripts/anchor-patrol.py ERROR 0（REGISTRY 新增本报告登记行）；本轮无 live 锚点位移。
+- **收口产物**：logs/第61轮/核验报告_第61轮_INTEG收口.md 新建 + file-structure.zh.md 登记行同步 1 行 + Info.plist 0.60/485→0.61/486 + README 更新日志补登 v0.61（新增 2+改进 1+工程稳定性 3+版本史追加 v0.61=第 61 轮）+ 简报三件套（第61轮简报新建/index 追加/速查表滚动 R49 滚出+remindEnabled 候选转已闭环+维度设置治理 ×3）+ 轨道文本 R61 §8 追加 INTEG 日志行 + 本记录。
+
+## 第 62 轮候选（R61 收口登记）
+- EditorTabView 死代码簇处置（r60-b 移交决策项延续：删除或接线需用户拍板方向后开专项卡；t_32f6ffe1 简报卡链路）
+- SchemaBridge Phase2 剩余 tab 推广（六域已消化：pomodoro/stock/systemMonitor/calendar/notification/weather + 本轮 homekit/package/wellness 三域；余量减少，速查表候选段保留顺序建议）
+- ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后执行；窗口未到如实顺延）
+- 真机冒烟系列延续挂账（新增三新域拨动即存真机演示；TCC「▶」放行/Banner 合窗延续）

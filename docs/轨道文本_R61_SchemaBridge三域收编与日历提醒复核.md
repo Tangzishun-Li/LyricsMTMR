@@ -131,3 +131,5 @@ r61-b 交付物是把这一结论从「待复核」固化为「已论证不动�
 
 - 2026-08-24 父卡建立本轨道文本（R61 开轮）。隔代规则勘误采纳：R59 为最近一次全量触发轮
   （642 用例），R60 跳过，R61 触发（§2/§5.5）。
+
+- 2026-08-24 INTEG 收口（t_1cf812bd）：a(5ee81e1)→b(74092f0) 按序合并零冲突（§3 冲突缓冲规则实证——bridge 行区间不相交、pbxproj 各自追加行保双方，所有权表连续第五轮生效）；每卡增量构建 SUCCEEDED ×2+整体 SUCCEEDED；受影响套件 35 用例 0 失败；全量回归到轮触发 675 用例 0 失败 TEST SUCCEEDED（§5.5 口径）。INTEG 接线修正 f0ef8ce：domainFields static let 首触烤死 localized 文案，两新增套件单跑绿合跑炸，副标题断言改语言无关存在性校验（教训：schema 注册段文案断言禁用 localized() 现算对现算）。收口六件套落地（Info.plist 0.61/486+README v0.61+简报三件套+logs/第61轮/ 归档+file-structure 登记+iteration-log R62 候选），锚点巡检复跑 ERROR 0。

@@ -5,6 +5,7 @@
 
 | 轮 | 主题（维度） | 一句话结果 | 简报 |
 |----|--------------|-----------|------|
+| R61 | SchemaBridge 三域收编 + 日历提醒复核定案（设置治理） | a/b 两卡零冲突全并：a homekit/package/wellness 三域七键注册+三 Tab NotificationTab 同款 schema 化渲染(SettingsFieldStore 闭包+Advisor 接线零改动)+SchemaDomainMigrationContractTests 8 例锚点+b remindEnabled/remindMinutes 复核固化为「无落盘链路无 widget 行为维持内存暂存勿再重开」+CalendarReminderDisplayStateTests 3 锚点；受影响套件 35 用例 0 失败；全量回归到轮触发 675 用例 0 失败；INTEG 修正 static let 文案烤死合跑炸(单跑绿)接线缺陷 f0ef8ce；Info.plist 0.61/486；锚点第 42 轮 0 ERROR | [第61轮简报](第61轮简报.md) |
 | R59 | 契约裁决落 UI + SchemaBridge Phase2 两域 + 桌面歌词位置守护（UI/前端体验） | a/b/c 三卡零冲突全并：a §5 三处分歧落 UI(readingGoal 页 5...100+钳制/standupMinutes 5...90/notifyOnUpdate 默认关闭副标题)+b systemMonitor/calendar schema 驱动(domainFields 各 6 字段)+c 重置窗口位置 UI+FrameGuard 屏外回退守卫；受影响套件 64 用例 0 失败；全量回归触发 641 用例 0 断言失败；Info.plist 0.59/484；锚点第 40 轮 0 ERROR；REGISTRY 196 | [第59轮简报](第59轮简报.md) |
 | R58 | UI 态持久化 + 记账消费闭环 + Schema 试点二（数据存储/UI） | a/b/c/d 四卡全并：G1~G5 十六键落盘(Homekit/Package/Wellness/Lifestyle/AI)+G6 SavingsGoalItem 消费 savings.json 四键+G7 BeeCount 今日收支摘要静默回退+d 卡 stock 域 schema 驱动试点；16 用例 0 失败；Info.plist 0.58/483；锚点第 39 轮 0 ERROR；REGISTRY 195 | [第58轮简报](第58轮简报.md) |
 | R57 | 设置体系统一治理 + 性能减脂（双波 INTEG） | 7 执行卡全并：死设置审计/schema桥接试点/侧栏重排/双向跳转/时钟降频/popover停表/歌词动画守卫；184 用例 0 失败；Info.plist 0.57/482；锚点第 38 轮 0 ERROR | [第57轮简报](第57轮简报.md) |
