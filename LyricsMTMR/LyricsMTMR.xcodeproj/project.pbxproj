@@ -291,6 +291,7 @@
 		C1FEBCC3A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */; };
 		C1FEBCE1A1D2E3F4A5B6C7D8 /* StartupSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCE0A1D2E3F4A5B6C7D8 /* StartupSequence.swift */; };
 		C1FEBCE3A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */; };
+		C1FF43943C7D92303A4364C4 /* EditorSchemaRegistryIntegrityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE43943C7D92303A4364C4 /* EditorSchemaRegistryIntegrityTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -618,6 +619,7 @@
 		C1FEBCC2A1D2E3F4A5B6C7D8 /* AppleScriptTCCGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptTCCGuardTests.swift; sourceTree = "<group>"; };
 		C1FEBCE0A1D2E3F4A5B6C7D8 /* StartupSequence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSequence.swift; sourceTree = "<group>"; };
 		C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSequenceTests.swift; sourceTree = "<group>"; };
+		C1FE43943C7D92303A4364C4 /* EditorSchemaRegistryIntegrityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSchemaRegistryIntegrityTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -893,6 +895,7 @@
 				C1FEBCE2A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift */,
 				C1FE5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift */,
 				C1FE5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift */,
+				C1FE43943C7D92303A4364C4 /* EditorSchemaRegistryIntegrityTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1545,6 +1548,7 @@
 				C1FEBCE3A1D2E3F4A5B6C7D8 /* StartupSequenceTests.swift in Sources */,
 				C1FF5A7ECE85F758969AA679 /* SettingsRefreshAdvisorTests.swift in Sources */,
 				C1FF5A80CE85F758969AA679 /* SchemaDomainMigrationContractTests.swift in Sources */,
+				C1FF43943C7D92303A4364C4 /* EditorSchemaRegistryIntegrityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
