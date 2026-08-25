@@ -78,7 +78,7 @@ mindmap
 │   │   │   ├── Life/                 #   生活数据（天气、股票、快递、倒计时、订阅…）
 │   │   │   └── Layout/               #   布局容器（Group、ExpandableCard、ThemeSwitch）
 │   │   ├── Preferences/              # 设置界面
-│   │   │   ├── Editor/               #   编辑器（EditorTabView、Schema、DraftManager、预览…）
+│   │   │   ├── Editor/               #   编辑器（Schema、DraftManager、预览…）
 │   │   │   └── Components/           #   通用表单组件
 │   │   ├── LyricsIntegration/        # 歌词搜索/匹配/封面缓存
 │   │   ├── CBridge/                  # ObjC/C 桥接（TouchBar 私有 API、MediaRemote…）
