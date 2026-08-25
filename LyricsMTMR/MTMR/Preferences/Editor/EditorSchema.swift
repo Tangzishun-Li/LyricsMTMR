@@ -170,7 +170,11 @@ enum EditorSchema {
 
     // MARK: Item schemas
 
-    private static let items: [String: ItemSchema] = build([
+
+    /// Schema registry part basic — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partBasic() -> [ItemSchema] {
+        return [
         // Basic
         ItemSchema(type: "staticButton", displayName: localized("按钮", "Button"), symbol: "rectangle.roundedtop", properties: [
             ItemProperty(key: "title", displayName: localized("标题", "Title"), type: .text(placeholder: "Button"), isRequired: true, note: nil),
@@ -214,7 +218,13 @@ enum EditorSchema {
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
             ItemProperty(key: "bordered", displayName: localized("边框", "Bordered"), type: .boolean, isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part media — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partMedia() -> [ItemSchema] {
+        return [
         // Media
         ItemSchema(type: "music", displayName: localized("音乐", "Music"), symbol: "music.note", properties: [
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
@@ -231,7 +241,13 @@ enum EditorSchema {
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
             ItemProperty(key: "bordered", displayName: localized("边框", "Bordered"), type: .boolean, isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part system — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partSystem() -> [ItemSchema] {
+        return [
         // System
         ItemSchema(type: "dock", displayName: "Dock", symbol: "dock.rectangle", properties: [
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
@@ -253,7 +269,13 @@ enum EditorSchema {
         ItemSchema(type: "pomodoro", displayName: localized("番茄", "Pomo"), symbol: "timer", properties: [
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part info — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partInfo() -> [ItemSchema] {
+        return [
         // Info
         ItemSchema(type: "weather", displayName: localized("天气", "Wx"), symbol: "cloud.sun", properties: [
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
@@ -283,7 +305,13 @@ enum EditorSchema {
         ItemSchema(type: "upnext", displayName: localized("日程", "Cal"), symbol: "calendar", properties: [
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part extra — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partExtra() -> [ItemSchema] {
+        return [
         // Extra
         ItemSchema(type: "lyrics", displayName: localized("歌词", "Lyrics"), symbol: "music.note.list", properties: [
             ItemProperty(key: "width", displayName: localized("宽度", "Width"), type: .integer(placeholder: "350"), isRequired: false, note: "pt"),
@@ -304,7 +332,13 @@ enum EditorSchema {
             ItemProperty(key: "cookie", displayName: "Cookie", type: .text(placeholder: "Fe26.2..."), isRequired: false, note: localized("留空则使用 设置→服务 中的配置", "empty = use Settings → Services")),
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part musicPlus — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partMusicPlus() -> [ItemSchema] {
+        return [
         // Music+
         ItemSchema(type: "audioSpectrum", displayName: localized("频谱", "Spectrum"), symbol: "waveform", properties: [
             ItemProperty(key: "barCount", displayName: localized("柱数", "Bars"), type: .integer(placeholder: "16"), isRequired: false, note: nil),
@@ -324,7 +358,13 @@ enum EditorSchema {
             ItemProperty(key: "width", displayName: localized("宽度", "Width"), type: .integer(placeholder: "44"), isRequired: false, note: "pt"),
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
         ]),
+        ]
+    }
 
+    /// Schema registry part special — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partSpecial() -> [ItemSchema] {
+        return [
         // Special
         ItemSchema(type: "group", displayName: localized("分组", "Group"), symbol: "square.stack", properties: [
             ItemProperty(key: "title", displayName: localized("名称", "Name"), type: .text(placeholder: "Group"), isRequired: false, note: nil),
@@ -340,6 +380,13 @@ enum EditorSchema {
             ItemProperty(key: "align", displayName: localized("对齐", "Align"), type: .selection(["left", "center", "right"]), isRequired: false, note: nil),
             ItemProperty(key: "width", displayName: localized("宽度", "Width"), type: .integer(placeholder: "120"), isRequired: false, note: "pt"),
         ]),
+        ]
+    }
+
+    /// Schema registry part dev — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partDev() -> [ItemSchema] {
+        return [
         // 开发者 Dev
         ItemSchema(type: "networkSpeed", displayName: localized("网速", "Net"), symbol: "network", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "5"), isRequired: false, note: nil),
@@ -358,7 +405,13 @@ enum EditorSchema {
             ItemProperty(key: "host", displayName: localized("主机", "Host"), type: .text(placeholder: "user@host"), isRequired: false, note: nil),
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "15"), isRequired: false, note: nil),
         ], width: "96")),
+        ]
+    }
 
+    /// Schema registry part geek — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partGeek() -> [ItemSchema] {
+        return [
         // 极客 Geek
         ItemSchema(type: "portChecker", displayName: localized("端口", "Port"), symbol: "number.circle", properties: std([
             ItemProperty(key: "defaultPort", displayName: localized("默认端口", "Port"), type: .integer(placeholder: "8080"), isRequired: false, note: nil),
@@ -370,7 +423,13 @@ enum EditorSchema {
             ItemProperty(key: "length", displayName: localized("长度", "Length"), type: .integer(placeholder: "32"), isRequired: false, note: nil),
             ItemProperty(key: "includeSymbols", displayName: localized("含符号", "Symbols"), type: .boolean, isRequired: false, note: nil),
         ], width: "88")),
+        ]
+    }
 
+    /// Schema registry part tools — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partTools() -> [ItemSchema] {
+        return [
         // 工具箱 Tools
         ItemSchema(type: "base64Tool", displayName: "Base64", symbol: "chevron.left.square", properties: std([
             ItemProperty(key: "mode", displayName: localized("模式", "Mode"), type: .selection(["encode", "decode"]), isRequired: false, note: nil),
@@ -381,7 +440,13 @@ enum EditorSchema {
         ], width: "88")),
         ItemSchema(type: "colorConvert", displayName: localized("颜色", "Color"), symbol: "paintbrush.pointed", properties: std(width: "88")),
         ItemSchema(type: "regexReference", displayName: localized("正则表", "Ref"), symbol: "book", properties: std(width: "80")),
+        ]
+    }
 
+    /// Schema registry part life — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partLife() -> [ItemSchema] {
+        return [
         // 生活 Life
         ItemSchema(type: "packageTracker", displayName: localized("快递", "Package"), symbol: "shippingbox", properties: std([
             ItemProperty(key: "company", displayName: localized("快递公司", "Company"), type: .text(placeholder: "auto"), isRequired: false, note: nil),
@@ -407,7 +472,13 @@ enum EditorSchema {
             ItemProperty(key: "dataPath", displayName: localized("数据路径", "Data"), type: .text(placeholder: ""), isRequired: false, note: "subscriptions.json"),
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "60"), isRequired: false, note: nil),
         ], width: "120")),
+        ]
+    }
 
+    /// Schema registry part health — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partHealth() -> [ItemSchema] {
+        return [
         // 健康 Health
         ItemSchema(type: "breathingGuide", displayName: localized("呼吸", "Breathe"), symbol: "wind", properties: std([
             ItemProperty(key: "pattern", displayName: localized("节奏", "Pattern"), type: .selection(["4-7-8", "Box", "Coherent"]), isRequired: false, note: nil),
@@ -431,7 +502,13 @@ enum EditorSchema {
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "120"), isRequired: false, note: "hitokoto"),
         ], width: "160")),
         ItemSchema(type: "screenLock", displayName: localized("锁屏", "Lock"), symbol: "lock", properties: std(width: "72")),
+        ]
+    }
 
+    /// Schema registry part office — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partOffice() -> [ItemSchema] {
+        return [
         // 办公 Office
         ItemSchema(type: "emailBadge", displayName: localized("邮件", "Mail"), symbol: "envelope", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "60"), isRequired: false, note: nil),
@@ -452,7 +529,13 @@ enum EditorSchema {
         ItemSchema(type: "clipboardHistory", displayName: localized("剪贴板", "Clip"), symbol: "clipboard", properties: std([
             ItemProperty(key: "maxItems", displayName: localized("条数", "Items"), type: .integer(placeholder: "5"), isRequired: false, note: nil),
         ], width: "88")),
+        ]
+    }
 
+    /// Schema registry part campus — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partCampus() -> [ItemSchema] {
+        return [
         // 校园 Campus
         ItemSchema(type: "classCountdown", displayName: localized("课程", "Class"), symbol: "graduationcap", properties: std([
             ItemProperty(key: "dataPath", displayName: localized("数据路径", "Data"), type: .text(placeholder: ""), isRequired: false, note: "classes.json"),
@@ -473,7 +556,13 @@ enum EditorSchema {
         ItemSchema(type: "noteCapture", displayName: localized("笔记", "Note"), symbol: "square.and.pencil", properties: std([
             ItemProperty(key: "filePath", displayName: localized("文件路径", "File"), type: .text(placeholder: "~/notes.md"), isRequired: false, note: nil),
         ], width: "80")),
+        ]
+    }
 
+    /// Schema registry part finance — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partFinance() -> [ItemSchema] {
+        return [
         // 财务 Finance
         ItemSchema(type: "billSplit", displayName: "AA", symbol: "divide.circle", properties: std(width: "80")),
         ItemSchema(type: "savingsGoal", displayName: localized("储蓄", "Savings"), symbol: "banknote", properties: std([
@@ -488,7 +577,13 @@ enum EditorSchema {
             ItemProperty(key: "dataPath", displayName: localized("数据路径", "Data"), type: .text(placeholder: ""), isRequired: false, note: "creditcards.json"),
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "3600"), isRequired: false, note: nil),
         ], width: "120")),
+        ]
+    }
 
+    /// Schema registry part ops — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partOps() -> [ItemSchema] {
+        return [
         // 运维 Ops
         ItemSchema(type: "dockerStatus", displayName: "Docker", symbol: "cube.box", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "15"), isRequired: false, note: "docker CLI"),
@@ -507,7 +602,13 @@ enum EditorSchema {
         ItemSchema(type: "diskIO", displayName: localized("磁盘IO", "Disk"), symbol: "internaldrive", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "2"), isRequired: false, note: nil),
         ], width: "120")),
+        ]
+    }
 
+    /// Schema registry part systemPlus — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partSystemPlus() -> [ItemSchema] {
+        return [
         // 系统+ System+
         ItemSchema(type: "bluetoothToggle", displayName: localized("蓝牙", "BT"), symbol: "bolt.horizontal", properties: std(width: "80")),
         ItemSchema(type: "quickScreenshot", displayName: localized("截图", "Shot"), symbol: "camera", properties: std([
@@ -515,7 +616,13 @@ enum EditorSchema {
         ], width: "80")),
         ItemSchema(type: "shortcutHints", displayName: localized("快捷键", "Keys"), symbol: "command", properties: std(width: "88")),
         ItemSchema(type: "screenPicker", displayName: localized("取色", "Picker"), symbol: "eyedropper", properties: std(width: "96")),
+        ]
+    }
 
+    /// Schema registry part creative — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partCreative() -> [ItemSchema] {
+        return [
         // 创意 Creative
         ItemSchema(type: "pixelPet", displayName: localized("宠物", "Pet"), symbol: "pawprint", properties: std([
             ItemProperty(key: "petType", displayName: localized("宠物", "Pet"), type: .selection(["cat", "dog", "bird", "fish"]), isRequired: false, note: nil),
@@ -532,7 +639,13 @@ enum EditorSchema {
             ItemProperty(key: "provider", displayName: localized("来源", "Provider"), type: .selection(["feedly", "inoreader"]), isRequired: false, note: "🔑 RSS"),
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "120"), isRequired: false, note: nil),
         ], width: "96")),
+        ]
+    }
 
+    /// Schema registry part academic — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partAcademic() -> [ItemSchema] {
+        return [
         // 学术 Academic
         ItemSchema(type: "latexSymbols", displayName: "LaTeX", symbol: "function", properties: std(width: "64")),
         ItemSchema(type: "citationGen", displayName: localized("引用", "Cite"), symbol: "quote.bubble", properties: std([
@@ -545,19 +658,57 @@ enum EditorSchema {
         ItemSchema(type: "paperTags", displayName: localized("标签", "Tags"), symbol: "tag", properties: std([
             ItemProperty(key: "dataPath", displayName: localized("数据路径", "Data"), type: .text(placeholder: ""), isRequired: false, note: nil),
         ], width: "64")),
+        ]
+    }
 
+    /// Schema registry part geekPlus — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partGeekPlus() -> [ItemSchema] {
+        return [
         // 极客+ Geek+
         ItemSchema(type: "qrCode", displayName: localized("二维码", "QR"), symbol: "qrcode", properties: std(width: "44")),
         ItemSchema(type: "apiTester", displayName: "API", symbol: "arrow.up.arrow.down.circle", properties: std([
             ItemProperty(key: "defaultUrl", displayName: "URL", type: .text(placeholder: "https://httpbin.org/get"), isRequired: false, note: nil),
         ], width: "64")),
         ItemSchema(type: "finderTags", displayName: localized("标签夹", "Tags"), symbol: "folder.badge.gearshape", properties: std(width: "64")),
+        ]
+    }
 
+    /// Schema registry part creativePlus — 原单巨表达式按 palette 分区拆分的编译期减负段。
+    /// 行内容自 r62 收口版逐字搬运，运行时语义零变化（顺序=拼接顺序）。
+    private static func partCreativePlus() -> [ItemSchema] {
+        return [
         // 创意+ Creative+
         ItemSchema(type: "bilibiliFeed", displayName: "B站", symbol: "play.tv", properties: std([
             ItemProperty(key: "refreshInterval", displayName: localized("刷新(秒)", "Refresh"), type: .integer(placeholder: "300"), isRequired: false, note: nil),
         ], width: "96")),
-    ])
+        ]
+    }
+
+    /// 全量注册表：按分区顺序聚合（原 build([...]) 单巨表达式等价改写）。
+    private static let items: [String: ItemSchema] = build(
+        partBasic()
+            + partMedia()
+            + partSystem()
+            + partInfo()
+            + partExtra()
+            + partMusicPlus()
+            + partSpecial()
+            + partDev()
+            + partGeek()
+            + partTools()
+            + partLife()
+            + partHealth()
+            + partOffice()
+            + partCampus()
+            + partFinance()
+            + partOps()
+            + partSystemPlus()
+            + partCreative()
+            + partAcademic()
+            + partGeekPlus()
+            + partCreativePlus()
+    )
 
     // MARK: Fallback for unrecognized types
 
