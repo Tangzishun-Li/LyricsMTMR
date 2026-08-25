@@ -2205,6 +2205,28 @@
 - **锚点巡检**：python3 scripts/anchor-patrol.py ERROR 0（88 项 PASS 59/WARN 24/INFO 5）；REGISTRY 新增本报告登记行。
 - **收口产物**：logs/第62轮/核验报告_第62轮_INTEG收口.md 新建（§4 原样转述轨道 §1 七条取证链）+ file-structure.zh.md 登记行同步 + Info.plist 0.61/486→0.62/487 + README v0.62 补登（新增 3+工程稳定性 3+版本史追加 v0.62=第 62 轮）+ 简报三件套（第62轮简报新建/index 追加/速查表滚动 R50 滚出+r62-d 落地候选与 jobs 缺省复核登记）+ 轨道文本 R62 §8 追加 INTEG 日志行 + 本记录。
 
+
+
+## 第 63 轮（EditorTabView 死代码簇删除 + EditorSchema 类型检查 P1 首刀，单 INTEG 收口）
+
+### INTEG 收口记录（t_f3164385，分支 lyricsmtmr/t_f3164385-r63-integ-integ-r63-0.63）
+
+- **合并链**：main 基线 ae19658（R63 建轨）→ 按序 merge 两分支：b 卡 7d917c9（合并提交 034db33）→ a 卡 f2561a9（合并提交 e60b3f9）。merge-base 校验两 tip 全为收口分支祖先。
+- **冲突解决**：0——两卡文件交集为空（a: 删四死文件+pbxproj 摘 16 行+file-structure:81 注释 / b: EditorSchema.swift+r63b 两工具脚本+新测试文件），git ort 自动合并；残留扫描 0。轨道 §3 所有权表连续第七轮生效实证。
+- **构建验证**：整体增量构建 BUILD SUCCEEDED（scheme MTMR Debug, CODE_SIGNING_ALLOWED=NO），经 r62-b 锁脚本执行（自动注入 -jobs 4 + COMPILER_INDEX_STORE_ENABLE=NO）。注：首跑误以 LyricsMTMR/ 为工作目录定位 scripts/ 锁脚本（实际在仓库根），纠正后按规范命令重跑成功——非构建失败。
+- **测试**：**全量回归本轮触发**（隔代规则 R63 到轮：R61 触发→R62 用户点名规则外执行→R63 按规则触发）：UnitTests scheme 全量 **685 用例 0 失败 TEST SUCCEEDED**（104.37s 一次通过；681 基线+b 卡新增 EditorSchemaRegistryIntegrityTests 4 例；计时敏感用例无偶发）。金标准 SchemaDomainMigrationContractTests 8/8 全绿（278 冻结锚点原样，b 卡已实证未动锚点）。
+- **合并后自检**：四死文件从 Editor/ 目录消失（余七文件）；pbxproj grep 四文件名 0 命中；EditorSchema.swift partXxx 分段恰 21 处。
+- **锚点巡检**：python3 scripts/anchor-patrol.py ERROR 0（88 项 PASS 59/WARN 24/INFO 5）；REGISTRY 登记 199→200 行（本报告登记行入列后复核无重复）。
+- **收口产物**：logs/第63轮/核验报告_第63轮_INTEG收口.md 新建 + file-structure.zh.md 登记行同步 + Info.plist 0.62/487→0.63/488 + README v0.63 补登（新增 2+工程稳定性 3+版本史追加 v0.63=第 63 轮）+ 简报三件套（第63轮简报新建/index 追加/速查表滚动 R51 滚出+「EditorTabView 死代码簇处置」候选改写为 R63 已删除闭环+「MTMR_BUILD_JOBS 缺省复核」行保留待用户拍板）+ 轨道文本 R63 §7 追加 INTEG 日志行 + 本记录。
+
+## 第 64 轮候选（R63 收口登记）
+
+- r62-d 内存治理路线图落地续面：P2 DerivedData 卫生（19 份 LyricsMTMR-* 约 3.8GB）/ P3 target 拆分与 Xcode 26 官方 CAS（升级后首选）；P1 慢文件首刀已由 r63-b 承接落地
+- MTMR_BUILD_JOBS 缺省调优复核（r62-d 建议 -jobs 2 省 ~30% 内存让前台 ~550MB；当前缺省 4 待用户拍板后改锁脚本一处）
+- EditorSchema 类型检查治理观察项：最慢单表达式上限持续观测（r63-b 实测最大单段 ≤12.56ms），出现新热点再开 P2 小卡
+- SchemaBridge Phase2 剩余 tab 推广（九域已消化：pomodoro/stock/systemMonitor/calendar/notification/weather/homekit/package/wellness）
+- ITER-14 节假日通知第 46 次核验（时间驱动，2026-11 国办 2027 数据发布后执行；窗口未到如实顺延）
+- 真机冒烟系列延续挂账（启动韧性「首帧就绪+后台扫描」真机体感确认；TCC/Banner 合窗延续）
 ## 第 63 轮候选（R62 收口登记）
 
 - r62-d 内存治理路线图落地：P1 Top 慢文件逐文件小卡 → P2 DerivedData 卫生（19 份约 3.8GB）→ P3 target 拆分/Xcode 26 官方 CAS（升级后首选）；测量脚本 scripts/measure_r62d.sh 可复现

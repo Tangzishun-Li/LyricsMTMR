@@ -324,6 +324,7 @@ mindmap
 ├── logs/第60轮/核验报告_第60轮_INTEG收口.md                                # 第 60 轮 INTEG 收口报告（启动 TCC 弹窗防线 + 设置项全量审计死控件处置 + 设置热更新与需刷新提示：a/b/c 三卡按序合并（a∩c 仅 pbxproj 各自追加行保双方）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 243 用例 0 失败；全量回归不触发（隔代规则）；Info.plist 0.59/484→0.60/485；锚点 0 ERROR，t_00925f27 收口）
 ├── logs/第61轮/核验报告_第61轮_INTEG收口.md                                # 第 61 轮 INTEG 收口报告（SchemaBridge Phase2 三域收编 + 日历提醒展示态复核定案：a/b 两卡按序合并零冲突（bridge 行区间不相交+pbxproj 各自追加行，所有权表连续第五轮实证）；每卡增量构建 SUCCEEDED + 整体 SUCCEEDED；受影响套件 35 用例 0 失败（含 INTEG 接线修正 f0ef8ce static let 文案烤死合跑炸）；全量回归到轮触发 675 用例 0 失败；Info.plist 0.60/485→0.61/486；锚点 0 ERROR，t_1cf812bd 收口）
 ├── logs/第62轮/核验报告_第62轮_INTEG收口.md                                # 第 62 轮 INTEG 收口报告（启动韧性与构建资源护栏 P0 应急轮：a 启动三档化+StartupSequence 可注入单测金标准 6 例+MEMORYPRESSURE 守卫 / b 全机串行构建锁 scripts/build-with-lock.sh / d 构建内存调研七组矩阵；b→a→d 按序合并零冲突三卡文件交集为空所有权表连续第六轮实证；增量构建 SUCCEEDED×3 全程经锁脚本首战自证；全量回归用户点名里程碑 681 用例 0 失败 -jobs 4 实证；Info.plist 0.61/486→0.62/487；锚点 0 ERROR，t_10669277 收口）
+├── logs/第63轮/核验报告_第63轮_INTEG收口.md                                # 第 63 轮 INTEG 收口报告（EditorTabView 死代码簇删除+EditorSchema 类型检查 P1 首刀：a 用户决策 A 删四死文件 -1683 行+pbxproj 摘恰 16 行注册 / b items 巨表达式按 21 palette 分区拆 partXxx() 显式分段构造+RegistryIntegrityTests 4 锚点；b→a 按序合并零冲突两卡文件交集为空所有权表连续第七轮实证；整体构建 SUCCEEDED 经锁脚本；全量回归 R63 到轮触发 685 用例 0 失败 TEST SUCCEEDED(104.37s)；金标准 278 冻结锚点原样 8/8；Info.plist 0.62/487→0.63/488；锚点 0 ERROR，t_f3164385 收口）
 └── .gitignore / .gitattributes / README.md
 ```
 
