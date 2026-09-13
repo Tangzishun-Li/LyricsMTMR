@@ -343,9 +343,25 @@ final class KeyBindingStore: ObservableObject {
         presets = (try? JSONDecoder().decode([KeyPreset].self, from: data)) ?? []
     }
 
-    func savePresets() {
-        guard let data = try? JSONEncoder().encode(presets) else { return }
-        try? data.write(to: Self.presetsURL, options: .atomic)
+    @discardableResult
+    func savePresets() -> Bool {
+        guard let data = try? JSONEncoder().encode(presets) else {
+            NSLog("[KeyBindingStore] savePresets: encode failed")
+            return false
+        }
+        do {
+            try data.write(to: Self.presetsURL, options: .atomic)
+            // verify write landed
+            let verify = try? Data(contentsOf: Self.presetsURL)
+            if verify != data {
+                NSLog("[KeyBindingStore] savePresets: verify mismatch (wrote %d bytes, read back %d)", data.count, verify?.count ?? 0)
+                return false
+            }
+            return true
+        } catch {
+            NSLog("[KeyBindingStore] savePresets: write failed – %@", error.localizedDescription)
+            return false
+        }
     }
 
     func addPreset(_ preset: KeyPreset) {
@@ -353,9 +369,36 @@ final class KeyBindingStore: ObservableObject {
         savePresets()
     }
 
-    func removePreset(_ preset: KeyPreset) {
+    /// Remove a preset and persist. Returns true on success.
+    @discardableResult
+    func removePreset(_ preset: KeyPreset) -> Bool {
         presets.removeAll { $0.id == preset.id }
+        return savePresets()
+    }
+
+    /// Import presets from a JSON file (merges: same comboString+name → update, else add new).
+    /// Returns the count of presets actually imported.
+    @discardableResult
+    func importPresets(from url: URL) -> Int {
+        guard let data = try? Data(contentsOf: url),
+              let incoming = try? JSONDecoder().decode([KeyPreset].self, from: data),
+              !incoming.isEmpty else { return 0 }
+        var added = 0
+        for preset in incoming {
+            if let idx = presets.firstIndex(where: { $0.keyCode == preset.keyCode && $0.modifiers == preset.modifiers && $0.name == preset.name }) {
+                presets[idx].category = preset.category
+            } else {
+                presets.append(preset)
+                added += 1
+            }
+        }
         savePresets()
+        return added
+    }
+
+    /// Export current presets as pretty-printed JSON data.
+    func exportPresetsData() -> Data? {
+        try? JSONEncoder().encode(presets)
     }
 
     var presetCategories: [String] {

@@ -178,6 +178,9 @@ struct KeyBindingTabView: View {
             }
             .buttonStyle(.plain)
 
+            toolbarButton(symbol: "folder.badge.plus", label: localized("打开预设", "Import")) {
+                openPresetImportPanel()
+            }
             toolbarButton(symbol: "star.circle", label: localized("预设", "Presets")) {
                 showPresetSheet = true
             }
@@ -205,6 +208,27 @@ struct KeyBindingTabView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private func openPresetImportPanel() {
+        let panel = NSOpenPanel()
+        panel.title = localized("选择预设文件", "Select Preset File")
+        panel.message = localized("选择 keyPresets.json 文件以导入预设", "Select a keyPresets.json file to import presets")
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.directoryURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("MTMR", isDirectory: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let count = store.importPresets(from: url)
+        guard count > 0 else { return }
+        let alert = NSAlert()
+        alert.messageText = localized("导入完成", "Import Complete")
+        alert.informativeText = String(format: localized("已导入 %d 个新预设", "%d new presets imported"), count)
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: localized("好", "OK"))
+        alert.runModal()
     }
 
     // MARK: - Keyboard Zone (scales to fit)
@@ -1065,6 +1089,8 @@ struct PresetManagerSheet: View {
     @State private var newModifiers: Set<KeyModifier> = [.command]
     @State private var newCategory: String = ""
     @State private var isCapturing: Bool = false
+    @State private var presetToDelete: KeyPreset?
+    @State private var saveError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1073,6 +1099,40 @@ struct PresetManagerSheet: View {
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(EditorColors.textPrimarySwift)
                 Spacer()
+                Button(action: {
+                    let panel = NSOpenPanel()
+                    panel.title = localized("选择预设文件", "Select Preset File")
+                    panel.message = localized("选择 keyPresets.json 文件以导入预设", "Select a keyPresets.json file to import presets")
+                    panel.allowedContentTypes = [.json]
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    panel.canChooseFiles = true
+                    guard panel.runModal() == .OK, let url = panel.url else { return }
+                    let count = store.importPresets(from: url)
+                    guard count > 0 else { return }
+                    let alert = NSAlert()
+                    alert.messageText = localized("导入完成", "Import Complete")
+                    alert.informativeText = String(format: localized("已导入 %d 个新预设", "%d new presets imported"), count)
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: localized("好", "OK"))
+                    alert.runModal()
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text(localized("打开预设", "Import"))
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(EditorColors.textSecondarySwift)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(EditorColors.cardSwift)
+                    }
+                }
+                .buttonStyle(.plain)
+
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15, weight: .medium))
@@ -1102,7 +1162,7 @@ struct PresetManagerSheet: View {
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundStyle(EditorColors.textPrimarySwift)
                                     Spacer()
-                                    Button(action: { store.removePreset(preset) }) {
+                                    Button(action: { presetToDelete = preset }) {
                                         Image(systemName: "minus.circle")
                                             .font(.system(size: 10, weight: .medium))
                                             .foregroundStyle(EditorColors.accentDeepSwift.opacity(0.7))
@@ -1185,6 +1245,31 @@ struct PresetManagerSheet: View {
             newModifiers = mods
             isCapturing = false
         })
+        .alert(localized("确认删除", "Confirm Delete"), isPresented: Binding(
+            get: { presetToDelete != nil },
+            set: { if !$0 { presetToDelete = nil } }
+        )) {
+            Button(localized("取消", "Cancel"), role: .cancel) { presetToDelete = nil }
+            Button(localized("删除", "Delete"), role: .destructive) {
+                guard let preset = presetToDelete else { return }
+                presetToDelete = nil
+                if !store.removePreset(preset) {
+                    saveError = localized("保存失败，预设可能未被删除", "Save failed – preset may not have been deleted")
+                }
+            }
+        } message: {
+            if let preset = presetToDelete {
+                Text(String(format: localized("确定要删除预设「%@」（%@）吗？", "Delete preset \"%@\" (%@)?"), preset.name, preset.comboString))
+            }
+        }
+        .alert(localized("保存错误", "Save Error"), isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK") { saveError = nil }
+        } message: {
+            if let msg = saveError { Text(msg) }
+        }
     }
 }
 
