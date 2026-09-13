@@ -1,9 +1,8 @@
 name: Build and Test
 
 on:
-  push:
-    branches: [main, 'codex/**']
   pull_request:
+    branches: [main]
 
 jobs:
   test:

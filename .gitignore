@@ -86,3 +86,22 @@ App.xcarchive/
 
 # Kanban worktrees (never commit)
 .worktrees/
+
+# Hermes agent workspace
+.hermes/
+
+# Logo design files (not part of app bundle)
+new-logo*.svg
+new-logo*.html
+LyricsMTMR/Resources/new-logo*.png
+LyricsMTMR/Resources/new-logo*.jpg
+
+# Misc generated / temporary
+iteration-log.md
+logs/
+backup/
+tools/
+scripts/
+examples/
+generate_registry_test.py
+appcast.xml
