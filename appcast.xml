@@ -9,6 +9,25 @@
     <language>zh</language>
 
     <item>
+      <title>Version 0.3.1 (490)</title>
+      <sparkle:version>490</sparkle:version>
+      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 13 Sep 2026 22:30:00 +0800</pubDate>
+      <sparkle:releaseNotesLink><![CDATA[
+        <h3>v0.3.1</h3>
+        <ul>
+          <li>关掉 App Sandbox，恢复亮度/音量/播放/上下首等媒体键控制</li>
+        </ul>
+      ]]></sparkle:releaseNotesLink>
+      <enclosure
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.1/LyricsMTMR.dmg"
+        type="application/octet-stream"
+        length="0"
+        sparkle:edSignature="" />
+    </item>
+
+    <item>
       <title>Version 0.3 (489)</title>
       <sparkle:version>489</sparkle:version>
       <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
