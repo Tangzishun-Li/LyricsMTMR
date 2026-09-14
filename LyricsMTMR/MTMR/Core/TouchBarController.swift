@@ -79,7 +79,7 @@ extension ItemType {
             return "com.lyricsmtmr.deepseekBalance."
         case .expandable(items: _, closePosition: _, cardWidthRatio: _):
             return "com.lyricsmtmr.expandable."
-        case .audioSpectrum(barCount: _, source: _):
+        case .audioSpectrum(barCount: _, width: _, source: _):
             return "com.lyricsmtmr.audioSpectrum."
         case .playbackProgress(width: _):
             return "com.lyricsmtmr.playbackProgress."
@@ -219,6 +219,8 @@ extension ItemType {
             return "com.lyricsmtmr.finderTags."
         case .opencodeGoUsage(workspaceID: _, cookie: _, displayMode: _, refreshInterval: _):
             return "com.lyricsmtmr.opencodeGoUsage."
+        case .notificationCenter(refreshInterval: _, maxItems: _, filterApps: _, defaultPolicy: _, hiddenApps: _):
+            return "com.lyricsmtmr.notificationCenter."
         }
     }
 }

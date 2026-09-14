@@ -245,7 +245,7 @@ private final class SystemAudioTap: NSObject, SCStreamDelegate, SCStreamOutput {
 
 class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
 
-    private let spectrumView = SpectrumView(frame: NSRect(x: 0, y: 0, width: 120, height: 30))
+    private let spectrumView: SpectrumView
 
     private let fftSize = 1024
     private let barCount: Int
@@ -281,11 +281,14 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
     private var lastRealFeed: TimeInterval = 0
     private var lastAudibleMic: TimeInterval = 0
 
-    init(identifier: NSTouchBarItem.Identifier, barCount: Int = 16, source: String = "") {
+    init(identifier: NSTouchBarItem.Identifier, barCount: Int = 16, width: CGFloat = 0, source: String = "") {
         self.barCount = max(4, barCount)
         // JSON `source` wins; otherwise the user setting; default auto.
         self.settingsDriven = source.isEmpty
         self.requestedSource = source.isEmpty ? TBSpectrumSettings.source : source
+        // View frame follows JSON width; fallback: ~8pt per bar + gaps.
+        let viewWidth = width > 0 ? max(40, width) : CGFloat(self.barCount * 8 + 12)
+        self.spectrumView = SpectrumView(frame: NSRect(x: 0, y: 0, width: viewWidth, height: 30))
         super.init(identifier: identifier)
         spectrumView.barCount = self.barCount
         spectrumView.wantsLayer = true
@@ -608,6 +611,13 @@ class AudioSpectrumBarItem: NSCustomTouchBarItem, TBPollPausable {
 
                 var magnitudes = [Float](repeating: 0, count: fftSize / 2)
                 vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(fftSize / 2))
+
+                // Normalize by N² so that full-scale sinusoid → 0 dB.
+                // Without this, |X[k]|² can reach (N/2)² ≈ 262k, giving
+                // dB values of +54 dB — the (avg+80)/80 mapping saturates
+                // every bar to 1.0 instantly.
+                var fftNorm: Float = 1.0 / Float(fftSize * fftSize)
+                vDSP_vsmul(magnitudes, 1, &fftNorm, &magnitudes, 1, vDSP_Length(fftSize / 2))
 
                 var normalizedMagnitudes = [Float](repeating: 0, count: fftSize / 2)
                 var one: Float = 1.0

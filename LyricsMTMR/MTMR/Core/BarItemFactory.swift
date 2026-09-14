@@ -135,8 +135,8 @@ class BarItemFactory {
         case let .expandable(items: items, closePosition: closePos, cardWidthRatio: ratio):
             let pos = ExpandableCardItem.ClosePosition(rawValue: closePos) ?? .left
             barItem = ExpandableCardItem(identifier: identifier, items: items, closePosition: pos, cardWidthRatio: ratio)
-        case let .audioSpectrum(barCount: barCount, source: source):
-            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount, source: source)
+        case let .audioSpectrum(barCount: barCount, width: width, source: source):
+            barItem = AudioSpectrumBarItem(identifier: identifier, barCount: barCount, width: width, source: source)
         case let .playbackProgress(width: width):
             barItem = PlaybackProgressBarItem(identifier: identifier, width: width)
         case .lyricsTranslate:
@@ -277,6 +277,8 @@ class BarItemFactory {
             let ocgItem = OpenCodeGoUsageBarItem(identifier: identifier, workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
             ocgItem.actions.append(ItemAction(trigger: .singleTap) { [weak ocgItem] in ocgItem?.showPopup() })
             barItem = ocgItem
+        case let .notificationCenter(refreshInterval: refreshInterval, maxItems: maxItems, filterApps: filterApps, defaultPolicy: defaultPolicy, hiddenApps: hiddenApps):
+            barItem = NotificationCenterWidget(identifier: identifier, refreshInterval: refreshInterval, maxItems: maxItems, filterApps: filterApps, defaultPolicy: defaultPolicy, hiddenApps: hiddenApps)
         }
 
         if let action = self.actionResolver(item), let item = barItem as? CustomButtonTouchBarItem {

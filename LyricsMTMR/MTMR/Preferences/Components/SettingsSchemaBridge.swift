@@ -57,8 +57,8 @@ enum SettingsSchema {
     /// R59-b 增 "systemMonitor"、"calendar"，R60-b 增 "notification"、"weather"）。
     /// 字段取舍遵循 §5：无运行时读者的死开关不注册（从 UI 隐藏）。
     static let domainFields: [String: [SettingsField]] = [
-        // R60-b：通知域三开关（UD 通道）。读者证据（对照表 §二.18）：
-        // globalEnabled/pomodoro → PomodoroBarItem.swift:126，
+        // R60-b：通知域（UD 通道）。读者证据（对照表 §二.18）：
+        // globalEnabled → PomodoroBarItem.swift:126，
         // sound → PomodoroBarItem.swift:132 content.sound（R57 接线）。
         "notification": [
             SettingsField(
@@ -73,11 +73,6 @@ enum SettingsSchema {
                 displayName: localized("通知声音", "Notification Sound"),
                 control: .toggle,
                 section: localized("全局", "Global")),
-            SettingsField(
-                id: "notificationsPomodoro",
-                displayName: localized("番茄钟结束", "Pomodoro End"),
-                control: .toggle,
-                section: localized("按功能", "Per Feature")),
         ],
         // R60-b：天气显示段五键（IJ weather item 通道，键名与 WeatherBarItem
         // init 消费链逐字一致——apiSource/units/icon_type/showHumidity/showWind；

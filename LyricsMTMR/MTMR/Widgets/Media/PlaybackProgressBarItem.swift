@@ -135,7 +135,15 @@ private class NativeProgressSliderView: NSView {
 
     private func beginScrub(at event: NSEvent) {
         isScrubbing = true
-        updateScrub(at: event)
+        // Update visual position only — do NOT call onScrub here.
+        // onScrub → seek(to:) → mrAdapter.setTime() → process.waitUntilExit()
+        // blocks the main thread, swallowing all subsequent mouseDragged
+        // events and making the slider permanently stuck.
+        let loc = convert(event.locationInWindow, from: nil)
+        let rect = trackRect.width > 0 ? trackRect : bounds
+        let ratio = max(0, min(1, (loc.x - rect.minX) / rect.width))
+        scrubProgress = ratio
+        needsDisplay = true
     }
 
     private func updateScrub(at event: NSEvent) {
@@ -144,13 +152,13 @@ private class NativeProgressSliderView: NSView {
         let ratio = max(0, min(1, (loc.x - rect.minX) / rect.width))
         scrubProgress = ratio
         needsDisplay = true
-
-        if duration > 0 {
-            onScrub?(TimeInterval(ratio) * duration)
-        }
     }
 
     private func endScrub() {
+        // Seek only on release — avoids blocking the main thread during drag.
+        if duration > 0 {
+            onScrub?(TimeInterval(scrubProgress) * duration)
+        }
         isScrubbing = false
         needsDisplay = true
     }

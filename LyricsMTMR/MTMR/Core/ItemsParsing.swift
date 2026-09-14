@@ -318,7 +318,7 @@ enum ItemType: Decodable {
     case usage(providers: [ProviderConfig], refreshInterval: Double, displayMode: String, widgetWidth: CGFloat)
     case deepseekBalance(apiKey: String, displayMode: String, showRemaining: Bool, refreshInterval: Double)
     case expandable(items: [BarItemDefinition], closePosition: String, cardWidthRatio: CGFloat)
-    case audioSpectrum(barCount: Int, source: String)
+    case audioSpectrum(barCount: Int, width: CGFloat, source: String)
     case playbackProgress(width: CGFloat)
     case lyricsTranslate
     case quickReply(configPath: String?)
@@ -388,6 +388,7 @@ enum ItemType: Decodable {
     case apiTester(defaultUrl: String)
     case finderTags
     case opencodeGoUsage(workspaceID: String, cookie: String, displayMode: String, refreshInterval: Double)
+    case notificationCenter(refreshInterval: Double, maxItems: Int, filterApps: [String], defaultPolicy: String, hiddenApps: [String])
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -487,6 +488,9 @@ enum ItemType: Decodable {
         case workspaceID
         case cookie
         case width
+        case filterApps
+        case defaultPolicy
+        case hiddenApps
     }
 
     enum ItemTypeRaw: String, Decodable, CaseIterable {
@@ -588,6 +592,7 @@ enum ItemType: Decodable {
         case apiTester
         case finderTags
         case opencodeGoUsage
+        case notificationCenter
     }
 
     // MARK: - 字典驱动解码注册表（第 30 轮 A 卡试点 + 第 31 轮 A 卡批量迁移：注册表混合架构 decode 迁移）
@@ -1079,6 +1084,15 @@ enum ItemType: Decodable {
             let mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "encode"
             return .base64Tool(mode: mode)
         },
+        // ── 通知中心 ──
+        .notificationCenter: { container in
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            let maxItems = try container.decodeIfPresent(Int.self, forKey: .maxItems) ?? 30
+            let filterApps = try container.decodeIfPresent([String].self, forKey: .filterApps) ?? []
+            let defaultPolicy = try container.decodeIfPresent(String.self, forKey: .defaultPolicy) ?? "showAll"
+            let hiddenApps = try container.decodeIfPresent([String].self, forKey: .hiddenApps) ?? []
+            return .notificationCenter(refreshInterval: refreshInterval, maxItems: maxItems, filterApps: filterApps, defaultPolicy: defaultPolicy, hiddenApps: hiddenApps)
+        },
     ]
 
     /// 注册表键集只读快照（迁移契约测试用，与 SupportedTypesHolder.registeredTypeNames 同型）。
@@ -1263,7 +1277,7 @@ enum ItemType: Decodable {
             let densityBars = width > 0 ? max(8, min(48, Int(width / 8))) : 16
             let barCount = explicitBars ?? densityBars
             let source = try container.decodeIfPresent(String.self, forKey: .source) ?? ""
-            self = .audioSpectrum(barCount: barCount, source: source)
+            self = .audioSpectrum(barCount: barCount, width: width, source: source)
 
         case .playbackProgress:
             let width = try container.decodeIfPresent(CGFloat.self, forKey: .width) ?? 0
@@ -1491,6 +1505,13 @@ enum ItemType: Decodable {
             let displayMode = try container.decodeIfPresent(String.self, forKey: .displayMode) ?? "worst"
             let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 300.0
             self = .opencodeGoUsage(workspaceID: workspaceID, cookie: cookie, displayMode: displayMode, refreshInterval: refreshInterval)
+        case .notificationCenter:
+            let refreshInterval = try container.decodeIfPresent(Double.self, forKey: .refreshInterval) ?? 15.0
+            let maxItems = try container.decodeIfPresent(Int.self, forKey: .maxItems) ?? 30
+            let filterApps = try container.decodeIfPresent([String].self, forKey: .filterApps) ?? []
+            let defaultPolicy = try container.decodeIfPresent(String.self, forKey: .defaultPolicy) ?? "showAll"
+            let hiddenApps = try container.decodeIfPresent([String].self, forKey: .hiddenApps) ?? []
+            self = .notificationCenter(refreshInterval: refreshInterval, maxItems: maxItems, filterApps: filterApps, defaultPolicy: defaultPolicy, hiddenApps: hiddenApps)
         }
     }
 }

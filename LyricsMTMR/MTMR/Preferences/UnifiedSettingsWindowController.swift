@@ -413,7 +413,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .ai: return localized("模型与 Prompt 模板", "Model & prompt templates")
         case .expense: return localized("类别、预算与目标", "Categories, budget & goals")
         case .dock: return localized("固定应用与图标", "Pinned apps & icons")
-        case .notification: return localized("提醒开关与免打扰", "Alert toggles & DND")
+        case .notification: return localized("通知中心与系统通知过滤", "Notification Center & system notification filter")
         case .systemMonitor: return localized("CPU/网络刷新率", "CPU & network refresh")
         case .wellness: return localized("久坐、阅读与呼吸", "Posture, reading & breathing")
         case .lifestyle: return localized("外卖、穿衣与宠物", "Food, outfit & pet")

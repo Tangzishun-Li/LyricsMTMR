@@ -5,7 +5,7 @@
 //  Round 25 (A): 注册表混合架构对账测试 — ItemType 枚举 ↔ 注册表 ↔
 //  BarItemFactory ↔ identifierBase ↔ 114 路径的代码级持续保障。
 //
-//  机制：本文件持有一份「规范清单」（canonicalItems，98 条，由
+//  机制：本文件持有一份「规范清单」（canonicalItems，99 条，由
 //  ItemsParsing.swift ItemTypeRaw 与 TouchBarController.swift identifierBase
 //  逐条提取生成）——它是测试侧的唯一基准。五处注册点任何一处
 //  新增/删除/漏注册/改名，都会至少有一个断言失败：
@@ -141,6 +141,7 @@ class RegistryReconciliationTests: XCTestCase {
         CanonicalEntry(name: "apiTester", json: "{\"type\": \"apiTester\"}", identifierBase: "com.lyricsmtmr.apiTester."),
         CanonicalEntry(name: "finderTags", json: "{\"type\": \"finderTags\"}", identifierBase: "com.lyricsmtmr.finderTags."),
         CanonicalEntry(name: "opencodeGoUsage", json: "{\"type\": \"opencodeGoUsage\"}", identifierBase: "com.lyricsmtmr.opencodeGoUsage."),
+        CanonicalEntry(name: "notificationCenter", json: "{\"type\": \"notificationCenter\"}", identifierBase: "com.lyricsmtmr.notificationCenter."),
     ]
 
     /// 注册表专属键：14 预定义 + 2 控制器注册；与枚举无交集，
@@ -196,7 +197,7 @@ class RegistryReconciliationTests: XCTestCase {
                        "ItemTypeRaw 全集与规范清单不等（改名/漏登/多登）")
         XCTAssertEqual(rawNames.sorted(), canonicalNames.sorted(),
                        "ItemTypeRaw 与规范清单存在具体差异：\(rawNames.sorted()) vs \(canonicalNames.sorted())")
-        XCTAssertEqual(rawNames.count, 98, "ItemTypeRaw 应为 98 case（第 25 轮口径）")
+        XCTAssertEqual(rawNames.count, 99, "ItemTypeRaw 应为 99 case（含 notificationCenter）")
     }
 
     // MARK: - L2/L3: 解码 switch + identifierBase switch ↔ 规范清单
@@ -261,15 +262,15 @@ class RegistryReconciliationTests: XCTestCase {
 
     // MARK: - 114 路径口径
 
-    func testTotalPathCountIs114() {
-        XCTAssertEqual(canonicalItems.count, 98, "枚举侧 98 条")
+    func testTotalPathCountIs115() {
+        XCTAssertEqual(canonicalItems.count, 99, "枚举侧 99 条")
         XCTAssertEqual(registryOnlyKeys.count, 16, "注册表侧 16 条（14 预定义 + 2 控制器）")
         XCTAssertTrue(Set(canonicalNames).isDisjoint(with: Set(registryOnlyKeys)),
-                      "98 枚举键与 16 注册表键不得重叠（themeSwitch 重复注册除外）")
-        XCTAssertEqual(canonicalItems.count + registryOnlyKeys.count, 114,
-                       "Item 类型全集口径 114 = ItemTypeRaw 98 + 预定义 14 + 控制器 2")
-        // 枚举全集与注册表全集合并不重复计数：114 个互异名字
+                      "99 枚举键与 16 注册表键不得重叠（themeSwitch 重复注册除外）")
+        XCTAssertEqual(canonicalItems.count + registryOnlyKeys.count, 115,
+                       "Item 类型全集口径 115 = ItemTypeRaw 99 + 预定义 14 + 控制器 2")
+        // 枚举全集与注册表全集合并不重复计数：115 个互异名字
         let allPaths = Set(canonicalNames).union(Set(registryOnlyKeys))
-        XCTAssertEqual(allPaths.count, 114, "98 + 16 应合并为 114 个互异路径名")
+        XCTAssertEqual(allPaths.count, 115, "99 + 16 应合并为 115 个互异路径名")
     }
 }

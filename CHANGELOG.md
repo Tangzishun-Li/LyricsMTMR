@@ -4,6 +4,23 @@ All notable changes to LyricsMTMR will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.2] - 2026-09-14
+
+### Added
+- **Touch Bar 通知中心**：读取 macOS 系统通知数据库（usernoted SQLite），在 Touch Bar 显示未读通知
+- **拆分按钮设计**：左侧铃铛图标 + badge 数字，右侧堆叠 App 图标（40% 露出，无红点）
+- **Dock 风格通知横栏**：点击右侧展开 Touch Bar 横栏，App 图标独立显示，点击图标切换消息源
+- **固定宽度消息文本框**：350px 固定宽度，多条消息用 · 分隔，超长文字平滑滚动
+- **长按图标打开 App**：长按 Touch Bar 上的 App 图标直接跳转对应应用
+- **文件监控替代轮询**：使用 DispatchSource 监控 SQLite 数据库文件变化，零轮询零 CPU 开销
+- **设置界面通知中心 Tab**：支持应用过滤（双栏拖拽）、刷新间隔、最大显示数量、黑白名单模式
+- **App 图标自动识别**：通过 bundle-id → NSWorkspace → .icns 路径自动加载真实 App 图标
+
+### Fixed
+- **plist 字段映射修复**：bundle-id 在顶层 `plist['app']` 而非 `req.did`，修复所有通知解析为空的问题
+- **横栏关闭死循环修复**：移除 `reloadPreset` 调用，直接恢复 Touch Bar identifiers，避免 widget 销毁重建循环
+- **系统模态嵌套修复**：移除 `openNotificationBar` 中多余的 `presentSystemModal` 调用
+
 ## [0.3.1] - 2026-09-13
 
 ### Fixed

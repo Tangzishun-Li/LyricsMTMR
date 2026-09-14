@@ -44,7 +44,7 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
         return defs.first
     }
 
-    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 + 第三批 20 + 第四批 20 + 第五批 20 + 第六批 9 + 换锚补迁 1 = 93 键，按 rawValue 升序）
+    // MARK: - 迁移契约：注册表键集（试点 3 + 批量迁移 20 + 第三批 20 + 第四批 20 + 第五批 20 + 第六批 9 + 换锚补迁 1 + 通知中心 1 = 94 键，按 rawValue 升序）
 
     func testRegisteredTypesInDecodeRegistry() {
         let registered = ItemType.registeredTypeDecoderNames.map { $0.rawValue }
@@ -58,17 +58,17 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
             "finderTags", "foodDelivery", "gitStatus", "hashCalc", "holidayCountdown",
             "homekitScene", "httpCodes", "inputsource", "jsonFormatter", "latexSymbols",
             "lyrics", "lyricsTranslate", "meetingCountdown", "music", "network",
-            "networkSpeed", "nightShift", "noiseMeter", "noteCapture", "opencodeGoUsage",
-            "packageTracker", "paperProgress", "paperTags", "pixelPet", "playbackProgress",
-            "pomodoro", "portChecker", "postureReminder", "printerStatus", "qrCode",
-            "quickReply", "quickScreenshot", "readTimer", "readingProgress", "regexReference",
-            "regexTester", "rssUnread", "savingsGoal", "screenLock", "screenPicker",
-            "serverMonitor", "shellScriptTitledButton", "shortcutHints", "slackUnread",
-            "sshStatus", "standupTimer", "stock", "subscriptionCountdown", "swipe",
-            "systemTemp", "taxEstimate", "timeButton", "timestampConvert", "travelCountdown",
-            "upnext", "usage", "uuidGen", "volume", "weather",
-            "weatherOutfit", "windowSnap", "wordLookup", "yandexWeather"
-        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 + 第 32 轮第三批迁移 20 + 第 33 轮第四批迁移 20 + 第 34 轮第五批迁移 20 + 第 35 轮第六批（收官批）迁移 9 + 第 36 轮换锚补迁 1 = 93 键（迁移契约，勿增勿删）")
+            "networkSpeed", "nightShift", "noiseMeter", "noteCapture", "notificationCenter",
+            "opencodeGoUsage", "packageTracker", "paperProgress", "paperTags", "pixelPet",
+            "playbackProgress", "pomodoro", "portChecker", "postureReminder", "printerStatus",
+            "qrCode", "quickReply", "quickScreenshot", "readTimer", "readingProgress",
+            "regexReference", "regexTester", "rssUnread", "savingsGoal", "screenLock",
+            "screenPicker", "serverMonitor", "shellScriptTitledButton", "shortcutHints",
+            "slackUnread", "sshStatus", "standupTimer", "stock", "subscriptionCountdown",
+            "swipe", "systemTemp", "taxEstimate", "timeButton", "timestampConvert",
+            "travelCountdown", "upnext", "usage", "uuidGen", "volume",
+            "weather", "weatherOutfit", "windowSnap", "wordLookup", "yandexWeather"
+        ], "注册表应恰含试点 3 + 第 31 轮批量迁移 20 + 第 32 轮第三批迁移 20 + 第 33 轮第四批迁移 20 + 第 34 轮第五批迁移 20 + 第 35 轮第六批（收官批）迁移 9 + 第 36 轮换锚补迁 1 + 通知中心 1 = 94 键（迁移契约，勿增勿删）")
     }
 
     // MARK: - 等价性：注册表路径 vs switch 路径（试点类型）
@@ -633,7 +633,7 @@ class ItemTypeDecodeRegistryTests: XCTestCase {
             XCTFail("audioSpectrum JSON 解码失败")
             return
         }
-        guard case let .audioSpectrum(barCount: barCount, source: source) = def.type else {
+        guard case let .audioSpectrum(barCount: barCount, width: _, source: source) = def.type else {
             XCTFail("audioSpectrum 应经 switch 解码为 .audioSpectrum，实际：\(def.type)")
             return
         }

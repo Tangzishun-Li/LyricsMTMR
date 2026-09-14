@@ -186,6 +186,12 @@
 		C0FFE6176055CFC01A172F44 /* SubscriptionCountdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEE6176055CFC01A172F44 /* SubscriptionCountdown.swift */; };
 		C0FFE8688503E8BA6A04ACB3 /* TaxEstimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEE8688503E8BA6A04ACB3 /* TaxEstimate.swift */; };
 		C0FFEE01AABBCCDDEEFF00A2 /* TouchBarMirrorWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE01AABBCCDDEEFF00A1 /* TouchBarMirrorWindowController.swift */; };
+		AA0001AA0001AA0001AA0001 /* NotificationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002AA0002AA0002AA0002 /* NotificationStore.swift */; };
+		BB0001BB0001BB0001BB0001 /* AppIconResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0002BB0002BB0002BB0002 /* AppIconResolver.swift */; };
+		CC0001CC0001CC0001CC0001 /* NotificationCenterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */; };
+		DD0001DD0001DD0001DD0001 /* NotificationSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */; };
+		EE0001EE0001EE0001EE0001 /* NotificationBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */; };
+		FF0001FF0001FF0001FF0001 /* AppFilterPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */; };
 		C0FFEE47465500183E1228AC /* ScreenPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEEE47465500183E1228AC /* ScreenPicker.swift */; };
 		C0FFEE67D3A7E14D9DACF09E /* StandupTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEEE67D3A7E14D9DACF09E /* StandupTimer.swift */; };
 		C0FFF088030B9AB8C1B74D97 /* RssUnread.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEF088030B9AB8C1B74D97 /* RssUnread.swift */; };
@@ -579,6 +585,12 @@
 		CA8F2B942FC7000000D189D9 /* BarItemVisibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarItemVisibilityTests.swift; sourceTree = "<group>"; };
 		CE8064090E6592DF0B794D49 /* FinderTags.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FinderTags.swift; sourceTree = "<group>"; };
 		CF27D34B066477FF913D5ADA /* NotificationTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationTabView.swift; sourceTree = "<group>"; };
+		AA0002AA0002AA0002AA0002 /* NotificationStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationStore.swift; path = MTMR/Widgets/Notification/NotificationStore.swift; sourceTree = SOURCE_ROOT; };
+		BB0002BB0002BB0002BB0002 /* AppIconResolver.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppIconResolver.swift; path = MTMR/Widgets/Notification/AppIconResolver.swift; sourceTree = SOURCE_ROOT; };
+		CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationCenterWidget.swift; path = MTMR/Widgets/Notification/NotificationCenterWidget.swift; sourceTree = SOURCE_ROOT; };
+		DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationSplitView.swift; path = MTMR/Widgets/Notification/NotificationSplitView.swift; sourceTree = SOURCE_ROOT; };
+		EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationBarItem.swift; path = MTMR/Widgets/Notification/NotificationBarItem.swift; sourceTree = SOURCE_ROOT; };
+		FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppFilterPanel.swift; path = MTMR/Preferences/Components/AppFilterPanel.swift; sourceTree = SOURCE_ROOT; };
 		D4F8C6B3CC07457AABDC461B /* SubtitleProviderPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleProviderPlaceholder.swift; sourceTree = "<group>"; };
 		D7BB393923F9A696FE5E94AF /* TimePickerField.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TimePickerField.swift; sourceTree = "<group>"; };
 		DC3127FF31884514C2F46C0D /* UsageBarItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageBarItem.swift; sourceTree = "<group>"; };
@@ -982,6 +994,12 @@
 				DDB3F6F4961666FFA7D3DA4D /* ExpenseTabView.swift */,
 				1170F68590A0598468ED3182 /* DockTabView.swift */,
 				CF27D34B066477FF913D5ADA /* NotificationTabView.swift */,
+				AA0002AA0002AA0002AA0002 /* NotificationStore.swift */,
+				BB0002BB0002BB0002BB0002 /* AppIconResolver.swift */,
+				CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */,
+				DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */,
+				EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */,
+				FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */,
 				76B1ECF2607F2F745D4D4BE7 /* SystemMonitorTabView.swift */,
 				BF47AD75968017DAEDF18759 /* WellnessTabView.swift */,
 				F10285EAB96508D053910115 /* LifestyleTabView.swift */,
@@ -1451,6 +1469,12 @@
 				B290FA59E96FFA6082DB5CCF /* ExpenseTabView.swift in Sources */,
 				F02C31A92F7AB0E2AE05B4A2 /* DockTabView.swift in Sources */,
 				C51D795E05D41BC87BB60217 /* NotificationTabView.swift in Sources */,
+				AA0001AA0001AA0001AA0001 /* NotificationStore.swift in Sources */,
+				BB0001BB0001BB0001BB0001 /* AppIconResolver.swift in Sources */,
+				CC0001CC0001CC0001CC0001 /* NotificationCenterWidget.swift in Sources */,
+				DD0001DD0001DD0001DD0001 /* NotificationSplitView.swift in Sources */,
+				EE0001EE0001EE0001EE0001 /* NotificationBarItem.swift in Sources */,
+				FF0001FF0001FF0001FF0001 /* AppFilterPanel.swift in Sources */,
 				3721FA7B746C885FEF66D46A /* SystemMonitorTabView.swift in Sources */,
 				48954A2C766C96737A52AA0B /* WellnessTabView.swift in Sources */,
 				AB4B39A3B9817C01F0ACCF7F /* LifestyleTabView.swift in Sources */,
