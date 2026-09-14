@@ -9,6 +9,37 @@
     <language>zh</language>
 
     <item>
+      <title>Version 0.3.4 (493)</title>
+      <sparkle:version>493</sparkle:version>
+      <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 15 Sep 2026 12:00:00 +0800</pubDate>
+      <sparkle:releaseNotesLink><![CDATA[
+        <h3>v0.3.4 — 编辑器重构</h3>
+        <h4>新增</h4>
+        <ul>
+          <li>Touch Bar 镜像交互：三种模式（只读/可点击/编辑），支持单击/双击/长按手势</li>
+          <li>设置 > 通用 新增镜像模式选择器（只读/可点击/编辑）</li>
+          <li>编辑器 Palette 从水平滚动改为可折叠分组（18个分类），搜索时自动展开</li>
+          <li>ThemeSwitch 智能联动：创建/删除主题后自动更新所有主题的 themeSwitch 列表</li>
+          <li>主题重命名：主题管理菜单新增重命名功能</li>
+        </ul>
+        <h4>修复</h4>
+        <ul>
+          <li>股票 widget 补全：数据源选择(腾讯/东方财富)、文字宽度、图表模式、跑马灯显示</li>
+          <li>天气 widget 补全：API Key、数据源、单位、图标类型、城市代码、湿度、风速</li>
+          <li>音乐 widget 补全：刷新间隔、禁用跑马灯选项</li>
+          <li>展开 widget 补全：关闭按钮位置、卡片宽度比例</li>
+        </ul>
+      ]]></sparkle:releaseNotesLink>
+      <enclosure
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.4/LyricsMTMR.dmg"
+        type="application/octet-stream"
+        length="0"
+        sparkle:edSignature="" />
+    </item>
+
+    <item>
       <title>Version 0.3.3 (492)</title>
       <sparkle:version>492</sparkle:version>
       <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
