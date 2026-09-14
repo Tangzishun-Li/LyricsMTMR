@@ -4,6 +4,15 @@ All notable changes to LyricsMTMR will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.3] - 2026-09-15
+
+### Changed
+- **通知中心横栏图标放大**：32pt Docker 风格，自定义 NSView 容器（50×30pt）
+- **文字区域动态填充**：800pt 宽度，占满整个 Touch Bar
+- **点击图标布局切换**：选中图标移到文字左侧，其他图标被挤到右侧
+- **横栏消息自动刷新**：每10秒刷新一次数据
+- **堆叠图标去掉红点**：有图标就有消息，数量仅在横栏内显示
+
 ## [0.3.2] - 2026-09-14
 
 ### Added

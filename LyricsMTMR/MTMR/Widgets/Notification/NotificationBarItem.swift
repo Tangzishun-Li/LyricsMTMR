@@ -18,13 +18,16 @@
 import AppKit
 
 /// A Dock-style app icon button for the notification bar.
-class NotificationAppIconItem: CustomButtonTouchBarItem {
+class NotificationAppIconItem: NSCustomTouchBarItem {
     let bundleId: String
     let icon: NSImage?
     let notifications: [TBNotification]
     var onTap: ((_ bundleId: String) -> Void)?
     var onLongPress: ((_ bundleId: String) -> Void)?
     var badgeCount: Int = 0
+
+    private let iconView = NSImageView()
+    private let badgeLabel = NSTextField()
 
     init(identifier: NSTouchBarItem.Identifier,
          bundleId: String,
@@ -33,27 +36,75 @@ class NotificationAppIconItem: CustomButtonTouchBarItem {
         self.bundleId = bundleId
         self.icon = icon
         self.notifications = notifications
-        super.init(identifier: identifier, title: "")
+        super.init(identifier: identifier)
 
-        // Dock style: just the icon, no border, no text
-        isBordered = false
-        self.image = icon ?? NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 18, weight: .medium))
+        // Custom view with larger icon (Docker-like)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 50, height: 30))
 
-        // Tap → select this app
-        actions.append(ItemAction(trigger: .singleTap) { [weak self] in
-            guard let self = self else { return }
-            self.onTap?(self.bundleId)
-        })
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.image = icon ?? NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 24, weight: .medium))
+        container.addSubview(iconView)
 
-        // Long press → open app
-        actions.append(ItemAction(trigger: .longTap) { [weak self] in
-            guard let self = self else { return }
-            self.onLongPress?(self.bundleId)
-        })
+        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+        badgeLabel.isEditable = false
+        badgeLabel.isBordered = false
+        badgeLabel.drawsBackground = true
+        badgeLabel.backgroundColor = NSColor.systemRed
+        badgeLabel.textColor = NSColor.white
+        badgeLabel.font = NSFont.monospacedSystemFont(ofSize: 8, weight: .bold)
+        badgeLabel.alignment = .center
+        badgeLabel.isHidden = true
+        container.addSubview(badgeLabel)
+
+        NSLayoutConstraint.activate([
+            iconView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 32),
+            iconView.heightAnchor.constraint(equalToConstant: 32),
+
+            badgeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -2),
+            badgeLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 1),
+            badgeLabel.heightAnchor.constraint(equalToConstant: 11),
+            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 13),
+        ])
+
+        self.view = container
+
+        // Tap gesture
+        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick(_:)))
+        click.allowedTouchTypes = .direct
+        container.addGestureRecognizer(click)
+
+        let longPress = NSPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        longPress.allowedTouchTypes = .direct
+        longPress.minimumPressDuration = 0.6
+        container.addGestureRecognizer(longPress)
     }
 
-    required init?(coder _: NSCoder) { return nil }
+    required init?(coder: NSCoder) { return nil }
+
+    /// Update badge display
+    func updateBadge() {
+        if badgeCount > 0 {
+            badgeLabel.stringValue = "\(badgeCount)"
+            badgeLabel.isHidden = false
+            let sz = (badgeLabel.stringValue as NSString).size(withAttributes: [.font: badgeLabel.font!])
+            badgeLabel.frame.size.width = max(sz.width + 5, 13)
+        } else {
+            badgeLabel.isHidden = true
+        }
+    }
+
+    @objc private func handleClick(_ gesture: NSClickGestureRecognizer) {
+        onTap?(bundleId)
+    }
+
+    @objc private func handleLongPress(_ gesture: NSPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        onLongPress?(bundleId)
+    }
 }
 
 /// A fixed-width scrolling text area that shows messages for the selected app.
@@ -65,7 +116,7 @@ class NotificationTextItem: NSCustomTouchBarItem {
     private let textLabel = NSTextField()
     private let width: CGFloat
 
-    init(identifier: NSTouchBarItem.Identifier, width: CGFloat = 400) {
+    init(identifier: NSTouchBarItem.Identifier, width: CGFloat = 800) {
         self.width = width
         super.init(identifier: identifier)
 

@@ -313,39 +313,52 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
             barItems.append(backItem)
             barItemIdentifiers.append(backId)
 
-            // App icons with BADGE COUNTS (this is where badges belong)
-            for (index, summary) in currentGrouped.prefix(5).enumerated() {
-                let iconId = NSTouchBarItem.Identifier("\(baseId)icon.\(index).\(UUID().uuidString)")
-                let iconItem = NotificationAppIconItem(
-                    identifier: iconId,
-                    bundleId: summary.bundleId,
-                    icon: summary.icon,
-                    notifications: summary.notifications
-                )
-                iconItem.badgeCount = summary.count
-                iconItem.onTap = { [weak self] bundleId in
-                    self?.handleAppExpand(bundleId: bundleId)
-                }
-                iconItem.onLongPress = { [weak self] bundleId in
-                    self?.openApp(bundleId: bundleId)
-                }
-                barItems.append(iconItem)
-                barItemIdentifiers.append(iconId)
+            // Build items in order: back → [selected icon] → text → [other icons]
+            // Text area fills all remaining space (~1000pt Touch Bar)
+            let iconWidth: CGFloat = 50
+            let otherIcons = currentGrouped.enumerated().filter { $0.element.bundleId != expandedBundleId }
+            let selectedSummary = expandedBundleId.flatMap { eid in currentGrouped.first { $0.bundleId == eid } }
+
+            // If an app is selected: [back] [selected icon] [text fills ~800pt] [other icons...]
+            // If no selection:       [back] [all icons...] [text fills remaining]
+
+            if let selected = selectedSummary {
+                // Selected icon (left of text)
+                let selIconId = NSTouchBarItem.Identifier("\(baseId)sel.\(UUID().uuidString)")
+                let selIcon = NotificationAppIconItem(identifier: selIconId, bundleId: selected.bundleId, icon: selected.icon, notifications: selected.notifications)
+                selIcon.badgeCount = selected.count
+                selIcon.updateBadge()
+                selIcon.onTap = { [weak self] bid in self?.handleAppExpand(bundleId: bid) }
+                selIcon.onLongPress = { [weak self] bid in self?.openApp(bundleId: bid) }
+                barItems.append(selIcon)
+                barItemIdentifiers.append(selIconId)
             }
 
-            // Text area (fixed 400px)
+            // Text area — fills all remaining space
             let textId = NSTouchBarItem.Identifier("\(baseId)text.\(UUID().uuidString)")
-            let textItem = NotificationTextItem(identifier: textId, width: 400)
-
-            if let expandedId = expandedBundleId,
-               let summary = currentGrouped.first(where: { $0.bundleId == expandedId }) {
-                textItem.showMessages(summary.notifications)
+            let textItem = NotificationTextItem(identifier: textId, width: 800)
+            if let selected = selectedSummary {
+                textItem.showMessages(selected.notifications)
             } else if let first = currentGrouped.first {
                 textItem.showMessages(first.notifications)
             }
-
             barItems.append(textItem)
             barItemIdentifiers.append(textId)
+
+            // Other icons (right side when app selected, or all icons when none selected)
+            let remaining = selectedSummary != nil
+                ? currentGrouped.filter { $0.bundleId != expandedBundleId }
+                : Array(currentGrouped)
+            for summary in remaining.prefix(4) {
+                let iconId = NSTouchBarItem.Identifier("\(baseId)icon.\(summary.bundleId).\(UUID().uuidString)")
+                let iconItem = NotificationAppIconItem(identifier: iconId, bundleId: summary.bundleId, icon: summary.icon, notifications: summary.notifications)
+                iconItem.badgeCount = summary.count
+                iconItem.updateBadge()
+                iconItem.onTap = { [weak self] bid in self?.handleAppExpand(bundleId: bid) }
+                iconItem.onLongPress = { [weak self] bid in self?.openApp(bundleId: bid) }
+                barItems.append(iconItem)
+                barItemIdentifiers.append(iconId)
+            }
         }
     }
 
