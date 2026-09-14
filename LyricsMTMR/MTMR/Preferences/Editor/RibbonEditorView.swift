@@ -977,6 +977,9 @@ struct RibbonEditorView: View {
         .sheet(isPresented: $showNewThemeSheet) {
             newThemeSheet
         }
+        .sheet(isPresented: $showRenamePopover) {
+            renameThemeSheet
+        }
         .alert(
             localized("提示", "Notice"),
             isPresented: Binding(
@@ -1175,6 +1178,71 @@ struct RibbonEditorView: View {
         .background(EditorColors.sidebarSwift.opacity(0.7))
     }
 
+    // MARK: - Rename theme sheet (Phase 3: 3-7)
+
+    private var renameThemeSheet: some View {
+        VStack(spacing: 16) {
+            Text(localized("重命名主题", "Rename Theme"))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(EditorColors.textPrimarySwift)
+
+            let currentName = ((model.currentThemePath as NSString).lastPathComponent as NSString).deletingPathExtension
+            TextField(localized("新名称", "New name"), text: $renameText)
+                .textFieldStyle(RibbonTextFieldStyle())
+                .frame(width: 240)
+                .onAppear { renameText = currentName }
+
+            HStack(spacing: 12) {
+                Button(localized("取消", "Cancel")) {
+                    showRenamePopover = false
+                    renameText = ""
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EditorColors.textSecondarySwift)
+
+                Button(action: {
+                    renameCurrentTheme(to: renameText)
+                    showRenamePopover = false
+                    renameText = ""
+                }) {
+                    Text(localized("重命名", "Rename"))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(EditorColors.accentSwift)
+                        }
+                }
+                .buttonStyle(.plain)
+                .disabled(renameText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(24)
+        .background(EditorColors.bgSwift)
+    }
+
+    private func renameCurrentTheme(to newName: String) {
+        let oldPath = model.currentThemePath
+        let dir = (oldPath as NSString).deletingLastPathComponent
+        let safeName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+        let newFileName = safeName.hasSuffix(".json") ? safeName : safeName + ".json"
+        let newPath = dir + "/" + newFileName
+        guard newPath != oldPath else { return }
+        do {
+            try FileManager.default.moveItem(atPath: oldPath, toPath: newPath)
+        } catch {
+            model.errorMessage = localized("重命名失败: \(error.localizedDescription)", "Rename failed: \(error.localizedDescription)")
+            return
+        }
+        // Update all themeSwitch lists to reflect the new filename
+        ThemeSupport.updateAllThemeSwitchLists()
+        model.load([], from: "")
+        scanThemes()
+        loadTheme(at: newPath)
+    }
+
     // MARK: - New theme sheet
 
     private var newThemeSheet: some View {
@@ -1198,6 +1266,8 @@ struct RibbonEditorView: View {
                 Button(action: {
                     let name = newThemeName.isEmpty ? "theme_custom" : newThemeName
                     model.applyAsNewTheme(name: name)
+                    // Phase 3 (3-4): Update all themeSwitch lists after creating a new theme
+                    ThemeSupport.updateAllThemeSwitchLists()
                     showNewThemeSheet = false
                     newThemeName = ""
                     scanThemes()
@@ -1274,6 +1344,10 @@ struct RibbonEditorView: View {
                     Menu {
                         Button(action: { scanThemes() }) {
                             Label(localized("刷新列表", "Refresh"), systemImage: "arrow.clockwise")
+                        }
+                        Divider()
+                        Button(action: { showRenamePopover = true }) {
+                            Label(localized("重命名", "Rename"), systemImage: "pencil")
                         }
                         if (model.currentThemePath as NSString).lastPathComponent != "items.json" {
                             Divider()
@@ -1657,6 +1731,8 @@ struct RibbonEditorView: View {
         } catch {
             return
         }
+        // Phase 3 (3-4): Update all themeSwitch lists after deleting a theme
+        ThemeSupport.updateAllThemeSwitchLists()
         // Fall back to the active config when the edited theme is deleted.
         model.load([], from: "")
         scanThemes()
@@ -1916,13 +1992,14 @@ struct KeyboardHandler: NSViewRepresentable {
     }
 }
 
-// MARK: - Palette ribbon
+// MARK: - Palette ribbon (Phase 2A: collapsible grouped palette)
 
 struct PaletteRibbon: View {
     let onAdd: (String) -> Void
     var isEnabled: Bool = true
 
     @State private var searchText = ""
+    @State private var expandedCategories: Set<String> = []
 
     private var filteredCategories: [(label: String, types: [String])] {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
@@ -1937,7 +2014,7 @@ struct PaletteRibbon: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 0) {
             // Search row
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
@@ -1956,30 +2033,91 @@ struct PaletteRibbon: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 22)
+            .padding(.bottom, 4)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
+            // Collapsible category groups
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
-                        HStack(spacing: 4) {
-                            ForEach(category.types, id: \.self) { type in
-                                let schema = EditorSchema.schema(for: type)
-                                PaletteChip(schema: schema, isEnabled: isEnabled) {
-                                    onAdd(type)
+                        PaletteCategoryGroup(
+                            label: category.label,
+                            types: category.types,
+                            isEnabled: isEnabled,
+                            isExpanded: expandedCategories.contains(category.label) || !searchText.isEmpty,
+                            onAdd: onAdd,
+                            onToggle: {
+                                if expandedCategories.contains(category.label) {
+                                    expandedCategories.remove(category.label)
+                                } else {
+                                    expandedCategories.insert(category.label)
                                 }
                             }
-                        }
-                        .padding(.leading, 8)
-                        Divider()
-                            .frame(height: 24)
-                            .background(EditorColors.hairlineSwift)
+                        )
                     }
-                    Spacer()
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// A collapsible category group in the palette.
+struct PaletteCategoryGroup: View {
+    let label: String
+    let types: [String]
+    let isEnabled: Bool
+    let isExpanded: Bool
+    let onAdd: (String) -> Void
+    let onToggle: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Category header (click to toggle)
+            Button(action: onToggle) {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                        .frame(width: 12)
+                    Text(label)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(EditorColors.textSecondarySwift)
+                    Text("(\(types.count))")
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Widget chips (shown when expanded)
+            if isExpanded {
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 54, maximum: 60), spacing: 4)
+                ], spacing: 4) {
+                    ForEach(types, id: \.self) { type in
+                        let schema = EditorSchema.schema(for: type)
+                        PaletteChip(schema: schema, isEnabled: isEnabled) {
+                            onAdd(type)
+                        }
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 6)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            // Divider between categories
+            Divider()
+                .background(EditorColors.hairlineSwift)
+                .padding(.horizontal, 8)
+        }
+        .animation(.easeOut(duration: 0.15), value: isExpanded)
     }
 }
 

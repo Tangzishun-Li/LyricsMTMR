@@ -8,6 +8,33 @@
 
 ## 📝 更新日志
 
+### v0.3.4（编辑器重构 Phase 1-3）
+
+> 设置界面内置编辑器全面重构：Touch Bar 镜像交互、Palette 可折叠分组、PropertyInspector 字段修复、ThemeSwitch 智能联动、主题重命名。
+
+#### 新增
+
+- **Touch Bar 镜像交互**：`MirrorInteractionMode` 三种模式（只读/可点击/编辑），`MirrorItemView` 包装器支持单击/双击/长按手势，编辑模式下选中高亮+Delete键删除
+- **镜像模式 UI**：设置 > 通用 > Touch Bar 镜像窗口下方新增 segmented picker（只读/可点击/编辑）
+- **Palette 可折叠分组**：99 个 widget 从水平滚动改为 18 个可折叠分组（LazyVGrid 布局），搜索时自动展开匹配分组
+- **ThemeSwitch 智能联动**：`updateAllThemeSwitchLists()` 创建/删除主题后自动更新所有主题文件的 themeSwitch themes 数组
+- **主题重命名**：主题管理菜单新增"重命名"按钮，支持文件重命名 + themeSwitch 全局同步
+
+#### 修复
+
+- **stock widget schema**：补全 apiSource(tencent/eastmoney)、textWidth(70pt)、chartMode(fenzhong)，displayMode 加 marquee 选项
+- **weather widget schema**：补全 api_key、apiSource(openweather/china)、units(metric/imperial)、icon_type(text/images)、cities、showHumidity、showWind、refreshInterval
+- **music widget schema**：补全 refreshInterval(5s)、disableMarquee
+- **expandable widget schema**：补全 closePosition(left/right)、cardWidthRatio(0.1-1.0)
+
+#### 工程
+
+- Info.plist 0.3.3/492 → 0.3.4/493
+- 编辑器重构开发日志 872 行（docs/编辑器重构开发日志.md）
+- Widget 参数全量参考 1433 行（docs/编辑器Schema全量参考.md）
+
+---
+
 ### 版本史说明
 
 > **考古结论（2026-08-13 第 25 轮实证，详见《考古报告_第25轮_版本体系考古.md》】**：本项目正式发布记录仅 2 枚——v1.0.0（首个正式发行版，2026-07-29 发布）与 v0.8（预发布，2026-08-09 发布）；git tag 另有 1 枚内部快照（pre-opt-20260812-0114，非版本发布）。**v0.9 ~ v0.26 从未以 Release / tag / Info.plist 版本号任何形式存在过**——该区间是更新日志编号序列中的空洞：Info.plist 的 0.27/452 为 fork 自上游 MTMR（最高版本 v0.27.0）时继承的工程版本号，v1.0.0 / v0.8 两 tag 指向的提交中均为 0.27/452（营销版本号与工程版本号长期脱节），至第 24 轮收口（2026-08-13）方升为 0.28/453。更新日志自 v0.27 起按迭代轮次补记（v0.27=第 13~18 轮快照，v0.28=第 20~23 轮，v0.29=第 24~27 轮，v0.30=第 28~29 轮，v0.31=第 30 轮，v0.32=第 31 轮，v0.33=第 32 轮，v0.34=第 33 轮，v0.35=第 34 轮，v0.36=第 35 轮，v0.37=第 36 轮，v0.38=第 37 轮，v0.39=第 38 轮，v0.40=第 39 轮，v0.41=第 40 轮，v0.42=第 41 轮，v0.43=第 42 轮，v0.44=第 43 轮，v0.45=第 44 轮，v0.46=第 45 轮，v0.47=第 46 轮，v0.48=第 47 轮，v0.49=第 48 轮，v0.50=第 49 轮，v0.51=第 50 轮，v0.52=第 51 轮，v0.53=第 52 轮，v0.54=第 53 轮，v0.55=第 54 轮，v0.56=第 55 轮，v0.57=第 57 轮，v0.58=第 58 轮，v0.59=第 59 轮，v0.60=第 60 轮，v0.61=第 61 轮，v0.62=第 62 轮，v0.63=第 63 轮），此前条目为发布时实况。

@@ -12,6 +12,7 @@ struct GeneralTab: View {
 
     @State private var launchAtLogin = LaunchAtLoginController().launchAtLogin
     @State private var showMirror = AppSettings.showMirrorWindow
+    @State private var mirrorMode: Int = 1  // 0=mirror, 1=live, 2=edit
     @State private var haptics = AppSettings.hapticFeedbackState
     @State private var gestures = AppSettings.multitouchGestures
     @State private var hideStrip = !AppSettings.showControlStripState
@@ -65,12 +66,39 @@ struct GeneralTab: View {
                                 TouchBarMirrorWindowController.shared.hide()
                             }
                         }
+                    if showMirror {
+                        Deck.RowDivider()
+                        mirrorModeRow
+                    }
                 }
             }
         }
     }
 
     // MARK: - Interaction
+
+    /// Mirror interaction mode selector (Phase 2: 1-4R1).
+    private var mirrorModeRow: some View {
+        HStack {
+            Text(localized("镜像模式", "Mirror Mode"))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Deck.textPrimary)
+            Spacer()
+            Picker("", selection: $mirrorMode) {
+                Text(localized("只读", "Mirror")).tag(0)
+                Text(localized("可点击", "Live")).tag(1)
+                Text(localized("编辑", "Edit")).tag(2)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 200)
+            .onChange(of: mirrorMode) { _, newMode in
+                let modes: [MirrorInteractionMode] = [.mirror, .live, .edit]
+                TouchBarMirrorWindowController.shared.interactionMode = modes[newMode]
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
 
     private var interactionSection: some View {
         VStack(alignment: .leading, spacing: 8) {

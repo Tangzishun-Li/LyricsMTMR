@@ -137,6 +137,62 @@ enum ThemeSupport {
         let last = (preset as NSString).lastPathComponent
         return last.hasPrefix("theme") ? last : preset
     }
+
+    /// Phase 3 (3-4): Update themeSwitch lists in ALL theme files on disk.
+    /// Call this after creating or deleting a theme so every theme's switcher
+    /// reflects the current set of available themes.
+    static func updateAllThemeSwitchLists() {
+        let fm = FileManager.default
+        let allThemes = discoverThemeFiles()
+        // Also include items.json
+        let itemsPath = itemsJSONPath()
+        var pathsToUpdate = allThemes.map { $0.path }
+        if fm.fileExists(atPath: itemsPath) {
+            pathsToUpdate.append(itemsPath)
+        }
+        for path in pathsToUpdate {
+            guard let data = fm.contents(atPath: path),
+                  let raw = String(data: data, encoding: .utf8) else { continue }
+            // Strip comments (same as loadJSON)
+            let cleaned = stripComments(raw)
+            guard let jsonData = cleaned.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] else { continue }
+            let updated = ensureThemeSwitchLists(in: json)
+            if let newData = try? JSONSerialization.data(withJSONObject: updated, options: [.prettyPrinted]) {
+                try? newData.write(to: URL(fileURLWithPath: path))
+            }
+        }
+    }
+
+    /// Minimal comment stripping for theme files.
+    private static func stripComments(_ input: String) -> String {
+        var result = ""
+        var i = input.startIndex
+        var inString = false
+        while i < input.endIndex {
+            let c = input[i]
+            if inString {
+                result.append(c)
+                if c == "\\" {
+                    let next = input.index(after: i)
+                    if next < input.endIndex { result.append(input[next]); i = input.index(after: next); continue }
+                } else if c == "\"" { inString = false }
+            } else {
+                if c == "\"" { inString = true; result.append(c) }
+                else if c == "/" {
+                    let next = input.index(after: i)
+                    if next < input.endIndex && input[next] == "/" {
+                        // Line comment — skip to end of line
+                        var j = next
+                        while j < input.endIndex && input[j] != "\n" { j = input.index(after: j) }
+                        i = j; continue
+                    } else { result.append(c) }
+                } else { result.append(c) }
+            }
+            i = input.index(after: i)
+        }
+        return result
+    }
 }
 
 // MARK: - Draft model
