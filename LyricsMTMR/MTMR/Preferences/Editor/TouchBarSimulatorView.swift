@@ -98,10 +98,12 @@ struct TouchBarSimulatorView: View {
     var body: some View {
         GeometryReader { geo in
             let available = geo.size.width - 28 // outer padding
-            let scale = min(available / TouchBarMetrics.physicalWidth, 1.0)
+            let baseScale = available / TouchBarMetrics.physicalWidth
+            // Allow up to 1.25x zoom for better visibility
+            let scale = min(baseScale, 1.25)
             let barWidth = TouchBarMetrics.physicalWidth * scale
             let barHeight = TouchBarMetrics.physicalHeight * scale
-            let needsScroll = available < TouchBarMetrics.physicalWidth
+            let needsScroll = barWidth > available
 
             VStack(spacing: 6) {
                 // ── Touch Bar bezel ──

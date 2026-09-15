@@ -867,7 +867,7 @@ struct RibbonEditorView: View {
                 onAdd: { type in model.add(type: type) },
                 isEnabled: model.editorMode == .edit
             )
-            .frame(minHeight: 120, maxHeight: 280)
+            .frame(minHeight: 30, maxHeight: 280)
             .background(EditorColors.sidebarSwift)
 
             Hairline()
@@ -2000,6 +2000,8 @@ struct PaletteRibbon: View {
 
     @State private var searchText = ""
     @State private var expandedCategories: Set<String> = []
+    /// Master toggle: when true, all categories are visible.
+    @State private var paletteExpanded: Bool = false
 
     private var filteredCategories: [(label: String, types: [String])] {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
@@ -2013,10 +2015,29 @@ struct PaletteRibbon: View {
         }
     }
 
+    /// Whether a category should appear expanded.
+    private func isCategoryExpanded(_ label: String) -> Bool {
+        // Searching → auto-expand matching categories
+        if !searchText.isEmpty { return true }
+        // Master toggle controls visibility
+        if paletteExpanded { return true }
+        // Individual category toggle
+        return expandedCategories.contains(label)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Search row
+            // Search row + master toggle
             HStack(spacing: 6) {
+                // Master collapse toggle
+                Button(action: { paletteExpanded.toggle() }) {
+                    Image(systemName: paletteExpanded ? "square.grid.2x2.fill" : "square.grid.2x2")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(paletteExpanded ? EditorColors.accentSwift : EditorColors.textTertiarySwift)
+                }
+                .buttonStyle(.plain)
+                .help(localized("展开/折叠组件面板", "Expand/collapse component palette"))
+
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(EditorColors.textTertiarySwift)
@@ -2035,28 +2056,30 @@ struct PaletteRibbon: View {
             .frame(height: 22)
             .padding(.bottom, 4)
 
-            // Collapsible category groups
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
-                        PaletteCategoryGroup(
-                            label: category.label,
-                            types: category.types,
-                            isEnabled: isEnabled,
-                            isExpanded: expandedCategories.contains(category.label) || !searchText.isEmpty,
-                            onAdd: onAdd,
-                            onToggle: {
-                                if expandedCategories.contains(category.label) {
-                                    expandedCategories.remove(category.label)
-                                } else {
-                                    expandedCategories.insert(category.label)
+            // Collapsible category groups (only shown when palette is expanded or searching)
+            if paletteExpanded || !searchText.isEmpty {
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
+                            PaletteCategoryGroup(
+                                label: category.label,
+                                types: category.types,
+                                isEnabled: isEnabled,
+                                isExpanded: isCategoryExpanded(category.label),
+                                onAdd: onAdd,
+                                onToggle: {
+                                    if expandedCategories.contains(category.label) {
+                                        expandedCategories.remove(category.label)
+                                    } else {
+                                        expandedCategories.insert(category.label)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
             }
         }
         .padding(.vertical, 4)
