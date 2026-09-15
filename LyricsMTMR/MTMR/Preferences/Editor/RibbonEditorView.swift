@@ -867,7 +867,7 @@ struct RibbonEditorView: View {
                 onAdd: { type in model.add(type: type) },
                 isEnabled: model.editorMode == .edit
             )
-            .frame(height: 96)
+            .frame(minHeight: 120, maxHeight: 280)
             .background(EditorColors.sidebarSwift)
 
             Hairline()
