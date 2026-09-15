@@ -47,6 +47,7 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
     private var refreshQueue: DispatchQueue? = DispatchQueue(label: "mtmr.notificationCenter")
     private let pauseGate = TBPauseGate()
     private var expandedBundleId: String? = nil
+    private var expandedNotificationId: String? = nil
 
     // File system monitoring (replaces polling)
     private var dbFileSource: DispatchSourceFileSystemObject?
@@ -129,13 +130,21 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
     // MARK: - BarItemDiscarding
 
     func barItemWillDiscard() {
+        // Stop ALL timers and monitoring immediately — no touchBar mutation!
+        // The touchBar is being rebuilt by reloadPreset, don't interfere.
+        barRefreshTimer?.invalidate()
+        barRefreshTimer = nil
         stopFileMonitoring()
+        currentState = .badge
+        expandedBundleId = nil
+        barItems = []
+        barItemIdentifiers = []
+        refreshQueue = nil
+
         let window = panelWindow
         DispatchQueue.main.async {
             window?.close()
-            self.closeNotificationBar()
         }
-        refreshQueue = nil
     }
 
     // MARK: - File System Monitoring
@@ -243,24 +252,30 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
     // MARK: - Notification Bar (replaces Touch Bar)
 
     private func openNotificationBar() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.openNotificationBar() }
+            return
+        }
         isBarOperating = true
         defer { DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { self.isBarOperating = false } }
         currentState = .bar
 
-        if let touchBar = TouchBarController.shared.touchBar {
-            previousItemIdentifiers = touchBar.defaultItemIdentifiers
+        guard let touchBar = TouchBarController.shared.touchBar else { return }
+        previousItemIdentifiers = touchBar.defaultItemIdentifiers
 
-            refreshBarDataSync()
-            buildBarItems()
+        refreshBarDataSync()
+        buildBarItems()
 
+        // Wrap in async to avoid NSConcretePointerArray concurrent mutation
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.currentState == .bar else { return }
             touchBar.delegate = self
-            touchBar.defaultItemIdentifiers = barItemIdentifiers
+            touchBar.defaultItemIdentifiers = self.barItemIdentifiers
+        }
 
-            // Start refresh timer (every 10s)
-            barRefreshTimer?.invalidate()
-            barRefreshTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-                self?.refreshBarDataAndRebuild()
-            }
+        barRefreshTimer?.invalidate()
+        barRefreshTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            self?.refreshBarDataAndRebuild()
         }
     }
 
@@ -273,10 +288,14 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         barItems = []
         barItemIdentifiers = []
 
-        if let touchBar = TouchBarController.shared.touchBar {
-            if !previousItemIdentifiers.isEmpty {
-                touchBar.delegate = TouchBarController.shared
-                touchBar.defaultItemIdentifiers = previousItemIdentifiers
+        // Wrap in async to avoid NSConcretePointerArray concurrent mutation
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let touchBar = TouchBarController.shared.touchBar {
+                if !self.previousItemIdentifiers.isEmpty {
+                    touchBar.delegate = TouchBarController.shared
+                    touchBar.defaultItemIdentifiers = self.previousItemIdentifiers
+                }
             }
         }
     }
@@ -371,8 +390,12 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
 
         buildBarItems()
 
-        if let touchBar = TouchBarController.shared.touchBar {
-            touchBar.defaultItemIdentifiers = barItemIdentifiers
+        // Wrap in async to avoid NSConcretePointerArray concurrent mutation
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let touchBar = TouchBarController.shared.touchBar {
+                touchBar.defaultItemIdentifiers = self.barItemIdentifiers
+            }
         }
     }
 
@@ -528,6 +551,7 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
 
     enum PanelAction {
         case openApp(bundleId: String)
+        case expandNotification(id: String)
         case deleteNotification(id: String)
         case snoozeNotification(id: String, minutes: Int)
     }
@@ -536,6 +560,18 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         switch action {
         case .openApp(let bundleId):
             openApp(bundleId: bundleId)
+        case .expandNotification(let id):
+            if expandedNotificationId == id {
+                expandedNotificationId = nil
+            } else {
+                expandedNotificationId = id
+            }
+            // Rebuild the panel to show expanded state
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                self?.panelWindow?.close()
+                self?.panelWindow = nil
+                self?.openPanel()
+            }
         case .deleteNotification(let id):
             // Mark as read (remove from current list)
             currentNotifications.removeAll { $0.id == id }
@@ -691,7 +727,8 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
             let icon = AppIconResolver.icon(for: bundleId)
             rows.append(.sectionHeader(bundleId: bundleId, appName: appName, icon: icon, count: notifs.count))
             for notif in notifs.prefix(10) {
-                rows.append(.notification(notif))
+                let isExpanded = (notif.id == expandedNotificationId)
+                rows.append(.notification(notif, expanded: isExpanded))
             }
         }
         return rows
@@ -702,7 +739,7 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
 
 private enum PanelRow {
     case sectionHeader(bundleId: String, appName: String, icon: NSImage?, count: Int)
-    case notification(TBNotification)
+    case notification(TBNotification, expanded: Bool)
 }
 
 // MARK: - NSWindowDelegate
@@ -725,7 +762,7 @@ extension NotificationCenterWidget: NSTouchBarDelegate {
 
 // MARK: - Grouped Table Data Source
 
-private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSGestureRecognizerDelegate {
 
     private let rows: [PanelRow]
     private let onAction: ((NotificationCenterWidget.PanelAction) -> Void)?
@@ -740,14 +777,14 @@ private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NS
     }
 
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-        return true
+        return false  // We handle clicks via gesture recognizers
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         guard row < rows.count else { return 36 }
         switch rows[row] {
         case .sectionHeader: return 28
-        case .notification: return 40  // taller for more text
+        case .notification(_, let expanded): return expanded ? 80 : 40
         }
     }
 
@@ -756,10 +793,35 @@ private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NS
 
         switch rows[row] {
         case .sectionHeader(let bundleId, let appName, let icon, let count):
-            return sectionHeaderView(appName: appName, icon: icon, count: count, bundleId: bundleId)
-        case .notification(let notif):
-            return notificationRowView(notif: notif)
+            let view = sectionHeaderView(appName: appName, icon: icon, count: count, bundleId: bundleId)
+            // Add click gesture to open app
+            let click = NSClickGestureRecognizer(target: self, action: #selector(handleSectionHeaderClick(_:)))
+            click.delegate = self
+            view.addGestureRecognizer(click)
+            objc_setAssociatedObject(view, "bundleId", bundleId, .OBJC_ASSOCIATION_RETAIN)
+            return view
+        case .notification(let notif, let expanded):
+            let view = notificationRowView(notif: notif, expanded: expanded)
+            // Add click gesture to expand/collapse
+            let click = NSClickGestureRecognizer(target: self, action: #selector(handleNotificationRowClick(_:)))
+            click.delegate = self
+            view.addGestureRecognizer(click)
+            objc_setAssociatedObject(view, "notifId", notif.id, .OBJC_ASSOCIATION_RETAIN)
+            return view
         }
+    }
+
+    // Handle clicks via gesture recognizers (more reliable than tableViewSelectionDidChange)
+    @objc private func handleSectionHeaderClick(_ gesture: NSClickGestureRecognizer) {
+        guard let view = gesture.view,
+              let bundleId = objc_getAssociatedObject(view, "bundleId") as? String else { return }
+        onAction?(.openApp(bundleId: bundleId))
+    }
+
+    @objc private func handleNotificationRowClick(_ gesture: NSClickGestureRecognizer) {
+        guard let view = gesture.view,
+              let notifId = objc_getAssociatedObject(view, "notifId") as? String else { return }
+        onAction?(.expandNotification(id: notifId))
     }
 
     // MARK: - Section Header (App name + badge count)
@@ -830,10 +892,18 @@ private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NS
         return container
     }
 
-    // MARK: - Notification Row (with context menu for delete/snooze)
+    // MARK: - Notification Row (expandable, clickable)
 
-    private func notificationRowView(notif: TBNotification) -> NSView {
+    private func notificationRowView(notif: TBNotification, expanded: Bool) -> NSView {
         let container = NSView()
+
+        // Hover/click highlight
+        let highlight = NSView()
+        highlight.translatesAutoresizingMaskIntoConstraints = false
+        highlight.wantsLayer = true
+        highlight.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
+        highlight.layer?.cornerRadius = 4
+        container.addSubview(highlight)
 
         let titleLabel = NSTextField(labelWithString: notif.title.isEmpty ? notif.appName : notif.title)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -842,37 +912,96 @@ private class NotificationGroupedDataSource: NSObject, NSTableViewDataSource, NS
         titleLabel.maximumNumberOfLines = 1
         container.addSubview(titleLabel)
 
-        // Body text — FIXED position, no horizontal scroll
-        let bodyLabel = NSTextField(labelWithString: String(notif.body.prefix(100)))
-        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
-        bodyLabel.font = NSFont.systemFont(ofSize: 10)
-        bodyLabel.textColor = .secondaryLabelColor
-        bodyLabel.lineBreakMode = .byTruncatingTail
-        bodyLabel.maximumNumberOfLines = 1
-        bodyLabel.cell?.wraps = false
-        bodyLabel.cell?.isScrollable = true
-        container.addSubview(bodyLabel)
+        if expanded {
+            // Expanded: show full body text
+            let bodyLabel = NSTextField(wrappingLabelWithString: notif.body)
+            bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+            bodyLabel.font = NSFont.systemFont(ofSize: 11)
+            bodyLabel.textColor = .labelColor
+            bodyLabel.maximumNumberOfLines = 0
+            container.addSubview(bodyLabel)
 
-        let timeLabel = NSTextField(labelWithString: Self.relativeTime(notif.date))
-        timeLabel.translatesAutoresizingMaskIntoConstraints = false
-        timeLabel.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .regular)
-        timeLabel.textColor = .tertiaryLabelColor
-        timeLabel.alignment = .right
-        container.addSubview(timeLabel)
+            // "Open App" button
+            let openBtn = NSButton(title: localized("打开", "Open"), target: nil, action: nil)
+            openBtn.translatesAutoresizingMaskIntoConstraints = false
+            openBtn.bezelStyle = .rounded
+            openBtn.font = NSFont.systemFont(ofSize: 10)
+            container.addSubview(openBtn)
+            openBtn.tag = 0 // placeholder
 
-        NSLayoutConstraint.activate([
-            titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 28),
-            titleLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            let timeLabel = NSTextField(labelWithString: Self.relativeTime(notif.date))
+            timeLabel.translatesAutoresizingMaskIntoConstraints = false
+            timeLabel.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .regular)
+            timeLabel.textColor = .tertiaryLabelColor
+            timeLabel.alignment = .right
+            container.addSubview(timeLabel)
 
-            timeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
-            timeLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            timeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 40),
+            NSLayoutConstraint.activate([
+                highlight.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 2),
+                highlight.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -2),
+                highlight.topAnchor.constraint(equalTo: container.topAnchor, constant: 1),
+                highlight.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -1),
 
-            bodyLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            bodyLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
-            bodyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
-        ])
+                titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 28),
+                titleLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
+                titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+
+                timeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                timeLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+                timeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 40),
+
+                bodyLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                bodyLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                bodyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
+            ])
+        } else {
+            // Collapsed: single line body
+            let bodyLabel = NSTextField(labelWithString: String(notif.body.prefix(100)))
+            bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+            bodyLabel.font = NSFont.systemFont(ofSize: 10)
+            bodyLabel.textColor = .secondaryLabelColor
+            bodyLabel.lineBreakMode = .byTruncatingTail
+            bodyLabel.maximumNumberOfLines = 1
+            bodyLabel.cell?.wraps = false
+            bodyLabel.cell?.isScrollable = true
+            container.addSubview(bodyLabel)
+
+            let timeLabel = NSTextField(labelWithString: Self.relativeTime(notif.date))
+            timeLabel.translatesAutoresizingMaskIntoConstraints = false
+            timeLabel.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .regular)
+            timeLabel.textColor = .tertiaryLabelColor
+            timeLabel.alignment = .right
+            container.addSubview(timeLabel)
+
+            // Expand hint arrow
+            let arrowLabel = NSTextField(labelWithString: "▸")
+            arrowLabel.translatesAutoresizingMaskIntoConstraints = false
+            arrowLabel.font = NSFont.systemFont(ofSize: 9)
+            arrowLabel.textColor = .tertiaryLabelColor
+            container.addSubview(arrowLabel)
+
+            NSLayoutConstraint.activate([
+                highlight.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 2),
+                highlight.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -2),
+                highlight.topAnchor.constraint(equalTo: container.topAnchor, constant: 1),
+                highlight.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -1),
+
+                titleLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 28),
+                titleLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
+                titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+
+                timeLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                timeLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+                timeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 40),
+
+                bodyLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                bodyLabel.trailingAnchor.constraint(equalTo: arrowLabel.leadingAnchor, constant: -4),
+                bodyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
+
+                arrowLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                arrowLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 1),
+            ])
+        }
 
         return container
     }

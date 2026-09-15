@@ -2054,10 +2054,12 @@ struct PaletteRibbon: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 22)
-            .padding(.bottom, 4)
 
             // Collapsible category groups (only shown when palette is expanded or searching)
             if paletteExpanded || !searchText.isEmpty {
+                Divider()
+                    .background(EditorColors.hairlineSwift)
+                    .padding(.horizontal, 8)
                 ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
@@ -2082,7 +2084,6 @@ struct PaletteRibbon: View {
                 }
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
