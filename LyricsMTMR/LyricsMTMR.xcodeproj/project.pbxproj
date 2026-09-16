@@ -191,6 +191,8 @@
 		CC0001CC0001CC0001CC0001 /* NotificationCenterWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */; };
 		DD0001DD0001DD0001DD0001 /* NotificationSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */; };
 		EE0001EE0001EE0001EE0001 /* NotificationBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */; };
+		11AA0011AA0011AA0011AA0011 /* NotificationDismissedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11AA0022AA0022AA0022AA0022 /* NotificationDismissedStore.swift */; };
+		11AA0033AA0033AA0033AA0033 /* NotificationCenterPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11AA0044AA0044AA0044AA0044 /* NotificationCenterPanelController.swift */; };
 		FF0001FF0001FF0001FF0001 /* AppFilterPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */; };
 		C0FFEE47465500183E1228AC /* ScreenPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEEE47465500183E1228AC /* ScreenPicker.swift */; };
 		C0FFEE67D3A7E14D9DACF09E /* StandupTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEEE67D3A7E14D9DACF09E /* StandupTimer.swift */; };
@@ -590,6 +592,8 @@
 		CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationCenterWidget.swift; path = MTMR/Widgets/Notification/NotificationCenterWidget.swift; sourceTree = SOURCE_ROOT; };
 		DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationSplitView.swift; path = MTMR/Widgets/Notification/NotificationSplitView.swift; sourceTree = SOURCE_ROOT; };
 		EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationBarItem.swift; path = MTMR/Widgets/Notification/NotificationBarItem.swift; sourceTree = SOURCE_ROOT; };
+		11AA0022AA0022AA0022AA0022 /* NotificationDismissedStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationDismissedStore.swift; path = MTMR/Widgets/Notification/NotificationDismissedStore.swift; sourceTree = SOURCE_ROOT; };
+		11AA0044AA0044AA0044AA0044 /* NotificationCenterPanelController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationCenterPanelController.swift; path = MTMR/Widgets/Notification/NotificationCenterPanelController.swift; sourceTree = SOURCE_ROOT; };
 		FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppFilterPanel.swift; path = MTMR/Preferences/Components/AppFilterPanel.swift; sourceTree = SOURCE_ROOT; };
 		D4F8C6B3CC07457AABDC461B /* SubtitleProviderPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleProviderPlaceholder.swift; sourceTree = "<group>"; };
 		D7BB393923F9A696FE5E94AF /* TimePickerField.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TimePickerField.swift; sourceTree = "<group>"; };
@@ -999,6 +1003,8 @@
 				CC0002CC0002CC0002CC0002 /* NotificationCenterWidget.swift */,
 				DD0002DD0002DD0002DD0002 /* NotificationSplitView.swift */,
 				EE0002EE0002EE0002EE0002 /* NotificationBarItem.swift */,
+				11AA0022AA0022AA0022AA0022 /* NotificationDismissedStore.swift */,
+				11AA0044AA0044AA0044AA0044 /* NotificationCenterPanelController.swift */,
 				FF0002FF0002FF0002FF0002 /* AppFilterPanel.swift */,
 				76B1ECF2607F2F745D4D4BE7 /* SystemMonitorTabView.swift */,
 				BF47AD75968017DAEDF18759 /* WellnessTabView.swift */,
@@ -1474,6 +1480,8 @@
 				CC0001CC0001CC0001CC0001 /* NotificationCenterWidget.swift in Sources */,
 				DD0001DD0001DD0001DD0001 /* NotificationSplitView.swift in Sources */,
 				EE0001EE0001EE0001EE0001 /* NotificationBarItem.swift in Sources */,
+				11AA0011AA0011AA0011AA0011 /* NotificationDismissedStore.swift in Sources */,
+				11AA0033AA0033AA0033AA0033 /* NotificationCenterPanelController.swift in Sources */,
 				FF0001FF0001FF0001FF0001 /* AppFilterPanel.swift in Sources */,
 				3721FA7B746C885FEF66D46A /* SystemMonitorTabView.swift in Sources */,
 				48954A2C766C96737A52AA0B /* WellnessTabView.swift in Sources */,

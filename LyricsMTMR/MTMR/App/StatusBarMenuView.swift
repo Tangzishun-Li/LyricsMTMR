@@ -269,6 +269,7 @@ struct StatusBarMenuView: View {
                 MenuHeader()
                 SettingsButton(model: model)
                 QuickActionRow(model: model)
+                NotificationQuickAction()
                 if !model.slots.isEmpty {
                     MenuSlotCard(model: model)
                 }
@@ -379,6 +380,48 @@ struct QuickActionButton: View {
         }
         .buttonStyle(.plain)
         .onHover { h in withAnimation(.easeOut(duration: 0.15)) { hovering = h } }
+    }
+}
+
+// MARK: - Notification Center Entry
+
+struct NotificationQuickAction: View {
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            NotificationCenterPanelController.shared.configure(
+                filterBundleIds: nil,
+                maxItems: 80,
+                hiddenApps: []
+            )
+            NotificationCenterPanelController.shared.show()
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "bell.badge")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(hovering ? .white : Deck.accent)
+                Text(localized("通知中心", "Notification Center"))
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundColor(Deck.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Deck.textTertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(hovering ? Deck.accent.opacity(0.2) : Deck.cardFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(hovering ? Deck.accent.opacity(0.5) : Deck.hairline, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
     }
 }
 

@@ -141,6 +141,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             button.action = #selector(togglePopover)
             button.target = self
         }
+        // Dedicated menu-bar bell — opens the notification center without
+        // needing the Touch Bar widget.
+        NotificationStatusItemController.shared.install()
         setupPopover()
     }
 
