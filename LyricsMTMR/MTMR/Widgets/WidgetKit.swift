@@ -539,17 +539,20 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
     /// NSTouchBar — it rewrites `delegate` + `defaultItemIdentifiers` and
     /// presents that same object; the controller's items dictionary is never
     /// touched. The minimal inverse is therefore: hand the bar configuration
-    /// back to the controller and re-present the SAME object. Zero JSON
-    /// parsing, zero item construction, no Touch Bar flash.
+    /// back to the controller. Zero JSON parsing, zero item construction,
+    /// no Touch Bar flash.
     ///
-    /// The restore below unconditionally rewrites defaultItemIdentifiers to
-    /// the main-bar layout, so a stale fullView identifier can never be
-    /// presented — no delegate-ownership check is needed. Fallback to the
-    /// legacy reloadPreset path only when there is no bar object or nothing
-    /// left in the item dictionaries (an explicit preset reload mid-session).
-    /// While the whole bar is globally hidden (blacklisted app / exitTouchbar)
-    /// the minimize still lands but we must NOT re-present over the user's
-    /// current bar — presentTouchBar() resumes that on the next reveal.
+    /// The bar is already presented as a system modal (from the initial
+    /// preset load). We must NOT call minimizeSystemModal + presentSystemModal
+    /// here — the minimize puts the bar into a state where re-presenting can
+    /// fail, leaving the Touch Bar black. Instead, just restore delegate and
+    /// defaultItemIdentifiers; the framework re-queries the delegate for the
+    /// new identifiers and the existing basicView (with its live items) is
+    /// displayed immediately.
+    ///
+    /// Fallback to the legacy reloadPreset path only when there is no bar
+    /// object or nothing left in the item dictionaries (an explicit preset
+    /// reload mid-session).
     private func dismissOverlayWithoutRebuild() {
         guard let controller = TouchBarController.shared as? TouchBarController else {
             TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
@@ -560,33 +563,22 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
             return
         }
 
-        // Structural inverse of presentTouchBarWithCurrentItems(): fresh
-        // basic-view identifiers over the unchanged item dictionaries.
-        let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
-        let centerScrollArea = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollArea.".appending(UUID().uuidString))
-        let scrollArea = ScrollViewItem(identifier: centerScrollArea, items: centerItems)
-
-        controller.basicViewIdentifier = NSTouchBarItem.Identifier("com.toxblh.mtmr.scrollView.".appending(UUID().uuidString))
-
+        // Hand the bar back to the controller. The existing basicView and
+        // its child items are still alive in the controller's dictionaries —
+        // no need to rebuild them.
         bar.delegate = controller
         bar.defaultItemIdentifiers = [controller.basicViewIdentifier]
 
-        let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
-        let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
-        controller.basicView = BasicView(identifier: controller.basicViewIdentifier, items: leftItems + [scrollArea] + rightItems, swipeItems: controller.swipeItems)
-        controller.basicView?.legacyGesturesEnabled = AppSettings.multitouchGestures
-
-        if #available(OSX 10.14, *) {
-            NSTouchBar.minimizeSystemModalTouchBar(bar)
+        // showOverlay() called presentSystemModal which created a modal
+        // presentation context. Simply changing delegate + identifiers does
+        // NOT refresh the on-screen content — we must re-present the bar
+        // to push the new layout into the existing modal.  Crucially we do
+        // NOT minimize first: minimizeSystemModal + presentSystemModal can
+        // leave the bar in an unrecoverable black state.
+        if AppSettings.showControlStripState {
+            presentSystemModal(bar, systemTrayItemIdentifier: .controlStripItem)
         } else {
-            NSTouchBar.minimizeSystemModalFunctionBar(bar)
-        }
-        if !TouchBarVisibilityState.shared.isBarHidden {
-            if AppSettings.showControlStripState {
-                presentSystemModal(bar, systemTrayItemIdentifier: .controlStripItem)
-            } else {
-                presentSystemModal(bar, placement: 1, systemTrayItemIdentifier: .controlStripItem)
-            }
+            presentSystemModal(bar, placement: 1, systemTrayItemIdentifier: .controlStripItem)
         }
 
         DispatchQueue.main.async { [weak self] in

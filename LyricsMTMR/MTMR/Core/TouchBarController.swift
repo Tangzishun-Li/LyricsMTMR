@@ -267,6 +267,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     /// Tracks the last app we saw, to detect actual app changes (for .onActivation mode).
     private var lastSeenAppId: String?
 
+    /// The bundle identifier of the last non-self frontmost application.
+    /// Used by the status-bar dropdown so it can show the correct target app
+    /// even when our own app is frontmost (e.g. the dropdown is open).
+    private(set) var lastActiveAppId: String?
+
     /// Whether the user manually overrode the app theme (via themeSwitch). Reset on app change.
     private var userOverrodeAppTheme = false
 
@@ -474,16 +479,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func createAndUpdatePreset(newJsonItems: [BarItemDefinition]) {
-        if let oldBar = self.touchBar {
-            minimizeSystemModal(oldBar)
-        }
+        // Save reference to old bar for cleanup after presenting new one
+        let oldBar = self.touchBar
+        // Create new touch bar first
         touchBar = NSTouchBar()
         jsonItems = newJsonItems
         itemDefinitions = [:]
-
         loadItemDefinitions(jsonItems: jsonItems)
-        
         updateActiveApp()
+        // Minimize the old bar after the new one is presented
+        if let oldBar = oldBar {
+            minimizeSystemModal(oldBar)
+        }
     }
     
     func didItemsChange(prevItems: [NSTouchBarItem.Identifier: NSTouchBarItem], prevSwipeItems: [SwipeItem]) -> Bool {
@@ -578,6 +585,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         let currentAppId = frontmostApplicationIdentifier
         let appDidChange = currentAppId != lastSeenAppId
         lastSeenAppId = currentAppId
+
+        // Track the last non-self app for the status-bar dropdown UI.
+        if let appId = currentAppId, appId != Bundle.main.bundleIdentifier {
+            lastActiveAppId = appId
+        }
 
         // Reset user override flag when the app actually changes
         if appDidChange {
@@ -1081,14 +1093,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
                 self.items = newItemsDict
                 self.swipeItems = newSwipeItems
                 self.failedItemIds = newFailed
-                if let oldBar = self.touchBar {
-                    minimizeSystemModal(oldBar)
-                }
+                // Save reference to old bar for cleanup after presenting new one
+                let oldBar = self.touchBar
+                // Create new touch bar first
                 self.touchBar = NSTouchBar()
                 // Items are already created — just rebuild the touch bar layout
                 // without calling createItems() again (which would double-create
                 // everything and cause the freeze).
                 self.presentTouchBarWithCurrentItems()
+                // Minimize the old bar after the new one is presented
+                if let oldBar = oldBar {
+                    minimizeSystemModal(oldBar)
+                }
                 if !newFailed.isEmpty {
                     AppLog.warn("\(newFailed.count) item(s) failed to load")
                 }

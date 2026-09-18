@@ -2,43 +2,258 @@ import Cocoa
 
 // MARK: - Mirror interaction mode
 
-/// Controls how the mirror bar responds to user input.
 enum MirrorInteractionMode {
-    /// Passive mirror: clicks are ignored, content syncs from the real Touch Bar.
     case mirror
-    /// Live mode: single-click triggers the item's tap action (as if touching the real bar).
     case live
-    /// Edit mode: click to select, drag to reorder, delete to remove.
     case edit
 }
 
-// MARK: - Mirror item wrapper view (handles click/selection)
+// MARK: - Mirror container view (border highlight + hover-to-drag)
 
-/// Wraps a mirror item view, adding click handling and selection highlight.
-class MirrorItemView: NSView {
-    let itemIdentifier: NSTouchBarItem.Identifier
-    let tapAction: (() -> Void)?
-    var doubleTapAction: (() -> Void)?
-    var longPressAction: (() -> Void)?
+class MirrorContainerView: NSView {
+    static let borderWidth: CGFloat = 12
 
+    private let stationaryDelay: TimeInterval = 0.5
+    private let highlightDuration: TimeInterval = 0.8
+    private let highlightColor = NSColor(srgbRed: 0.3, green: 0.6, blue: 1.0, alpha: 0.8)
+
+    private var isMouseInside = false
+    private var highlightProgress: CGFloat = 0
+    private var stationaryTimer: Timer?
+    private var highlightTimer: Timer?
+    private var fadeOutTimer: Timer?
+    private var isDragging = false
+    private var dragStartPoint: NSPoint?
+
+    let contentBackground: TouchBarBackgroundView
+
+    init(frame: NSRect, contentBackground: TouchBarBackgroundView) {
+        self.contentBackground = contentBackground
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor  // Transparent until hover
+        layer?.cornerRadius = TouchBarMetrics.cornerRadius + Self.borderWidth * 0.5
+        layer?.masksToBounds = false
+
+        addSubview(contentBackground)
+        contentBackground.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            contentBackground.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.borderWidth),
+            contentBackground.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.borderWidth),
+            contentBackground.topAnchor.constraint(equalTo: topAnchor, constant: Self.borderWidth),
+            contentBackground.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.borderWidth),
+        ])
+        installTrackingArea()
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    private func installTrackingArea() {
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
+            owner: self, userInfo: nil
+        ))
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        installTrackingArea()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isMouseInside = true
+        restartStationaryTimer()
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if highlightProgress < 1.0 { restartStationaryTimer() }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isMouseInside = false
+        cancelAllTimers()
+        beginFadeOut()
+    }
+
+    private func restartStationaryTimer() {
+        stationaryTimer?.invalidate()
+        stationaryTimer = Timer.scheduledTimer(withTimeInterval: stationaryDelay, repeats: false) { [weak self] _ in
+            guard let self, self.isMouseInside else { return }
+            self.beginHighlightFadeIn()
+        }
+    }
+
+    private func cancelAllTimers() {
+        stationaryTimer?.invalidate(); stationaryTimer = nil
+        highlightTimer?.invalidate(); highlightTimer = nil
+    }
+
+    private func beginHighlightFadeIn() {
+        fadeOutTimer?.invalidate(); fadeOutTimer = nil
+        highlightTimer?.invalidate()
+        let from = highlightProgress
+        let remaining = highlightDuration * (1.0 - from)
+        guard remaining > 0 else { return }
+        let t0 = Date()
+        highlightTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.highlightProgress = min(1.0, from + CGFloat(Date().timeIntervalSince(t0) / remaining) * (1.0 - from))
+            self.commitAppearance()
+            if self.highlightProgress >= 1.0 {
+                self.highlightTimer?.invalidate(); self.highlightTimer = nil
+            }
+        }
+    }
+
+    private func beginFadeOut() {
+        highlightTimer?.invalidate(); highlightTimer = nil
+        fadeOutTimer?.invalidate()
+        guard highlightProgress > 0 else { return }
+        let from = highlightProgress
+        let dur = highlightDuration * from
+        guard dur > 0 else { highlightProgress = 0; commitAppearance(); return }
+        let t0 = Date()
+        fadeOutTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.highlightProgress = max(0, from * (1.0 - CGFloat(Date().timeIntervalSince(t0) / dur)))
+            self.commitAppearance()
+            if self.highlightProgress <= 0 {
+                self.fadeOutTimer?.invalidate(); self.fadeOutTimer = nil
+            }
+        }
+    }
+
+    private func commitAppearance() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let a = highlightProgress * 0.6
+        layer?.borderColor = highlightColor.withAlphaComponent(a).cgColor
+        layer?.borderWidth = Self.borderWidth * highlightProgress * 0.3
+        layer?.shadowColor = highlightColor.cgColor
+        layer?.shadowOpacity = Float(a * 0.5)
+        layer?.shadowRadius = 8 * highlightProgress
+        layer?.shadowOffset = .zero
+        CATransaction.commit()
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        if highlightProgress >= 1.0 { addCursorRect(bounds, cursor: .openHand) }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard highlightProgress >= 1.0 else { super.mouseDown(with: event); return }
+        isDragging = true
+        dragStartPoint = event.locationInWindow
+        NSCursor.closedHand.push()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard isDragging, let start = dragStartPoint, let win = window else { return }
+        let cur = event.locationInWindow
+        var f = win.frame
+        f.origin.x += cur.x - start.x
+        f.origin.y += cur.y - start.y
+        win.setFrame(f, display: true)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard isDragging else { return }
+        isDragging = false; dragStartPoint = nil
+        NSCursor.pop()
+    }
+
+    deinit {
+        cancelAllTimers(); fadeOutTimer?.invalidate()
+        if let m = globalMonitor { NSEvent.removeMonitor(m) }
+    }
+
+    // MARK: - Click-through: border area is invisible to hit-testing until highlighted.
+    // A global mouse monitor detects proximity and triggers the highlight animation.
+
+    private var globalMonitor: Any?
+    private var isMouseNear = false
+
+    /// Start monitoring global mouse position for proximity detection.
+    /// Called when the mirror window is shown.
+    func startProximityMonitor() {
+        guard globalMonitor == nil else { return }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            guard let self, let window = self.window else { return }
+            let mouse = NSEvent.mouseLocation
+            let wf = window.frame
+            // Mouse is "near" if within the window frame expanded by 30pt
+            let expanded = wf.insetBy(dx: -30, dy: -30)
+            let near = expanded.contains(mouse)
+            if near && !self.isMouseNear {
+                self.isMouseNear = true
+                self.beginHighlightFadeIn()
+            } else if !near && self.isMouseNear {
+                self.isMouseNear = false
+                self.beginFadeOut()
+            }
+        }
+    }
+
+    func stopProximityMonitor() {
+        if let m = globalMonitor { NSEvent.removeMonitor(m); globalMonitor = nil }
+        isMouseNear = false
+    }
+
+    /// hitTest returns nil for border area when not fully highlighted →
+    /// mouse events pass through to apps below. Content area always works.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Content area → normal hit testing (items get events)
+        let contentFrame = contentBackground.frame
+        if contentFrame.contains(point) {
+            return contentBackground.hitTest(point) ?? contentBackground
+        }
+        // Border area → click-through until highlighted enough to drag
+        if highlightProgress >= 1.0 {
+            return self  // Draggable
+        }
+        return nil  // Click-through
+    }
+}
+
+// MARK: - Touch bar background view
+
+class TouchBarBackgroundView: NSView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor(white: 0.06, alpha: 0.95).cgColor
+        layer?.cornerRadius = TouchBarMetrics.cornerRadius
+        layer?.borderWidth = 0.5
+        layer?.borderColor = NSColor(white: 0.18, alpha: 0.8).cgColor
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = 0.5
+        layer?.shadowOffset = CGSize(width: 0, height: 2)
+        layer?.shadowRadius = 6
+        layer?.masksToBounds = true  // Clip overflowing mirror items
+    }
+    required init?(coder: NSCoder) { return nil }
+}
+
+// MARK: - Selection overlay (edit mode)
+
+class MirrorSelectionOverlay: NSView {
     var isSelected: Bool = false {
         didSet {
             layer?.borderWidth = isSelected ? 2 : 0
             layer?.borderColor = isSelected
-                ? NSColor(srgbRed: 1.00, green: 0.56, blue: 0.34, alpha: 1).cgColor  // EditorColors.accent
+                ? NSColor(srgbRed: 1.00, green: 0.56, blue: 0.34, alpha: 1).cgColor
                 : NSColor.clear.cgColor
         }
     }
 
-    private var mouseDownTime: Date?
-    private var clickCount: Int = 0
-    private var clickTimer: Timer?
-    private let longPressDuration: TimeInterval = 0.5
-    private let doubleClickInterval: TimeInterval = 0.3
+    let itemIdentifier: NSTouchBarItem.Identifier
 
-    init(frame: NSRect, identifier: NSTouchBarItem.Identifier, tapAction: (() -> Void)?) {
+    init(frame: NSRect, identifier: NSTouchBarItem.Identifier) {
         self.itemIdentifier = identifier
-        self.tapAction = tapAction
         super.init(frame: frame)
         wantsLayer = true
         layer?.cornerRadius = 4
@@ -48,115 +263,94 @@ class MirrorItemView: NSView {
 
     required init?(coder: NSCoder) { return nil }
 
-    override func mouseDown(with event: NSEvent) {
-        layer?.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
-        mouseDownTime = Date()
-
-        // Long press detection
-        DispatchQueue.main.asyncAfter(deadline: .now() + longPressDuration) { [weak self] in
-            guard let self = self, self.mouseDownTime != nil else { return }
-            // Still pressed after longPressDuration
-            self.layer?.backgroundColor = NSColor.clear.cgColor
-            self.mouseDownTime = nil
-            self.longPressAction?()
-        }
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.clear.cgColor
-        guard mouseDownTime != nil else { return }
-        mouseDownTime = nil
-
-        clickCount += 1
-        clickTimer?.invalidate()
-
-        if clickCount >= 2 {
-            // Double click
-            clickCount = 0
-            doubleTapAction?()
-        } else {
-            // Wait for possible second click
-            clickTimer = Timer.scheduledTimer(withTimeInterval: doubleClickInterval, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-                if self.clickCount == 1 {
-                    self.clickCount = 0
-                    self.tapAction?()
-                }
-            }
-        }
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        layer?.backgroundColor = NSColor.clear.cgColor
-        mouseDownTime = nil  // Cancel long press
-    }
+    // Pass through ALL mouse events so the item's gesture recognizers work
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
+// MARK: - Touch bar mirror window controller
+
 class TouchBarMirrorWindowController: NSObject {
+
+    /// Convert centimeters to screen points using the main display's physical size.
+    static func pointsForCM(_ cm: CGFloat) -> CGFloat {
+        guard let screen = NSScreen.main,
+              let did = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        else { return 680 }
+        let mm = CGDisplayScreenSize(did)
+        guard mm.width > 0 else { return 680 }
+        return screen.frame.width * (cm * 10.0) / mm.width
+    }
     static let shared = TouchBarMirrorWindowController()
 
     private var window: NSPanel?
+    private var container: MirrorContainerView?
     private var stackView: NSStackView?
     private var syncTimer: Timer?
 
-    // MARK: - Interaction mode (Phase 1: 1-3, 1-4)
+    // MARK: - Interaction mode
 
-    /// Current interaction mode. Defaults to `.live` (click triggers actions).
-    /// Changing mode triggers a full mirror refresh so views get wrapped/unwrapped.
     var interactionMode: MirrorInteractionMode = .live {
         didSet {
             guard oldValue != interactionMode else { return }
             selectedIdentifier = nil
-            syncFromTouchBar()
+            rebuildMirror()
         }
     }
 
-    /// Currently selected item identifier (edit mode only).
-    private var selectedIdentifier: NSTouchBarItem.Identifier?
+    // MARK: - Mirror item factory (same construction switch as real Touch Bar)
 
-    /// All MirrorItemView wrappers currently in the stackView (for selection management).
-    private var mirrorItemViews: [MirrorItemView] {
-        stackView?.arrangedSubviews.compactMap { $0 as? MirrorItemView } ?? []
+    private lazy var mirrorFactory = BarItemFactory(
+        actionResolver: { [weak self] def in
+            guard self != nil else { return nil }
+            return TouchBarController.shared.action(forItem: def)
+        },
+        longActionResolver: { [weak self] def in
+            guard self != nil else { return nil }
+            return TouchBarController.shared.longAction(forItem: def)
+        },
+        closureResolver: { [weak self] act in
+            guard self != nil else { return nil }
+            return TouchBarController.shared.closure(for: act)
+        }
+    )
+
+    private var mirrorItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
+    private var mirrorIdToControllerId: [NSTouchBarItem.Identifier: NSTouchBarItem.Identifier] = [:]
+
+    // MARK: - Selection (edit mode)
+
+    private var selectedIdentifier: NSTouchBarItem.Identifier?
+    private var selectionOverlays: [MirrorSelectionOverlay] {
+        func findOverlays(in view: NSView) -> [MirrorSelectionOverlay] {
+            var result: [MirrorSelectionOverlay] = []
+            if let o = view as? MirrorSelectionOverlay { result.append(o) }
+            for sub in view.subviews { result.append(contentsOf: findOverlays(in: sub)) }
+            return result
+        }
+        return stackView?.arrangedSubviews.flatMap { findOverlays(in: $0) } ?? []
     }
 
-    /// item 内容指纹缓存：指纹未变化的 item 视图原地保留（增量同步，OPT-17）
-    private var itemFingerprints: [NSTouchBarItem.Identifier: ItemFingerprint] = [:]
+    // MARK: - Sync infrastructure (OPT-17 / ITER-15)
 
-    /// ITER-3: 快照类 item 节流。快照类（AppScrubber/音量/亮度/自定义视图）没有低成本
-    /// 指纹，旧逻辑每 0.1s tick 都重截一次位图；它们的内容变化频率远低于 10Hz，
-    /// 因此只允许每隔若干 tick（ITER-9 按快照 item 数量自适应，见下）重建一次。
-    /// ITER-11: syncTick 在 show() 时归零，使快照相位在每次显示后可预期。
+    private var itemFingerprints: [NSTouchBarItem.Identifier: ItemFingerprint] = [:]
     private var syncTick: Int = 0
 
-    /// ITER-15: 指纹类 item 的内容脏标记。由 CustomButtonTouchBarItem 的
-    /// attributedTitle/image didSet 经 noteContentDirty(identifier:) 置位——指纹类内容
-    /// 变化不再依赖轮询兜底，而是事件驱动；心跳 tick 只在「脏 或 快照节流到期」时才做同步。
-    /// 线程安全：didSet 可能来自任意队列（如网络回调），全部经 contentDirtyLock 保护。
     private let contentDirtyLock = NSLock()
     private var _contentDirtyIdentifiers: Set<NSTouchBarItem.Identifier> = []
-    /// 是否已有一个合并同步在主队列排队（防高频内容风暴重复排队，coalesce 核心）。
     private var _coalesceScheduled = false
 
-    /// ITER-15: 当前是否存在未消费的内容脏位。
-    /// `internal` (was `private`) so MTMRTests can assert the dirty-flag lifecycle
-    /// via `@testable import` (ITER-15); no logic change.
     var contentDirty: Bool {
         contentDirtyLock.lock()
         defer { contentDirtyLock.unlock() }
         return !_contentDirtyIdentifiers.isEmpty
     }
 
-    /// ITER-15: 当前是否有合并同步排队中（测试观察面，恒等 _coalesceScheduled）。
     var isCoalesceScheduledForTesting: Bool {
         contentDirtyLock.lock()
         defer { contentDirtyLock.unlock() }
         return _coalesceScheduled
     }
 
-    /// ITER-15: 内容变更事件入口（线程安全、幂等合并）。任意线程/任意次数调用都只是置脏；
-    /// 仅当没有排队中的合并同步时才向主队列排一个 —— 同一轮高频内容风暴（N 次置脏）
-    /// 只触发一次实际 syncFromTouchBar()，防抖不放大。主队列块先取走并清空脏位再同步，
-    /// 同步期间新到的置脏会重新排队下一跳（不丢事件）。
     func noteContentDirty(identifier: NSTouchBarItem.Identifier) {
         contentDirtyLock.lock()
         _contentDirtyIdentifiers.insert(identifier)
@@ -165,21 +359,17 @@ class TouchBarMirrorWindowController: NSObject {
         contentDirtyLock.unlock()
         guard shouldSchedule else { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            // 取走脏位并解除排队标记；期间新置的脏由后续调用自行排队
+            guard let self else { return }
             self.contentDirtyLock.lock()
             let ids = self._contentDirtyIdentifiers
             self._contentDirtyIdentifiers.removeAll()
             self._coalesceScheduled = false
             self.contentDirtyLock.unlock()
-            guard !ids.isEmpty else { return }  // 脏位已被心跳先行消费 → 零工作返回
+            guard !ids.isEmpty else { return }
             self.syncFromTouchBar()
         }
     }
 
-    /// ITER-9: 快照节流间隔按当前布局中快照类 item 数量自适应 —— 快照越多，
-    /// 每 tick 全量重截位图越贵，间隔越长：
-    /// 0-1 个 → 5 tick（0.5s，原值）；2 个 → 7 tick（0.7s，中间值）；≥3 个 → 10 tick（1s）。
     private static func snapshotRefreshInterval(forSnapshotCount count: Int) -> Int {
         switch count {
         case 0...1: return 5
@@ -192,7 +382,6 @@ class TouchBarMirrorWindowController: NSObject {
         didSet { AppSettings.showMirrorWindow = isVisible }
     }
 
-    // MARK: - Keyboard event monitor (edit mode delete key)
     private var keyMonitor: Any?
 
     private override init() {
@@ -202,54 +391,72 @@ class TouchBarMirrorWindowController: NSObject {
         }
     }
 
+    // MARK: - Show / Hide / Toggle
+
     func show() {
-        // ITER-11: 快照相位归零 —— 每次显示后节流节奏重新从第 1 个 tick 起算，
-        // 快照刷新时刻可预期（间隔固定时始终是「显示后第 N 个 tick」）。
         syncTick = 0
         if window != nil {
             window?.orderFront(nil)
             isVisible = true
             startSyncTimer()
             installKeyMonitor()
+            container?.startProximityMonitor()
             return
         }
 
+        let bw = MirrorContainerView.borderWidth
+        let contentW = Self.pointsForCM(24)
+        let contentH = TouchBarMetrics.physicalHeight
+        let totalW = contentW + bw * 2
+        let totalH = contentH + bw * 2
+
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 34),
+            contentRect: NSRect(x: 0, y: 0, width: totalW, height: totalH),
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
+            backing: .buffered, defer: false
         )
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
-        panel.isMovableByWindowBackground = true
+        panel.isMovableByWindowBackground = false
         panel.hasShadow = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
 
-        let bg = TouchBarBackgroundView(frame: panel.contentView!.bounds)
-        bg.autoresizingMask = [.width, .height]
-        panel.contentView?.addSubview(bg)
+        let bg = TouchBarBackgroundView(frame: NSRect(x: 0, y: 0,
+            width: contentW, height: contentH))
 
         let sv = NSStackView()
-        sv.spacing = 8
+        sv.spacing = 4
         sv.orientation = .horizontal
         sv.alignment = .centerY
         sv.translatesAutoresizingMaskIntoConstraints = false
+        sv.distribution = .fill
         bg.addSubview(sv)
-
         NSLayoutConstraint.activate([
-            sv.centerXAnchor.constraint(equalTo: bg.centerXAnchor),
             sv.centerYAnchor.constraint(equalTo: bg.centerYAnchor),
-            sv.leadingAnchor.constraint(greaterThanOrEqualTo: bg.leadingAnchor, constant: 8),
-            sv.trailingAnchor.constraint(lessThanOrEqualTo: bg.trailingAnchor, constant: -8),
+            sv.leadingAnchor.constraint(equalTo: bg.leadingAnchor, constant: 4),
+            sv.trailingAnchor.constraint(lessThanOrEqualTo: bg.trailingAnchor, constant: -4),
+            sv.topAnchor.constraint(greaterThanOrEqualTo: bg.topAnchor, constant: 2),
+            sv.bottomAnchor.constraint(lessThanOrEqualTo: bg.bottomAnchor, constant: -2),
         ])
-
         stackView = sv
+
+        let ctr = MirrorContainerView(frame: panel.contentView!.bounds, contentBackground: bg)
+        ctr.autoresizingMask = [.width, .height]
+        panel.contentView?.addSubview(ctr)
+        ctr.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            ctr.widthAnchor.constraint(equalToConstant: totalW),
+            ctr.heightAnchor.constraint(equalToConstant: totalH),
+            ctr.centerXAnchor.constraint(equalTo: panel.contentView!.centerXAnchor),
+            ctr.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
+        ])
+        container = ctr
 
         window = panel
         positionAtBottomCenter()
@@ -259,52 +466,36 @@ class TouchBarMirrorWindowController: NSObject {
         syncFromTouchBar()
         startSyncTimer()
         installKeyMonitor()
+        container?.startProximityMonitor()
     }
 
     func hide() {
-        syncTimer?.invalidate()
-        syncTimer = nil
+        syncTimer?.invalidate(); syncTimer = nil
         removeKeyMonitor()
+        container?.stopProximityMonitor()
         window?.orderOut(nil)
         isVisible = false
     }
 
-    func toggle() {
-        isVisible ? hide() : show()
-    }
+    func toggle() { isVisible ? hide() : show() }
 
-    // MARK: - Key monitor (edit mode: delete key)
+    // MARK: - Key monitor (edit mode)
 
     private func installKeyMonitor() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self, self.interactionMode == .edit else { return event }
-            if event.keyCode == 51 {  // Delete/Backspace
-                if self.deleteSelected() {
-                    return nil  // consume the event
-                }
-            }
+            guard let self, self.interactionMode == .edit else { return event }
+            if event.keyCode == 51 { if self.deleteSelected() { return nil } }
             return event
         }
     }
 
     private func removeKeyMonitor() {
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
-        }
+        if let monitor = keyMonitor { NSEvent.removeMonitor(monitor); keyMonitor = nil }
     }
 
-    /// ITER-15: 0.1s 兜底轮询 → 1s 脏检查心跳。
-    /// 演进缘由：增量指纹比对（OPT-17）落地后绝大多数 tick 本就零重建，10Hz 主线程
-    /// 唤醒只剩兜底价值却仍是常驻开销；事件源其实早已存在——TouchBarController 在
-    /// 布局重建/activeApp 变化时主动调 syncFromTouchBar()（TouchBarController.swift
-    /// :567/:926），ITER-15 再把「item 内容变化」也事件化（CustomButtonTouchBarItem
-    /// didSet → noteContentDirty）。于是轮询降级为 1s 心跳，仅当「指纹类内容脏 或
-    /// 快照类节流到期」才真正同步，否则零工作返回：
-    ///   - 快照类 item 存在时沿用 ITER-9 自适应间隔语义，换算见 snapshotDueTickLimit；
-    ///   - 纯指纹类布局空闲心跳成本 ≈ 一次 Set 查询；
-    ///   - 布局级事件路径（:567/:926 → isHeartbeat=false）保持即时同步不变。
+    // MARK: - Sync timer
+
     private func startSyncTimer() {
         syncTimer?.invalidate()
         syncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -313,33 +504,26 @@ class TouchBarMirrorWindowController: NSObject {
     }
 
     private func positionAtBottomCenter() {
-        guard let window = window, let screen = NSScreen.main else { return }
+        guard let window, let screen = NSScreen.main else { return }
         let sf = screen.frame
-        let w = min(sf.width * 0.76, 1065)
-        let x = sf.origin.x + (sf.width - w) / 2
+        let wf = window.frame
+        let x = sf.origin.x + (sf.width - wf.width) / 2
         let y = sf.origin.y + 4
-        window.setFrame(NSRect(x: x, y: y, width: w, height: 34), display: true)
+        window.setFrame(NSRect(x: x, y: y, width: wf.width, height: wf.height), display: true)
     }
 
-    /// 增量同步（OPT-17）：与 Touch Bar 当前布局做结构对齐，仅重建内容变化的 item 视图，
-    /// 未变化的视图与分隔线原地保留 —— 取代原先每 0.1s 全量清空 stackView 并重建全部 item NSView。
-    /// 布局增删/换序时 TouchBarController 已事件驱动调用本方法，无需依赖高频轮询。
-    ///
-    /// ITER-15: isHeartbeat 区分两类入口：
-    ///   - true（1s 心跳）：仅当「指纹类内容脏 或 快照节流到期」才执行同步，
-    ///     否则零工作返回（不触 TouchBarController.shared 单例初始化）；
-    ///   - false（默认；noteContentDirty 合并路径 + :567/:926 布局事件）：即时同步不变。
+    // MARK: - Incremental sync (OPT-17 + ITER-15)
+
+    private func rebuildMirror() {
+        discardMirrorItems()
+        syncFromTouchBar()
+    }
+
     func syncFromTouchBar(isHeartbeat: Bool = false) {
-        // ITER-15: 心跳门控。纯指纹布局且无脏位 → 本 tick 零工作。
-        // 门控判定不触碰 TouchBarController.shared：无窗口上下文（含单测）零副作用；
         if isHeartbeat {
             guard contentDirty || Self.layoutHasSnapshotItems() else { return }
         }
 
-        // ITER-15: 消费当前脏位——本次调用即被视为「已负责反映最新内容」
-        // （布局事件路径的全量同步经指纹比对天然覆盖内容变化；无窗口时无可反射面，
-        // 下一次内容变更会重新置脏）。消费先行于 stackView 守卫：置脏后窗口关闭
-        // 的场景也不残留陈旧脏位。
         contentDirtyLock.lock()
         _contentDirtyIdentifiers.removeAll()
         contentDirtyLock.unlock()
@@ -349,124 +533,257 @@ class TouchBarMirrorWindowController: NSObject {
 
         syncTick += 1
 
-        let leftItems = controller.leftIdentifiers.compactMap { controller.items[$0] }
-        let centerItems = controller.centerIdentifiers.compactMap { controller.items[$0] }
-        let rightItems = controller.rightIdentifiers.compactMap { controller.items[$0] }
-
-        // ITER-9: 每 tick 按当前布局中快照类 item 数（fingerprint 为 nil，即
-        // AppScrubber/音量/亮度/自定义视图等无低成本指纹的 item）求自适应节流间隔；
-        // 数量变化后下一 tick 自动切换间隔。
-        let snapshotCount = (leftItems + centerItems + rightItems)
-            .filter { fingerprint(of: $0) == nil }.count
-        // ITER-3: 只有到了降频刷新点，快照类 item 才允许重建（重截位图）
-        // ITER-15: 心跳 10× 变慢后按时间重标定——旧间隔 N 个 0.1s tick = N×0.1 秒，
-        // 每秒至多 1 个心跳 → 到期上限 max(1, round(N×0.1)) 个心跳（5/7/10 tick
-        // ≈ 0.5/0.7/1.0s → 全部 ≤1 心跳），快照刷新延迟不劣于 ITER-9 原值。
-        let snapshotDueTickLimit = Self.snapshotDueHeartbeats(forLegacyTicks: Self.snapshotRefreshInterval(forSnapshotCount: snapshotCount))
-        let snapshotDue = syncTick % snapshotDueTickLimit == 0
-
-        // 目标布局：与全量重建一致的 (item | separator) 序列
-        var targets: [MirrorElement] = []
-        var first = true
-        for items in [leftItems, centerItems, rightItems] {
-            if items.isEmpty { continue }
-            if !first { targets.append(.separator) }
-            first = false
-            targets.append(contentsOf: items.map { .item($0) })
+        let leftDefs = controller.leftIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
+            controller.itemDefinitions[id].map { (id, $0) }
+        }
+        let centerDefs = controller.centerIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
+            controller.itemDefinitions[id].map { (id, $0) }
+        }
+        let rightDefs = controller.rightIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
+            controller.itemDefinitions[id].map { (id, $0) }
         }
 
-        var current = sv.arrangedSubviews
-        var liveIdentifiers = Set<NSTouchBarItem.Identifier>()
+        let snapshotCount = (leftDefs + centerDefs + rightDefs).filter {
+            Self.instanceFingerprint(of: controller.items[$0.0]) == nil
+        }.count
+        let snapshotDueTickLimit = Self.snapshotDueHeartbeats(
+            forLegacyTicks: Self.snapshotRefreshInterval(forSnapshotCount: snapshotCount))
+        let snapshotDue = syncTick % snapshotDueTickLimit == 0
 
-        // 按位置对齐：类型不匹配 → 换视图；同 item 且指纹未变 → 原地保留；指纹变化 → 只重建该单个视图
-        for (index, target) in targets.enumerated() {
-            if index < current.count {
-                let existing = current[index]
-                if view(existing, matches: target) {
-                    if case let .item(item) = target {
-                        liveIdentifiers.insert(item.identifier)
-                        if let fingerprint = fingerprint(of: item) {
-                            if itemFingerprints[item.identifier] == fingerprint { continue }  // 内容未变
-                            // 指纹变化 → 只重建该单个视图；makeView 会带上 identifier，
-                            // 保证下一轮同步仍能命中 matches（避免无标识视图再被 else 分支重建一次）
-                            let newView = makeView(for: .item(item))
-                            replace(existing, with: newView, in: sv, at: index)
-                            current[index] = newView
-                            itemFingerprints[item.identifier] = fingerprint
-                        } else {
-                            // 快照类（AppScrubber/音量/亮度/自定义视图）：无低成本指纹。
-                            // FIX-1 语义保留：快照必须能刷新，绝不永久冻结 —— 只是降频。
-                            // ITER-3 + ITER-9：按当前快照 item 数量自适应间隔
-                            // （1 个 ≈0.5s，2 个 ≈0.7s，3 个以上 ≈1s）才重建一次；
-                            // 未到刷新点时原地保留上一帧快照。
-                            if !snapshotDue { continue }
-                            itemFingerprints.removeValue(forKey: item.identifier)
-                            let newView = makeView(for: .item(item))
-                            replace(existing, with: newView, in: sv, at: index)
-                            current[index] = newView
-                        }
-                    }
-                } else {
-                    let newView = makeView(for: target)
-                    replace(existing, with: newView, in: sv, at: index)
-                    current[index] = newView
-                    remember(newView, for: target, identifiers: &liveIdentifiers)
-                }
-            } else {
-                let newView = makeView(for: target)
-                sv.addArrangedSubview(newView)
-                current.append(newView)
-                remember(newView, for: target, identifiers: &liveIdentifiers)
+        // Build (isSeparator, controllerId?, definition?) targets
+        var targetsIsSep: [Bool] = []
+        var targetIds: [NSTouchBarItem.Identifier?] = []
+        var targetDefs: [BarItemDefinition?] = []
+        var first = true
+        for defs in [leftDefs, centerDefs, rightDefs] {
+            if defs.isEmpty { continue }
+            if !first { targetsIsSep.append(true); targetIds.append(nil); targetDefs.append(nil) }
+            first = false
+            for (cid, def) in defs {
+                targetsIsSep.append(false); targetIds.append(cid); targetDefs.append(def)
             }
         }
 
-        // 移除尾部多余视图（item 被移除/布局收窄）
-        while current.count > targets.count {
+        var current = sv.arrangedSubviews
+        var liveControllerIds = Set<NSTouchBarItem.Identifier>()
+
+        for index in 0..<targetsIsSep.count {
+            let isSep = targetsIsSep[index]
+            let tid = targetIds[index]
+            let targetId = isSep ? Self.separatorIdentifier : NSUserInterfaceItemIdentifier(tid!.rawValue)
+
+            if index < current.count, current[index].identifier == targetId {
+                if !isSep, let cid = tid {
+                    liveControllerIds.insert(cid)
+                    let controllerItem = controller.items[cid]
+                    if let fp = Self.instanceFingerprint(of: controllerItem) {
+                        if itemFingerprints[cid] == fp { continue }
+                        let newView = makeMirrorItemView(controllerId: cid, definition: targetDefs[index]!)
+                        replace(current[index], with: newView, in: sv, at: index)
+                        current[index] = newView
+                        itemFingerprints[cid] = fp
+                    } else {
+                        if !snapshotDue { continue }
+                        itemFingerprints.removeValue(forKey: cid)
+                        let newView = makeMirrorItemView(controllerId: cid, definition: targetDefs[index]!)
+                        replace(current[index], with: newView, in: sv, at: index)
+                        current[index] = newView
+                    }
+                }
+            } else {
+                let newView: NSView = isSep ? makeSeparatorView() : makeMirrorItemView(controllerId: tid!, definition: targetDefs[index]!)
+                if index < current.count {
+                    replace(current[index], with: newView, in: sv, at: index)
+                    current[index] = newView
+                } else {
+                    sv.addArrangedSubview(newView)
+                    current.append(newView)
+                }
+                if !isSep, let cid = tid {
+                    liveControllerIds.insert(cid)
+                    if let fp = Self.instanceFingerprint(of: controller.items[cid]) {
+                        itemFingerprints[cid] = fp
+                    }
+                }
+            }
+        }
+
+        while current.count > targetsIsSep.count {
             let extra = current.removeLast()
             sv.removeArrangedSubview(extra)
             extra.removeFromSuperview()
         }
 
-        // 清理已不在布局中的指纹缓存
-        itemFingerprints = itemFingerprints.filter { liveIdentifiers.contains($0.key) }
+        itemFingerprints = itemFingerprints.filter { liveControllerIds.contains($0.key) }
     }
 
-    // MARK: - 增量同步辅助（OPT-17）
+    // MARK: - View building (reuses BarItemFactory)
 
-    /// ITER-15: 心跳周期（秒）。旧兜底轮询 0.1s 的 10 倍。
+    private static let separatorIdentifier = NSUserInterfaceItemIdentifier("mirror.separator")
+
+    private func makeSeparatorView() -> NSView {
+        let line = NSBox()
+        line.boxType = .separator
+        line.translatesAutoresizingMaskIntoConstraints = false
+        line.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        line.widthAnchor.constraint(equalToConstant: 1).isActive = true
+        line.identifier = Self.separatorIdentifier
+        return line
+    }
+
+    /// Creates a mirror item using the mirror's own BarItemFactory.
+    /// Same construction switch as the real Touch Bar — same view class,
+    /// same styling, same gesture recognizers.
+    private func makeMirrorItemView(
+        controllerId: NSTouchBarItem.Identifier,
+        definition: BarItemDefinition
+    ) -> NSView {
+        let mirrorId = NSTouchBarItem.Identifier("mirror.\(controllerId.rawValue)")
+        let mirrorItem = mirrorFactory.createItemSafely(forIdentifier: mirrorId, definition: definition)
+
+        mirrorItems[mirrorId] = mirrorItem
+        mirrorIdToControllerId[mirrorId] = controllerId
+
+        guard let mirrorItem else {
+            let l = NSTextField(labelWithString: "?")
+            l.textColor = .white; l.font = .systemFont(ofSize: 13, weight: .medium)
+            l.translatesAutoresizingMaskIntoConstraints = false
+            return l
+        }
+
+        // Touch Bar renders items without button chrome — force isBordered=false
+        // unless the JSON definition explicitly says bordered:true
+        if let btn = mirrorItem as? CustomButtonTouchBarItem {
+            if case .bordered(true)? = definition.additionalParameters[.bordered] {
+                // Keep bordered
+            } else {
+                btn.isBordered = false
+            }
+        }
+
+        // Mirror mode: strip gesture recognizers (passive display)
+        if interactionMode == .mirror {
+            if let v = mirrorItem.view {
+                for gr in v.gestureRecognizers { v.removeGestureRecognizer(gr) }
+            }
+        }
+
+        guard let itemView = mirrorItem.view else {
+            return NSTextField(labelWithString: "?")
+        }
+        itemView.translatesAutoresizingMaskIntoConstraints = false
+        itemView.identifier = NSUserInterfaceItemIdentifier(controllerId.rawValue)
+
+        // Cap item width to prevent overflow — max 40% of content area
+        let maxW = Self.pointsForCM(24) * 0.4
+        if itemView.intrinsicContentSize.width > maxW {
+            itemView.widthAnchor.constraint(lessThanOrEqualToConstant: maxW).isActive = true
+        }
+
+        guard interactionMode != .mirror else { return itemView }
+
+        // Live / Edit mode: wrap with gesture handling + sync trigger
+        let wrapper = interactionMode == .edit ? NSView() : itemView
+        if interactionMode == .edit {
+            wrapper.translatesAutoresizingMaskIntoConstraints = false
+            wrapper.identifier = NSUserInterfaceItemIdentifier(controllerId.rawValue)
+            wrapper.addSubview(itemView)
+            NSLayoutConstraint.activate([
+                itemView.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+                itemView.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+                itemView.topAnchor.constraint(equalTo: wrapper.topAnchor),
+                itemView.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
+            ])
+            let overlay = MirrorSelectionOverlay(frame: .zero, identifier: controllerId)
+            overlay.translatesAutoresizingMaskIntoConstraints = false
+            let click = NSClickGestureRecognizer(target: self, action: #selector(handleEditClick(_:)))
+            click.allowedTouchTypes = .direct
+            overlay.addGestureRecognizer(click)
+            wrapper.addSubview(overlay)
+            NSLayoutConstraint.activate([
+                overlay.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+                overlay.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+                overlay.topAnchor.constraint(equalTo: wrapper.topAnchor),
+                overlay.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
+            ])
+        }
+
+        return wrapper
+    }
+
+    @objc private func handleEditClick(_ gr: NSClickGestureRecognizer) {
+        guard let overlay = gr.view as? MirrorSelectionOverlay else { return }
+        selectItem(identifier: overlay.itemIdentifier)
+    }
+
+    // MARK: - Selection management (edit mode)
+
+    private func selectItem(identifier: NSTouchBarItem.Identifier) {
+        for overlay in selectionOverlays {
+            overlay.isSelected = overlay.itemIdentifier == identifier
+        }
+        selectedIdentifier = identifier
+    }
+
+    func deselectAll() {
+        selectedIdentifier = nil
+        for overlay in selectionOverlays { overlay.isSelected = false }
+    }
+
+    @discardableResult
+    func deleteSelected() -> Bool {
+        guard interactionMode == .edit, let selId = selectedIdentifier else { return false }
+        let controller = TouchBarController.shared
+
+        var removed = false
+        if let idx = controller.leftIdentifiers.firstIndex(of: selId) {
+            controller.leftIdentifiers.remove(at: idx); removed = true
+        } else if let idx = controller.centerIdentifiers.firstIndex(of: selId) {
+            controller.centerIdentifiers.remove(at: idx); removed = true
+        } else if let idx = controller.rightIdentifiers.firstIndex(of: selId) {
+            controller.rightIdentifiers.remove(at: idx); removed = true
+        }
+
+        if removed {
+            controller.items.removeValue(forKey: selId)
+            controller.itemDefinitions.removeValue(forKey: selId)
+            let path = controller.lastPresetPath
+            if !path.isEmpty { controller.reloadPreset(path: path) }
+        }
+
+        deselectAll()
+        return removed
+    }
+
+    // MARK: - Mirror item lifecycle
+
+    private func discardMirrorItems() {
+        mirrorItems.removeAll()
+        mirrorIdToControllerId.removeAll()
+    }
+
+    // MARK: - Sync helpers (OPT-17 / ITER-15)
+
     static let heartbeatSeconds: Double = 1.0
 
-    /// ITER-15: ITER-9 自适应间隔（旧 0.1s tick 计数 N）换算为心跳到期上限。
-    /// 时间等价：N 个 0.1s tick = N×0.1s；心跳粒度 1s → max(1, round(N×0.1))。
-    /// 现行值域 5/7/10 tick ≈ 0.5/0.7/1.0s → 全部折算为 1 心跳，快照刷新延迟
-    /// 不劣于 ITER-9 原值；若未来间隔显著加长，公式自动按秒放大。
-    /// `static internal` so MTMRTests can pin the rescale semantics (ITER-15).
     static func snapshotDueHeartbeats(forLegacyTicks legacyTicks: Int) -> Int {
-        return max(1, Int((Double(legacyTicks) * legacyTickSeconds / heartbeatSeconds).rounded()))
+        max(1, Int((Double(legacyTicks) * legacyTickSeconds / heartbeatSeconds).rounded()))
     }
 
-    /// ITER-15: 旧轮询 tick 周期（秒）——ITER-9 间隔的时间基准。
     private static let legacyTickSeconds: Double = 0.1
 
-    /// ITER-15: 当前布局是否含快照类 item（无低成本指纹者）。
-    /// 只读 controller.items 字典与 identifier 数组——刻意不触发视图构建；
-    /// `static internal` so MTMRTests can drive the heartbeat gate (ITER-15).
     static func layoutHasSnapshotItems() -> Bool {
-        let controller = TouchBarController.shared
-        for ids in [controller.leftIdentifiers, controller.centerIdentifiers, controller.rightIdentifiers] {
-            if ids.contains(where: { controller.items[$0] != nil }) {
-                // 该分区有 item；再确认其中是否存在快照类（fingerprint 为 nil）
-                for id in ids where controller.items[id] != nil {
-                    if Self.instanceFingerprint(of: controller.items[id]!) == nil { return true }
-                }
+        let c = TouchBarController.shared
+        for ids in [c.leftIdentifiers, c.centerIdentifiers, c.rightIdentifiers] {
+            for id in ids where c.items[id] != nil {
+                if Self.instanceFingerprint(of: c.items[id]!) == nil { return true }
             }
         }
         return false
     }
 
-    /// ITER-15: fingerprint(of:) 的静态转发（实例方法依赖 self 无状态，仅访问参数），
-    /// 供 layoutHasSnapshotItems 与单测使用。语义与实例版完全一致。
-    fileprivate static func instanceFingerprint(of item: NSTouchBarItem) -> ItemFingerprint? {
+    fileprivate static func instanceFingerprint(of item: NSTouchBarItem?) -> ItemFingerprint? {
+        guard let item else { return nil }
         if let bi = item as? CustomButtonTouchBarItem {
             return .button(
                 imageRef: bi.image.map { ObjectIdentifier($0) },
@@ -488,27 +805,14 @@ class TouchBarMirrorWindowController: NSObject {
         if let stack = li.view as? NSStackView {
             for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
                 let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
-                if !s.isEmpty {
-                    txt = s
-                    break
-                }
+                if !s.isEmpty { txt = s; break }
             }
         }
         return txt
     }
 
-    /// 布局元素：item 或 分组分隔线
-    private enum MirrorElement {
-        case separator
-        case item(NSTouchBarItem)
-    }
+    // MARK: - Fingerprint
 
-    /// item 内容指纹。快照类 item（AppScrubber/音量/亮度/自定义视图等）无低成本指纹，
-    /// fingerprint(of:) 返回 nil，由 syncFromTouchBar 的快照分支按 ITER-3 + ITER-9 节流
-    /// （间隔随快照 item 数量自适应，1 个 5 tick / 2 个 7 tick / 3 个以上 10 tick）重建，
-    /// 绝不永久冻结。
-    /// `internal` (was `private`) so MTMRTests can unit-test the equality semantics
-    /// via `@testable import` (ITER-6); no logic change.
     enum ItemFingerprint: Equatable {
         case button(imageRef: ObjectIdentifier?, title: NSAttributedString?, width: CGFloat)
         case text(String, width: CGFloat)
@@ -530,329 +834,33 @@ class TouchBarMirrorWindowController: NSObject {
         }
     }
 
-    private static let separatorIdentifier = NSUserInterfaceItemIdentifier("mirror.separator")
-
-    private func makeView(for target: MirrorElement) -> NSView {
-        switch target {
-        case .separator:
-            let line = separatorLine()
-            line.identifier = Self.separatorIdentifier
-            return line
-        case let .item(item):
-            let innerView = makeItemView(for: item)
-            innerView.identifier = NSUserInterfaceItemIdentifier(item.identifier.rawValue)
-
-            // Phase 1 (1-3, 1-4): Wrap in MirrorItemView for click/selection support.
-            // In .mirror mode, pass through the raw view (no interaction).
-            guard interactionMode != .mirror else { return innerView }
-
-            let wrapper = MirrorItemView(
-                frame: innerView.frame,
-                identifier: item.identifier,
-                tapAction: { [weak self] in self?.handleTap(on: item) }
-            )
-            wrapper.doubleTapAction = { [weak self] in self?.handleDoubleTap(on: item) }
-            wrapper.longPressAction = { [weak self] in self?.handleLongPress(on: item) }
-            wrapper.translatesAutoresizingMaskIntoConstraints = false
-            wrapper.addSubview(innerView)
-            innerView.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                innerView.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-                innerView.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
-                innerView.topAnchor.constraint(equalTo: wrapper.topAnchor),
-                innerView.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
-            ])
-            wrapper.identifier = NSUserInterfaceItemIdentifier("mirror.wrapper." + item.identifier.rawValue)
-            return wrapper
-        }
-    }
-
-    // MARK: - Interaction handling (Phase 1)
-
-    /// Handle single-tap on a mirror item. In live mode, fires the item's action.
-    /// In edit mode, selects the item.
-    private func handleTap(on item: NSTouchBarItem) {
-        switch interactionMode {
-        case .mirror:
-            break  // no-op
-        case .live:
-            if let bi = item as? CustomButtonTouchBarItem,
-               let action = bi.actions.first(where: { $0.trigger == .singleTap }) {
-                action.closure?()
-            }
-        case .edit:
-            selectItem(identifier: item.identifier)
-        }
-    }
-
-    /// Handle double-tap on a mirror item (live mode only).
-    private func handleDoubleTap(on item: NSTouchBarItem) {
-        guard interactionMode == .live else { return }
-        if let bi = item as? CustomButtonTouchBarItem,
-           let action = bi.actions.first(where: { $0.trigger == .doubleTap }) {
-            action.closure?()
-        }
-    }
-
-    /// Handle long-press on a mirror item (live mode only).
-    private func handleLongPress(on item: NSTouchBarItem) {
-        guard interactionMode == .live else { return }
-        if let bi = item as? CustomButtonTouchBarItem,
-           let action = bi.actions.first(where: { $0.trigger == .longTap }) {
-            action.closure?()
-        }
-    }
-
-    /// Select an item by identifier (edit mode). Deselects the previous selection.
-    private func selectItem(identifier: NSTouchBarItem.Identifier) {
-        // Deselect previous
-        if let prev = selectedIdentifier {
-            for mv in mirrorItemViews where mv.itemIdentifier == prev {
-                mv.isSelected = false
-            }
-        }
-        // Select new
-        selectedIdentifier = identifier
-        for mv in mirrorItemViews where mv.itemIdentifier == identifier {
-            mv.isSelected = true
-        }
-    }
-
-    /// Deselect all items.
-    func deselectAll() {
-        selectedIdentifier = nil
-        for mv in mirrorItemViews {
-            mv.isSelected = false
-        }
-    }
-
-    /// Delete the currently selected item (edit mode). Returns true if something was deleted.
-    /// Persists the change by writing the modified JSON to disk and reloading the preset.
-    @discardableResult
-    func deleteSelected() -> Bool {
-        guard interactionMode == .edit, let selId = selectedIdentifier else { return false }
-        let controller = TouchBarController.shared
-
-        // Find and remove from the runtime zone arrays
-        var removed = false
-        if let idx = controller.leftIdentifiers.firstIndex(of: selId) {
-            controller.leftIdentifiers.remove(at: idx)
-            removed = true
-        } else if let idx = controller.centerIdentifiers.firstIndex(of: selId) {
-            controller.centerIdentifiers.remove(at: idx)
-            removed = true
-        } else if let idx = controller.rightIdentifiers.firstIndex(of: selId) {
-            controller.rightIdentifiers.remove(at: idx)
-            removed = true
-        }
-
-        if removed {
-            // Clean up runtime references
-            controller.items.removeValue(forKey: selId)
-            controller.itemDefinitions.removeValue(forKey: selId)
-            // Persist: rewrite the JSON config and do a full reload
-            // (ensures three-zone layout is correctly rebuilt)
-            let path = controller.lastPresetPath
-            if !path.isEmpty {
-                // Build a minimal JSON from the remaining itemDefinitions
-                let remaining = controller.jsonItems.enumerated().filter { _, item in
-                    // Keep items whose identifiers are still in the zone arrays
-                    let base = item.type.identifierBase
-                    return controller.leftIdentifiers.contains(where: { $0.rawValue.hasPrefix(base) }) ||
-                           controller.centerIdentifiers.contains(where: { $0.rawValue.hasPrefix(base) }) ||
-                           controller.rightIdentifiers.contains(where: { $0.rawValue.hasPrefix(base) })
-                }
-                // Fallback: just reload the preset (re-reads from disk, which won't have the deletion)
-                // The proper fix is to write the in-memory state to disk first.
-                // For now, we do a direct reload which rebuilds the NSTouchBar correctly.
-                controller.reloadPreset(path: path)
-            }
-        }
-
-        deselectAll()
-        return removed
-    }
-
-    private func view(_ view: NSView, matches target: MirrorElement) -> Bool {
-        switch target {
-        case .separator:
-            return view.identifier == Self.separatorIdentifier
-        case let .item(item):
-            // Match either the raw view identifier or the wrapper identifier
-            let rawId = item.identifier.rawValue
-            if view.identifier?.rawValue == rawId { return true }
-            if view.identifier?.rawValue == "mirror.wrapper." + rawId { return true }
-            // Also check if it's a MirrorItemView wrapping this item
-            if let mv = view as? MirrorItemView, mv.itemIdentifier == item.identifier { return true }
-            return false
-        }
-    }
-
-    private func replace(_ oldView: NSView, with newView: NSView, in sv: NSStackView, at index: Int) {
-        sv.insertArrangedSubview(newView, at: index)
-        sv.removeArrangedSubview(oldView)
-        oldView.removeFromSuperview()
-    }
-
-    private func remember(_ view: NSView, for target: MirrorElement, identifiers: inout Set<NSTouchBarItem.Identifier>) {
-        guard case let .item(item) = target else { return }
-        identifiers.insert(item.identifier)
-        if let fingerprint = fingerprint(of: item) {
-            itemFingerprints[item.identifier] = fingerprint
-        } else {
-            itemFingerprints.removeValue(forKey: item.identifier)
-        }
-    }
-
-    /// 计算 item 内容指纹；nil 表示该类型无法低成本指纹化（快照类，按 ITER-3 + ITER-9 节流重建）
-    private func fingerprint(of item: NSTouchBarItem) -> ItemFingerprint? {
-        if let bi = item as? CustomButtonTouchBarItem {
-            return .button(
-                imageRef: bi.image.map { ObjectIdentifier($0) },
-                title: bi.attributedTitle,
-                width: item.view?.frame.width ?? 0
-            )
-        }
-        if let li = item as? LyricsTouchBarItem {
-            return .text(lyricsText(from: li), width: item.view?.frame.width ?? 0)
-        }
-        if let gi = item as? GroupBarItem {
-            return .text(gi.collapsedRepresentationLabel, width: 0)
-        }
-        return nil
-    }
-
-    private func separatorLine() -> NSBox {
-        let b = NSBox()
-        b.boxType = .separator
-        b.translatesAutoresizingMaskIntoConstraints = false
-        b.heightAnchor.constraint(equalToConstant: 20).isActive = true
-        b.widthAnchor.constraint(equalToConstant: 1).isActive = true
-        return b
-    }
-
-    private func makeItemView(for item: NSTouchBarItem) -> NSView {
-        if let bi = item as? CustomButtonTouchBarItem {
-            let btn = NSButton()
-            btn.translatesAutoresizingMaskIntoConstraints = false
-            btn.isBordered = bi.isBordered
-            if bi.isBordered {
-                btn.bezelStyle = .rounded
-                if let c = bi.backgroundColor {
-                    btn.bezelColor = c
-                }
-            } else {
-                btn.bezelStyle = .inline
-            }
-            btn.imageScaling = .scaleProportionallyDown
-            btn.imageHugsTitle = true
-            if let img = bi.image {
-                btn.image = img
-                btn.imagePosition = bi.attributedTitle.length > 0 ? .imageLeading : .imageOnly
-            }
-            btn.attributedTitle = bi.attributedTitle
-            btn.setContentCompressionResistancePriority(.required, for: .horizontal)
-            btn.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-
-            if let itemView = item.view, itemView.frame.width > 0 {
-                btn.widthAnchor.constraint(equalToConstant: itemView.frame.width).isActive = true
-            }
-            return btn
-        }
-
-        if let gi = item as? GroupBarItem {
-            let txt = gi.collapsedRepresentationLabel.isEmpty ? "▸" : "▸ " + gi.collapsedRepresentationLabel
-            return simpleLabel(txt)
-        }
-
-        if let li = item as? LyricsTouchBarItem {
-            let txt = lyricsText(from: li)
-            let label = simpleLabel(txt)
-            label.font = .systemFont(ofSize: 15, weight: .medium)
-            if let itemView = item.view, itemView.frame.width > 0 {
-                label.widthAnchor.constraint(equalToConstant: itemView.frame.width).isActive = true
-            }
-            return label
-        }
-
-        if let di = item as? AppScrubberTouchBarItem {
-            if let snap = snapshot(di.view) { return snap }
-            return simpleLabel("Dock")
-        }
-
-        if let _ = item as? UpNextScrubberTouchBarItem {
-            let txt = extractText(from: item.view) ?? "UpNext"
-            return simpleLabel(txt)
-        }
-
-        if let vi = item as? VolumeViewController {
-            if let snap = snapshot(vi.view) { return snap }
-            return simpleLabel("Vol")
-        }
-
-        if let bi = item as? BrightnessViewController {
-            if let snap = snapshot(bi.view) { return snap }
-            return simpleLabel("Bri")
-        }
-
-        if let ni = item as? NSCustomTouchBarItem {
-            if let snap = snapshot(ni.view) { return snap }
-            let txt = extractText(from: ni.view) ?? "?"
-            return simpleLabel(txt)
-        }
-
-        return simpleLabel("?")
-    }
-
-    private func lyricsText(from li: LyricsTouchBarItem) -> String {
-        var txt = "♫"
-        if let stack = li.view as? NSStackView {
-            for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
-                let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
-                if !s.isEmpty {
-                    txt = s
-                    break
-                }
-            }
-        }
-        return txt
-    }
-
-    private func simpleLabel(_ text: String) -> NSTextField {
-        let l = NSTextField(labelWithString: text)
-        l.textColor = .white
-        l.font = .systemFont(ofSize: 13)
-        l.alignment = .center
-        l.lineBreakMode = .byTruncatingTail
-        l.translatesAutoresizingMaskIntoConstraints = false
-        l.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-        return l
-    }
+    // MARK: - Snapshot (pixel-perfect bitmap capture of a view)
 
     private func snapshot(_ view: NSView?) -> NSImageView? {
         guard let v = view, v.frame.width > 0, v.frame.height > 0 else { return nil }
+        let screenScale = NSScreen.main?.backingScaleFactor ?? 2.0
         let size = v.bounds.size
+        let pxW = Int(size.width * screenScale)
+        let pxH = Int(size.height * screenScale)
+
         let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width),
-            pixelsHigh: Int(size.height),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
+            bitmapDataPlanes: nil, pixelsWide: pxW, pixelsHigh: pxH,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
         )!
+        rep.size = size
+
         let ctx = NSGraphicsContext(bitmapImageRep: rep)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = ctx
+        ctx!.cgContext.scaleBy(x: screenScale, y: screenScale)
         if v.wantsLayer, let layer = v.layer {
             layer.render(in: ctx!.cgContext)
         } else {
             v.cacheDisplay(in: v.bounds, to: v.bitmapImageRepForCachingDisplay(in: v.bounds)!)
         }
         NSGraphicsContext.restoreGraphicsState()
+
         let img = NSImage(size: size)
         img.addRepresentation(rep)
         let iv = NSImageView(image: img)
@@ -861,31 +869,11 @@ class TouchBarMirrorWindowController: NSObject {
         return iv
     }
 
-    private func extractText(from view: NSView?) -> String? {
-        guard let v = view else { return nil }
-        if let tf = v as? NSTextField {
-            let s = tf.stringValue.trimmingCharacters(in: .whitespaces)
-            if !s.isEmpty { return s }
-        }
-        if let b = v as? NSButton {
-            let t = b.title.trimmingCharacters(in: .whitespaces)
-            if !t.isEmpty { return t }
-        }
-        for sub in v.subviews {
-            if let r = extractText(from: sub) { return r }
-        }
-        return nil
-    }
-}
+    // MARK: - View utilities
 
-class TouchBarBackgroundView: NSView {
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.92).cgColor
-        layer?.cornerRadius = 6
-        layer?.borderWidth = 0.5
-        layer?.borderColor = NSColor(white: 0.25, alpha: 0.5).cgColor
+    private func replace(_ oldView: NSView, with newView: NSView, in sv: NSStackView, at index: Int) {
+        sv.insertArrangedSubview(newView, at: index)
+        sv.removeArrangedSubview(oldView)
+        oldView.removeFromSuperview()
     }
-    required init?(coder: NSCoder) { return nil }
 }

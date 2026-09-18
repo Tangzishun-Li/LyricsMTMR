@@ -6,6 +6,8 @@ extension Notification.Name {
     /// OPT-8: system memory pressure — posted by AppDelegate so views can
     /// drop their on-demand caches (settings tab view hierarchies).
     static let settingsMemoryWarning = Notification.Name("LyricsMTMRSettingsMemoryWarningNotification")
+    /// 隐藏标签页设置变更通知。
+    static let hiddenTabsDidChange = Notification.Name("LyricsMTMRHiddenTabsDidChangeNotification")
 }
 
 /// Activation mode for an app-specific theme rule.
@@ -163,6 +165,10 @@ struct AppSettings {
     static var notificationsBirthday: Bool
 
     // MARK: - UI State (lifestyle/ai)（R58-b G4/G5，键名契约见 docs/轨道文本_R58_UI态持久化与Phase2.md §5，冻结）
+
+    /// 隐藏的设置标签页列表（存储 SettingsTab 的 rawValue）。
+    @UserDefault(key: "com.lyricsmtmr.ui.settings.hiddenTabs", defaultValue: [])
+    static var hiddenSettingsTabs: [String]
 
     /// 外卖平台白名单（生活 Tab 多选）。
     @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.foodPlatforms", defaultValue: [])

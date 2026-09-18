@@ -5,7 +5,8 @@
 //  Split button for Touch Bar notification widget.
 //  Left: bell icon + total count
 //  Right: stacked app icons (NO red dots — icons mean "has notifications")
-//  Stacking: 70-80% visible, right-to-left overlap
+//  Stacking: left covers right (highest-priority icon at left, on top)
+//  Adaptive overlap: few icons = less overlap, many icons = more overlap
 //
 
 import AppKit
@@ -30,6 +31,8 @@ class NotificationSplitView: NSView {
 
     // State
     private var appIcons: [(bundleId: String, icon: NSImage?, count: Int)] = []
+    private var lastBadgeCount: Int = -1
+    private var lastBadgeError: Bool = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -90,8 +93,8 @@ class NotificationSplitView: NSView {
             badgeLabel.heightAnchor.constraint(equalToConstant: 11),
             badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 11),
 
-            // Divider — 26px from left edge
-            divider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 26),
+            // Divider — tight gap after bell (bell ends at ~19px)
+            divider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
             divider.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             divider.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
             divider.widthAnchor.constraint(equalToConstant: 0.5),
@@ -119,6 +122,11 @@ class NotificationSplitView: NSView {
     // MARK: - Updates
 
     func updateBadge(count: Int, error: Bool) {
+        // Diff check: skip if nothing changed
+        guard count != lastBadgeCount || error != lastBadgeError else { return }
+        lastBadgeCount = count
+        lastBadgeError = error
+
         if error {
             bellImageView.image = NSImage(systemSymbolName: "bell.slash", accessibilityDescription: nil)?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .medium))
@@ -138,6 +146,13 @@ class NotificationSplitView: NSView {
     }
 
     func updateAppIcons(_ icons: [(bundleId: String, icon: NSImage?, count: Int)]) {
+        // Diff check: skip update if icons haven't changed (prevents flickering)
+        let newIds = icons.map { $0.bundleId }
+        let oldIds = appIcons.map { $0.bundleId }
+        if newIds == oldIds && icons.count == appIcons.count {
+            return
+        }
+
         self.appIcons = icons
 
         // Remove old leading constraints
@@ -146,19 +161,39 @@ class NotificationSplitView: NSView {
         }
 
         let iconSize: CGFloat = 20
-        let overlap: CGFloat = 6  // 70% visible (20-6=14 visible out of 20)
-        let step = overlap
-
+        let rightPadding: CGFloat = 2
+        let dividerX: CGFloat = 24  // divider is at 22, +2 margin
+        let availableWidth = bounds.width - dividerX - rightPadding
         let maxIcons = min(icons.count, 4)
+
+        // Adaptive overlap: few icons = minimal overlap, many icons = more
+        let overlap: CGFloat
+        if maxIcons <= 1 {
+            overlap = 0
+        } else {
+            let neededWidth = CGFloat(maxIcons) * iconSize
+            if neededWidth <= availableWidth {
+                overlap = 2.0  // minimal, just enough to look connected
+            } else {
+                // Cap at 50% overlap so icons stay recognizable
+                overlap = min(iconSize * 0.5, (neededWidth - availableWidth) / CGFloat(maxIcons - 1) + 2.0)
+            }
+        }
+        let step = iconSize - overlap
 
         for (i, iv) in appIconViews.enumerated() {
             if i < maxIcons {
                 iv.image = icons[i].icon ?? NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil)?
                     .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
                 iv.isHidden = false
-                // Stack from right: rightmost icon is fully visible, others overlap
+
+                // Position from right edge: icon[0] is leftmost, icon[N-1] is rightmost
                 let offsetFromRight = CGFloat(maxIcons - 1 - i) * step
                 iv.leadingAnchor.constraint(equalTo: trailingAnchor, constant: -(offsetFromRight + iconSize)).isActive = true
+
+                // Z-order: left covers right (icon[0] drawn on top)
+                iv.wantsLayer = true
+                iv.layer?.zPosition = CGFloat(maxIcons - i)
             } else {
                 iv.isHidden = true
             }
@@ -169,14 +204,14 @@ class NotificationSplitView: NSView {
 
     @objc private func handleClick(_ gesture: NSClickGestureRecognizer) {
         let loc = gesture.location(in: self)
-        // Left: 0..26px = bell area. Right: 26..end = icon area
-        onTap?(loc.x < 26 ? .left : .right)
+        // Left: 0..22px = bell area. Right: 22..end = icon area
+        onTap?(loc.x < 22 ? .left : .right)
     }
 
     @objc private func handleLongPress(_ gesture: NSPressGestureRecognizer) {
         guard gesture.state == .began else { return }
         let loc = gesture.location(in: self)
-        guard loc.x >= 26, !appIcons.isEmpty else { return }
+        guard loc.x >= 22, !appIcons.isEmpty else { return }
         let idx = getIconIndex(at: loc)
         if idx >= 0 && idx < appIcons.count {
             onLongPress?(appIcons[idx].bundleId)
@@ -185,13 +220,28 @@ class NotificationSplitView: NSView {
 
     private func getIconIndex(at loc: NSPoint) -> Int {
         let iconSize: CGFloat = 20
-        let overlap: CGFloat = 6
+        let rightPadding: CGFloat = 2
+        let dividerX: CGFloat = 24
+        let availableWidth = bounds.width - dividerX - rightPadding
         let maxIcons = min(appIcons.count, 4)
-        let groupW = CGFloat(maxIcons) * iconSize - CGFloat(maxIcons - 1) * overlap
-        let startX = bounds.width - groupW
+
+        let overlap: CGFloat
+        if maxIcons <= 1 {
+            overlap = 0
+        } else {
+            let neededWidth = CGFloat(maxIcons) * iconSize
+            if neededWidth <= availableWidth {
+                overlap = 2.0
+            } else {
+                overlap = min(iconSize * 0.5, (neededWidth - availableWidth) / CGFloat(maxIcons - 1) + 2.0)
+            }
+        }
+        let step = iconSize - overlap
+        let groupW = iconSize + CGFloat(maxIcons - 1) * step
+        let startX = bounds.width - rightPadding - groupW
 
         for i in 0..<maxIcons {
-            let x = startX + CGFloat(i) * overlap
+            let x = startX + CGFloat(i) * step
             if loc.x >= x && loc.x <= x + iconSize { return i }
         }
         return -1

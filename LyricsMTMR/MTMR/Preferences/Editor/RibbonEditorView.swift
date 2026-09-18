@@ -867,7 +867,6 @@ struct RibbonEditorView: View {
                 onAdd: { type in model.add(type: type) },
                 isEnabled: model.editorMode == .edit
             )
-            .frame(minHeight: 30, maxHeight: 280)
             .background(EditorColors.sidebarSwift)
 
             Hairline()
@@ -2003,6 +2002,10 @@ struct PaletteRibbon: View {
     /// Master toggle: when true, all categories are visible.
     @State private var paletteExpanded: Bool = false
 
+    private var showsCategories: Bool {
+        paletteExpanded || !searchText.isEmpty
+    }
+
     private var filteredCategories: [(label: String, types: [String])] {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return EditorSchema.paletteCategories }
@@ -2042,7 +2045,19 @@ struct PaletteRibbon: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(EditorColors.textTertiarySwift)
                 TextField(localized("搜索组件…", "Search elements…"), text: $searchText)
-                    .textFieldStyle(RibbonTextFieldStyle())
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(EditorColors.cardSwift)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5)
+                            )
+                    }
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -2056,7 +2071,7 @@ struct PaletteRibbon: View {
             .frame(height: 22)
 
             // Collapsible category groups (only shown when palette is expanded or searching)
-            if paletteExpanded || !searchText.isEmpty {
+            if showsCategories {
                 Divider()
                     .background(EditorColors.hairlineSwift)
                     .padding(.horizontal, 8)
@@ -2084,6 +2099,9 @@ struct PaletteRibbon: View {
                 }
             }
         }
+        // A flexible outer maxHeight reserves empty space even when the list
+        // is absent. Collapse the entire panel, not just its search row.
+        .frame(height: showsCategories ? 280 : 22, alignment: .top)
     }
 }
 

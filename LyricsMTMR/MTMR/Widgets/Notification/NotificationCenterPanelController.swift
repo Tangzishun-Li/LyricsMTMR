@@ -111,6 +111,15 @@ final class NotificationCenterPanelModel: ObservableObject {
         NotificationCenter.default.post(name: .mtmrNotificationCountDidChange, object: nil)
     }
 
+    /// Refresh after an archive initiated elsewhere (e.g. Touch Bar strip).
+    func handleExternalArchive(notifId: String) {
+        guard apps.contains(where: { $0.notifications.contains { $0.id == notifId } }) else { return }
+        if expandedNotificationId == notifId {
+            expandedNotificationId = nil
+        }
+        reload()
+    }
+
     func openApp(bundleId: String) {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
             NSWorkspace.shared.open(url)
@@ -136,6 +145,11 @@ final class NotificationCenterPanelController: NSObject, NSWindowDelegate {
         model.filterBundleIds = filterBundleIds
         model.maxItems = maxItems
         model.hiddenApps = hiddenApps
+    }
+
+    /// Refresh after an archive initiated outside the panel (Touch Bar strip).
+    func handleExternalArchive(notifId: String) {
+        model.handleExternalArchive(notifId: notifId)
     }
 
     var isVisible: Bool {
@@ -184,9 +198,11 @@ final class NotificationCenterPanelController: NSObject, NSWindowDelegate {
             return
         }
 
+        // Activating panel: nonactivatingPanel made SwiftUI buttons (已读/打开)
+        // unclickable unless the window was already key.
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 560),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -203,6 +219,9 @@ final class NotificationCenterPanelController: NSObject, NSWindowDelegate {
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         panel.minSize = NSSize(width: 320, height: 360)
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.acceptsMouseMovedEvents = true
 
         let hosting = NSHostingView(rootView: NotificationCenterPanelView(model: model))
         hosting.frame = NSRect(origin: .zero, size: panel.contentRect(forFrameRect: panel.frame).size)
@@ -570,21 +589,12 @@ struct AppSectionView: View {
 
                 Spacer()
 
-                Button {
+                DismissChipButton(title: localized("全部已读", "Clear")) {
                     model.dismissApp(bundleId: app.bundleId)
-                } label: {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 0.45, green: 0.42, blue: 0.52))
                 }
-                .buttonStyle(.plain)
-                .help(localized("该应用全部已读", "Mark app as read"))
                 .contextMenu {
                     Button(localized("打开 App", "Open App")) {
                         model.openApp(bundleId: app.bundleId)
-                    }
-                    Button(localized("全部已读", "Mark All Read")) {
-                        model.dismissApp(bundleId: app.bundleId)
                     }
                 }
 
@@ -596,8 +606,11 @@ struct AppSectionView: View {
                     Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(Color(red: 0.45, green: 0.42, blue: 0.52))
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(localized("折叠/展开", "Collapse"))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -631,16 +644,23 @@ struct NotificationCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 8) {
                 Text(notif.title.isEmpty ? notif.appName : notif.title)
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundColor(Color(red: 0.96, green: 0.95, blue: 0.93))
                     .lineLimit(1)
-                Spacer(minLength: 8)
+
+                Spacer(minLength: 4)
+
                 Text(Self.relativeTime(notif.date))
                     .font(.system(size: 10.5))
                     .foregroundColor(Color(red: 0.45, green: 0.42, blue: 0.52))
+
+                // Always-visible dismiss — no need to expand first.
+                DismissChipButton(title: localized("已读", "Read")) {
+                    model.dismiss(id: notif.id)
+                }
             }
 
             if isExpanded {
@@ -651,43 +671,32 @@ struct NotificationCardView: View {
                     .textSelection(.enabled)
 
                 HStack(spacing: 8) {
-                    Button {
+                    DismissChipButton(
+                        title: localized("打开 App", "Open App"),
+                        systemImage: "arrow.up.forward.app",
+                        filled: true,
+                        tint: Color(red: 0.36, green: 0.85, blue: 0.63)
+                    ) {
                         model.openApp(bundleId: notif.bundleId)
-                    } label: {
-                        Label(localized("打开 App", "Open App"), systemImage: "arrow.up.forward.app")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(Color(red: 0.36, green: 0.85, blue: 0.63).opacity(0.85))
-                            )
                     }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        model.dismiss(id: notif.id)
-                    } label: {
-                        Label(localized("已读", "Dismiss"), systemImage: "checkmark")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(Color.white.opacity(0.1))
-                            )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
                 .padding(.top, 2)
             } else {
-                Text(String(notif.body.prefix(200)))
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(red: 0.66, green: 0.63, blue: 0.72))
-                    .lineLimit(2)
-                    .truncationMode(.tail)
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        model.toggleExpand(id: notif.id)
+                    }
+                } label: {
+                    Text(String(notif.body.prefix(200)))
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(red: 0.66, green: 0.63, blue: 0.72))
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
@@ -708,12 +717,6 @@ struct NotificationCardView: View {
                     lineWidth: 1
                 )
         )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeOut(duration: 0.15)) {
-                model.toggleExpand(id: notif.id)
-            }
-        }
         .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
         .contextMenu {
             Button(localized("打开 App", "Open App")) {
@@ -735,6 +738,48 @@ struct NotificationCardView: View {
             return "\(Int(interval / 3600))" + localized("小时前", "h")
         } else {
             return "\(Int(interval / 86400))" + localized("天前", "d")
+        }
+    }
+}
+
+/// Compact chip button used on notification cards.
+struct DismissChipButton: View {
+    let title: String
+    var systemImage: String = "checkmark"
+    var filled: Bool = false
+    var tint: Color = Color(red: 1.00, green: 0.56, blue: 0.34)
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 10, weight: .bold))
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(
+                    filled
+                        ? (hovering ? tint : tint.opacity(0.85))
+                        : (hovering ? tint.opacity(0.55) : Color.white.opacity(0.1))
+                )
+            )
+            .overlay(
+                Capsule().stroke(
+                    filled ? Color.clear : Color.white.opacity(0.12),
+                    lineWidth: 1
+                )
+            )
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { h in
+            withAnimation(.easeOut(duration: 0.1)) { hovering = h }
         }
     }
 }

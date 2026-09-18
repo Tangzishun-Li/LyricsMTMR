@@ -326,12 +326,15 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
             }
 
             let textId = NSTouchBarItem.Identifier("\(baseId)text.\(UUID().uuidString)")
-            let textItem = NotificationTextItem(identifier: textId, width: 800)
-            if let selected = selectedSummary {
-                textItem.showMessages(selected.notifications)
-            } else if let first = currentGrouped.first {
-                textItem.showMessages(first.notifications)
+            let textItem = NotificationTextItem(identifier: textId, width: 760)
+            // Archive current message from the strip (panel + store stay in sync).
+            textItem.onArchive = { [weak self] notif in
+                self?.archiveNotification(notif)
             }
+            let source = selectedSummary?.notifications
+                ?? currentGrouped.first?.notifications
+                ?? []
+            textItem.showMessages(source)
             barItems.append(textItem)
             barItemIdentifiers.append(textId)
 
@@ -362,6 +365,37 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         DispatchQueue.main.async { [weak self] in
             guard let self, let touchBar = TouchBarController.shared.touchBar else { return }
             touchBar.defaultItemIdentifiers = self.barItemIdentifiers
+        }
+    }
+
+    /// Archive one notification from the Touch Bar message strip.
+    private func archiveNotification(_ notif: TBNotification) {
+        AppLog.appEvent("[NotificationCenter] archive \(notif.id) (\(notif.bundleId))")
+        NotificationDismissedStore.shared.dismiss(notif.id)
+        currentGrouped = currentGrouped.compactMap { summary in
+            let kept = summary.notifications.filter { $0.id != notif.id }
+            guard !kept.isEmpty else { return nil }
+            return AppNotificationSummary(
+                bundleId: summary.bundleId,
+                appName: summary.appName,
+                icon: summary.icon,
+                notifications: kept
+            )
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.buildBarItems()
+            if let touchBar = TouchBarController.shared.touchBar {
+                touchBar.defaultItemIdentifiers = self.barItemIdentifiers
+            }
+            // Refresh split-view badge + notify panel/status item.
+            let total = self.currentGrouped.reduce(0) { $0 + $1.count }
+            self.splitView.updateBadge(count: total, error: false)
+            self.splitView.updateAppIcons(self.currentGrouped.prefix(4).map {
+                (bundleId: $0.bundleId, icon: $0.icon, count: $0.count)
+            })
+            NotificationCenter.default.post(name: .mtmrNotificationCountDidChange, object: nil)
+            NotificationCenterPanelController.shared.handleExternalArchive(notifId: notif.id)
         }
     }
 

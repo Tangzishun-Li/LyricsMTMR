@@ -1,6 +1,10 @@
 import SwiftUI
 import Cocoa
 import Sparkle
+import CoreLocation
+import AVFoundation
+import ScreenCaptureKit
+import UserNotifications
 
 // MARK: - Menu Model
 
@@ -14,6 +18,9 @@ final class StatusBarMenuModel: ObservableObject {
     @Published var isBlacklisted = false
     @Published var currentAppThemeMode: AppThemeMode?
     @Published var isAccessibilityGranted = AXIsProcessTrusted()
+    @Published var isScreenRecordingGranted = false
+    @Published var isLocationGranted = false
+    @Published var isNotificationGranted = false
     @Published var slots: [SlotInfo] = []
     @Published var activeSlotId: String?
     @Published var selectedLanguage: AppLanguage = AppSettings.appLanguage
@@ -32,11 +39,14 @@ final class StatusBarMenuModel: ObservableObject {
         freezeOnSwitch = AppSettings.freezeOnAppSwitch
         startAtLoginOn = LaunchAtLoginController().launchAtLogin
         isAccessibilityGranted = AXIsProcessTrusted()
+        isScreenRecordingGranted = checkScreenRecordingPermission()
+        isLocationGranted = checkLocationPermission()
+        isNotificationGranted = checkNotificationPermission()
         slots = SlotManager.shared.slots
         activeSlotId = SlotManager.shared.activeSlotId
         selectedLanguage = AppSettings.appLanguage
         selectedPlayers = Set(AppSettings.selectedPlayerIds)
-        if let appId = TouchBarController.shared.frontmostApplicationIdentifier {
+        if let appId = TouchBarController.shared.lastActiveAppId {
             isBlacklisted = AppSettings.blacklistedAppIds.contains(appId)
             if let raw = AppSettings.appThemeRules[appId] {
                 currentAppThemeMode = AppThemeMode(rawValue: raw)
@@ -47,6 +57,33 @@ final class StatusBarMenuModel: ObservableObject {
             isBlacklisted = false
             currentAppThemeMode = nil
         }
+    }
+
+    // MARK: - Permission Checks
+
+    private func checkScreenRecordingPermission() -> Bool {
+        if #available(macOS 13.0, *) {
+            return CGPreflightScreenCaptureAccess()
+        } else {
+            // macOS 12 and earlier: assume granted if we got this far
+            return true
+        }
+    }
+
+    private func checkLocationPermission() -> Bool {
+        let status = CLLocationManager().authorizationStatus
+        return status == .authorizedAlways
+    }
+
+    private func checkNotificationPermission() -> Bool {
+        var granted = false
+        let semaphore = DispatchSemaphore(value: 0)
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            granted = settings.authorizationStatus == .authorized
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return granted
     }
 
     // MARK: Toggles
@@ -86,7 +123,7 @@ final class StatusBarMenuModel: ObservableObject {
     }
 
     func toggleBlacklist() {
-        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        guard let appId = TouchBarController.shared.lastActiveAppId else { return }
         var ids = AppSettings.blacklistedAppIds
         if let idx = ids.firstIndex(of: appId) {
             ids.remove(at: idx)
@@ -131,7 +168,7 @@ final class StatusBarMenuModel: ObservableObject {
     }
 
     func setAppThemeMode(_ mode: AppThemeMode) {
-        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        guard let appId = TouchBarController.shared.lastActiveAppId else { return }
         var rules = AppSettings.appThemeRules
         rules[appId] = mode.rawValue
         AppSettings.appThemeRules = rules
@@ -141,14 +178,14 @@ final class StatusBarMenuModel: ObservableObject {
     }
 
     func editCurrentAppTheme() {
-        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        guard let appId = TouchBarController.shared.lastActiveAppId else { return }
         let path = TouchBarController.shared.appThemePath(for: appId)
         guard FileManager.default.fileExists(atPath: path) else { return }
         NSWorkspace.shared.open(URL(fileURLWithPath: path))
     }
 
     func removeCurrentAppTheme() {
-        guard let appId = TouchBarController.shared.frontmostApplicationIdentifier else { return }
+        guard let appId = TouchBarController.shared.lastActiveAppId else { return }
         var rules = AppSettings.appThemeRules
         rules.removeValue(forKey: appId)
         AppSettings.appThemeRules = rules
@@ -487,7 +524,7 @@ struct AppThemeCard: View {
     @State private var hoveringRemove = false
 
     private var currentAppId: String? {
-        TouchBarController.shared.frontmostApplicationIdentifier
+        TouchBarController.shared.lastActiveAppId
     }
 
     private var currentAppName: String {
@@ -668,26 +705,8 @@ struct ToggleCard: View {
                 MenuToggleRow(icon: "power", color: Deck.mint, label: Localized.startAtLogin, isOn: model.startAtLoginOn) { model.toggleStartAtLogin() }
                 MenuToggleRow(icon: "lock", color: Color(red: 0.95, green: 0.65, blue: 0.45), label: Localized.freezeOnAppSwitchMenu, isOn: model.freezeOnSwitch) { model.toggleFreeze() }
 
-                // Accessibility row (not a toggle)
-                Button(action: { model.requestAccessibility() }) {
-                    HStack(spacing: 9) {
-                        Image(systemName: "key")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(model.isAccessibilityGranted ? Deck.mint : Deck.accentDeep)
-                            .frame(width: 18)
-                        Text(Localized.accessibilityShort)
-                            .font(Deck.bodyFont)
-                            .foregroundColor(Deck.textPrimary)
-                        Spacer()
-                        Image(systemName: model.isAccessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(model.isAccessibilityGranted ? Deck.mint : Deck.accentDeep)
-                    }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 8)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(Color.white.opacity(0.025)))
-                }
-                .buttonStyle(.plain)
+                // Permissions section
+                PermissionSection(model: model)
             }
         }
     }
@@ -724,6 +743,79 @@ struct MenuToggleRow: View {
         }
         .buttonStyle(.plain)
         .onHover { h in hovering = h }
+    }
+}
+
+// MARK: - Permission Section
+
+struct PermissionSection: View {
+    @ObservedObject var model: StatusBarMenuModel
+
+    var body: some View {
+        VStack(spacing: 2) {
+            PermissionRow(
+                icon: "key",
+                label: Localized.accessibilityShort,
+                isGranted: model.isAccessibilityGranted,
+                action: { model.requestAccessibility() }
+            )
+
+            PermissionRow(
+                icon: "rectangle.dashed.badge.record",
+                label: Localized.screenRecording,
+                isGranted: model.isScreenRecordingGranted,
+                action: { openSystemPreferencePane("com.apple.preference.security?Privacy_ScreenCapture") }
+            )
+
+            PermissionRow(
+                icon: "location",
+                label: Localized.locationServices,
+                isGranted: model.isLocationGranted,
+                action: { openSystemPreferencePane("com.apple.preference.security?Privacy_LocationServices") }
+            )
+
+            PermissionRow(
+                icon: "bell",
+                label: Localized.notifications,
+                isGranted: model.isNotificationGranted,
+                action: { openSystemPreferencePane("com.apple.preference.notifications") }
+            )
+        }
+    }
+
+    private func openSystemPreferencePane(_ pane: String) {
+        if let url = URL(string: "x-apple.systempreferences:\(pane)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+}
+
+struct PermissionRow: View {
+    let icon: String
+    let label: String
+    let isGranted: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isGranted ? Deck.mint : Deck.accentDeep)
+                    .frame(width: 18)
+                Text(label)
+                    .font(Deck.bodyFont)
+                    .foregroundColor(Deck.textPrimary)
+                Spacer()
+                Image(systemName: isGranted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(isGranted ? Deck.mint : Deck.accentDeep)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color.white.opacity(0.025)))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -919,6 +1011,9 @@ extension Localized {
     static var freezeOnAppSwitchMenu: String { AppSettings.appLanguage == .chinese ? "冻结 Touch Bar" : "Freeze Touch Bar" }
     static var freezeOnAppSwitchMenuSubtitle: String { AppSettings.appLanguage == .chinese ? "切换应用时不刷新" : "Don't refresh on app switch" }
     static var accessibilityShort: String { AppSettings.appLanguage == .chinese ? "辅助功能权限" : "Accessibility" }
+    static var screenRecording: String { AppSettings.appLanguage == .chinese ? "屏幕录制" : "Screen Recording" }
+    static var locationServices: String { AppSettings.appLanguage == .chinese ? "定位服务" : "Location Services" }
+    static var notifications: String { AppSettings.appLanguage == .chinese ? "通知" : "Notifications" }
     static var musicSource: String { AppSettings.appLanguage == .chinese ? "音乐源" : "Music Source" }
     static var allPlayers: String { AppSettings.appLanguage == .chinese ? "全部" : "All" }
     static var settingsTitle: String { AppSettings.appLanguage == .chinese ? "设置…" : "Settings…" }

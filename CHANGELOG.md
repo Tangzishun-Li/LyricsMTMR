@@ -4,6 +4,19 @@ All notable changes to LyricsMTMR will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.5-preview] - 2026-09-18
+
+### Changed
+- **Mirror 镜像重构**：基于 BarItemFactory 创建独立 widget 实例，复用 Touch Bar 的构建/样式/手势系统
+- **Mirror 固定24cm宽度**：使用 CGDisplayScreenSize 动态计算屏幕物理尺寸，确保镜像与真实 Touch Bar 等宽
+- **Mirror 边框交互**：鼠标静置 → 蓝色发光渐入 → 可拖拽移动窗口；边框区域默认穿透不阻挡下层 app
+- **Mirror 白底修复**：强制 isBordered=false，匹配 Touch Bar 不显示按钮边框的默认行为
+- **Mirror 约束修复**：移除 centerX 内容溢出约束，contentBackground.masksToBounds 裁剪溢出内容
+
+### Known Issues
+- 歌词(LyricsTouchBarItem)等复杂组件在 mirror 中可能无法正常显示 ([#46](https://github.com/Tangzishun-Li/LyricsMTMR/issues/46))
+- 部分按钮点击后反应在本机 Touch Bar 上，mirror 延迟1s 同步更新
+
 ## [0.3.3] - 2026-09-15
 
 ### Changed

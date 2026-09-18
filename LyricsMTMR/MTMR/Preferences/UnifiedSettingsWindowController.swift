@@ -1152,6 +1152,7 @@ struct SettingsRootView: View {
     @State private var refreshToken: UUID = UUID()
     @State private var tabCache = SettingsTabCache()
     @State private var sidebarVisible: Bool = true
+    @State private var showingHiddenTabsManager: Bool = false
     @ObservedObject private var windowState = SettingsWindowState.shared
 
     private let sidebarVisibilityKey = "settings.sidebar.visible"
@@ -1195,7 +1196,21 @@ struct SettingsRootView: View {
             // hierarchies; the active tab stays, others rebuild on visit.
             tabCache.removeAll()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenTabsDidChange)) { _ in
+            // 隐藏标签页设置变更，刷新视图
+            refreshToken = UUID()
+            // 如果当前选择的标签页被隐藏，切换到通用标签页
+            let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+            if hiddenTabs.contains(selection.rawValue) && selection != .about {
+                selection = .general
+            }
+        }
         .onAppear {
+            // 确保初始选择的标签页是可见的
+            let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+            if hiddenTabs.contains(selection.rawValue) && selection != .about {
+                selection = .general
+            }
             SettingsWindowState.shared.activeTab = selection
             let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool
             sidebarVisible = saved ?? true
@@ -1414,6 +1429,18 @@ struct SettingsRootView: View {
                         Text(localized("导入", "Import")).font(.system(size: 11))
                     }.foregroundStyle(Deck.textSecondary)
                 }.buttonStyle(.plain)
+
+                Button {
+                    showingHiddenTabsManager = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "eye.slash").font(.system(size: 10))
+                        Text(localized("管理标签页", "Manage Tabs")).font(.system(size: 11))
+                    }.foregroundStyle(Deck.textSecondary)
+                }.buttonStyle(.plain)
+                .popover(isPresented: $showingHiddenTabsManager) {
+                    HiddenTabsManagerView()
+                }
             }
 
             HStack(spacing: 6) {
@@ -1431,7 +1458,7 @@ struct SettingsRootView: View {
 
     private var content: some View {
         ZStack {
-            ForEach(SettingsTab.allCases) { tab in
+            ForEach(visibleTabs) { tab in
                 tabContainer(for: tab)
                     .opacity(selection == tab ? 1 : 0)
                     .allowsHitTesting(selection == tab)
@@ -1445,6 +1472,14 @@ struct SettingsRootView: View {
         // switches feel laggy; a 0.12 s fade reads as instant and polished.
         .animation(.easeOut(duration: 0.12), value: selection)
         .clipped()
+    }
+
+    /// 过滤掉用户隐藏的标签页（不包括 about，about 始终可见）。
+    private var visibleTabs: [SettingsTab] {
+        let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+        return SettingsTab.allCases.filter { tab in
+            tab == .about || !hiddenTabs.contains(tab.rawValue)
+        }
     }
 
     /// Returns the cached tab view, building it on first visit only. Tabs
@@ -1594,13 +1629,19 @@ struct GroupSection: View {
             }
 
             if isExpanded {
-                ForEach(group.tabs) { tab in
+                ForEach(visibleTabs) { tab in
                     NavItem(tab: tab, isSelected: selection == tab, namespace: namespace) {
                         selection = tab
                     }
                 }
             }
         }
+    }
+
+    /// 过滤掉用户隐藏的标签页。
+    private var visibleTabs: [SettingsTab] {
+        let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+        return group.tabs.filter { !hiddenTabs.contains($0.rawValue) }
     }
 }
 
@@ -1797,4 +1838,73 @@ extension Notification.Name {
     /// 窗口内部路由信号，非 §6 冻结契约（冻结契约是 settingsNavigateToItem /
     /// editorRequestOpenSettings 两个）。
     static let editorRequestSwitchToEditor = Notification.Name("LyricsMTMREditorRequestSwitchToEditorNotification")
+}
+
+// MARK: - Hidden Tabs Manager View
+
+struct HiddenTabsManagerView: View {
+    @State private var hiddenTabs: Set<String> = Set(AppSettings.hiddenSettingsTabs)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(localized("管理隐藏的标签页", "Manage Hidden Tabs"))
+                .font(Deck.sectionFont)
+                .foregroundStyle(Deck.textPrimary)
+
+            Text(localized("取消勾选的标签页将不会在侧栏中显示", "Unchecked tabs will not be shown in the sidebar"))
+                .font(Deck.captionFont)
+                .foregroundStyle(Deck.textTertiary)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(SettingsTab.allCases.filter { $0 != .about }) { tab in
+                        Toggle(isOn: Binding(
+                            get: { !hiddenTabs.contains(tab.rawValue) },
+                            set: { isOn in
+                                if isOn {
+                                    hiddenTabs.remove(tab.rawValue)
+                                } else {
+                                    hiddenTabs.insert(tab.rawValue)
+                                }
+                                AppSettings.hiddenSettingsTabs = Array(hiddenTabs)
+                                NotificationCenter.default.post(name: .hiddenTabsDidChange, object: nil)
+                            }
+                        )) {
+                            HStack(spacing: 8) {
+                                Image(systemName: tab.symbol)
+                                    .font(.system(size: 12))
+                                    .frame(width: 16)
+                                    .foregroundStyle(Deck.textSecondary)
+                                Text(tab.title)
+                                    .font(Deck.bodyFont)
+                                    .foregroundStyle(Deck.textPrimary)
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 400)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button(localized("全部显示", "Show All")) {
+                    hiddenTabs.removeAll()
+                    AppSettings.hiddenSettingsTabs = []
+                    NotificationCenter.default.post(name: .hiddenTabsDidChange, object: nil)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Deck.accent)
+                .font(Deck.bodyFont)
+            }
+        }
+        .padding(16)
+        .frame(width: 280)
+        .background(Deck.cardFill)
+    }
 }

@@ -83,7 +83,8 @@ enum AppIconResolver {
 
     private static func resolveIcon(for bundleId: String) -> NSImage? {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else {
-            return nil
+            // App not found — return a generic system icon instead of nil
+            return fallbackIcon(for: bundleId)
         }
 
         let infoPlist = url.appendingPathComponent("Contents/Info.plist")
@@ -110,6 +111,26 @@ enum AppIconResolver {
         }
 
         return resizeIcon(NSWorkspace.shared.icon(forFile: url.path), to: 18)
+    }
+
+    /// Fallback icon for system/unknown bundle-ids that can't be resolved.
+    private static func fallbackIcon(for bundleId: String) -> NSImage? {
+        // Try to infer a good SF Symbol from the bundle-id
+        let symbolName: String
+        if bundleId.contains("controlcenter") || bundleId.contains("ControlCenter") {
+            symbolName = "slider.horizontal.3"
+        } else if bundleId.contains("NotificationCenter") {
+            symbolName = "bell"
+        } else if bundleId.contains("systempreferences") || bundleId.contains("SystemPreferences") {
+            symbolName = "gear"
+        } else if bundleId.contains("finder") {
+            symbolName = "folder"
+        } else {
+            symbolName = "app.fill"
+        }
+        let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
+        return img.flatMap { resizeIcon($0, to: 18) }
     }
 
     /// Resize an NSImage using modern drawing API (no deprecated lockFocus).

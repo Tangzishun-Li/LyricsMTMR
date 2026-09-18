@@ -9,6 +9,34 @@
     <language>zh</language>
 
     <item>
+      <title>Version 0.3.5-preview (494)</title>
+      <sparkle:version>494</sparkle:version>
+      <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <sparkle:prerelease/>
+      <pubDate>Thu, 18 Sep 2026 18:00:00 +0800</pubDate>
+      <sparkle:releaseNotesLink><![CDATA[
+        <h3>v0.3.5-preview — Mirror 镜像重构</h3>
+        <h4>变更</h4>
+        <ul>
+          <li>Mirror 镜像完全重构：基于 BarItemFactory 创建独立 widget 实例</li>
+          <li>Mirror 固定 24cm 宽度，匹配真实 Touch Bar 物理尺寸</li>
+          <li>Mirror 边框交互：鼠标静置渐变高亮 + 可拖拽移动窗口</li>
+          <li>Mirror 白底修复：强制 isBordered=false，匹配 Touch Bar 样式</li>
+        </ul>
+        <h4>已知问题</h4>
+        <ul>
+          <li>歌词等复杂组件在 mirror 中可能无法正常显示</li>
+        </ul>
+      ]]></sparkle:releaseNotesLink>
+      <enclosure
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.5-preview/LyricsMTMR.dmg"
+        type="application/octet-stream"
+        length="0"
+        sparkle:edSignature="" />
+    </item>
+
+    <item>
       <title>Version 0.3.4 (493)</title>
       <sparkle:version>493</sparkle:version>
       <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>

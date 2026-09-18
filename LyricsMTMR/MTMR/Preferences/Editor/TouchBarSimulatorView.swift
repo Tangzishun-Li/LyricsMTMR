@@ -11,10 +11,13 @@ import SwiftUI
 // MARK: - Physical constants
 
 enum TouchBarMetrics {
-    /// MacBook Pro 13" 2016-2020 physical Touch Bar width in points.
-    static let physicalWidth: CGFloat = 1002
-    /// Physical height in points.
-    static let physicalHeight: CGFloat = 30
+    /// Touch Bar physical dimensions: 24cm x 1.5cm
+    /// Converted to points: 24cm ≈ 9.45 inches, 1.5cm ≈ 0.59 inches
+    /// At 72 points/inch: width ≈ 680 points, height ≈ 42 points
+    /// Using exact values for 1:1 physical match
+    static let physicalWidth: CGFloat = 680
+    /// Physical height in points (1.5cm)
+    static let physicalHeight: CGFloat = 42
     /// Minimum zone width so handles remain grabbable.
     static let minZoneWidth: CGFloat = 60
     /// Bezel corner radius.
