@@ -28,8 +28,7 @@ struct PropertyInspector: View {
     @State private var pendingNavigationItem: (type: String, index: Int?)? = nil
 
     private let gridColumns = [
-        GridItem(.flexible(minimum: 180), spacing: 16),
-        GridItem(.flexible(minimum: 180), spacing: 16),
+        GridItem(.adaptive(minimum: 230), spacing: 18),
     ]
 
     var body: some View {
@@ -72,7 +71,7 @@ struct PropertyInspector: View {
     private func consumeNavigation(type: String, index: Int?) {
         var target = index
         // 校验或按 type 搜索顶层 item；JSON 桥接的 items 可能是 NSNumber，做数值归一比较。
-        if let i = target, i >= model.items.count || itemType(at: i) != type {
+        if let i = target, i < 0 || i >= model.items.count || itemType(at: i) != type {
             target = nil
         }
         if target == nil {
@@ -237,7 +236,7 @@ struct PropertyInspector: View {
         let sections = schema.sectionedProperties
 
         return ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 header(type: type, schema: schema, index: index)
 
                 // Container drill-in button
@@ -652,7 +651,8 @@ struct PropertyInspector: View {
                 .toggleStyle(RibbonToggleStyle())
                 .labelsHidden()
         case .selection(let options):
-            RibbonSegmented(options: options, selection: selectionBinding(property: property))
+            RibbonSegmented(options: options, selection: selectionBinding(property: property),
+                            label: { optionTitle($0, key: property.key) })
                 .frame(maxWidth: .infinity)
         case .stringList(let placeholder):
             StringListEditor(placeholder: placeholder, binding: stringListBinding(property: property))
@@ -700,9 +700,27 @@ struct PropertyInspector: View {
 
     private func selectionBinding(property: ItemProperty) -> Binding<String> {
         Binding(
-            get: { [weak model] in (model?.selectedItem?[property.key] as? String) ?? "" },
+            get: { [weak model] in
+                (model?.selectedItem?[property.key] as? String)
+                    ?? (property.defaultValue as? String)
+                    ?? (property.key == "align" ? "center" : "")
+            },
             set: { [weak model] v in model?.updateProperty(property.key, v) }
         )
+    }
+
+    private func optionTitle(_ value: String, key: String) -> String {
+        switch (key, value) {
+        case ("align", "left"): return localized("左侧", "Left")
+        case ("align", "center"): return localized("中间", "Center")
+        case ("align", "right"): return localized("右侧", "Right")
+        case ("displayMode", "karaoke"): return localized("卡拉 OK", "Karaoke")
+        case ("displayMode", "static"): return localized("静态", "Static")
+        case ("displayMode", "artwork"): return localized("封面", "Artwork")
+        case ("karaokeStyle", "progressive"): return localized("逐字高亮", "Progressive")
+        case ("karaokeStyle", "jump"): return localized("整句高亮", "Line highlight")
+        default: return value
+        }
     }
 
     private func stringListBinding(property: ItemProperty) -> Binding<[String]> {
@@ -943,13 +961,14 @@ private extension Color {
 struct RibbonSegmented: View {
     let options: [String]
     @Binding var selection: String
+    var label: (String) -> String = { $0 }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(Array(options.enumerated()), id: \.offset) { _, option in
                 let isSelected = selection == option
                 Button(action: { selection = option }) {
-                    Text(option)
+                    Text(label(option))
                         .font(.system(size: 11.5, weight: isSelected ? .semibold : .medium))
                         .foregroundStyle(isSelected ? Color.white : EditorColors.textSecondarySwift)
                         .padding(.vertical, 7)

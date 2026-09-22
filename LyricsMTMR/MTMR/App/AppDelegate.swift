@@ -53,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     // By the time this runs, `shared` is fully initialized, so
                     // the first preset load is safe (TouchBarController.init
                     // must not load it — see comment there).
-                    reloadStandardConfig: { TouchBarController.shared.reloadStandardConfig() },
+                    reloadStandardConfig: { TouchBarController.shared.reloadInitialConfig() },
                     setupStatusBarAndPopover: { self.setupStatusBarAndPopover() },
                     startLyricsEngine: { LyricsEngine.shared.start() },
                     ensureSlotsDirectory: { SlotManager.shared.ensureSlotsDirectory() },
@@ -251,6 +251,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let item = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.settingsWindowGCWorkItem = nil
+            guard !RibbonModel.editorHasUnsavedChanges else { return }
             // The timer only fires while the window has stayed hidden
             // (reopening cancels it), so the strategy's visible-guard is
             // defense-in-depth here; the decision matrix itself is covered
@@ -275,6 +276,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func releaseSettingsWindowIfHidden() {
         settingsWindowGCWorkItem?.cancel()
         settingsWindowGCWorkItem = nil
+        guard !RibbonModel.editorHasUnsavedChanges else { return }
         if SettingsWindowGCStrategy.shouldRelease(
             isWindowVisible: unifiedSettingsController?.window?.isVisible == true,
             memoryPressure: true,

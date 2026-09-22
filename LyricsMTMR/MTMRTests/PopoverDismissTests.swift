@@ -54,6 +54,8 @@ class PopoverDismissTests: XCTestCase {
         controller.leftIdentifiers = []
         controller.rightIdentifiers = []
         controller.centerIdentifiers = [mainItemKey]
+        controller.basicView = BasicView(identifier: controller.basicViewIdentifier,
+                                        items: Array(controller.items.values), swipeItems: [])
         return bar
     }
 
@@ -84,6 +86,27 @@ class PopoverDismissTests: XCTestCase {
 
     // MARK: - Fast path: no full rebuild
 
+    func testDesktopOverlayLeavesPhysicalBarUntouched() {
+        let bar = seedMainBar()
+        defer { restoreController(bar) }
+        let originalIDs = bar.defaultItemIdentifiers
+        let item = makeItem("poptest.desktop")
+        var presented = false
+        var dismissed = false
+        item.desktopPresentation = { _ in presented = true }
+        item.desktopDismiss = { dismissed = true }
+        item.showOverlay()
+        XCTAssertTrue(presented)
+        XCTAssertTrue(item.isShowing)
+        XCTAssertTrue(TouchBarController.shared.touchBar === bar)
+        XCTAssertEqual(bar.defaultItemIdentifiers, originalIDs)
+        item.dismissOverlay()
+        XCTAssertTrue(dismissed)
+        XCTAssertFalse(item.isShowing)
+        XCTAssertEqual(item.overlayDismissCount, 1)
+        XCTAssertEqual(bar.defaultItemIdentifiers, originalIDs)
+    }
+
     func testDismissKeepsSameTouchBarInstanceAndRestoresControllerConfig() {
         let seededBar = seedMainBar()
         defer { restoreController(seededBar) }
@@ -104,7 +127,7 @@ class PopoverDismissTests: XCTestCase {
 
         // The borrowed configuration must be handed back to the controller.
         let controller = TouchBarController.shared
-        XCTAssertNotNil(controller.basicView, "a fresh BasicView must back the restored main bar")
+        XCTAssertNotNil(controller.basicView, "the existing BasicView must back the restored main bar")
         XCTAssertTrue(controller.basicViewIdentifier.rawValue.hasPrefix("com.toxblh.mtmr.scrollView."),
                       "restored identifiers keep the controller's namespace")
         XCTAssertEqual(controller.touchBar?.delegate === controller, true,

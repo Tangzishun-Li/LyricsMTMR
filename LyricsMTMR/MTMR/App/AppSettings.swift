@@ -214,6 +214,15 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
     static var showMirrorWindow: Bool
 
+    @UserDefault(key: "com.lyricsmtmr.mirror.followsTouchBar", defaultValue: true)
+    static var mirrorFollowsTouchBar: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.mirror.presetPath", defaultValue: "")
+    static var mirrorPresetPath: String
+
+    @UserDefault(key: "com.lyricsmtmr.mirror.interactionMode", defaultValue: 1)
+    static var mirrorInteractionMode: Int
+
     // MARK: - Desktop Lyrics Window (round 51)
 
     @UserDefault(key: "com.lyricsmtmr.desktopLyrics.enabled", defaultValue: false)
