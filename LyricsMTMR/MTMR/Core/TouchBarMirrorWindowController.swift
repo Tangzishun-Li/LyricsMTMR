@@ -661,6 +661,9 @@ class TouchBarMirrorWindowController: NSObject {
             }
         }
 
+        // 将白色/浅色背景改为灰黑色（Touch Bar 不显示白色底）
+        stripWhiteBackground(from: mirrorItem)
+
         // Mirror mode: strip gesture recognizers (passive display)
         if interactionMode == .mirror {
             if let v = mirrorItem.view {
@@ -675,10 +678,14 @@ class TouchBarMirrorWindowController: NSObject {
         itemView.identifier = NSUserInterfaceItemIdentifier(controllerId.rawValue)
 
         // Cap item width to prevent overflow — max 40% of content area
-        let maxW = Self.pointsForCM(24) * 0.4
-        if itemView.intrinsicContentSize.width > maxW {
-            itemView.widthAnchor.constraint(lessThanOrEqualToConstant: maxW).isActive = true
+        // 但不应用于ScrollViewItem，因为它需要更大的宽度来显示中间区域
+        if !(mirrorItem is ScrollViewItem) {
+            let maxW = Self.pointsForCM(24) * 0.4
+            if itemView.intrinsicContentSize.width > maxW {
+                itemView.widthAnchor.constraint(lessThanOrEqualToConstant: maxW).isActive = true
+            }
         }
+        // ScrollViewItem 不设置宽度限制，让它自适应
 
         guard interactionMode != .mirror else { return itemView }
 
@@ -709,6 +716,75 @@ class TouchBarMirrorWindowController: NSObject {
         }
 
         return wrapper
+    }
+
+    // MARK: - 白底处理
+
+    /// Mirror 上统一使用的灰黑色底
+    private static let mirrorGrayBackground = NSColor(white: 0.15, alpha: 1.0)
+
+    /// 将小组件的白色或接近白色背景改为灰黑色
+    private func stripWhiteBackground(from item: NSTouchBarItem) {
+        let grayBg = Self.mirrorGrayBackground
+
+        // 处理 CustomButtonTouchBarItem
+        if let btn = item as? CustomButtonTouchBarItem {
+            // 如果没有显式背景，或者背景是白色/浅色，设置为灰黑
+            if let bgColor = btn.backgroundColor {
+                if isWhiteOrNearWhite(bgColor) {
+                    btn.backgroundColor = grayBg
+                }
+            } else {
+                // 没有显式背景：默认按钮可能显示白色 bezel，设置为灰黑
+                btn.backgroundColor = grayBg
+            }
+            // 确保 button 的外观正确
+            if let button = btn.view as? NSButton {
+                button.wantsLayer = true
+                button.bezelColor = grayBg
+                button.layer?.backgroundColor = grayBg.cgColor
+            }
+        }
+
+        // 递归处理视图的 layer 背景色
+        if let view = item.view {
+            replaceWhiteBackgroundsInView(view, with: grayBg)
+        }
+    }
+
+    /// 递归替换视图及其子视图的白色背景
+    private func replaceWhiteBackgroundsInView(_ view: NSView, with color: NSColor) {
+        if let layer = view.layer, let bgColor = layer.backgroundColor {
+            let nsColor = NSColor(cgColor: bgColor) ?? .clear
+            if isWhiteOrNearWhite(nsColor) {
+                layer.backgroundColor = color.cgColor
+            }
+        }
+        // NSButton
+        if let button = view as? NSButton {
+            button.wantsLayer = true
+            if let bezelColor = button.bezelColor, isWhiteOrNearWhite(bezelColor) {
+                button.bezelColor = color
+            }
+        }
+        // NSTextField
+        if let tf = view as? NSTextField {
+            if tf.drawsBackground, let bgColor = tf.backgroundColor, isWhiteOrNearWhite(bgColor) {
+                tf.backgroundColor = color
+            }
+        }
+        for subview in view.subviews {
+            replaceWhiteBackgroundsInView(subview, with: color)
+        }
+    }
+
+    /// 判断颜色是否为白色或接近白色
+    private func isWhiteOrNearWhite(_ color: NSColor) -> Bool {
+        guard let rgb = color.usingColorSpace(.deviceRGB) else { return false }
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        rgb.getRed(&r, green: &g, blue: &b, alpha: &a)
+        // RGB > 0.7 且 alpha > 0.05 算作白色/浅色
+        return r > 0.7 && g > 0.7 && b > 0.7 && a > 0.05
     }
 
     @objc private func handleEditClick(_ gr: NSClickGestureRecognizer) {

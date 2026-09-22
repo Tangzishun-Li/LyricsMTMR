@@ -43,11 +43,13 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
     private let pauseGate = TBPauseGate()
     private var expandedBundleId: String?
 
-    // File system monitoring (replaces polling)
+    // File system monitoring (watches db-wal for WAL-mode DB)
     private var dbFileSource: DispatchSourceFileSystemObject?
     private var lastRefreshTime: Date = .distantPast
     private let minRefreshInterval: TimeInterval = 3.0
     private var isBarOperating = false
+    // Fallback polling when file monitoring misses events
+    private var fallbackPollTimer: Timer?
 
     // Split view
     private var splitView: NotificationSplitView!
@@ -75,6 +77,7 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         super.init(identifier: identifier)
 
         splitView = NotificationSplitView(frame: NSRect(x: 0, y: 0, width: 120, height: 30))
+        splitView.translatesAutoresizingMaskIntoConstraints = false
         splitView.wantsLayer = true
         splitView.layer?.backgroundColor = NSColor.clear.cgColor
         splitView.onTap = { [weak self] region in
@@ -84,6 +87,9 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
             self?.openApp(bundleId: bundleId)
         }
         view = splitView
+        
+        // 设置高度约束，宽度由setWidth方法或intrinsicContentSize决定
+        splitView.heightAnchor.constraint(equalToConstant: 30).isActive = true
 
         refreshOnce()
         startFileMonitoring()
@@ -125,10 +131,17 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         stopFileMonitoring()
         guard let dbPath = NotificationStore.dbPath else { return }
 
+        // Watch db-wal (WAL mode: actual writes go to db-wal, not db)
+        let walPath = dbPath + "-wal"
+        let watchPath = FileManager.default.fileExists(atPath: walPath) ? walPath : dbPath
+
         refreshQueue?.async { [weak self] in
             guard let self else { return }
-            let fd = open(dbPath, O_EVTONLY)
-            guard fd >= 0 else { return }
+            let fd = open(watchPath, O_EVTONLY)
+            guard fd >= 0 else {
+                AppLog.error("[NotificationCenter] file monitor open failed: \(watchPath)")
+                return
+            }
 
             let source = DispatchSource.makeFileSystemObjectSource(
                 fileDescriptor: fd,
@@ -150,11 +163,24 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
                 self.dbFileSource = source
             }
         }
+
+        // Fallback: low-frequency polling in case file monitoring misses events
+        // (e.g. WAL checkpoint, kernel event coalescing)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.fallbackPollTimer?.invalidate()
+            self.fallbackPollTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+                guard let self, !self.isBarOperating else { return }
+                self.refreshOnce()
+            }
+        }
     }
 
     private func stopFileMonitoring() {
         dbFileSource?.cancel()
         dbFileSource = nil
+        fallbackPollTimer?.invalidate()
+        fallbackPollTimer = nil
     }
 
     // MARK: - Single Refresh
@@ -284,6 +310,17 @@ class NotificationCenterWidget: NSCustomTouchBarItem, TBPollPausable, BarItemDis
         let baseId = "com.lyricsmtmr.notificationBar."
 
         if currentGrouped.isEmpty {
+            let backId = NSTouchBarItem.Identifier("\(baseId)back.\(UUID().uuidString)")
+            let backItem = CustomButtonTouchBarItem(identifier: backId, title: "")
+            backItem.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
+            backItem.isBordered = false
+            backItem.actions = [ItemAction(trigger: .singleTap) { [weak self] in
+                self?.closeNotificationBar()
+            }]
+            barItems.append(backItem)
+            barItemIdentifiers.append(backId)
+
             let emptyId = NSTouchBarItem.Identifier("\(baseId)empty.\(UUID().uuidString)")
             let emptyItem = CustomButtonTouchBarItem(identifier: emptyId, title: "")
             emptyItem.image = NSImage(systemSymbolName: "bell", accessibilityDescription: nil)?

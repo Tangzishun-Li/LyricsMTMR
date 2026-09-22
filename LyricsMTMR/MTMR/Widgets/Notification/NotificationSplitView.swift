@@ -33,6 +33,7 @@ class NotificationSplitView: NSView {
     private var appIcons: [(bundleId: String, icon: NSImage?, count: Int)] = []
     private var lastBadgeCount: Int = -1
     private var lastBadgeError: Bool = false
+    private var lastLayoutWidth: CGFloat = 0
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -245,5 +246,63 @@ class NotificationSplitView: NSView {
             if loc.x >= x && loc.x <= x + iconSize { return i }
         }
         return -1
+    }
+    
+    // MARK: - Layout
+    
+    override func layout() {
+        super.layout()
+        // Re-layout icons if width changed
+        let currentWidth = bounds.width
+        if currentWidth != lastLayoutWidth && currentWidth > 0 {
+            lastLayoutWidth = currentWidth
+            relayoutIcons()
+        }
+    }
+    
+    private func relayoutIcons() {
+        guard !appIcons.isEmpty else { return }
+        
+        // Remove old leading constraints
+        for iv in appIconViews {
+            iv.constraints.filter { $0.firstAttribute == .leading }.forEach { iv.removeConstraint($0) }
+        }
+        
+        let iconSize: CGFloat = 20
+        let rightPadding: CGFloat = 2
+        let dividerX: CGFloat = 24
+        let availableWidth = bounds.width - dividerX - rightPadding
+        let maxIcons = min(appIcons.count, 4)
+        
+        let overlap: CGFloat
+        if maxIcons <= 1 {
+            overlap = 0
+        } else {
+            let neededWidth = CGFloat(maxIcons) * iconSize
+            if neededWidth <= availableWidth {
+                overlap = 2.0
+            } else {
+                overlap = min(iconSize * 0.5, (neededWidth - availableWidth) / CGFloat(maxIcons - 1) + 2.0)
+            }
+        }
+        let step = iconSize - overlap
+        
+        for (i, iv) in appIconViews.enumerated() {
+            if i < maxIcons {
+                iv.isHidden = false
+                let offsetFromRight = CGFloat(maxIcons - 1 - i) * step
+                iv.leadingAnchor.constraint(equalTo: trailingAnchor, constant: -(offsetFromRight + iconSize)).isActive = true
+                iv.wantsLayer = true
+                iv.layer?.zPosition = CGFloat(maxIcons - i)
+            } else {
+                iv.isHidden = true
+            }
+        }
+    }
+    
+    // MARK: - Intrinsic Content Size
+    
+    override var intrinsicContentSize: NSSize {
+        return NSSize(width: 120, height: 30)
     }
 }

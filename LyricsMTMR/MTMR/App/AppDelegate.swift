@@ -41,6 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // everything not needed for the Touch Bar / status-bar first frame
         // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
+            // 每次启动重置主题索引为 0（theme1），确保从 theme1 开始
+            AppSettings.selectedThemeIndex = 0
+
             StartupSequence.run(
                 hooks: StartupSequence.Hooks(
                     checkAccessibilityPermissions: {
@@ -194,7 +197,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openPreferences(_: Any?) {
         let appSupportDirectory = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
         let presetPath = appSupportDirectory.appending("/items.json")
-        NSWorkspace.shared.open(URL(fileURLWithPath: presetPath))
+        NSWorkspace.shared.openJSONFileWithLightweightEditor(presetPath)
     }
 
     @objc func openPreset(_: Any?) {

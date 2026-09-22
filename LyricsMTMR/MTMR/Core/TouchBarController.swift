@@ -730,11 +730,18 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func reloadStandardConfig() {
-        let presetPath = standardConfigPath
-        if !FileManager.default.fileExists(atPath: presetPath),
-            let defaultPreset = Bundle.main.path(forResource: "defaultPreset", ofType: "json") {
-            try? FileManager.default.createDirectory(atPath: appSupportDirectory, withIntermediateDirectories: true, attributes: nil)
-            try? FileManager.default.copyItem(atPath: defaultPreset, toPath: presetPath)
+        // 默认使用 theme1.json 作为起始主题（如果存在）
+        let theme1Path = appSupportDirectory + "/theme1.json"
+        let presetPath: String
+        if FileManager.default.fileExists(atPath: theme1Path) {
+            presetPath = theme1Path
+        } else {
+            presetPath = standardConfigPath
+            if !FileManager.default.fileExists(atPath: presetPath),
+                let defaultPreset = Bundle.main.path(forResource: "defaultPreset", ofType: "json") {
+                try? FileManager.default.createDirectory(atPath: appSupportDirectory, withIntermediateDirectories: true, attributes: nil)
+                try? FileManager.default.copyItem(atPath: defaultPreset, toPath: presetPath)
+            }
         }
 
         reloadPreset(path: presetPath)

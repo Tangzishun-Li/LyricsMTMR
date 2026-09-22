@@ -181,7 +181,7 @@ final class StatusBarMenuModel: ObservableObject {
         guard let appId = TouchBarController.shared.lastActiveAppId else { return }
         let path = TouchBarController.shared.appThemePath(for: appId)
         guard FileManager.default.fileExists(atPath: path) else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        NSWorkspace.shared.openJSONFileWithLightweightEditor(path)
     }
 
     func removeCurrentAppTheme() {
