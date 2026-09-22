@@ -478,7 +478,10 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         // would re-enter the dispatch_once for `shared` and trap at launch.
     }
 
-    func createAndUpdatePreset(newJsonItems: [BarItemDefinition]) {
+    func createAndUpdatePreset(newJsonItems: [BarItemDefinition], persistLyricsConfiguration: Bool = true) {
+        let previous = persistsLyricsConfiguration
+        persistsLyricsConfiguration = persistLyricsConfiguration
+        defer { persistsLyricsConfiguration = previous }
         // Save reference to old bar for cleanup after presenting new one
         let oldBar = self.touchBar
         // Create new touch bar first
@@ -729,19 +732,23 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return bar.delegate != nil && !bar.defaultItemIdentifiers.isEmpty && touchBarContainsAnyItems()
     }
 
-    func reloadStandardConfig() {
-        // 默认使用 theme1.json 作为起始主题（如果存在）
+    /// The user's preferred first theme is a startup choice only. Normal
+    /// reloads must read items.json, which is where settings and slots save.
+    func reloadInitialConfig() {
         let theme1Path = appSupportDirectory + "/theme1.json"
-        let presetPath: String
         if FileManager.default.fileExists(atPath: theme1Path) {
-            presetPath = theme1Path
+            reloadPreset(path: theme1Path)
         } else {
-            presetPath = standardConfigPath
-            if !FileManager.default.fileExists(atPath: presetPath),
-                let defaultPreset = Bundle.main.path(forResource: "defaultPreset", ofType: "json") {
-                try? FileManager.default.createDirectory(atPath: appSupportDirectory, withIntermediateDirectories: true, attributes: nil)
-                try? FileManager.default.copyItem(atPath: defaultPreset, toPath: presetPath)
-            }
+            reloadStandardConfig()
+        }
+    }
+
+    func reloadStandardConfig() {
+        let presetPath = standardConfigPath
+        if !FileManager.default.fileExists(atPath: presetPath),
+            let defaultPreset = Bundle.main.path(forResource: "defaultPreset", ofType: "json") {
+            try? FileManager.default.createDirectory(atPath: appSupportDirectory, withIntermediateDirectories: true, attributes: nil)
+            try? FileManager.default.copyItem(atPath: defaultPreset, toPath: presetPath)
         }
 
         reloadPreset(path: presetPath)
@@ -770,6 +777,12 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     func loadItemDefinitions(jsonItems: [BarItemDefinition]) {
+        // Replace the layout, including zone membership. Keeping old IDs here
+        // made every settings reload grow all three arrays indefinitely.
+        itemDefinitions.removeAll(keepingCapacity: true)
+        leftIdentifiers.removeAll(keepingCapacity: true)
+        centerIdentifiers.removeAll(keepingCapacity: true)
+        rightIdentifiers.removeAll(keepingCapacity: true)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "HH-mm-ss"
         let time = dateFormatter.string(from: Date())
@@ -982,11 +995,20 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         closureResolver: { [weak self] in self?.closure(for: $0) }
     )
 
+    private var persistsLyricsConfiguration = true
+    private lazy var previewItemFactory = BarItemFactory(
+        actionResolver: { [weak self] in self?.action(forItem: $0) },
+        longActionResolver: { [weak self] in self?.longAction(forItem: $0) },
+        closureResolver: { [weak self] in self?.closure(for: $0) },
+        usesSharedLyricsConfiguration: false
+    )
+
     /// Fault-isolated item creation (delegated to BarItemFactory).
     /// Catches all errors and returns an error-indicator item on failure,
     /// so a single broken widget never freezes the entire touch bar.
     private func createItemSafely(forIdentifier identifier: NSTouchBarItem.Identifier, definition item: BarItemDefinition) -> NSTouchBarItem? {
-        itemFactory.createItemSafely(forIdentifier: identifier, definition: item)
+        let factory = persistsLyricsConfiguration ? itemFactory : previewItemFactory
+        return factory.createItemSafely(forIdentifier: identifier, definition: item)
     }
 
     /// Non-blocking preset reload that creates items on a background queue, then swaps atomically.

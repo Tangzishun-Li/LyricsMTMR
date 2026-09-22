@@ -1,894 +1,717 @@
 import Cocoa
 
-// MARK: - Mirror interaction mode
-
-enum MirrorInteractionMode {
-    case mirror
-    case live
-    case edit
+enum MirrorInteractionMode: Int {
+    case mirror = 0, live = 1, edit = 2
 }
 
-// MARK: - Mirror container view (border highlight + hover-to-drag)
+/// Native widgets are laid out in the same coordinate space on the desktop and
+/// in the editor. Scaling happens after layout, never by compressing the items.
+final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
+    static let logicalWidth: CGFloat = 1085
+    static let logicalHeight: CGFloat = 30
+    private let canvas = NSView()
+    private let zones = (0..<3).map { _ in TouchBarHorizontalScrollView() }
+    private var hosts: [NSTouchBarItem.Identifier: DesktopBarItemHost] = [:]
+    private var orderedIDs: [[NSTouchBarItem.Identifier]] = [[], [], []]
+    private var signatures: [NSTouchBarItem.Identifier: String] = [:]
+    private var popover: NSPopover?
+    private weak var popoverAnchor: NSView?
+    private var popoverCleanup: (() -> Void)?
+    private var paused = false
+    var onSelect: ((NSTouchBarItem.Identifier) -> Void)?
+    var onPresetRequested: ((String) -> Void)?
+    var presetPath: String?
+    var isInteractive = true {
+        didSet { hosts.values.forEach { $0.isInteractive = isInteractive } }
+    }
+    var selectedIdentifier: NSTouchBarItem.Identifier? {
+        didSet { hosts.forEach { $0.value.isSelected = $0.key == selectedIdentifier } }
+    }
 
-class MirrorContainerView: NSView {
-    static let borderWidth: CGFloat = 12
+    private lazy var factory = BarItemFactory(
+        actionResolver: { TouchBarController.shared.action(forItem: $0) },
+        longActionResolver: { TouchBarController.shared.longAction(forItem: $0) },
+        closureResolver: { TouchBarController.shared.closure(for: $0) },
+        usesSharedLyricsConfiguration: false
+    )
 
-    private let stationaryDelay: TimeInterval = 0.5
-    private let highlightDuration: TimeInterval = 0.8
-    private let highlightColor = NSColor(srgbRed: 0.3, green: 0.6, blue: 1.0, alpha: 0.8)
-
-    private var isMouseInside = false
-    private var highlightProgress: CGFloat = 0
-    private var stationaryTimer: Timer?
-    private var highlightTimer: Timer?
-    private var fadeOutTimer: Timer?
-    private var isDragging = false
-    private var dragStartPoint: NSPoint?
-
-    let contentBackground: TouchBarBackgroundView
-
-    init(frame: NSRect, contentBackground: TouchBarBackgroundView) {
-        self.contentBackground = contentBackground
+    override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor  // Transparent until hover
-        layer?.cornerRadius = TouchBarMetrics.cornerRadius + Self.borderWidth * 0.5
-        layer?.masksToBounds = false
-
-        addSubview(contentBackground)
-        contentBackground.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            contentBackground.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.borderWidth),
-            contentBackground.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.borderWidth),
-            contentBackground.topAnchor.constraint(equalTo: topAnchor, constant: Self.borderWidth),
-            contentBackground.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.borderWidth),
-        ])
-        installTrackingArea()
-    }
-
-    required init?(coder: NSCoder) { return nil }
-
-    private func installTrackingArea() {
-        addTrackingArea(NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
-            owner: self, userInfo: nil
-        ))
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        for area in trackingAreas { removeTrackingArea(area) }
-        installTrackingArea()
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isMouseInside = true
-        restartStationaryTimer()
-    }
-
-    override func mouseMoved(with event: NSEvent) {
-        if highlightProgress < 1.0 { restartStationaryTimer() }
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isMouseInside = false
-        cancelAllTimers()
-        beginFadeOut()
-    }
-
-    private func restartStationaryTimer() {
-        stationaryTimer?.invalidate()
-        stationaryTimer = Timer.scheduledTimer(withTimeInterval: stationaryDelay, repeats: false) { [weak self] _ in
-            guard let self, self.isMouseInside else { return }
-            self.beginHighlightFadeIn()
+        appearance = NSAppearance(named: .darkAqua)
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.cornerRadius = 9
+        layer?.masksToBounds = true
+        canvas.wantsLayer = true
+        addSubview(canvas)
+        for zone in zones {
+            zone.documentView = NSView()
+            canvas.addSubview(zone)
         }
     }
+    required init?(coder: NSCoder) { nil }
 
-    private func cancelAllTimers() {
-        stationaryTimer?.invalidate(); stationaryTimer = nil
-        highlightTimer?.invalidate(); highlightTimer = nil
-    }
-
-    private func beginHighlightFadeIn() {
-        fadeOutTimer?.invalidate(); fadeOutTimer = nil
-        highlightTimer?.invalidate()
-        let from = highlightProgress
-        let remaining = highlightDuration * (1.0 - from)
-        guard remaining > 0 else { return }
-        let t0 = Date()
-        highlightTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.highlightProgress = min(1.0, from + CGFloat(Date().timeIntervalSince(t0) / remaining) * (1.0 - from))
-            self.commitAppearance()
-            if self.highlightProgress >= 1.0 {
-                self.highlightTimer?.invalidate(); self.highlightTimer = nil
+    /// Definitions are diffed, not their rapidly changing titles. Existing
+    /// widgets own their subscriptions and keep their scroll / playback state.
+    func update(definitions: [BarItemDefinition], identifiers: [NSTouchBarItem.Identifier]? = nil) {
+        var nextIDs: [[NSTouchBarItem.Identifier]] = [[], [], []]
+        var live = Set<NSTouchBarItem.Identifier>()
+        for (index, definition) in definitions.enumerated() {
+            if case .swipe = definition.type { continue }
+            let id = identifiers.flatMap { index < $0.count ? $0[index] : nil }
+                ?? NSTouchBarItem.Identifier("surface-item-\(index)")
+            var signature = Self.signature(definition)
+            if case .themeSwitch = definition.type { signature += "|source:\(presetPath ?? "")" }
+            let zoneIndex = definition.align == .left ? 0 : definition.align == .right ? 2 : 1
+            live.insert(id)
+            nextIDs[zoneIndex].append(id)
+            if signatures[id] != signature || hosts[id] == nil {
+                discard(id)
+                let itemID = NSTouchBarItem.Identifier("desktop.\(UUID().uuidString).\(id.rawValue)")
+                guard let item = createDesktopItem(identifier: itemID, definition: definition),
+                      let host = makeHost(item: item, definition: definition, id: id) else { continue }
+                hosts[id] = host
+                signatures[id] = signature
+                host.isInteractive = isInteractive
+                host.isSelected = id == selectedIdentifier
+                host.onSelect = { [weak self] in
+                    self?.selectedIdentifier = id
+                    self?.onSelect?(id)
+                }
+                (item as? TBPollPausable)?.setPaused(paused)
+            }
+            if let host = hosts[id], host.superview !== zones[zoneIndex].documentView {
+                host.removeFromSuperview()
+                zones[zoneIndex].documentView?.addSubview(host)
             }
         }
+        for id in Array(hosts.keys) where !live.contains(id) { discard(id) }
+        orderedIDs = nextIDs
+        needsLayout = true
     }
 
-    private func beginFadeOut() {
-        highlightTimer?.invalidate(); highlightTimer = nil
-        fadeOutTimer?.invalidate()
-        guard highlightProgress > 0 else { return }
-        let from = highlightProgress
-        let dur = highlightDuration * from
-        guard dur > 0 else { highlightProgress = 0; commitAppearance(); return }
-        let t0 = Date()
-        fadeOutTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.highlightProgress = max(0, from * (1.0 - CGFloat(Date().timeIntervalSince(t0) / dur)))
-            self.commitAppearance()
-            if self.highlightProgress <= 0 {
-                self.fadeOutTimer?.invalidate(); self.fadeOutTimer = nil
+    private func createDesktopItem(identifier: NSTouchBarItem.Identifier, definition: BarItemDefinition) -> NSTouchBarItem? {
+        // The hardware switcher observes the hardware's selected index. A desktop
+        // switcher has its own source, so it must not subscribe to that index.
+        if case let .themeSwitch(themes) = definition.type {
+            let currentPath = presetPath ?? (AppSettings.mirrorFollowsTouchBar ? TouchBarController.shared.lastPresetPath : AppSettings.mirrorPresetPath)
+            let filename = (currentPath as NSString).lastPathComponent
+            let label = themes.first { ($0.preset as NSString).lastPathComponent == filename }?.label
+                ?? ThemeSupport.displayLabel(forThemeFile: filename)
+            let buttonDefinition = BarItemDefinition(type: .staticButton(title: label.isEmpty ? "◈" : label),
+                actions: definition.actions, action: definition.legacyAction,
+                legacyLongAction: definition.legacyLongAction, additionalParameters: definition.additionalParameters)
+            let item = factory.createItemSafely(forIdentifier: identifier, definition: buttonDefinition)
+            if definition.additionalParameters[.width] == nil { (item as? CanSetWidth)?.setWidth(value: 44) }
+            return item
+        }
+        return factory.createItemSafely(forIdentifier: identifier, definition: definition)
+    }
+
+    /// Following the hardware also follows stateful button actions (for example
+    /// Pomodoro). Copy presentation into the retained desktop view and execute
+    /// the original action, without moving a hardware view out of its hierarchy.
+    func synchronizeButtons(from items: [NSTouchBarItem.Identifier: NSTouchBarItem]) {
+        for (id, host) in hosts {
+            guard let original = items[id] as? CustomButtonTouchBarItem,
+                  let desktop = host.item as? CustomButtonTouchBarItem else { continue }
+            if !desktop.attributedTitle.isEqual(to: original.attributedTitle) { desktop.attributedTitle = original.attributedTitle }
+            if desktop.image !== original.image { desktop.image = original.image }
+            host.action = { [weak original] trigger in original?.callActions(for: trigger) }
+            host.hasDoubleClick = original.actions.contains { $0.trigger == .doubleTap }
+            host.hasTripleClick = original.actions.contains { $0.trigger == .tripleTap }
+            host.hasMultiClick = host.hasDoubleClick || host.hasTripleClick
+            host.hasLongPress = original.actions.contains { $0.trigger == .longTap }
+        }
+        needsLayout = true
+    }
+
+    private static func signature(_ definition: BarItemDefinition) -> String {
+        let parameters = definition.additionalParameters.map {
+            "\($0.key.rawValue)=\(String(reflecting: $0.value))"
+        }.sorted().joined(separator: ";")
+        return "\(String(reflecting: definition.type))|\(String(reflecting: definition.actions))|\(String(reflecting: definition.legacyAction))|\(String(reflecting: definition.legacyLongAction))|\(parameters)"
+    }
+
+    /// Keeps both pinned zones visible and reserves space for the center.
+    /// Oversized zones scroll independently instead of stealing another zone.
+    static func zoneWidths(available: CGFloat, left: CGFloat, right: CGFloat, hasCenter: Bool) -> [CGFloat] {
+        let available = max(0, available)
+        let centerReserve = hasCenter ? min(300, available * 0.38) : 0
+        let sideBudget = max(0, available - centerReserve)
+        let sideTotal = max(0, left) + max(0, right)
+        let factor = sideTotal > sideBudget && sideTotal > 0 ? sideBudget / sideTotal : 1
+        let leftWidth = max(0, left) * factor
+        let rightWidth = max(0, right) * factor
+        return [leftWidth, max(0, available - leftWidth - rightWidth), rightWidth]
+    }
+
+    override func layout() {
+        super.layout()
+        let scale = min(1, max(0.01, (bounds.width - 12) / Self.logicalWidth))
+        canvas.frame = NSRect(x: (bounds.width - Self.logicalWidth * scale) / 2,
+                              y: (bounds.height - Self.logicalHeight * scale) / 2,
+                              width: Self.logicalWidth * scale, height: Self.logicalHeight * scale)
+        canvas.bounds = NSRect(x: 0, y: 0, width: Self.logicalWidth, height: Self.logicalHeight)
+        let ideal = orderedIDs.map { ids in
+            let widths = ids.compactMap { hosts[$0]?.preferredWidth }
+            return widths.reduce(0, +) + CGFloat(max(0, widths.count - 1))
+        }
+        let gapCount = (ideal[0] > 0 ? 1 : 0) + (ideal[2] > 0 ? 1 : 0)
+        let widths = Self.zoneWidths(available: Self.logicalWidth - CGFloat(gapCount) * 8,
+                                    left: ideal[0], right: ideal[2], hasCenter: !orderedIDs[1].isEmpty)
+        var x: CGFloat = 0
+        for index in 0..<3 {
+            let zone = zones[index]
+            zone.frame = NSRect(x: x, y: 0, width: widths[index], height: Self.logicalHeight)
+            zone.isHidden = widths[index] <= 0
+            if let document = zone.documentView {
+                let oldOffset = zone.contentView.bounds.origin.x
+                document.setFrameSize(NSSize(width: max(widths[index], ideal[index]), height: Self.logicalHeight))
+                var itemX: CGFloat = 0
+                for id in orderedIDs[index] {
+                    guard let host = hosts[id] else { continue }
+                    host.frame = NSRect(x: itemX, y: 0, width: host.preferredWidth, height: Self.logicalHeight)
+                    itemX += host.preferredWidth + 1
+                }
+                zone.contentView.scroll(to: NSPoint(x: min(oldOffset, max(0, ideal[index] - widths[index])), y: 0))
+                zone.reflectScrolledClipView(zone.contentView)
             }
+            x += widths[index]
+            if index == 0 && ideal[0] > 0 || index == 1 && ideal[2] > 0 { x += 8 }
         }
     }
 
-    private func commitAppearance() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        let a = highlightProgress * 0.6
-        layer?.borderColor = highlightColor.withAlphaComponent(a).cgColor
-        layer?.borderWidth = Self.borderWidth * highlightProgress * 0.3
-        layer?.shadowColor = highlightColor.cgColor
-        layer?.shadowOpacity = Float(a * 0.5)
-        layer?.shadowRadius = 8 * highlightProgress
-        layer?.shadowOffset = .zero
-        CATransaction.commit()
-        window?.invalidateCursorRects(for: self)
+    private func makeHost(item: NSTouchBarItem, definition: BarItemDefinition,
+                          id: NSTouchBarItem.Identifier) -> DesktopBarItemHost? {
+        var content = item.view
+        if let popoverItem = item as? NSPopoverTouchBarItem {
+            content = popoverItem.collapsedRepresentation
+        }
+        guard let content else { return nil }
+        let host = DesktopBarItemHost(item: item, content: content, definition: definition)
+        host.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
+        // Touch-only custom recognizers do not implement mouseUp. The host
+        // translates desktop clicks, multi-clicks and holds into the same actions.
+        if let button = item as? CustomButtonTouchBarItem {
+            host.action = { [weak button] trigger in button?.callActions(for: trigger) }
+            host.hasMultiClick = button.actions.contains { $0.trigger == .doubleTap || $0.trigger == .tripleTap }
+            host.hasDoubleClick = button.actions.contains { $0.trigger == .doubleTap }
+            host.hasTripleClick = button.actions.contains { $0.trigger == .tripleTap }
+            host.hasLongPress = button.actions.contains { $0.trigger == .longTap }
+        }
+        switch definition.type {
+        case let .group(items), let .expandable(items, _, _):
+            host.action = { [weak self, weak host] _ in
+                guard let self, let host else { return }
+                if self.popoverAnchor === host, let popover = self.popover { popover.performClose(nil); return }
+                let child = TouchBarSurfaceView(frame: NSRect(x: 0, y: 0, width: 820, height: 54))
+                child.onPresetRequested = self.onPresetRequested
+                child.presetPath = self.presetPath
+                child.update(definitions: items)
+                self.showPopover(content: child, anchor: host) { child.dispose() }
+            }
+        case let .themeSwitch(themes):
+            host.action = { [weak self] _ in
+                guard let self else { return }
+                let paths = themes.map { $0.preset.hasPrefix("/") ? $0.preset : appSupportDirectory + "/" + $0.preset }
+                    + ThemeSupport.discoverThemeFiles().map(\.path)
+                let unique = paths.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+                guard !unique.isEmpty else { return }
+                let current = self.presetPath ?? (AppSettings.mirrorFollowsTouchBar ? TouchBarController.shared.lastPresetPath : AppSettings.mirrorPresetPath)
+                let next = ((unique.firstIndex(of: current) ?? -1) + 1) % unique.count
+                self.onPresetRequested?(unique[next])
+            }
+        default: break
+        }
+        if let item = item as? TBPopoverItem {
+            item.desktopPresentation = { [weak self, weak host, weak item] content in
+                guard let self, let host, let item else { return }
+                self.showPopover(content: content, anchor: host) {
+                    if item.isShowing { item.isShowing = false; item.overlayDidDismiss() }
+                }
+            }
+            item.desktopDismiss = { [weak self] in self?.popover?.performClose(nil) }
+            host.action = { [weak item] _ in item?.showOverlay() }
+        }
+        if let item = item as? LyricsTranslateBarItem {
+            item.desktopPresentation = { [weak self, weak host, weak item] content in
+                guard let self, let host else { return }
+                self.showPopover(content: content, anchor: host) { [weak item] in item?.desktopPopoverDidClose() }
+            }
+            item.desktopDismiss = { [weak self] in self?.popover?.performClose(nil) }
+        }
+        if let item = item as? QuickReplyBarItem {
+            item.desktopPresentation = { [weak self, weak host, weak item] content in
+                guard let self, let host else { return }
+                self.showPopover(content: content, anchor: host) { [weak item] in item?.desktopPopoverDidClose() }
+            }
+            item.desktopDismiss = { [weak self] in self?.popover?.performClose(nil) }
+        }
+        return host
     }
 
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        if highlightProgress >= 1.0 { addCursorRect(bounds, cursor: .openHand) }
+    private func showPopover(content: NSView, anchor: NSView, cleanup: (() -> Void)? = nil) {
+        if let popover, popoverAnchor === anchor, let root = popover.contentViewController?.view {
+            root.subviews.forEach { $0.removeFromSuperview() }
+            content.frame = root.bounds.insetBy(dx: 12, dy: 11)
+            content.autoresizingMask = [.width, .height]
+            root.addSubview(content)
+            popoverCleanup = cleanup
+            return
+        }
+        popover?.performClose(nil)
+        let controller = NSViewController()
+        let width = max(360, min(1085, max(content.frame.width, content.fittingSize.width)))
+        let height = max(54, content.frame.height, content.fittingSize.height)
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: width + 24, height: height + 22))
+        root.appearance = NSAppearance(named: .darkAqua)
+        content.frame = NSRect(x: 12, y: 11, width: width, height: height)
+        content.autoresizingMask = [.width, .height]
+        root.addSubview(content)
+        controller.view = root
+        let popover = NSPopover()
+        popover.contentViewController = controller
+        popover.behavior = .transient
+        popover.delegate = self
+        self.popover = popover
+        popoverAnchor = anchor
+        popoverCleanup = cleanup
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
     }
 
-    override func mouseDown(with event: NSEvent) {
-        guard highlightProgress >= 1.0 else { super.mouseDown(with: event); return }
-        isDragging = true
-        dragStartPoint = event.locationInWindow
-        NSCursor.closedHand.push()
+    func popoverDidClose(_ notification: Notification) {
+        popoverCleanup?()
+        popoverCleanup = nil
+        popover = nil
+        popoverAnchor = nil
     }
 
-    override func mouseDragged(with event: NSEvent) {
-        guard isDragging, let start = dragStartPoint, let win = window else { return }
-        let cur = event.locationInWindow
-        var f = win.frame
-        f.origin.x += cur.x - start.x
-        f.origin.y += cur.y - start.y
-        win.setFrame(f, display: true)
+    func setPaused(_ paused: Bool) {
+        self.paused = paused
+        if paused { popover?.performClose(nil) }
+        hosts.values.forEach { ($0.item as? TBPollPausable)?.setPaused(paused) }
     }
-
-    override func mouseUp(with event: NSEvent) {
-        guard isDragging else { return }
-        isDragging = false; dragStartPoint = nil
-        NSCursor.pop()
+    func refreshLayout() { needsLayout = true }
+    private func discard(_ id: NSTouchBarItem.Identifier) {
+        guard let host = hosts.removeValue(forKey: id) else { return }
+        (host.item as? TBPollPausable)?.setPaused(true)
+        (host.item as? BarItemDiscarding)?.barItemWillDiscard()
+        host.removeFromSuperview()
+        signatures.removeValue(forKey: id)
     }
-
+    func dispose() {
+        popover?.performClose(nil)
+        for id in Array(hosts.keys) { discard(id) }
+        orderedIDs = [[], [], []]
+    }
     deinit {
-        cancelAllTimers(); fadeOutTimer?.invalidate()
-        if let m = globalMonitor { NSEvent.removeMonitor(m) }
-    }
-
-    // MARK: - Click-through: border area is invisible to hit-testing until highlighted.
-    // A global mouse monitor detects proximity and triggers the highlight animation.
-
-    private var globalMonitor: Any?
-    private var isMouseNear = false
-
-    /// Start monitoring global mouse position for proximity detection.
-    /// Called when the mirror window is shown.
-    func startProximityMonitor() {
-        guard globalMonitor == nil else { return }
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
-            guard let self, let window = self.window else { return }
-            let mouse = NSEvent.mouseLocation
-            let wf = window.frame
-            // Mouse is "near" if within the window frame expanded by 30pt
-            let expanded = wf.insetBy(dx: -30, dy: -30)
-            let near = expanded.contains(mouse)
-            if near && !self.isMouseNear {
-                self.isMouseNear = true
-                self.beginHighlightFadeIn()
-            } else if !near && self.isMouseNear {
-                self.isMouseNear = false
-                self.beginFadeOut()
-            }
+        for host in hosts.values {
+            (host.item as? TBPollPausable)?.setPaused(true)
+            (host.item as? BarItemDiscarding)?.barItemWillDiscard()
         }
-    }
-
-    func stopProximityMonitor() {
-        if let m = globalMonitor { NSEvent.removeMonitor(m); globalMonitor = nil }
-        isMouseNear = false
-    }
-
-    /// hitTest returns nil for border area when not fully highlighted →
-    /// mouse events pass through to apps below. Content area always works.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        // Content area → normal hit testing (items get events)
-        let contentFrame = contentBackground.frame
-        if contentFrame.contains(point) {
-            return contentBackground.hitTest(point) ?? contentBackground
-        }
-        // Border area → click-through until highlighted enough to drag
-        if highlightProgress >= 1.0 {
-            return self  // Draggable
-        }
-        return nil  // Click-through
     }
 }
 
-// MARK: - Touch bar background view
+/// A viewport exists for every zone, so the left and right remain reachable even
+/// when their combined contents exceed the available desktop width.
+final class TouchBarHorizontalScrollView: NSScrollView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        drawsBackground = false
+        borderType = .noBorder
+        hasVerticalScroller = false
+        hasHorizontalScroller = false
+        horizontalScrollElasticity = .none
+        verticalScrollElasticity = .none
+        contentView.drawsBackground = false
+        toolTip = localized("双指横滑或滚轮浏览此区域", "Swipe horizontally or scroll to browse this section")
+    }
+    convenience init() { self.init(frame: .zero) }
+    required init?(coder: NSCoder) { nil }
+    override func scrollWheel(with event: NSEvent) {
+        guard let documentView else { return }
+        let delta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) ? event.scrollingDeltaX : event.scrollingDeltaY
+        let multiplier: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
+        let maximum = max(0, documentView.frame.width - contentView.bounds.width)
+        let x = min(maximum, max(0, contentView.bounds.origin.x - delta * multiplier))
+        contentView.scroll(to: NSPoint(x: x, y: 0))
+        reflectScrolledClipView(contentView)
+    }
+}
+
+private final class DesktopBarItemHost: NSView {
+    let item: NSTouchBarItem
+    private let content: NSView
+    private let explicitWidth: CGFloat?
+    private let isLyrics: Bool
+    private var holdTimer: Timer?
+    private var clickWork: DispatchWorkItem?
+    private var held = false
+    private var pressPoint = NSPoint.zero
+    var action: ((Action.Trigger) -> Void)?
+    var onSelect: (() -> Void)?
+    var hasMultiClick = false
+    var hasDoubleClick = false
+    var hasTripleClick = false
+    var hasLongPress = false
+    var isInteractive = true
+    var isSelected = false {
+        didSet {
+            layer?.borderWidth = isSelected ? 2 : 0
+            layer?.borderColor = NSColor(srgbRed: 1, green: 0.56, blue: 0.34, alpha: 1).cgColor
+        }
+    }
+    var preferredWidth: CGFloat {
+        if let explicitWidth { return max(1, explicitWidth) }
+        if isLyrics { return 320 }
+        let constrained = content.constraints.first {
+            $0.isActive && $0.firstAttribute == .width && $0.secondItem == nil && $0.relation == .equal
+        }?.constant ?? 0
+        return max(28, constrained, content.intrinsicContentSize.width, content.fittingSize.width)
+    }
+    init(item: NSTouchBarItem, content: NSView, definition: BarItemDefinition) {
+        self.item = item
+        self.content = content
+        self.isLyrics = item is LyricsTouchBarItem
+        if case let .width(value)? = definition.additionalParameters[.width] { explicitWidth = value }
+        else { explicitWidth = nil }
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 5
+        layer?.masksToBounds = true
+        addSubview(content)
+        content.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: trailingAnchor),
+            content.centerYAnchor.constraint(equalTo: centerYAnchor),
+            content.heightAnchor.constraint(equalToConstant: 30),
+        ])
+    }
+    required init?(coder: NSCoder) { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isHidden, frame.contains(point) else { return nil }
+        if !isInteractive || action != nil { return self }
+        return super.hitTest(point)
+    }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        guard isInteractive else { onSelect?(); return }
+        held = false
+        pressPoint = event.locationInWindow
+        guard hasLongPress else { return }
+        let timer = Timer(timeInterval: 0.45, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.held = true
+            self.clickWork?.cancel()
+            self.action?(.longTap)
+        }
+        holdTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+    override func mouseDragged(with event: NSEvent) {
+        if hypot(event.locationInWindow.x - pressPoint.x, event.locationInWindow.y - pressPoint.y) > 5 {
+            holdTimer?.invalidate()
+            held = true
+        }
+    }
+    override func mouseUp(with event: NSEvent) {
+        holdTimer?.invalidate(); holdTimer = nil
+        guard isInteractive, !held, bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        clickWork?.cancel()
+        let trigger: Action.Trigger = event.clickCount >= 3 && hasTripleClick ? .tripleTap
+            : event.clickCount == 2 && hasDoubleClick ? .doubleTap : .singleTap
+        let work = DispatchWorkItem { [weak self] in self?.action?(trigger) }
+        clickWork = work
+        if hasMultiClick { DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work) }
+        else { work.perform() }
+    }
+    deinit { holdTimer?.invalidate(); clickWork?.cancel() }
+}
 
 class TouchBarBackgroundView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.06, alpha: 0.95).cgColor
-        layer?.cornerRadius = TouchBarMetrics.cornerRadius
-        layer?.borderWidth = 0.5
-        layer?.borderColor = NSColor(white: 0.18, alpha: 0.8).cgColor
-        layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.5
-        layer?.shadowOffset = CGSize(width: 0, height: 2)
-        layer?.shadowRadius = 6
-        layer?.masksToBounds = true  // Clip overflowing mirror items
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.cornerRadius = 9
+        layer?.masksToBounds = true
     }
-    required init?(coder: NSCoder) { return nil }
+    required init?(coder: NSCoder) { nil }
 }
 
-// MARK: - Selection overlay (edit mode)
+/// The grip is always draggable. Hover merely makes that affordance brighter;
+/// there is no invisible timer gate preventing an otherwise valid drag.
+class MirrorContainerView: NSView {
+    static let borderWidth: CGFloat = 8
+    static let gripHeight: CGFloat = 18
+    let contentBackground: TouchBarBackgroundView
+    private let grip = NSView()
+    private var proximityMonitor: Any?
+    private var localMonitor: Any?
+    private var highlighted = false
 
-class MirrorSelectionOverlay: NSView {
-    var isSelected: Bool = false {
-        didSet {
-            layer?.borderWidth = isSelected ? 2 : 0
-            layer?.borderColor = isSelected
-                ? NSColor(srgbRed: 1.00, green: 0.56, blue: 0.34, alpha: 1).cgColor
-                : NSColor.clear.cgColor
-        }
-    }
-
-    let itemIdentifier: NSTouchBarItem.Identifier
-
-    init(frame: NSRect, identifier: NSTouchBarItem.Identifier) {
-        self.itemIdentifier = identifier
+    init(frame: NSRect, contentBackground: TouchBarBackgroundView) {
+        self.contentBackground = contentBackground
         super.init(frame: frame)
         wantsLayer = true
-        layer?.cornerRadius = 4
-        layer?.borderWidth = 0
-        layer?.borderColor = NSColor.clear.cgColor
+        layer?.backgroundColor = NSColor(white: 0.08, alpha: 0.98).cgColor
+        layer?.cornerRadius = 14
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor(white: 1, alpha: 0.12).cgColor
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = 0.3
+        layer?.shadowRadius = 14
+        addSubview(contentBackground)
+        grip.wantsLayer = true
+        grip.layer?.cornerRadius = 2
+        grip.layer?.backgroundColor = NSColor(white: 0.8, alpha: 0.55).cgColor
+        addSubview(grip)
+        toolTip = localized("拖动上方把手移动扩展栏 · 双击回到底部居中", "Drag the top grip to move · double-click to center")
     }
-
-    required init?(coder: NSCoder) { return nil }
-
-    // Pass through ALL mouse events so the item's gesture recognizers work
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    required init?(coder: NSCoder) { nil }
+    override func layout() {
+        super.layout()
+        contentBackground.frame = NSRect(x: Self.borderWidth, y: Self.borderWidth,
+            width: bounds.width - Self.borderWidth * 2,
+            height: bounds.height - Self.borderWidth * 2 - Self.gripHeight)
+        grip.frame = NSRect(x: (bounds.width - 36) / 2, y: bounds.height - 12, width: 36, height: 3)
+    }
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(NSRect(x: 0, y: contentBackground.frame.maxY, width: bounds.width,
+                             height: bounds.height - contentBackground.frame.maxY), cursor: .openHand)
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard frame.contains(point) else { return nil }
+        let local = convert(point, from: superview)
+        if contentBackground.frame.contains(local) { return super.hitTest(point) }
+        return self
+    }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 { TouchBarMirrorWindowController.shared.centerWindow(); return }
+        NSCursor.closedHand.push()
+        window?.performDrag(with: event)
+        NSCursor.pop()
+        window?.saveFrame(usingName: "LyricsMTMR.DesktopBar")
+    }
+    private func updateProximity() {
+        guard let window else { return }
+        let near = window.frame.insetBy(dx: -24, dy: -24).contains(NSEvent.mouseLocation)
+        guard near != highlighted else { return }
+        highlighted = near
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            layer?.borderColor = (near ? NSColor(srgbRed: 1, green: 0.56, blue: 0.34, alpha: 0.85) : NSColor(white: 1, alpha: 0.12)).cgColor
+            grip.layer?.backgroundColor = (near ? NSColor(srgbRed: 1, green: 0.66, blue: 0.46, alpha: 1) : NSColor(white: 0.8, alpha: 0.55)).cgColor
+        }
+    }
+    func startProximityMonitor() {
+        guard proximityMonitor == nil else { return }
+        proximityMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in self?.updateProximity() }
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in self?.updateProximity(); return event }
+        updateProximity()
+    }
+    func stopProximityMonitor() {
+        if let proximityMonitor { NSEvent.removeMonitor(proximityMonitor) }
+        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
+        proximityMonitor = nil; localMonitor = nil
+    }
+    deinit { stopProximityMonitor() }
 }
 
-// MARK: - Touch bar mirror window controller
-
 class TouchBarMirrorWindowController: NSObject {
-
-    /// Convert centimeters to screen points using the main display's physical size.
-    static func pointsForCM(_ cm: CGFloat) -> CGFloat {
-        guard let screen = NSScreen.main,
-              let did = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
-        else { return 680 }
-        let mm = CGDisplayScreenSize(did)
-        guard mm.width > 0 else { return 680 }
-        return screen.frame.width * (cm * 10.0) / mm.width
-    }
     static let shared = TouchBarMirrorWindowController()
-
     private var window: NSPanel?
     private var container: MirrorContainerView?
-    private var stackView: NSStackView?
+    private var surface: TouchBarSurfaceView?
     private var syncTimer: Timer?
-
-    // MARK: - Interaction mode
-
-    var interactionMode: MirrorInteractionMode = .live {
-        didSet {
-            guard oldValue != interactionMode else { return }
-            selectedIdentifier = nil
-            rebuildMirror()
-        }
-    }
-
-    // MARK: - Mirror item factory (same construction switch as real Touch Bar)
-
-    private lazy var mirrorFactory = BarItemFactory(
-        actionResolver: { [weak self] def in
-            guard self != nil else { return nil }
-            return TouchBarController.shared.action(forItem: def)
-        },
-        longActionResolver: { [weak self] def in
-            guard self != nil else { return nil }
-            return TouchBarController.shared.longAction(forItem: def)
-        },
-        closureResolver: { [weak self] act in
-            guard self != nil else { return nil }
-            return TouchBarController.shared.closure(for: act)
-        }
-    )
-
-    private var mirrorItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
-    private var mirrorIdToControllerId: [NSTouchBarItem.Identifier: NSTouchBarItem.Identifier] = [:]
-
-    // MARK: - Selection (edit mode)
-
-    private var selectedIdentifier: NSTouchBarItem.Identifier?
-    private var selectionOverlays: [MirrorSelectionOverlay] {
-        func findOverlays(in view: NSView) -> [MirrorSelectionOverlay] {
-            var result: [MirrorSelectionOverlay] = []
-            if let o = view as? MirrorSelectionOverlay { result.append(o) }
-            for sub in view.subviews { result.append(contentsOf: findOverlays(in: sub)) }
-            return result
-        }
-        return stackView?.arrangedSubviews.flatMap { findOverlays(in: $0) } ?? []
-    }
-
-    // MARK: - Sync infrastructure (OPT-17 / ITER-15)
-
-    private var itemFingerprints: [NSTouchBarItem.Identifier: ItemFingerprint] = [:]
-    private var syncTick: Int = 0
-
+    private var independentPath = ""
+    private var independentModified: Date?
+    private var independentDefinitions: [BarItemDefinition] = []
+    private var lastControllerIDs: [NSTouchBarItem.Identifier]?
+    private var isVisible = false
     private let contentDirtyLock = NSLock()
-    private var _contentDirtyIdentifiers: Set<NSTouchBarItem.Identifier> = []
-    private var _coalesceScheduled = false
+    private var dirtyIdentifiers = Set<NSTouchBarItem.Identifier>()
+    private var coalesceScheduled = false
 
+    var interactionMode = MirrorInteractionMode(rawValue: AppSettings.mirrorInteractionMode) ?? .live {
+        didSet {
+            AppSettings.mirrorInteractionMode = interactionMode.rawValue
+            configureInteraction()
+        }
+    }
+    private override init() {
+        super.init()
+        if AppSettings.showMirrorWindow { DispatchQueue.main.async { [weak self] in self?.show() } }
+    }
+    static func pointsForCM(_ cm: CGFloat) -> CGFloat {
+        guard let screen = NSScreen.main,
+              let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
+              CGDisplayScreenSize(id).width > 0 else { return cm * 28.35 }
+        return screen.frame.width * cm * 10 / CGDisplayScreenSize(id).width
+    }
+    func show() {
+        if window == nil {
+            let screenWidth = NSScreen.main?.visibleFrame.width ?? 1280
+            let width = min(TouchBarSurfaceView.logicalWidth + 28, screenWidth - 48)
+            let height: CGFloat = 66
+            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+                                styleMask: [.nonactivatingPanel, .fullSizeContentView], backing: .buffered, defer: false)
+            panel.isFloatingPanel = true
+            panel.level = .floating
+            panel.isMovableByWindowBackground = false
+            panel.hasShadow = true
+            panel.backgroundColor = .clear
+            panel.isOpaque = false
+            panel.hidesOnDeactivate = false
+            panel.isReleasedWhenClosed = false
+            panel.acceptsMouseMovedEvents = true
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            let background = TouchBarBackgroundView(frame: .zero)
+            let container = MirrorContainerView(frame: panel.contentView!.bounds, contentBackground: background)
+            container.autoresizingMask = [.width, .height]
+            panel.contentView?.addSubview(container)
+            let surface = TouchBarSurfaceView(frame: background.bounds)
+            surface.autoresizingMask = [.width, .height]
+            background.addSubview(surface)
+            surface.onPresetRequested = { [weak self] path in
+                if AppSettings.mirrorFollowsTouchBar { TouchBarController.shared.reloadPreset(path: path) }
+                else { AppSettings.mirrorPresetPath = path; self?.syncFromTouchBar() }
+            }
+            self.surface = surface
+            self.container = container
+            window = panel
+            if !panel.setFrameUsingName("LyricsMTMR.DesktopBar") { centerWindow() }
+            configureInteraction()
+        }
+        isVisible = true
+        AppSettings.showMirrorWindow = true
+        window?.orderFrontRegardless()
+        container?.startProximityMonitor()
+        surface?.setPaused(false)
+        syncFromTouchBar()
+        syncTimer?.invalidate()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.syncFromTouchBar(isHeartbeat: true) }
+        timer.tolerance = 0.2
+        RunLoop.main.add(timer, forMode: .common)
+        syncTimer = timer
+    }
+    func hide() {
+        isVisible = false
+        AppSettings.showMirrorWindow = false
+        syncTimer?.invalidate(); syncTimer = nil
+        container?.stopProximityMonitor()
+        surface?.setPaused(true)
+        window?.orderOut(nil)
+    }
+    func toggle() { isVisible ? hide() : show() }
+    func centerWindow() {
+        guard let window, let screen = window.screen ?? NSScreen.main else { return }
+        let rect = screen.visibleFrame
+        window.setFrameOrigin(NSPoint(x: rect.midX - window.frame.width / 2, y: rect.minY + 12))
+    }
+    private func configureInteraction() {
+        surface?.isInteractive = interactionMode == .live
+        surface?.onSelect = interactionMode == .edit ? { [weak self] id in self?.openEditor(for: id) } : nil
+        if interactionMode != .edit { surface?.selectedIdentifier = nil }
+    }
+    func syncFromTouchBar(isHeartbeat: Bool = false) {
+        contentDirtyLock.lock(); dirtyIdentifiers.removeAll(); contentDirtyLock.unlock()
+        guard isVisible, let surface else { return }
+        if AppSettings.mirrorFollowsTouchBar {
+            let controller = TouchBarController.shared
+            let ids = (controller.leftIdentifiers + controller.centerIdentifiers + controller.rightIdentifiers)
+                .filter { controller.items[$0] != nil }
+            surface.presetPath = controller.lastPresetPath
+            if ids != lastControllerIDs {
+                surface.update(definitions: ids.compactMap { controller.itemDefinitions[$0] }, identifiers: ids)
+                lastControllerIDs = ids
+            }
+            surface.synchronizeButtons(from: controller.items)
+        } else {
+            lastControllerIDs = nil
+            let path = AppSettings.mirrorPresetPath
+            surface.presetPath = path
+            let modified = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+            if path != independentPath || modified != independentModified || independentDefinitions.isEmpty {
+                if let definitions = path.fileData?.barItemDefinitions() {
+                    independentDefinitions = definitions
+                    independentPath = path
+                    independentModified = modified
+                } else if independentDefinitions.isEmpty {
+                    // Starting independent mode with no selection pins the current layout.
+                    independentDefinitions = TouchBarController.shared.jsonItems
+                }
+            }
+            let visible = independentDefinitions.enumerated().filter {
+                TouchBarController.shouldShowItem($0.element, frontmostAppId: TouchBarController.shared.frontmostApplicationIdentifier)
+            }
+            surface.update(definitions: visible.map(\.element), identifiers: visible.map {
+                NSTouchBarItem.Identifier("surface-item-\($0.offset)")
+            })
+        }
+        surface.refreshLayout()
+    }
+    func deselectAll() { surface?.selectedIdentifier = nil }
+    private func openEditor(for identifier: NSTouchBarItem.Identifier) {
+        let path: String
+        let index: Int
+        if AppSettings.mirrorFollowsTouchBar {
+            let controller = TouchBarController.shared
+            guard let definition = controller.itemDefinitions[identifier] else { return }
+            let zone = definition.align == .left ? controller.leftIdentifiers
+                : definition.align == .right ? controller.rightIdentifiers : controller.centerIdentifiers
+            guard let position = zone.firstIndex(of: identifier) else { return }
+            let original = controller.jsonItems.enumerated().filter { $0.element.align == definition.align }
+            guard position < original.count else { return }
+            index = original[position].offset
+            path = controller.lastPresetPath
+        } else {
+            guard let parsed = Int(identifier.rawValue.replacingOccurrences(of: "surface-item-", with: "")) else { return }
+            index = parsed
+            path = AppSettings.mirrorPresetPath
+        }
+        guard !path.isEmpty else { return }
+        RibbonModel.pendingDesktopNavigation = (path: path, index: index, isMirror: !AppSettings.mirrorFollowsTouchBar)
+        (NSApp.delegate as? AppDelegate)?.openSettings(nil)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .editorRequestSwitchToEditor, object: nil)
+            NotificationCenter.default.post(name: RibbonModel.desktopNavigationRequested, object: nil)
+        }
+    }
     var contentDirty: Bool {
-        contentDirtyLock.lock()
-        defer { contentDirtyLock.unlock() }
-        return !_contentDirtyIdentifiers.isEmpty
+        contentDirtyLock.lock(); defer { contentDirtyLock.unlock() }
+        return !dirtyIdentifiers.isEmpty
     }
-
     var isCoalesceScheduledForTesting: Bool {
-        contentDirtyLock.lock()
-        defer { contentDirtyLock.unlock() }
-        return _coalesceScheduled
+        contentDirtyLock.lock(); defer { contentDirtyLock.unlock() }
+        return coalesceScheduled
     }
-
     func noteContentDirty(identifier: NSTouchBarItem.Identifier) {
+        // Desktop widgets already own live subscriptions. Their own updates must
+        // not initiate another factory rebuild or a feedback loop.
+        if identifier.rawValue.hasPrefix("desktop.") { return }
         contentDirtyLock.lock()
-        _contentDirtyIdentifiers.insert(identifier)
-        let shouldSchedule = !_coalesceScheduled
-        _coalesceScheduled = true
+        dirtyIdentifiers.insert(identifier)
+        let schedule = !coalesceScheduled
+        coalesceScheduled = true
         contentDirtyLock.unlock()
-        guard shouldSchedule else { return }
+        guard schedule else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.contentDirtyLock.lock()
-            let ids = self._contentDirtyIdentifiers
-            self._contentDirtyIdentifiers.removeAll()
-            self._coalesceScheduled = false
+            self.coalesceScheduled = false
             self.contentDirtyLock.unlock()
-            guard !ids.isEmpty else { return }
             self.syncFromTouchBar()
         }
     }
-
-    private static func snapshotRefreshInterval(forSnapshotCount count: Int) -> Int {
-        switch count {
-        case 0...1: return 5
-        case 2: return 7
-        default: return 10
-        }
+    static let heartbeatSeconds: Double = 1
+    static func snapshotDueHeartbeats(forLegacyTicks ticks: Int) -> Int {
+        max(1, Int((Double(ticks) * 0.1 / heartbeatSeconds).rounded()))
     }
-
-    private var isVisible: Bool = false {
-        didSet { AppSettings.showMirrorWindow = isVisible }
-    }
-
-    private var keyMonitor: Any?
-
-    private override init() {
-        super.init()
-        if AppSettings.showMirrorWindow {
-            DispatchQueue.main.async { [weak self] in self?.show() }
-        }
-    }
-
-    // MARK: - Show / Hide / Toggle
-
-    func show() {
-        syncTick = 0
-        if window != nil {
-            window?.orderFront(nil)
-            isVisible = true
-            startSyncTimer()
-            installKeyMonitor()
-            container?.startProximityMonitor()
-            return
-        }
-
-        let bw = MirrorContainerView.borderWidth
-        let contentW = Self.pointsForCM(24)
-        let contentH = TouchBarMetrics.physicalHeight
-        let totalW = contentW + bw * 2
-        let totalH = contentH + bw * 2
-
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: totalW, height: totalH),
-            styleMask: [.nonactivatingPanel, .fullSizeContentView],
-            backing: .buffered, defer: false
-        )
-        panel.isFloatingPanel = true
-        panel.level = .floating
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.isMovableByWindowBackground = false
-        panel.hasShadow = false
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.hidesOnDeactivate = false
-        panel.isReleasedWhenClosed = false
-
-        let bg = TouchBarBackgroundView(frame: NSRect(x: 0, y: 0,
-            width: contentW, height: contentH))
-
-        let sv = NSStackView()
-        sv.spacing = 4
-        sv.orientation = .horizontal
-        sv.alignment = .centerY
-        sv.translatesAutoresizingMaskIntoConstraints = false
-        sv.distribution = .fill
-        bg.addSubview(sv)
-        NSLayoutConstraint.activate([
-            sv.centerYAnchor.constraint(equalTo: bg.centerYAnchor),
-            sv.leadingAnchor.constraint(equalTo: bg.leadingAnchor, constant: 4),
-            sv.trailingAnchor.constraint(lessThanOrEqualTo: bg.trailingAnchor, constant: -4),
-            sv.topAnchor.constraint(greaterThanOrEqualTo: bg.topAnchor, constant: 2),
-            sv.bottomAnchor.constraint(lessThanOrEqualTo: bg.bottomAnchor, constant: -2),
-        ])
-        stackView = sv
-
-        let ctr = MirrorContainerView(frame: panel.contentView!.bounds, contentBackground: bg)
-        ctr.autoresizingMask = [.width, .height]
-        panel.contentView?.addSubview(ctr)
-        ctr.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            ctr.widthAnchor.constraint(equalToConstant: totalW),
-            ctr.heightAnchor.constraint(equalToConstant: totalH),
-            ctr.centerXAnchor.constraint(equalTo: panel.contentView!.centerXAnchor),
-            ctr.centerYAnchor.constraint(equalTo: panel.contentView!.centerYAnchor),
-        ])
-        container = ctr
-
-        window = panel
-        positionAtBottomCenter()
-        panel.orderFront(nil)
-        isVisible = true
-
-        syncFromTouchBar()
-        startSyncTimer()
-        installKeyMonitor()
-        container?.startProximityMonitor()
-    }
-
-    func hide() {
-        syncTimer?.invalidate(); syncTimer = nil
-        removeKeyMonitor()
-        container?.stopProximityMonitor()
-        window?.orderOut(nil)
-        isVisible = false
-    }
-
-    func toggle() { isVisible ? hide() : show() }
-
-    // MARK: - Key monitor (edit mode)
-
-    private func installKeyMonitor() {
-        guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.interactionMode == .edit else { return event }
-            if event.keyCode == 51 { if self.deleteSelected() { return nil } }
-            return event
-        }
-    }
-
-    private func removeKeyMonitor() {
-        if let monitor = keyMonitor { NSEvent.removeMonitor(monitor); keyMonitor = nil }
-    }
-
-    // MARK: - Sync timer
-
-    private func startSyncTimer() {
-        syncTimer?.invalidate()
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.syncFromTouchBar(isHeartbeat: true)
-        }
-    }
-
-    private func positionAtBottomCenter() {
-        guard let window, let screen = NSScreen.main else { return }
-        let sf = screen.frame
-        let wf = window.frame
-        let x = sf.origin.x + (sf.width - wf.width) / 2
-        let y = sf.origin.y + 4
-        window.setFrame(NSRect(x: x, y: y, width: wf.width, height: wf.height), display: true)
-    }
-
-    // MARK: - Incremental sync (OPT-17 + ITER-15)
-
-    private func rebuildMirror() {
-        discardMirrorItems()
-        syncFromTouchBar()
-    }
-
-    func syncFromTouchBar(isHeartbeat: Bool = false) {
-        if isHeartbeat {
-            guard contentDirty || Self.layoutHasSnapshotItems() else { return }
-        }
-
-        contentDirtyLock.lock()
-        _contentDirtyIdentifiers.removeAll()
-        contentDirtyLock.unlock()
-
-        let controller = TouchBarController.shared
-        guard let sv = stackView else { return }
-
-        syncTick += 1
-
-        let leftDefs = controller.leftIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
-            controller.itemDefinitions[id].map { (id, $0) }
-        }
-        let centerDefs = controller.centerIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
-            controller.itemDefinitions[id].map { (id, $0) }
-        }
-        let rightDefs = controller.rightIdentifiers.compactMap { id -> (NSTouchBarItem.Identifier, BarItemDefinition)? in
-            controller.itemDefinitions[id].map { (id, $0) }
-        }
-
-        let snapshotCount = (leftDefs + centerDefs + rightDefs).filter {
-            Self.instanceFingerprint(of: controller.items[$0.0]) == nil
-        }.count
-        let snapshotDueTickLimit = Self.snapshotDueHeartbeats(
-            forLegacyTicks: Self.snapshotRefreshInterval(forSnapshotCount: snapshotCount))
-        let snapshotDue = syncTick % snapshotDueTickLimit == 0
-
-        // Build (isSeparator, controllerId?, definition?) targets
-        var targetsIsSep: [Bool] = []
-        var targetIds: [NSTouchBarItem.Identifier?] = []
-        var targetDefs: [BarItemDefinition?] = []
-        var first = true
-        for defs in [leftDefs, centerDefs, rightDefs] {
-            if defs.isEmpty { continue }
-            if !first { targetsIsSep.append(true); targetIds.append(nil); targetDefs.append(nil) }
-            first = false
-            for (cid, def) in defs {
-                targetsIsSep.append(false); targetIds.append(cid); targetDefs.append(def)
-            }
-        }
-
-        var current = sv.arrangedSubviews
-        var liveControllerIds = Set<NSTouchBarItem.Identifier>()
-
-        for index in 0..<targetsIsSep.count {
-            let isSep = targetsIsSep[index]
-            let tid = targetIds[index]
-            let targetId = isSep ? Self.separatorIdentifier : NSUserInterfaceItemIdentifier(tid!.rawValue)
-
-            if index < current.count, current[index].identifier == targetId {
-                if !isSep, let cid = tid {
-                    liveControllerIds.insert(cid)
-                    let controllerItem = controller.items[cid]
-                    if let fp = Self.instanceFingerprint(of: controllerItem) {
-                        if itemFingerprints[cid] == fp { continue }
-                        let newView = makeMirrorItemView(controllerId: cid, definition: targetDefs[index]!)
-                        replace(current[index], with: newView, in: sv, at: index)
-                        current[index] = newView
-                        itemFingerprints[cid] = fp
-                    } else {
-                        if !snapshotDue { continue }
-                        itemFingerprints.removeValue(forKey: cid)
-                        let newView = makeMirrorItemView(controllerId: cid, definition: targetDefs[index]!)
-                        replace(current[index], with: newView, in: sv, at: index)
-                        current[index] = newView
-                    }
-                }
-            } else {
-                let newView: NSView = isSep ? makeSeparatorView() : makeMirrorItemView(controllerId: tid!, definition: targetDefs[index]!)
-                if index < current.count {
-                    replace(current[index], with: newView, in: sv, at: index)
-                    current[index] = newView
-                } else {
-                    sv.addArrangedSubview(newView)
-                    current.append(newView)
-                }
-                if !isSep, let cid = tid {
-                    liveControllerIds.insert(cid)
-                    if let fp = Self.instanceFingerprint(of: controller.items[cid]) {
-                        itemFingerprints[cid] = fp
-                    }
-                }
-            }
-        }
-
-        while current.count > targetsIsSep.count {
-            let extra = current.removeLast()
-            sv.removeArrangedSubview(extra)
-            extra.removeFromSuperview()
-        }
-
-        itemFingerprints = itemFingerprints.filter { liveControllerIds.contains($0.key) }
-    }
-
-    // MARK: - View building (reuses BarItemFactory)
-
-    private static let separatorIdentifier = NSUserInterfaceItemIdentifier("mirror.separator")
-
-    private func makeSeparatorView() -> NSView {
-        let line = NSBox()
-        line.boxType = .separator
-        line.translatesAutoresizingMaskIntoConstraints = false
-        line.heightAnchor.constraint(equalToConstant: 20).isActive = true
-        line.widthAnchor.constraint(equalToConstant: 1).isActive = true
-        line.identifier = Self.separatorIdentifier
-        return line
-    }
-
-    /// Creates a mirror item using the mirror's own BarItemFactory.
-    /// Same construction switch as the real Touch Bar — same view class,
-    /// same styling, same gesture recognizers.
-    private func makeMirrorItemView(
-        controllerId: NSTouchBarItem.Identifier,
-        definition: BarItemDefinition
-    ) -> NSView {
-        let mirrorId = NSTouchBarItem.Identifier("mirror.\(controllerId.rawValue)")
-        let mirrorItem = mirrorFactory.createItemSafely(forIdentifier: mirrorId, definition: definition)
-
-        mirrorItems[mirrorId] = mirrorItem
-        mirrorIdToControllerId[mirrorId] = controllerId
-
-        guard let mirrorItem else {
-            let l = NSTextField(labelWithString: "?")
-            l.textColor = .white; l.font = .systemFont(ofSize: 13, weight: .medium)
-            l.translatesAutoresizingMaskIntoConstraints = false
-            return l
-        }
-
-        // Touch Bar renders items without button chrome — force isBordered=false
-        // unless the JSON definition explicitly says bordered:true
-        if let btn = mirrorItem as? CustomButtonTouchBarItem {
-            if case .bordered(true)? = definition.additionalParameters[.bordered] {
-                // Keep bordered
-            } else {
-                btn.isBordered = false
-            }
-        }
-
-        // 将白色/浅色背景改为灰黑色（Touch Bar 不显示白色底）
-        stripWhiteBackground(from: mirrorItem)
-
-        // Mirror mode: strip gesture recognizers (passive display)
-        if interactionMode == .mirror {
-            if let v = mirrorItem.view {
-                for gr in v.gestureRecognizers { v.removeGestureRecognizer(gr) }
-            }
-        }
-
-        guard let itemView = mirrorItem.view else {
-            return NSTextField(labelWithString: "?")
-        }
-        itemView.translatesAutoresizingMaskIntoConstraints = false
-        itemView.identifier = NSUserInterfaceItemIdentifier(controllerId.rawValue)
-
-        // Cap item width to prevent overflow — max 40% of content area
-        // 但不应用于ScrollViewItem，因为它需要更大的宽度来显示中间区域
-        if !(mirrorItem is ScrollViewItem) {
-            let maxW = Self.pointsForCM(24) * 0.4
-            if itemView.intrinsicContentSize.width > maxW {
-                itemView.widthAnchor.constraint(lessThanOrEqualToConstant: maxW).isActive = true
-            }
-        }
-        // ScrollViewItem 不设置宽度限制，让它自适应
-
-        guard interactionMode != .mirror else { return itemView }
-
-        // Live / Edit mode: wrap with gesture handling + sync trigger
-        let wrapper = interactionMode == .edit ? NSView() : itemView
-        if interactionMode == .edit {
-            wrapper.translatesAutoresizingMaskIntoConstraints = false
-            wrapper.identifier = NSUserInterfaceItemIdentifier(controllerId.rawValue)
-            wrapper.addSubview(itemView)
-            NSLayoutConstraint.activate([
-                itemView.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-                itemView.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
-                itemView.topAnchor.constraint(equalTo: wrapper.topAnchor),
-                itemView.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
-            ])
-            let overlay = MirrorSelectionOverlay(frame: .zero, identifier: controllerId)
-            overlay.translatesAutoresizingMaskIntoConstraints = false
-            let click = NSClickGestureRecognizer(target: self, action: #selector(handleEditClick(_:)))
-            click.allowedTouchTypes = .direct
-            overlay.addGestureRecognizer(click)
-            wrapper.addSubview(overlay)
-            NSLayoutConstraint.activate([
-                overlay.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-                overlay.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
-                overlay.topAnchor.constraint(equalTo: wrapper.topAnchor),
-                overlay.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
-            ])
-        }
-
-        return wrapper
-    }
-
-    // MARK: - 白底处理
-
-    /// Mirror 上统一使用的灰黑色底
-    private static let mirrorGrayBackground = NSColor(white: 0.15, alpha: 1.0)
-
-    /// 将小组件的白色或接近白色背景改为灰黑色
-    private func stripWhiteBackground(from item: NSTouchBarItem) {
-        let grayBg = Self.mirrorGrayBackground
-
-        // 处理 CustomButtonTouchBarItem
-        if let btn = item as? CustomButtonTouchBarItem {
-            // 如果没有显式背景，或者背景是白色/浅色，设置为灰黑
-            if let bgColor = btn.backgroundColor {
-                if isWhiteOrNearWhite(bgColor) {
-                    btn.backgroundColor = grayBg
-                }
-            } else {
-                // 没有显式背景：默认按钮可能显示白色 bezel，设置为灰黑
-                btn.backgroundColor = grayBg
-            }
-            // 确保 button 的外观正确
-            if let button = btn.view as? NSButton {
-                button.wantsLayer = true
-                button.bezelColor = grayBg
-                button.layer?.backgroundColor = grayBg.cgColor
-            }
-        }
-
-        // 递归处理视图的 layer 背景色
-        if let view = item.view {
-            replaceWhiteBackgroundsInView(view, with: grayBg)
-        }
-    }
-
-    /// 递归替换视图及其子视图的白色背景
-    private func replaceWhiteBackgroundsInView(_ view: NSView, with color: NSColor) {
-        if let layer = view.layer, let bgColor = layer.backgroundColor {
-            let nsColor = NSColor(cgColor: bgColor) ?? .clear
-            if isWhiteOrNearWhite(nsColor) {
-                layer.backgroundColor = color.cgColor
-            }
-        }
-        // NSButton
-        if let button = view as? NSButton {
-            button.wantsLayer = true
-            if let bezelColor = button.bezelColor, isWhiteOrNearWhite(bezelColor) {
-                button.bezelColor = color
-            }
-        }
-        // NSTextField
-        if let tf = view as? NSTextField {
-            if tf.drawsBackground, let bgColor = tf.backgroundColor, isWhiteOrNearWhite(bgColor) {
-                tf.backgroundColor = color
-            }
-        }
-        for subview in view.subviews {
-            replaceWhiteBackgroundsInView(subview, with: color)
-        }
-    }
-
-    /// 判断颜色是否为白色或接近白色
-    private func isWhiteOrNearWhite(_ color: NSColor) -> Bool {
-        guard let rgb = color.usingColorSpace(.deviceRGB) else { return false }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        rgb.getRed(&r, green: &g, blue: &b, alpha: &a)
-        // RGB > 0.7 且 alpha > 0.05 算作白色/浅色
-        return r > 0.7 && g > 0.7 && b > 0.7 && a > 0.05
-    }
-
-    @objc private func handleEditClick(_ gr: NSClickGestureRecognizer) {
-        guard let overlay = gr.view as? MirrorSelectionOverlay else { return }
-        selectItem(identifier: overlay.itemIdentifier)
-    }
-
-    // MARK: - Selection management (edit mode)
-
-    private func selectItem(identifier: NSTouchBarItem.Identifier) {
-        for overlay in selectionOverlays {
-            overlay.isSelected = overlay.itemIdentifier == identifier
-        }
-        selectedIdentifier = identifier
-    }
-
-    func deselectAll() {
-        selectedIdentifier = nil
-        for overlay in selectionOverlays { overlay.isSelected = false }
-    }
-
-    @discardableResult
-    func deleteSelected() -> Bool {
-        guard interactionMode == .edit, let selId = selectedIdentifier else { return false }
-        let controller = TouchBarController.shared
-
-        var removed = false
-        if let idx = controller.leftIdentifiers.firstIndex(of: selId) {
-            controller.leftIdentifiers.remove(at: idx); removed = true
-        } else if let idx = controller.centerIdentifiers.firstIndex(of: selId) {
-            controller.centerIdentifiers.remove(at: idx); removed = true
-        } else if let idx = controller.rightIdentifiers.firstIndex(of: selId) {
-            controller.rightIdentifiers.remove(at: idx); removed = true
-        }
-
-        if removed {
-            controller.items.removeValue(forKey: selId)
-            controller.itemDefinitions.removeValue(forKey: selId)
-            let path = controller.lastPresetPath
-            if !path.isEmpty { controller.reloadPreset(path: path) }
-        }
-
-        deselectAll()
-        return removed
-    }
-
-    // MARK: - Mirror item lifecycle
-
-    private func discardMirrorItems() {
-        mirrorItems.removeAll()
-        mirrorIdToControllerId.removeAll()
-    }
-
-    // MARK: - Sync helpers (OPT-17 / ITER-15)
-
-    static let heartbeatSeconds: Double = 1.0
-
-    static func snapshotDueHeartbeats(forLegacyTicks legacyTicks: Int) -> Int {
-        max(1, Int((Double(legacyTicks) * legacyTickSeconds / heartbeatSeconds).rounded()))
-    }
-
-    private static let legacyTickSeconds: Double = 0.1
-
-    static func layoutHasSnapshotItems() -> Bool {
-        let c = TouchBarController.shared
-        for ids in [c.leftIdentifiers, c.centerIdentifiers, c.rightIdentifiers] {
-            for id in ids where c.items[id] != nil {
-                if Self.instanceFingerprint(of: c.items[id]!) == nil { return true }
-            }
-        }
-        return false
-    }
-
-    fileprivate static func instanceFingerprint(of item: NSTouchBarItem?) -> ItemFingerprint? {
-        guard let item else { return nil }
-        if let bi = item as? CustomButtonTouchBarItem {
-            return .button(
-                imageRef: bi.image.map { ObjectIdentifier($0) },
-                title: bi.attributedTitle,
-                width: item.view?.frame.width ?? 0
-            )
-        }
-        if let li = item as? LyricsTouchBarItem {
-            return .text(lyricsTextStatic(from: li), width: item.view?.frame.width ?? 0)
-        }
-        if let gi = item as? GroupBarItem {
-            return .text(gi.collapsedRepresentationLabel, width: 0)
-        }
-        return nil
-    }
-
-    private static func lyricsTextStatic(from li: LyricsTouchBarItem) -> String {
-        var txt = "♫"
-        if let stack = li.view as? NSStackView {
-            for case let karaoke as KaraokeLabel in stack.arrangedSubviews {
-                let s = karaoke.attributedStringValue.string.trimmingCharacters(in: .whitespaces)
-                if !s.isEmpty { txt = s; break }
-            }
-        }
-        return txt
-    }
-
-    // MARK: - Fingerprint
-
     enum ItemFingerprint: Equatable {
         case button(imageRef: ObjectIdentifier?, title: NSAttributedString?, width: CGFloat)
         case text(String, width: CGFloat)
@@ -910,46 +733,4 @@ class TouchBarMirrorWindowController: NSObject {
         }
     }
 
-    // MARK: - Snapshot (pixel-perfect bitmap capture of a view)
-
-    private func snapshot(_ view: NSView?) -> NSImageView? {
-        guard let v = view, v.frame.width > 0, v.frame.height > 0 else { return nil }
-        let screenScale = NSScreen.main?.backingScaleFactor ?? 2.0
-        let size = v.bounds.size
-        let pxW = Int(size.width * screenScale)
-        let pxH = Int(size.height * screenScale)
-
-        let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: pxW, pixelsHigh: pxH,
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
-            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-        )!
-        rep.size = size
-
-        let ctx = NSGraphicsContext(bitmapImageRep: rep)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = ctx
-        ctx!.cgContext.scaleBy(x: screenScale, y: screenScale)
-        if v.wantsLayer, let layer = v.layer {
-            layer.render(in: ctx!.cgContext)
-        } else {
-            v.cacheDisplay(in: v.bounds, to: v.bitmapImageRepForCachingDisplay(in: v.bounds)!)
-        }
-        NSGraphicsContext.restoreGraphicsState()
-
-        let img = NSImage(size: size)
-        img.addRepresentation(rep)
-        let iv = NSImageView(image: img)
-        iv.translatesAutoresizingMaskIntoConstraints = false
-        iv.imageScaling = .scaleProportionallyDown
-        return iv
-    }
-
-    // MARK: - View utilities
-
-    private func replace(_ oldView: NSView, with newView: NSView, in sv: NSStackView, at index: Int) {
-        sv.insertArrangedSubview(newView, at: index)
-        sv.removeArrangedSubview(oldView)
-        oldView.removeFromSuperview()
-    }
 }

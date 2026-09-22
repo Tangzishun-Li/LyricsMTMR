@@ -92,6 +92,22 @@ final class RibbonModel: ObservableObject {
     // ── Draft system ──
     @Published var currentDraft: Draft?
     @Published var isLivePreview: Bool = false
+    @Published var isEditingMirrorPreset: Bool = false
+    @Published private(set) var previewDefinitions: [BarItemDefinition] = []
+    @Published private(set) var previewError: String?
+    private var previewWorkItem: DispatchWorkItem?
+    private var draftSaveWorkItem: DispatchWorkItem?
+    private var originalPreviewDefinitions: [BarItemDefinition]?
+    private var originalPreviewPath: String?
+    private var previewTouchBar: NSTouchBar?
+
+    deinit {
+        previewWorkItem?.cancel()
+        liveSyncWorkItem?.cancel()
+        draftSaveWorkItem?.cancel()
+        if let draft = currentDraft { DraftManager.shared.saveInBackground(draft) }
+        restoreLivePreview()
+    }
 
     // ── Nested container navigation ──
     @Published var navigationPath: [NavigationLevel] = []
@@ -99,8 +115,12 @@ final class RibbonModel: ObservableObject {
     // Selection anchor for shift-range selection
     private var selectionAnchor: Int?
 
-    private var undoStack: [[[String: Any]]] = []
-    private var redoStack: [[[String: Any]]] = []
+    private struct HistoryState {
+        let items: [[String: Any]]
+        let navigation: [NavigationLevel]
+    }
+    private var undoStack: [HistoryState] = []
+    private var redoStack: [HistoryState] = []
     private let maxUndoDepth = 40
 
     /// Mirrors `isDirty` so the settings window can guard against closing
@@ -110,6 +130,10 @@ final class RibbonModel: ObservableObject {
     /// Posted by the settings window when the user picks "Save" in the
     /// close-with-unsaved-changes prompt.
     static let editorSaveRequested = Notification.Name("LyricsMTMREditorSaveRequestedNotification")
+    static let editorDiscardRequested = Notification.Name("LyricsMTMREditorDiscardRequestedNotification")
+    static let desktopNavigationRequested = Notification.Name("LyricsMTMRDesktopNavigationRequested")
+    static var pendingDesktopNavigation: (path: String, index: Int, isMirror: Bool)?
+    private var savedItems: [[String: Any]] = []
 
     /// Live preview writes are debounced so typing/dragging does not rebuild
     /// the whole Touch Bar on every single mutation.
@@ -172,7 +196,7 @@ final class RibbonModel: ObservableObject {
     func drillInto(index: Int) {
         let source = activeItems
         guard index >= 0, index < source.count else { return }
-        var item = source[index]
+        let item = source[index]
         // Robust cast: JSON-bridged NSArray may not directly cast to [[String: Any]]
         var children: [[String: Any]]
         if let direct = item["items"] as? [[String: Any]] {
@@ -180,12 +204,8 @@ final class RibbonModel: ObservableObject {
         } else if let arr = item["items"] as? [Any] {
             children = arr.compactMap { $0 as? [String: Any] }
         } else {
-            // Container type without "items" key yet: initialize empty
+            // Merely entering an empty container is navigation, not an edit.
             children = []
-            item["items"] = children
-            var src = activeItems
-            src[index] = item
-            activeItems = src
         }
         let type = item["type"] as? String ?? "group"
         let title = item["title"] as? String ?? EditorSchema.schema(for: type).displayName
@@ -200,66 +220,37 @@ final class RibbonModel: ObservableObject {
         navigationPath.append(level)
         selectedIndices = []
         selectionAnchor = nil
+        refreshPreview()
         notifySelection()
     }
 
     func navigateBack() {
         guard !navigationPath.isEmpty else { return }
-        let currentLevel = navigationPath.removeLast()
-        let idx = currentLevel.containerIndex
-        if navigationPath.isEmpty {
-            if idx >= 0 && idx < items.count {
-                items[idx]["items"] = currentLevel.items
-            }
-        } else {
-            var parentItems = navigationPath[navigationPath.count - 1].items
-            if idx >= 0 && idx < parentItems.count {
-                parentItems[idx]["items"] = currentLevel.items
-                navigationPath[navigationPath.count - 1].items = parentItems
-            }
-        }
+        navigationPath.removeLast()
         selectedIndices = []
         selectionAnchor = nil
-        didMutate()
+        refreshPreview()
         notifySelection()
     }
 
     func navigateToRoot() {
-        while !navigationPath.isEmpty {
-            let level = navigationPath.removeLast()
-            let idx = level.containerIndex
-            if navigationPath.isEmpty {
-                if idx >= 0 && idx < items.count {
-                    items[idx]["items"] = level.items
-                }
-            } else {
-                var parentItems = navigationPath[navigationPath.count - 1].items
-                if idx >= 0 && idx < parentItems.count {
-                    parentItems[idx]["items"] = level.items
-                    navigationPath[navigationPath.count - 1].items = parentItems
-                }
-            }
-        }
+        guard !navigationPath.isEmpty else { return }
+        navigationPath = []
         selectedIndices = []
         selectionAnchor = nil
-        didMutate()
+        refreshPreview()
         notifySelection()
-    }
-
-    private func writeBackToParent(children: [[String: Any]]) {
-        // Kept for API compatibility; actual write-back is done inline in navigateBack/navigateToRoot.
     }
 
     // MARK: Update property at specific index (used by simulator zone moves)
 
     func updatePropertyAtIndex(_ index: Int, key: String, value: Any) {
         guard index >= 0, index < activeItems.count else { return }
-        if !isDirty { snapshot() }
+        snapshot()
         var source = activeItems
         source[index][key] = value
         activeItems = source
         didMutate()
-        objectWillChange.send()
     }
 
     // MARK: Draft operations
@@ -275,9 +266,8 @@ final class RibbonModel: ObservableObject {
     }
 
     func loadDraft(_ draft: Draft) {
-        currentDraft = draft
-        navigationPath = []
         load(draft.items, from: draft.sourceTheme ?? "")
+        currentDraft = draft
         isDirty = false
     }
 
@@ -288,14 +278,15 @@ final class RibbonModel: ObservableObject {
 
     func deleteCurrentDraft() {
         guard let draft = currentDraft else { return }
-        DraftManager.shared.deleteDraft(id: draft.id)
+        draftSaveWorkItem?.cancel()
         currentDraft = nil
+        DraftManager.shared.deleteDraft(id: draft.id)
     }
 
     func applyToTheme(path: String) {
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        activate(synced, themePath: path)
-        syncDraft(items: synced, sourceTheme: path)
+        guard activate(synced, themePath: path) else { return }
+        syncDraft(items: synced, sourceTheme: currentThemePath)
         finishSave()
     }
 
@@ -307,16 +298,15 @@ final class RibbonModel: ObservableObject {
         if !safe.hasSuffix(".json") { safe += ".json" }
         let path = ThemeSupport.appSupportDir + "/" + safe
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        let written = ThemeSupport.write(items: synced, to: path)
-        if !written { errorMessage = localized("写入新主题失败", "Failed to write new theme") }
-        syncDraft(items: synced, sourceTheme: path)
-        activate(synced, themePath: path)
+        guard activate(synced, themePath: path) else { return path }
+        syncDraft(items: synced, sourceTheme: currentThemePath)
         finishSave()
-        return path
+        return currentThemePath
     }
 
     /// Persist the current items as a safety copy in the active draft.
     private func syncDraft(items synced: [[String: Any]], sourceTheme: String?) {
+        draftSaveWorkItem?.cancel()
         guard var draft = currentDraft else { return }
         draft.items = synced
         draft.isDirty = false
@@ -327,7 +317,32 @@ final class RibbonModel: ObservableObject {
 
     /// Write items to the given theme file (when editing one) and to items.json,
     /// then hot-reload the Touch Bar.
-    private func activate(_ synced: [[String: Any]], themePath: String) {
+    private func activate(_ synced: [[String: Any]], themePath: String) -> Bool {
+        if isEditingMirrorPreset {
+            var destination = themePath
+            // A file observed by the physical Touch Bar cannot also be the
+            // write destination of an independent desktop bar.
+            if destination == TouchBarController.shared.lastPresetPath || destination == ThemeSupport.itemsJSONPath() {
+                let stem = ((destination as NSString).lastPathComponent as NSString).deletingPathExtension
+                let base = ThemeSupport.appSupportDir + "/" + stem + "_mirror"
+                destination = base + ".json"
+                var suffix = 2
+                while FileManager.default.fileExists(atPath: destination) {
+                    destination = base + "_\(suffix).json"
+                    suffix += 1
+                }
+            }
+            guard ThemeSupport.write(items: synced, to: destination) else {
+                errorMessage = localized("保存 Mirror 预设失败", "Unable to save Mirror preset")
+                return false
+            }
+            currentThemePath = destination
+            items = synced
+            AppSettings.mirrorPresetPath = destination
+            TouchBarMirrorWindowController.shared.syncFromTouchBar()
+            refreshPreview()
+            return true
+        }
         let isItems = (themePath as NSString).lastPathComponent == "items.json"
         var ok = ThemeSupport.write(items: synced, to: themePath)
         if !isItems {
@@ -335,21 +350,30 @@ final class RibbonModel: ObservableObject {
         }
         if !ok {
             errorMessage = localized("保存失败，无法写入配置文件", "Save failed — could not write config")
+            return false
         }
         currentThemePath = themePath
-        if let idx = ThemeSupport.themeIndex(fromFileName: themePath) {
+        if let idx = ThemeSupport.themeIndex(fromFileName: (themePath as NSString).lastPathComponent) {
             AppSettings.selectedThemeIndex = idx
         }
-        TouchBarController.shared.reloadStandardConfig()
+        items = synced
+        refreshPreview()
+        TouchBarController.shared.reloadPreset(path: themePath)
+        return true
     }
 
     /// Common tail for save/apply paths.
     private func finishSave() {
+        savedItems = items
         isDirty = false
         Self.editorHasUnsavedChanges = false
         lastSavedAt = Date()
         lastPropertyEditAt = nil
         liveSyncWorkItem?.cancel()
+        originalPreviewDefinitions = nil
+        originalPreviewPath = nil
+        previewTouchBar = nil
+        isLivePreview = false
     }
 
     /// Global insertion index (in `activeItems`) that appends an item to the
@@ -385,7 +409,13 @@ final class RibbonModel: ObservableObject {
     // MARK: Load
 
     func load(_ newItems: [[String: Any]], from path: String) {
+        flushDraft()
+        restoreLivePreview()
+        isLivePreview = false
+        isEditingMirrorPreset = false
+        currentDraft = nil
         items = newItems
+        savedItems = newItems
         selectedIndices = []
         selectionAnchor = nil
         currentThemePath = path
@@ -396,13 +426,30 @@ final class RibbonModel: ObservableObject {
         redoStack.removeAll()
         updateUndoFlags()
         liveSyncWorkItem?.cancel()
+        lastPropertyEditAt = nil
+        refreshPreview()
         notifySelection()
+    }
+
+    func discardChanges() {
+        var draft = currentDraft
+        let previous = savedItems
+        let wasMirror = isEditingMirrorPreset
+        load(previous, from: currentThemePath)
+        isEditingMirrorPreset = wasMirror
+        if draft != nil {
+            draft?.items = previous
+            draft?.isDirty = false
+            currentDraft = draft
+            flushDraft()
+        }
     }
 
     // MARK: Undo / Redo
 
     func snapshot() {
-        undoStack.append(deepCopy(activeItems))
+        lastPropertyEditAt = nil
+        undoStack.append(HistoryState(items: items, navigation: navigationPath))
         if undoStack.count > maxUndoDepth { undoStack.removeFirst() }
         redoStack.removeAll()
         updateUndoFlags()
@@ -410,8 +457,9 @@ final class RibbonModel: ObservableObject {
 
     func undo() {
         guard let prev = undoStack.popLast() else { return }
-        redoStack.append(deepCopy(activeItems))
-        activeItems = prev
+        redoStack.append(HistoryState(items: items, navigation: navigationPath))
+        items = prev.items
+        navigationPath = prev.navigation
         selectedIndices = []
         selectionAnchor = nil
         didMutate()
@@ -421,8 +469,9 @@ final class RibbonModel: ObservableObject {
 
     func redo() {
         guard let next = redoStack.popLast() else { return }
-        undoStack.append(deepCopy(activeItems))
-        activeItems = next
+        undoStack.append(HistoryState(items: items, navigation: navigationPath))
+        items = next.items
+        navigationPath = next.navigation
         selectedIndices = []
         selectionAnchor = nil
         didMutate()
@@ -438,6 +487,7 @@ final class RibbonModel: ObservableObject {
     // MARK: Selection (multi-select)
 
     func select(_ index: Int) {
+        lastPropertyEditAt = nil
         selectedIndices = [index]
         selectionAnchor = index
         notifySelection()
@@ -489,7 +539,6 @@ final class RibbonModel: ObservableObject {
 
     func setMode(_ mode: EditorMode) {
         editorMode = mode
-        objectWillChange.send()
     }
 
     // MARK: Mutations (all snapshot first, mark dirty, NO auto-save)
@@ -680,10 +729,6 @@ final class RibbonModel: ObservableObject {
         }
         activeItems = source
         didMutate()
-        objectWillChange.send()
-        // Notify settings tabs about the change
-        let itemType = source[i]["type"] as? String ?? ""
-        SettingsSync.postItemConfigChanged(itemType: itemType, key: key, newValue: source[i][key] ?? value)
     }
 
     var selectedItem: [String: Any]? {
@@ -745,76 +790,117 @@ final class RibbonModel: ObservableObject {
 
     func save() {
         let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        // Safety copy in the active draft (if any)
-        syncDraft(items: synced, sourceTheme: nil)
         // Write back to the config being edited and hot-reload the Touch Bar.
         // Persistence is no longer gated behind live preview.
         let target = currentDraft?.sourceTheme ?? currentThemePath
-        activate(synced, themePath: target.isEmpty ? ThemeSupport.itemsJSONPath() : target)
+        guard activate(synced, themePath: target.isEmpty ? ThemeSupport.itemsJSONPath() : target) else { return }
+        syncDraft(items: synced, sourceTheme: currentThemePath)
         finishSave()
     }
 
-    /// Called after every mutation. Auto-saves draft and debounces live preview.
+    /// Changes stay in memory while typing. Recovery drafts and native widgets
+    /// are coalesced independently so neither blocks the inspector's controls.
     func didMutate() {
         isDirty = true
         Self.editorHasUnsavedChanges = true
-        // Auto-save to draft
         if var draft = currentDraft {
             draft.items = items
             draft.isDirty = true
-            DraftManager.shared.save(draft)
             currentDraft = draft
+            draftSaveWorkItem?.cancel()
+            let work = DispatchWorkItem { DraftManager.shared.saveInBackground(draft) }
+            draftSaveWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
         }
-        // Live preview: write items.json + reload the Touch Bar, debounced so
-        // rapid edits don't rebuild the whole bar on every keystroke.
-        if isLivePreview {
-            scheduleLiveSync()
+        schedulePreview()
+        if isLivePreview { scheduleLiveSync() }
+    }
+
+    func flushDraft() {
+        draftSaveWorkItem?.cancel()
+        if let draft = currentDraft { DraftManager.shared.save(draft) }
+    }
+
+    private func schedulePreview() {
+        previewWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.refreshPreview() }
+        previewWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    private func refreshPreview() {
+        previewWorkItem?.cancel()
+        do {
+            let data = try JSONSerialization.data(withJSONObject: activeItems)
+            previewDefinitions = try JSONDecoder().decode([BarItemDefinition].self, from: data)
+            previewError = nil
+        } catch {
+            previewError = localized("配置尚未完整，保留上次有效预览", "Configuration incomplete; showing the last valid preview")
         }
     }
 
     private func scheduleLiveSync() {
         liveSyncWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.syncToTouchBar()
-        }
+        let work = DispatchWorkItem { [weak self] in self?.syncToTouchBar() }
         liveSyncWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
 
-    /// Write current items to items.json and hot-reload the Touch Bar.
+    /// Testing on hardware is temporary; no configuration file is written.
     private func syncToTouchBar() {
-        let synced = ThemeSupport.ensureThemeSwitchLists(in: items)
-        let ok = ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath())
-        if !ok {
-            errorMessage = localized("实时预览同步失败", "Live preview sync failed")
+        let controller = TouchBarController.shared
+        if let previous = previewTouchBar,
+           controller.touchBar !== previous || controller.lastPresetPath != originalPreviewPath {
+            // A theme switch outside the editor owns the hardware now.
+            originalPreviewDefinitions = nil
+            previewTouchBar = nil
+            isLivePreview = false
+            return
         }
-        TouchBarController.shared.reloadStandardConfig()
+        do {
+            let data = try JSONSerialization.data(withJSONObject: items)
+            let definitions = try JSONDecoder().decode([BarItemDefinition].self, from: data)
+            controller.createAndUpdatePreset(newJsonItems: definitions, persistLyricsConfiguration: false)
+            previewTouchBar = controller.touchBar
+        } catch {
+            errorMessage = localized("配置尚未完整，无法试用", "Configuration incomplete; unable to try on Touch Bar")
+        }
     }
 
     func renameDraft(_ newName: String) {
         guard var draft = currentDraft, !newName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         draft.name = newName.trimmingCharacters(in: .whitespaces)
-        DraftManager.shared.save(draft)
+        draftSaveWorkItem?.cancel()
+        DraftManager.shared.saveInBackground(draft)
         currentDraft = draft
     }
 
     func toggleLivePreview() {
-        isLivePreview.toggle()
+        guard !isEditingMirrorPreset else { return }
+        liveSyncWorkItem?.cancel()
         if isLivePreview {
-            // Turning on: push current state to the Touch Bar right away.
-            liveSyncWorkItem?.cancel()
-            syncToTouchBar()
+            restoreLivePreview()
+            isLivePreview = false
         } else {
-            // Turning off: exit draft, reload the active theme (items.json).
-            liveSyncWorkItem?.cancel()
-            currentDraft = nil
-            navigationPath = []
-            let itemsPath = ThemeSupport.itemsJSONPath()
-            if let data = FileManager.default.contents(atPath: itemsPath),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                load(json, from: itemsPath)
-            }
+            let controller = TouchBarController.shared
+            originalPreviewDefinitions = controller.jsonItems
+            originalPreviewPath = controller.lastPresetPath
+            isLivePreview = true
+            syncToTouchBar()
         }
+    }
+
+    private func restoreLivePreview() {
+        liveSyncWorkItem?.cancel()
+        if let original = originalPreviewDefinitions,
+           let preview = previewTouchBar,
+           TouchBarController.shared.touchBar === preview,
+           TouchBarController.shared.lastPresetPath == originalPreviewPath {
+            TouchBarController.shared.createAndUpdatePreset(newJsonItems: original)
+        }
+        originalPreviewDefinitions = nil
+        originalPreviewPath = nil
+        previewTouchBar = nil
     }
 
     private func notifySelection() {
@@ -832,7 +918,6 @@ final class RibbonModel: ObservableObject {
 
 struct RibbonEditorView: View {
     @StateObject private var model = RibbonModel()
-    @State private var inspectorItem: [String: Any]?
     @State private var availableThemes: [ThemeEntry] = []
     @State private var showClipboard: Bool = false
     @State private var availableDrafts: [DraftMeta] = []
@@ -843,9 +928,12 @@ struct RibbonEditorView: View {
     @State private var showDiscardConfirm: Bool = false
     @State private var pendingThemePath: String?
     @State private var pendingReload: Bool = false
-    @State private var pendingLiveOff: Bool = false
+    @State private var pendingDraftAction: (() -> Void)?
     @State private var confirmDeleteTheme: Bool = false
+    @State private var renamingDraft = false
+    @State private var hasLoaded = false
 
+    var isActive: Bool = true
     var onLoad: ((RibbonModel) -> Void)?
     var onSave: (([[String: Any]]) -> Void)?
 
@@ -862,19 +950,16 @@ struct RibbonEditorView: View {
 
             Hairline()
 
-            // ── Palette (element categories) ──
-            PaletteRibbon(
-                onAdd: { type in model.add(type: type) },
-                isEnabled: model.editorMode == .edit
-            )
-            .background(EditorColors.sidebarSwift)
+            TouchBarSimulatorView(model: model, isActive: isActive)
+                .background(EditorColors.stripBgSwift)
 
             Hairline()
 
-            // ── Three-zone Touch Bar simulator ──
-            TouchBarSimulatorView(model: model)
-                .frame(height: 110)
-                .background(EditorColors.stripBgSwift)
+            if model.editorMode == .edit {
+                PaletteRibbon(onAdd: { model.add(type: $0) })
+                    .background(EditorColors.sidebarSwift)
+                Hairline()
+            }
 
             // ── Breadcrumb navigation (nested containers) ──
             if !model.navigationPath.isEmpty {
@@ -900,11 +985,13 @@ struct RibbonEditorView: View {
             // ── Status bar: always-visible save affordance ──
             editorStatusBar
         }
+        .background(EditorColors.bgSwift)
         .onAppear {
+            guard !hasLoaded else { return }
+            hasLoaded = true
             model.onSave = { items, path in
                 onSave?(items)
             }
-            model.onSelectionChange = { inspectorItem = $0 }
             onLoad?(model)
             // Filesystem work (theme scan, draft list, auto-loading the
             // active config) runs off the first frame so switching into
@@ -913,9 +1000,11 @@ struct RibbonEditorView: View {
                 scanThemes()
                 refreshDraftList()
                 // Auto-load the active config so the editor never opens empty.
-                if model.items.isEmpty {
-                    loadTheme(at: ThemeSupport.itemsJSONPath())
+                if model.items.isEmpty && model.currentDraft == nil {
+                    let path = TouchBarController.shared.lastPresetPath
+                    loadTheme(at: path.isEmpty ? ThemeSupport.itemsJSONPath() : path)
                 }
+                consumeDesktopNavigation()
             }
         }
         .confirmationDialog(
@@ -924,12 +1013,12 @@ struct RibbonEditorView: View {
             titleVisibility: .visible
         ) {
             Button(localized("放弃修改", "Discard"), role: .destructive) {
-                if pendingReload {
+                if let action = pendingDraftAction {
+                    pendingDraftAction = nil
+                    action()
+                } else if pendingReload {
                     pendingReload = false
                     loadTheme(at: model.currentThemePath)
-                } else if pendingLiveOff {
-                    pendingLiveOff = false
-                    model.toggleLivePreview()
                 } else if let path = pendingThemePath {
                     pendingThemePath = nil
                     loadTheme(at: path)
@@ -938,7 +1027,8 @@ struct RibbonEditorView: View {
             Button(localized("取消", "Cancel"), role: .cancel) {
                 pendingThemePath = nil
                 pendingReload = false
-                pendingLiveOff = false
+                pendingDraftAction = nil
+                RibbonModel.pendingDesktopNavigation = nil
             }
         }
         .confirmationDialog(
@@ -953,6 +1043,7 @@ struct RibbonEditorView: View {
         }
         .background(
             KeyboardHandler(
+                isActive: isActive,
                 onUndo: { model.undo() },
                 onRedo: { model.redo() },
                 onSave: { model.save() },
@@ -990,8 +1081,16 @@ struct RibbonEditorView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .onDisappear { model.flushDraft() }
+        .onChange(of: model.currentThemePath) { _, _ in scanThemes() }
         .onReceive(NotificationCenter.default.publisher(for: RibbonModel.editorSaveRequested)) { _ in
             model.save()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RibbonModel.editorDiscardRequested)) { _ in
+            model.discardChanges()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RibbonModel.desktopNavigationRequested)) { _ in
+            consumeDesktopNavigation()
         }
     }
 
@@ -1009,12 +1108,7 @@ struct RibbonEditorView: View {
     }
 
     private func toggleLivePreviewWithGuard() {
-        if model.isLivePreview && model.isDirty {
-            pendingLiveOff = true
-            showDiscardConfirm = true
-        } else {
-            model.toggleLivePreview()
-        }
+        model.toggleLivePreview()
     }
 
     private var editorStatusBar: some View {
@@ -1035,7 +1129,7 @@ struct RibbonEditorView: View {
                     .foregroundStyle(EditorColors.mintSwift)
             }
 
-            Text(localized("编辑中:", "Editing:"))
+            Text(model.isEditingMirrorPreset ? localized("Mirror 预设:", "Mirror preset:") : localized("Touch Bar 预设:", "Touch Bar preset:"))
                 .font(.system(size: 10.5, weight: .medium))
                 .foregroundStyle(EditorColors.textTertiarySwift)
             Text(currentFileName)
@@ -1043,20 +1137,15 @@ struct RibbonEditorView: View {
                 .foregroundStyle(EditorColors.textPrimarySwift)
                 .lineLimit(1)
 
-            if let savedAt = model.lastSavedAt {
-                Text(localized("最后保存", "Saved at") + " \(Self.timeFormatter.string(from: savedAt))")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(EditorColors.textTertiarySwift)
-            }
-
             Spacer()
 
-            // Live preview toggle
+            // Temporary hardware testing is only available for that destination.
+            if !model.isEditingMirrorPreset {
             Button(action: { toggleLivePreviewWithGuard() }) {
                 HStack(spacing: 4) {
                     Image(systemName: model.isLivePreview ? "eye.fill" : "eye.slash")
                         .font(.system(size: 10, weight: .semibold))
-                    Text(localized("实时", "Live"))
+                    Text(localized("硬件试用", "Try on Touch Bar"))
                         .font(.system(size: 10, weight: .semibold))
                 }
                 .foregroundStyle(model.isLivePreview ? EditorColors.mintSwift : EditorColors.textSecondarySwift)
@@ -1072,7 +1161,9 @@ struct RibbonEditorView: View {
                 }
             }
             .buttonStyle(.plain)
-            .help(localized("开启后编辑实时同步到 Touch Bar", "When on, edits sync to Touch Bar in real-time"))
+            .help(localized("临时在 Touch Bar 上试用；关闭后恢复，草稿会保留", "Temporarily try on Touch Bar; turning off restores it and keeps your edits"))
+
+            }
 
             // Save As
             Button(action: { showNewThemeSheet = true }) {
@@ -1181,7 +1272,7 @@ struct RibbonEditorView: View {
 
     private var renameThemeSheet: some View {
         VStack(spacing: 16) {
-            Text(localized("重命名主题", "Rename Theme"))
+            Text(renamingDraft ? localized("重命名草稿", "Rename Draft") : localized("重命名主题", "Rename Theme"))
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(EditorColors.textPrimarySwift)
 
@@ -1189,7 +1280,7 @@ struct RibbonEditorView: View {
             TextField(localized("新名称", "New name"), text: $renameText)
                 .textFieldStyle(RibbonTextFieldStyle())
                 .frame(width: 240)
-                .onAppear { renameText = currentName }
+                .onAppear { renameText = renamingDraft ? (model.currentDraft?.name ?? "") : currentName }
 
             HStack(spacing: 12) {
                 Button(localized("取消", "Cancel")) {
@@ -1200,7 +1291,8 @@ struct RibbonEditorView: View {
                 .foregroundStyle(EditorColors.textSecondarySwift)
 
                 Button(action: {
-                    renameCurrentTheme(to: renameText)
+                    if renamingDraft { model.renameDraft(renameText); refreshDraftList() }
+                    else { renameCurrentTheme(to: renameText) }
                     showRenamePopover = false
                     renameText = ""
                 }) {
@@ -1266,7 +1358,7 @@ struct RibbonEditorView: View {
                     let name = newThemeName.isEmpty ? "theme_custom" : newThemeName
                     model.applyAsNewTheme(name: name)
                     // Phase 3 (3-4): Update all themeSwitch lists after creating a new theme
-                    ThemeSupport.updateAllThemeSwitchLists()
+                    if !model.isEditingMirrorPreset { ThemeSupport.updateAllThemeSwitchLists() }
                     showNewThemeSheet = false
                     newThemeName = ""
                     scanThemes()
@@ -1303,413 +1395,170 @@ struct RibbonEditorView: View {
         availableDrafts = DraftManager.shared.listDrafts()
     }
 
-    // MARK: - Office Ribbon Toolbar
+    // MARK: - Editor toolbar
 
     private var ribbonToolbar: some View {
-        HStack(spacing: 0) {
-            // Groups scroll horizontally so every action (incl. 保存) is
-            // reachable even in a narrow settings window.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    // ━━ Group: Theme ━━
-            RibbonGroup(label: localized("主题", "Theme")) {
-                HStack(spacing: 8) {
-                    Image(systemName: "paintpalette.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(EditorColors.accentSwift)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Picker("", selection: Binding(
-                            get: { model.currentThemePath },
-                            set: { path in requestThemeSwitch(to: path) }
-                        )) {
-                            ForEach(availableThemes) { theme in
-                                Text(theme.name).tag(theme.path)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 150)
-
-                        if model.isDirty {
-                            HStack(spacing: 3) {
-                                Circle().fill(EditorColors.accentSwift).frame(width: 5, height: 5)
-                                Text(localized("已修改", "Modified"))
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(EditorColors.accentSwift)
-                            }
-                        }
-                    }
-
-                    Menu {
-                        Button(action: { scanThemes() }) {
-                            Label(localized("刷新列表", "Refresh"), systemImage: "arrow.clockwise")
-                        }
-                        Divider()
-                        Button(action: { showRenamePopover = true }) {
-                            Label(localized("重命名", "Rename"), systemImage: "pencil")
-                        }
-                        if (model.currentThemePath as NSString).lastPathComponent != "items.json" {
-                            Divider()
-                            Button(role: .destructive, action: { confirmDeleteTheme = true }) {
-                                Label(localized("删除当前主题", "Delete Theme"), systemImage: "trash")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(EditorColors.textTertiarySwift)
-                            .padding(4)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .frame(width: 24)
-                    .help(localized("主题管理", "Theme Management"))
+        HStack(spacing: 12) {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(EditorColors.accentSwift)
+                .frame(width: 32, height: 32)
+                .background(EditorColors.accentSwift.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(model.isEditingMirrorPreset ? localized("MIRROR 独立预设", "MIRROR PRESET") : localized("TOUCH BAR 预设", "TOUCH BAR PRESET"))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                Picker("", selection: Binding(get: { model.currentThemePath }, set: requestThemeSwitch)) {
+                    ForEach(availableThemes) { theme in Text(theme.name).tag(theme.path) }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 120, maxWidth: 210)
+            }
+            Spacer(minLength: 8)
+            toolbarAction("arrow.uturn.backward", help: localized("撤销 ⌘Z", "Undo ⌘Z"), enabled: model.canUndo) { model.undo() }
+            toolbarAction("arrow.uturn.forward", help: localized("重做 ⇧⌘Z", "Redo ⇧⌘Z"), enabled: model.canRedo) { model.redo() }
+            Picker("", selection: Binding(get: { model.editorMode }, set: model.setMode)) {
+                ForEach([EditorMode.edit, .preview], id: \.self) { mode in
+                    Label(mode.label, systemImage: mode.symbol).tag(mode)
                 }
             }
-
-            RibbonDivider()
-
-            // ━━ Group: Draft ━━
-            RibbonGroup(label: localized("草稿", "Draft")) {
-                HStack(spacing: 6) {
-                    Menu {
-                        Button(action: { model.createBlankDraft(); refreshDraftList() }) {
-                            Label(localized("新建空草稿", "New Blank Draft"), systemImage: "doc.badge.plus")
-                        }
-
-                        Menu(localized("从主题复制", "Copy from Theme")) {
-                            ForEach(availableThemes) { theme in
-                                Button(action: { model.createDraftFromTheme(path: theme.path); refreshDraftList() }) {
-                                    Text(theme.name)
-                                }
-                            }
-                        }
-
-                        if !availableDrafts.isEmpty {
-                            Divider()
-                            Menu(localized("打开草稿", "Open Draft")) {
-                                ForEach(availableDrafts) { draft in
-                                    Button(action: { model.openDraft(id: draft.id) }) {
-                                        Label("\(draft.name) (\(draft.itemCount))", systemImage: "doc.text")
-                                    }
-                                }
-                            }
-
-                            Divider()
-                            Menu(localized("删除草稿", "Delete Draft")) {
-                                ForEach(availableDrafts) { draft in
-                                    Button(role: .destructive, action: {
-                                        DraftManager.shared.deleteDraft(id: draft.id)
-                                        refreshDraftList()
-                                    }) {
-                                        Label(draft.name, systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "doc.plaintext")
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(model.currentDraft?.name ?? localized("草稿", "Draft"))
-                                .font(.system(size: 9.5, weight: .medium))
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(EditorColors.textSecondarySwift)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(EditorColors.hoverFillSwift)
-                        }
-                    }
-                    .menuStyle(.borderlessButton)
-                    .frame(width: 110)
-
-                    // Draft rename button
-                    if model.currentDraft != nil {
-                        Button(action: {
-                            renameText = model.currentDraft?.name ?? ""
-                            showRenamePopover = true
-                        }) {
-                            Image(systemName: "pencil.line")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(EditorColors.textTertiarySwift)
-                                .padding(4)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(EditorColors.hoverFillSwift)
-                                }
-                        }
-                        .buttonStyle(.plain)
-                        .help(localized("重命名草稿", "Rename draft"))
-                        .popover(isPresented: $showRenamePopover, arrowEdge: .bottom) {
-                            VStack(spacing: 10) {
-                                Text(localized("重命名草稿", "Rename Draft"))
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(EditorColors.textPrimarySwift)
-                                TextField("", text: $renameText, prompt: Text(localized("草稿名称", "Draft name")))
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.system(size: 12))
-                                    .frame(width: 180)
-                                HStack {
-                                    Button(localized("取消", "Cancel")) {
-                                        showRenamePopover = false
-                                    }
-                                    .buttonStyle(.plain)
-                                    .font(.system(size: 11))
-                                    Spacer()
-                                    Button(localized("确定", "OK")) {
-                                        model.renameDraft(renameText)
-                                        showRenamePopover = false
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .tint(EditorColors.accentSwift)
-                                }
-                            }
-                            .padding(14)
-                            .frame(width: 210)
-                            .background(EditorColors.cardSwift)
-                        }
-                    }
-
-                    // Live preview toggle
-                    Button(action: { toggleLivePreviewWithGuard() }) {
-                        HStack(spacing: 3) {
-                            Image(systemName: model.isLivePreview ? "eye.fill" : "eye.slash")
-                                .font(.system(size: 10, weight: .semibold))
-                            Text(localized("实时", "Live"))
-                                .font(.system(size: 9, weight: .medium))
-                        }
-                        .foregroundStyle(model.isLivePreview ? EditorColors.mintSwift : EditorColors.textTertiarySwift)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 5)
-                        .background {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(model.isLivePreview ? EditorColors.mintSwift.opacity(0.12) : Color.clear)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .strokeBorder(model.isLivePreview ? EditorColors.mintSwift.opacity(0.4) : EditorColors.hairlineStrongSwift, lineWidth: 0.5)
-                                )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .help(localized("开启后编辑实时同步到 Touch Bar", "When on, edits sync to Touch Bar in real-time"))
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: Clip ━━
-            RibbonGroup(label: localized("剪贴", "Clip")) {
-                HStack(spacing: 6) {
-                    RibbonButton(
-                        symbol: "scissors",
-                        label: localized("剪切", "Cut"),
-                        shortcut: "⌘X",
-                        isEnabled: model.editorMode == .edit && !model.selectedIndices.isEmpty
-                    ) { model.cutSelected() }
-
-                    RibbonButton(
-                        symbol: "doc.on.doc",
-                        label: localized("复制", "Copy"),
-                        shortcut: "⌘C",
-                        isEnabled: !model.selectedIndices.isEmpty
-                    ) { model.copySelected() }
-
-                    RibbonButton(
-                        symbol: "doc.on.clipboard",
-                        label: localized("粘贴", "Paste"),
-                        shortcut: "⌘V",
-                        isEnabled: model.editorMode == .edit && !model.clipboardSlots[0].isEmpty
-                    ) { model.pasteFromSlot(0) }
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: History ━━
-            RibbonGroup(label: localized("历史", "History")) {
-                HStack(spacing: 6) {
-                    RibbonButton(
-                        symbol: "arrow.uturn.backward",
-                        label: localized("撤销", "Undo"),
-                        shortcut: "⌘Z",
-                        isEnabled: model.canUndo
-                    ) { model.undo() }
-
-                    RibbonButton(
-                        symbol: "arrow.uturn.forward",
-                        label: localized("重做", "Redo"),
-                        shortcut: "⇧⌘Z",
-                        isEnabled: model.canRedo
-                    ) { model.redo() }
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: Move ━━
-            RibbonGroup(label: localized("移动", "Move")) {
-                HStack(spacing: 4) {
-                    RibbonButton(
-                        symbol: "chevron.left",
-                        label: localized("左移", "Left"),
-                        shortcut: "←",
-                        isEnabled: model.editorMode == .edit && (model.selectedIndex ?? -1) > 0
-                    ) { model.moveLeft() }
-
-                    RibbonButton(
-                        symbol: "chevron.right",
-                        label: localized("右移", "Right"),
-                        shortcut: "→",
-                        isEnabled: model.editorMode == .edit && (model.selectedIndex ?? -1) >= 0 && (model.selectedIndex ?? -1) < model.activeItems.count - 1
-                    ) { model.moveRight() }
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: File ━━
-            RibbonGroup(label: localized("文件", "File")) {
-                HStack(spacing: 6) {
-                    RibbonButton(
-                        symbol: "square.and.arrow.down.fill",
-                        label: localized("保存", "Save"),
-                        shortcut: "⌘S",
-                        isEnabled: model.isDirty,
-                        isProminent: true
-                    ) { model.save() }
-
-                    RibbonButton(
-                        symbol: "arrow.counterclockwise",
-                        label: localized("重载", "Reload"),
-                        shortcut: "",
-                        isEnabled: true
-                    ) {
-                        if model.isDirty {
-                            pendingReload = true
-                            showDiscardConfirm = true
-                        } else {
-                            loadTheme(at: model.currentThemePath)
-                        }
-                    }
-
-                    RibbonButton(
-                        symbol: "square.and.arrow.up",
-                        label: localized("另存", "Save As"),
-                        shortcut: "",
-                        isEnabled: !model.items.isEmpty
-                    ) { showNewThemeSheet = true }
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: Mode ━━
-            RibbonGroup(label: localized("模式", "Mode")) {
-                HStack(spacing: 8) {
-                    ForEach([EditorMode.edit, EditorMode.preview], id: \.self) { mode in
-                        let isActive = model.editorMode == mode
-                        Button(action: { model.setMode(mode) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: mode.symbol)
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text(mode.label)
-                                    .font(.system(size: 9.5, weight: .medium))
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(isActive ? mode.tint.opacity(0.2) : Color.clear)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .strokeBorder(isActive ? mode.tint : EditorColors.hairlineStrongSwift, lineWidth: 0.5)
-                                    )
-                            }
-                            .foregroundStyle(isActive ? mode.tint : EditorColors.textTertiarySwift)
-                        }
-                        .buttonStyle(.plain)
-                        .animation(.easeOut(duration: 0.1), value: model.editorMode)
-                    }
-                }
-            }
-
-            RibbonDivider()
-
-            // ━━ Group: Keys ━━
-            RibbonGroup(label: localized("键位", "Keys")) {
-                RibbonButton(
-                    symbol: "keyboard",
-                    label: localized("键位编辑", "Key Editor"),
-                    isProminent: true
-                ) {
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 146)
+            Menu {
+                themeActions
+                Divider()
+                draftActions
+                Divider()
+                Button(localized("复制选中", "Copy selected"), action: model.copySelected)
+                    .disabled(model.selectedIndices.isEmpty)
+                Button(localized("剪切选中", "Cut selected"), action: model.cutSelected)
+                    .disabled(model.editorMode != .edit || model.selectedIndices.isEmpty)
+                Button(localized("粘贴", "Paste")) { model.pasteFromSlot() }
+                    .disabled(model.editorMode != .edit || model.clipboardSlots[0].isEmpty)
+                Button(localized("复制一份", "Duplicate"), action: model.duplicateSelected)
+                    .disabled(model.editorMode != .edit || model.selectedIndices.isEmpty)
+                Button(localized("删除选中", "Delete selected"), role: .destructive, action: model.deleteSelected)
+                    .disabled(model.editorMode != .edit || model.selectedIndices.isEmpty)
+                Divider()
+                Button(localized("剪贴板面板", "Clipboard panel")) { showClipboard.toggle() }
+                Button(localized("键位编辑", "Key editor")) {
                     NotificationCenter.default.post(name: .keyBindingTabRequested, object: nil)
                 }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17))
+                    .foregroundStyle(EditorColors.textSecondarySwift)
+                    .frame(width: 28, height: 30)
             }
-
-                }
-            }
-
-            Spacer(minLength: 12)
-
-            // ━━ Right: badges (pinned) ━━
-            HStack(spacing: 8) {
-                // Selection badge
-                if !model.selectedIndices.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 9, weight: .medium))
-                        Text("\(model.selectedIndices.count)")
-                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                    }
-                    .foregroundStyle(EditorColors.accentSwift)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background {
-                        Capsule().fill(EditorColors.accentSwift.opacity(0.12))
-                    }
-                }
-
-                // Item count
-                HStack(spacing: 5) {
-                    Image(systemName: "square.stack.3d.up")
-                        .font(.system(size: 10, weight: .medium))
-                    Text("\(model.activeItems.count)")
-                        .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                }
-                .foregroundStyle(EditorColors.textTertiarySwift)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background {
-                    Capsule().fill(EditorColors.cardSwift)
-                }
-
-                // Clipboard toggle
-                Button(action: { showClipboard.toggle() }) {
-                    Image(systemName: showClipboard ? "rectangle.stack.fill" : "rectangle.stack")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(showClipboard ? EditorColors.accentSwift : EditorColors.textTertiarySwift)
-                }
-                .buttonStyle(.plain)
-                .help(localized("剪贴板面板", "Clipboard Panel"))
-            }
-            .padding(.trailing, 14)
+            .menuStyle(.borderlessButton)
+            .frame(width: 30)
+            .help(localized("预设、草稿与编辑操作", "Preset, draft and editing actions"))
         }
-        .frame(height: 72)
-        .background {
-            EditorColors.sidebarSwift
-                .overlay(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.02), .clear],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(EditorColors.sidebarSwift)
+    }
+
+    private func toolbarAction(_ symbol: String, help: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(enabled ? EditorColors.textSecondarySwift : EditorColors.textTertiarySwift.opacity(0.4))
+                .frame(width: 28, height: 30)
+                .background(EditorColors.cardSwift.opacity(0.5), in: RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(help)
+    }
+
+    @ViewBuilder
+    private var themeActions: some View {
+        Button(localized("另存为新预设…", "Save as new preset…")) { showNewThemeSheet = true }
+        Button(localized("重新载入预设", "Reload preset")) {
+            if model.isDirty { pendingReload = true; showDiscardConfirm = true }
+            else { loadTheme(at: model.currentThemePath) }
+        }
+        Button(localized("重命名预设…", "Rename preset…")) {
+            renamingDraft = false
+            showRenamePopover = true
+        }
+        .disabled(model.currentThemePath.isEmpty || model.isDirty || model.isEditingMirrorPreset)
+        Button(localized("刷新预设列表", "Refresh presets")) { scanThemes() }
+        if !model.isEditingMirrorPreset && !model.currentThemePath.isEmpty && (model.currentThemePath as NSString).lastPathComponent != "items.json" {
+            Button(localized("删除当前预设…", "Delete current preset…"), role: .destructive) { confirmDeleteTheme = true }
+        }
+    }
+
+    @ViewBuilder
+    private var draftActions: some View {
+        Menu(localized("草稿", "Drafts")) {
+            Button(localized("新建空草稿", "New blank draft")) {
+                requestDraftChange { model.createBlankDraft(); refreshDraftList() }
+            }
+            Menu(localized("从预设复制", "Copy from preset")) {
+                ForEach(availableThemes) { theme in
+                    Button(theme.name) { requestDraftChange { model.createDraftFromTheme(path: theme.path); refreshDraftList() } }
+                }
+            }
+            if model.currentDraft != nil {
+                Button(localized("重命名当前草稿…", "Rename current draft…")) {
+                    renamingDraft = true
+                    showRenamePopover = true
+                }
+            }
+            if !availableDrafts.isEmpty {
+                Divider()
+                ForEach(availableDrafts) { draft in
+                    Button("\(draft.name) · \(draft.itemCount)") { requestDraftChange { model.openDraft(id: draft.id) } }
+                }
+                Menu(localized("删除草稿", "Delete draft")) {
+                    ForEach(availableDrafts) { draft in
+                        Button(draft.name, role: .destructive) {
+                            if model.currentDraft?.id == draft.id { model.deleteCurrentDraft() }
+                            else { DraftManager.shared.deleteDraft(id: draft.id) }
+                            refreshDraftList()
+                        }
+                    }
+                }
+            }
         }
     }
 
     // MARK: Helpers
+
+    private func requestDraftChange(_ action: @escaping () -> Void) {
+        if model.isDirty && model.currentDraft == nil {
+            pendingDraftAction = action
+            showDiscardConfirm = true
+        } else { action() }
+    }
+
+    private func consumeDesktopNavigation() {
+        guard let target = RibbonModel.pendingDesktopNavigation else { return }
+        if model.isDirty && (target.path != model.currentThemePath || target.isMirror != model.isEditingMirrorPreset) {
+            pendingThemePath = target.path
+            showDiscardConfirm = true
+            return
+        }
+        if target.path != model.currentThemePath {
+            requestThemeSwitch(to: target.path)
+            return
+        }
+        if !model.navigationPath.isEmpty { model.navigateToRoot() }
+        guard target.index >= 0, target.index < model.items.count else {
+            RibbonModel.pendingDesktopNavigation = nil
+            return
+        }
+        if model.isLivePreview { model.toggleLivePreview() }
+        model.isEditingMirrorPreset = target.isMirror
+        model.setMode(.edit)
+        model.select(target.index)
+        model.scrollAnchor = target.index
+        RibbonModel.pendingDesktopNavigation = nil
+    }
 
     private func requestThemeSwitch(to path: String) {
         guard path != model.currentThemePath else { return }
@@ -1755,6 +1604,10 @@ struct RibbonEditorView: View {
             entries.append(ThemeEntry(id: "items", name: "items.json", path: itemsPath))
         }
 
+        if !model.currentThemePath.isEmpty && !entries.contains(where: { $0.path == model.currentThemePath }) {
+            let path = model.currentThemePath
+            entries.append(ThemeEntry(id: path, name: (path as NSString).lastPathComponent, path: path))
+        }
         availableThemes = entries
         if model.currentThemePath.isEmpty {
             model.currentThemePath = entries.first?.path ?? ""
@@ -1777,6 +1630,7 @@ struct RibbonEditorView: View {
             return
         }
         model.load(json, from: path)
+        if RibbonModel.pendingDesktopNavigation?.path == path { consumeDesktopNavigation() }
     }
 
     private func stripJSONComments(_ input: String) -> String {
@@ -1900,6 +1754,7 @@ struct RibbonButton: View {
 // MARK: - Keyboard handler (⌘Z, ⌘⇧Z, ⌘S, ⌘C, ⌘X, ⌘V, ⌘A, Delete, Esc)
 
 struct KeyboardHandler: NSViewRepresentable {
+    var isActive: Bool = true
     var onUndo: () -> Void
     var onRedo: () -> Void
     var onSave: () -> Void
@@ -1914,6 +1769,7 @@ struct KeyboardHandler: NSViewRepresentable {
 
     func makeNSView(context: Context) -> ShortcutCaptureView {
         let view = ShortcutCaptureView()
+        view.isActive = isActive
         view.onUndo = onUndo
         view.onRedo = onRedo
         view.onSave = onSave
@@ -1925,11 +1781,12 @@ struct KeyboardHandler: NSViewRepresentable {
         view.onEscape = onEscape
         view.onMoveLeft = onMoveLeft
         view.onMoveRight = onMoveRight
-        DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
+        DispatchQueue.main.async { if view.isActive { view.window?.makeFirstResponder(view) } }
         return view
     }
 
     func updateNSView(_ nsView: ShortcutCaptureView, context: Context) {
+        nsView.isActive = isActive
         nsView.onUndo = onUndo
         nsView.onRedo = onRedo
         nsView.onSave = onSave
@@ -1944,6 +1801,7 @@ struct KeyboardHandler: NSViewRepresentable {
     }
 
     class ShortcutCaptureView: NSView {
+        var isActive = true
         var onUndo: (() -> Void)?
         var onRedo: (() -> Void)?
         var onSave: (() -> Void)?
@@ -1956,9 +1814,10 @@ struct KeyboardHandler: NSViewRepresentable {
         var onMoveLeft: (() -> Void)?
         var onMoveRight: (() -> Void)?
 
-        override var acceptsFirstResponder: Bool { true }
+        override var acceptsFirstResponder: Bool { isActive }
 
         override func keyDown(with event: NSEvent) {
+            guard isActive else { super.keyDown(with: event); return }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
 
@@ -1996,112 +1855,83 @@ struct KeyboardHandler: NSViewRepresentable {
 struct PaletteRibbon: View {
     let onAdd: (String) -> Void
     var isEnabled: Bool = true
-
     @State private var searchText = ""
     @State private var expandedCategories: Set<String> = []
-    /// Master toggle: when true, all categories are visible.
-    @State private var paletteExpanded: Bool = false
-
-    private var showsCategories: Bool {
-        paletteExpanded || !searchText.isEmpty
-    }
+    @State private var paletteExpanded = false
 
     private var filteredCategories: [(label: String, types: [String])] {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return EditorSchema.paletteCategories }
         return EditorSchema.paletteCategories.compactMap { category in
-            let types = category.types.filter { type in
-                let schema = EditorSchema.schema(for: type)
-                return schema.displayName.lowercased().contains(query) || type.lowercased().contains(query)
+            let types = category.types.filter {
+                EditorSchema.schema(for: $0).displayName.lowercased().contains(query) || $0.lowercased().contains(query)
             }
             return types.isEmpty ? nil : (category.label, types)
         }
     }
 
-    /// Whether a category should appear expanded.
-    private func isCategoryExpanded(_ label: String) -> Bool {
-        // Searching → auto-expand matching categories
-        if !searchText.isEmpty { return true }
-        // Master toggle controls visibility
-        if paletteExpanded { return true }
-        // Individual category toggle
-        return expandedCategories.contains(label)
+    var body: some View {
+        HStack(spacing: 10) {
+            Button { paletteExpanded.toggle() } label: {
+                Label(localized("添加组件", "Add widget"), systemImage: "plus.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EditorColors.accentSwift)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(EditorColors.accentSwift.opacity(0.09), in: RoundedRectangle(cornerRadius: 7))
+            }
+            .buttonStyle(.plain)
+            .disabled(!isEnabled)
+            .popover(isPresented: $paletteExpanded, arrowEdge: .bottom) { paletteContent }
+            Text(localized("从组件库添加，拖动组件安排位置", "Choose a widget, then drag it into place"))
+                .font(.system(size: 10))
+                .foregroundStyle(EditorColors.textTertiarySwift)
+            Spacer()
+            Text("\(EditorSchema.supportedTypes.count) " + localized("个组件", "widgets"))
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(EditorColors.textTertiarySwift)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 44)
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            // Search row + master toggle
-            HStack(spacing: 6) {
-                // Master collapse toggle
-                Button(action: { paletteExpanded.toggle() }) {
-                    Image(systemName: paletteExpanded ? "square.grid.2x2.fill" : "square.grid.2x2")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(paletteExpanded ? EditorColors.accentSwift : EditorColors.textTertiarySwift)
-                }
-                .buttonStyle(.plain)
-                .help(localized("展开/折叠组件面板", "Expand/collapse component palette"))
-
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(EditorColors.textTertiarySwift)
-                TextField(localized("搜索组件…", "Search elements…"), text: $searchText)
+    private var paletteContent: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(EditorColors.textTertiarySwift)
+                TextField(localized("搜索组件名称…", "Search widgets…"), text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .frame(maxWidth: .infinity)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(EditorColors.cardSwift)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 0.5)
-                            )
-                    }
+                    .font(.system(size: 13))
                 if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(EditorColors.textTertiarySwift)
-                    }
-                    .buttonStyle(.plain)
+                    Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 22)
-
-            // Collapsible category groups (only shown when palette is expanded or searching)
-            if showsCategories {
-                Divider()
-                    .background(EditorColors.hairlineSwift)
-                    .padding(.horizontal, 8)
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(filteredCategories.enumerated()), id: \.offset) { _, category in
-                            PaletteCategoryGroup(
-                                label: category.label,
-                                types: category.types,
-                                isEnabled: isEnabled,
-                                isExpanded: isCategoryExpanded(category.label),
-                                onAdd: onAdd,
-                                onToggle: {
-                                    if expandedCategories.contains(category.label) {
-                                        expandedCategories.remove(category.label)
-                                    } else {
-                                        expandedCategories.insert(category.label)
-                                    }
-                                }
-                            )
-                        }
+            .padding(10)
+            .background(EditorColors.cardSwift, in: RoundedRectangle(cornerRadius: 8))
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    if filteredCategories.isEmpty {
+                        Text(localized("没有匹配的组件", "No matching widgets"))
+                            .foregroundStyle(EditorColors.textTertiarySwift)
+                            .padding(20)
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    ForEach(filteredCategories, id: \.label) { category in
+                        PaletteCategoryGroup(
+                            label: category.label, types: category.types, isEnabled: isEnabled,
+                            isExpanded: !searchText.isEmpty || expandedCategories.contains(category.label),
+                            onAdd: { onAdd($0); paletteExpanded = false },
+                            onToggle: {
+                                if !expandedCategories.insert(category.label).inserted { expandedCategories.remove(category.label) }
+                            }
+                        )
+                    }
                 }
             }
         }
-        // A flexible outer maxHeight reserves empty space even when the list
-        // is absent. Collapse the entire panel, not just its search row.
-        .frame(height: showsCategories ? 280 : 22, alignment: .top)
+        .padding(14)
+        .frame(width: 480, height: 380)
+        .background(EditorColors.sidebarSwift)
     }
 }
 

@@ -60,6 +60,24 @@ class LyricsItemConfig: NSObject, ObservableObject {
         observeChanges()
     }
 
+    /// Desktop bars share playback, but their preset must not overwrite the
+    /// physical bar's appearance or persisted settings.
+    init(copying source: LyricsItemConfig) {
+        super.init()
+        displayMode = source.displayMode
+        karaokeStyle = source.karaokeStyle
+        showArtwork = source.showArtwork
+        clickAction = source.clickAction
+        progressColor = source.progressColor
+        textColor = source.textColor
+        fontSize = source.fontSize
+        fontName = source.fontName
+        artworkSize = source.artworkSize
+        marqueeEnabled = source.marqueeEnabled
+        marqueeStyle = source.marqueeStyle
+        lyricsOffsetMs = source.lyricsOffsetMs
+    }
+
     /// Watches every published property, persists the new values and tells
     /// the Touch Bar items to re-apply the configuration.
     private func observeChanges() {

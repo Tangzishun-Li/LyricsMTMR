@@ -224,6 +224,7 @@ final class DraftManager {
     static let shared = DraftManager()
 
     private let fileManager = FileManager.default
+    private let persistenceQueue = DispatchQueue(label: "com.lyricsmtmr.editor.drafts", qos: .utility)
 
     private var draftsDir: String {
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
@@ -283,6 +284,15 @@ final class DraftManager {
     // MARK: - Persistence
 
     func save(_ draft: Draft) {
+        persistenceQueue.sync { persist(draft) }
+    }
+
+    /// Serialization and disk I/O must not run on the UI thread while typing.
+    func saveInBackground(_ draft: Draft) {
+        persistenceQueue.async { self.persist(draft) }
+    }
+
+    private func persist(_ draft: Draft) {
         let envelope: [String: Any] = [
             "id": draft.id,
             "name": draft.name,
@@ -292,10 +302,12 @@ final class DraftManager {
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: envelope, options: [.prettyPrinted]) else { return }
         let path = draftsDir + "/\(draft.id).json"
-        try? data.write(to: URL(fileURLWithPath: path))
+        try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
     }
 
     func load(id: String) -> Draft? {
+        // Wait for earlier background saves before reading the same draft.
+        persistenceQueue.sync {}
         let path = draftsDir + "/\(id).json"
         guard let data = fileManager.contents(atPath: path),
               let envelope = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
@@ -317,6 +329,7 @@ final class DraftManager {
     }
 
     func deleteDraft(id: String) {
+        persistenceQueue.sync {}
         let path = draftsDir + "/\(id).json"
         try? fileManager.removeItem(atPath: path)
     }
@@ -353,7 +366,7 @@ final class DraftManager {
         let safeName = name.replacingOccurrences(of: "/", with: "-")
         let path = themesDir + "/\(safeName).json"
         guard let data = try? JSONSerialization.data(withJSONObject: draft.items, options: [.prettyPrinted]) else { return path }
-        try? data.write(to: URL(fileURLWithPath: path))
+        try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
 
         if activate {
             let itemsPath = themesDir + "/items.json"
