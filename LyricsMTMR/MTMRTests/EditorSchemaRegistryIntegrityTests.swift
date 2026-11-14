@@ -15,7 +15,7 @@
 //       键集合一致（无孤儿 schema / 无孤儿 metadata）；
 //    3. paletteCategories 引用的类型全部已注册（palette 不出幽灵项）。
 //
-//  红线呼应：SchemaDomainMigrationContractTests 的 278 条运行时属性
+//  红线呼应：SchemaDomainMigrationContractTests 的 293 条运行时属性
 //  总数锚点原样全绿，本文件不改锚点数字/文案。
 //
 
