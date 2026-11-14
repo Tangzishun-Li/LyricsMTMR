@@ -27,6 +27,9 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
         self.themes = Self.mergedThemes(configured: themes)
         super.init(identifier: identifier, title: "")
 
+        // 诊断用：切换器实际条目数必须等于槽位数（多出来的主题会在这里暴露）。
+        AppLog.appEvent("ThemeSwitchBarItem: \(self.themes.count) themes (slots=\(SlotManager.shared.slots.count))")
+
         updateTitle(to: AppSettings.selectedThemeIndex)
 
         isBordered = false
@@ -98,6 +101,11 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
     /// switcher always cycles through all installed themes, even when an old
     /// preset's themeSwitch item only lists a subset.
     private static func mergedThemes(configured: [ThemeDefinition]) -> [ThemeDefinition] {
+        // Slots are the single source of truth for the switcher: a theme*.json
+        // file that is not one of the user's slots must never show up here.
+        // (Previously every file on disk was appended, so a stray file left by
+        // tests/refactors became an extra "theme" after the next bar refresh.)
+        let slotIds = Set(SlotManager.shared.slots.map(\.id))
         var merged: [ThemeDefinition] = []
         var seen = Set<String>()
         for theme in configured {
@@ -105,11 +113,17 @@ class ThemeSwitchBarItem: CustomButtonTouchBarItem {
             guard !seen.contains(key) else { continue }
             // A switcher entry whose file is gone would render "bad preset".
             guard ThemeSupport.presetExists(theme.preset) else { continue }
+            // Drop theme-file entries that are no longer one of the slots,
+            // while keeping custom presets (non themeN.json) untouched.
+            let stem = (theme.preset as NSString).deletingPathExtension
+            let isThemeFile = ThemeSupport.themeIndex(fromFileName: theme.preset) != nil
+            if !slotIds.isEmpty, isThemeFile, !slotIds.contains(stem) { continue }
             seen.insert(key)
             let label = ThemeSupport.normalizedLabel(theme.label, preset: theme.preset)
             merged.append(ThemeDefinition(label: label, preset: theme.preset, matchAppIds: theme.matchAppIds))
         }
         for entry in ThemeSupport.discoverThemeFiles() {
+            guard slotIds.isEmpty || slotIds.contains(entry.name) else { continue }
             let key = resolveKey(entry.path)
             guard !seen.contains(key) else { continue }
             seen.insert(key)

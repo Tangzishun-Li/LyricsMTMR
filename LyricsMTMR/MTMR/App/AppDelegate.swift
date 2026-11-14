@@ -41,9 +41,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // everything not needed for the Touch Bar / status-bar first frame
         // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
-            // 每次启动重置主题索引为 0（theme1），确保从 theme1 开始
-            AppSettings.selectedThemeIndex = 0
-
+            // 启动恢复上次使用的主题（见 TouchBarController.reloadInitialConfig）。
+            // 不再每次强制重置为 theme1 —— 那会让用户选中的槽位在每次重启/重构后“消失”。
             StartupSequence.run(
                 hooks: StartupSequence.Hooks(
                     checkAccessibilityPermissions: {

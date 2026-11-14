@@ -732,9 +732,20 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         return bar.delegate != nil && !bar.defaultItemIdentifiers.isEmpty && touchBarContainsAnyItems()
     }
 
-    /// The user's preferred first theme is a startup choice only. Normal
-    /// reloads must read items.json, which is where settings and slots save.
+    /// Restores the theme the user was last on (theme switcher / slot switch
+    /// persist `AppSettings.selectedThemeIndex`), so a rebuild + relaunch no
+    /// longer snaps the Touch Bar back to theme1 and "loses" their theme.
+    /// Falls back to theme1.json, then to items.json/defaultPreset.
+    /// Normal reloads (menu 刷新 / settings apply) must keep reading items.json.
     func reloadInitialConfig() {
+        let index = max(0, AppSettings.selectedThemeIndex)
+        let indexedPath = appSupportDirectory + "/theme\(index + 1).json"
+        if FileManager.default.fileExists(atPath: indexedPath) {
+            AppLog.appEvent("reloadInitialConfig: restoring theme\(index + 1) (index=\(index))")
+            reloadPreset(path: indexedPath)
+            return
+        }
+        AppLog.appEvent("reloadInitialConfig: theme\(index + 1).json missing → falling back to theme1/items.json")
         let theme1Path = appSupportDirectory + "/theme1.json"
         if FileManager.default.fileExists(atPath: theme1Path) {
             reloadPreset(path: theme1Path)

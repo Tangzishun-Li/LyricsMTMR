@@ -73,10 +73,13 @@ final class LyricsMatchManager: ObservableObject {
             let results = await self.performSearch(title: trackTitle, artist: trackArtist)
             if Task.isCancelled { return }
             self.candidates = results
-            // Auto-select first if no cached match.
+            // Auto-select: cached pin → user's preferred provider → first in display order.
             if self.selectedCandidate == nil {
                 if let cached = self.cachedAssociation {
                     self.selectedCandidate = results.first { $0.id == cached.selectedCandidate.id }
+                }
+                if self.selectedCandidate == nil, let preferred = AppSettings.lyricsPreferredProvider {
+                    self.selectedCandidate = results.first { $0.provider == preferred }
                 }
                 if self.selectedCandidate == nil {
                     self.selectedCandidate = results.first
@@ -90,7 +93,10 @@ final class LyricsMatchManager: ObservableObject {
     }
 
     private func performSearch(title: String, artist: String) async -> [LyricsCandidate] {
+        // Deterministic order: preferred provider first, then the fixed display
+        // order (dictionary `providers.values` order is otherwise arbitrary).
         let providers = LyricsProviderRegistry.shared.availableProviders()
+            .sorted { LyricsSearchService.rankingIndex(of: $0.providerID) < LyricsSearchService.rankingIndex(of: $1.providerID) }
         let limit = min(max(AppSettings.lyricsCandidateCount, 1), 10)
         // Query all providers concurrently (a slow one can't hold the others
         // up), then restore the deterministic provider order for display.
@@ -101,7 +107,7 @@ final class LyricsMatchManager: ObservableObject {
                         let results = try await provider.search(title: title, artist: artist, limit: limit)
                         return (index, results)
                     } catch {
-                        AppLog.debug("[\(provider.displayName)] search failed: \(error)")
+                        AppLog.lyrics("[\(provider.displayName)] candidate search failed: \(error)")
                         return (index, [])
                     }
                 }

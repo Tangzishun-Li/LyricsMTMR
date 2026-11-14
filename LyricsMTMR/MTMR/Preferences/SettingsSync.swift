@@ -31,7 +31,14 @@ class SettingsSync {
     static var itemsJSONPathOverride: String?
 
     private static var itemsJSONPath: String {
-        itemsJSONPathOverride ?? appSupportDir + "/items.json"
+        if let itemsJSONPathOverride { return itemsJSONPathOverride }
+        // 测试进程绝不写用户真实 items.json（主题/布局的活配置），用临时目录。
+        if UserDefaultsStore.isRunningUnderTests {
+            let dir = NSTemporaryDirectory() + "/LyricsMTMR-testhost"
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            return dir + "/items.json"
+        }
+        return appSupportDir + "/items.json"
     }
     private static var defaultPresetPath: String {
         Bundle.main.path(forResource: "defaultPreset", ofType: "json") ?? ""

@@ -80,7 +80,22 @@ enum AppLanguage: String, CaseIterable {
 /// 注：泛型属性包装器不支持 static stored property，故经此非泛型容器中转。
 enum UserDefaultsStore {
     static var override: UserDefaults?
-    static var current: UserDefaults { override ?? .standard }
+
+    /// hosted 单测跑在宿主 App 进程里：测试若直接读写 `UserDefaults.standard`
+    /// 会污染开发者真实的用户偏好（历史事故：跑完测试后主题索引/开关被改掉）。
+    /// 这里给测试进程一个独立 suite，任何未显式注入 override 的读写都落在这里。
+    private static let testHostDefaults =
+        UserDefaults(suiteName: "com.lyricsmtmr.testhost") ?? .standard
+
+    static var isRunningUnderTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    static var current: UserDefaults {
+        if let override { return override }
+        if isRunningUnderTests { return testHostDefaults }
+        return .standard
+    }
 }
 
 /// UserDefaults 键注册表（round 47 治理：散落字面量收敛，键名由契约测试锚定，
@@ -118,6 +133,9 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.dock.persistent", defaultValue: [])
     static var dockPersistentAppIds: [String]
     
+    /// R64 废弃：歌词引擎改为自动监听所有播放器（MediaRemote 已能识别任意来源），
+    /// 不再按白名单过滤。键与存量数据保留（设置导出/重置契约仍覆盖），勿删。
+    @available(*, deprecated, message: "R64: 播放器白名单已废弃，引擎自动监听所有来源")
     @UserDefault(key: "com.toxblh.mtmr.lyrics.selectedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.netease.163music", "com.tencent.QQMusicMac"])
     static var selectedPlayerIds: [String]
 
@@ -129,6 +147,22 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.lyrics.candidateCount", defaultValue: 3)
     static var lyricsCandidateCount: Int
 
+    /// 默认歌词源：`"auto"` = 自动（逐字优先），其余为 `LyricsProviderID.rawValue`。
+    /// 自动搜索与手动匹配都优先使用该源；该源无结果/请求失败时自动回退到其他源。
+    @UserDefault(key: "com.lyricsmtmr.lyrics.preferredProvider", defaultValue: "auto")
+    static var lyricsPreferredProviderRaw: String
+
+    static var lyricsPreferredProvider: LyricsProviderID? {
+        get {
+            let raw = lyricsPreferredProviderRaw
+            guard raw != "auto" else { return nil }
+            return LyricsProviderID(rawValue: raw)
+        }
+        set { lyricsPreferredProviderRaw = newValue?.rawValue ?? "auto" }
+    }
+
+    /// R64 废弃：随「音乐源」白名单一起下线，键与存量数据保留，勿删。
+    @available(*, deprecated, message: "R64: 播放器白名单已废弃")
     @UserDefault(key: "com.toxblh.mtmr.lyrics.archivedPlayers", defaultValue: ["com.apple.Music", "com.spotify.client", "com.tencent.QQMusicMac"])
     static var archivedPlayerIds: [String]
     

@@ -24,7 +24,6 @@ final class StatusBarMenuModel: ObservableObject {
     @Published var slots: [SlotInfo] = []
     @Published var activeSlotId: String?
     @Published var selectedLanguage: AppLanguage = AppSettings.appLanguage
-    @Published var selectedPlayers: Set<String> = Set(AppSettings.selectedPlayerIds)
 
     var onDismiss: (() -> Void)?
     weak var appDelegate: AppDelegate?
@@ -45,7 +44,6 @@ final class StatusBarMenuModel: ObservableObject {
         slots = SlotManager.shared.slots
         activeSlotId = SlotManager.shared.activeSlotId
         selectedLanguage = AppSettings.appLanguage
-        selectedPlayers = Set(AppSettings.selectedPlayerIds)
         if let appId = TouchBarController.shared.lastActiveAppId {
             isBlacklisted = AppSettings.blacklistedAppIds.contains(appId)
             if let raw = AppSettings.appThemeRules[appId] {
@@ -236,26 +234,6 @@ final class StatusBarMenuModel: ObservableObject {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
-    }
-
-    // MARK: Music Source
-
-    func togglePlayer(_ playerId: String) {
-        if selectedPlayers.contains(playerId) {
-            selectedPlayers.remove(playerId)
-        } else {
-            selectedPlayers.insert(playerId)
-        }
-        AppSettings.selectedPlayerIds = Array(selectedPlayers)
-    }
-
-    func toggleAllPlayers() {
-        if selectedPlayers.count == MusicPlayer.allCases.count {
-            selectedPlayers.removeAll()
-        } else {
-            selectedPlayers = Set(MusicPlayer.allCases.map(\.rawValue))
-        }
-        AppSettings.selectedPlayerIds = Array(selectedPlayers)
     }
 
     // MARK: Navigation
@@ -1014,7 +992,6 @@ extension Localized {
     static var screenRecording: String { AppSettings.appLanguage == .chinese ? "屏幕录制" : "Screen Recording" }
     static var locationServices: String { AppSettings.appLanguage == .chinese ? "定位服务" : "Location Services" }
     static var notifications: String { AppSettings.appLanguage == .chinese ? "通知" : "Notifications" }
-    static var musicSource: String { AppSettings.appLanguage == .chinese ? "音乐源" : "Music Source" }
     static var allPlayers: String { AppSettings.appLanguage == .chinese ? "全部" : "All" }
     static var settingsTitle: String { AppSettings.appLanguage == .chinese ? "设置…" : "Settings…" }
     static var checkForUpdatesShort: String { AppSettings.appLanguage == .chinese ? "检查更新" : "Updates" }

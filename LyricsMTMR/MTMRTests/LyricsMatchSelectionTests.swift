@@ -123,3 +123,54 @@ final class LyricsMatchSelectionTests: XCTestCase {
         XCTAssertNil(engine.currentLyrics, "非候选对象必须被忽略")
     }
 }
+// MARK: - 默认歌词源（R64：搜索结果可选默认源 + 确定性排序）
+
+final class LyricsPreferredProviderTests: XCTestCase {
+
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        defaults = UserDefaults(suiteName: "LyricsPreferredProviderTests-" + UUID().uuidString)
+        UserDefaultsStore.override = defaults
+    }
+
+    override func tearDown() {
+        AppSettings.lyricsPreferredProviderRaw = "auto"
+        UserDefaultsStore.override = nil
+        super.tearDown()
+    }
+
+    /// 未设置时默认 "auto"，语义为「自动（逐字优先）」。
+    func testDefaultIsAuto() {
+        XCTAssertEqual(AppSettings.lyricsPreferredProviderRaw, "auto")
+        XCTAssertNil(AppSettings.lyricsPreferredProvider)
+    }
+
+    /// 选择/清除默认源必须落盘且可逆（键名锚定，防重构改键丢偏好）。
+    func testPreferredProviderRoundTrip() {
+        AppSettings.lyricsPreferredProvider = .qqMusic
+        XCTAssertEqual(defaults.string(forKey: "com.lyricsmtmr.lyrics.preferredProvider"), "qqMusic")
+        XCTAssertEqual(AppSettings.lyricsPreferredProvider, .qqMusic)
+
+        AppSettings.lyricsPreferredProvider = nil
+        XCTAssertEqual(AppSettings.lyricsPreferredProviderRaw, "auto")
+        XCTAssertNil(AppSettings.lyricsPreferredProvider)
+    }
+
+    /// 排序契约：默认源排第一，其余按固定顺序（netease → qq → kugou → migu）。
+    func testRankingPrefersSelectedProvider() {
+        AppSettings.lyricsPreferredProviderRaw = "auto"
+        XCTAssertLessThan(LyricsSearchService.rankingIndex(of: .netease),
+                          LyricsSearchService.rankingIndex(of: .qqMusic))
+        XCTAssertLessThan(LyricsSearchService.rankingIndex(of: .qqMusic),
+                          LyricsSearchService.rankingIndex(of: .kugou))
+
+        AppSettings.lyricsPreferredProvider = .kugou
+        XCTAssertLessThan(LyricsSearchService.rankingIndex(of: .kugou),
+                          LyricsSearchService.rankingIndex(of: .netease))
+        // 非默认源之间仍保持固定顺序。
+        XCTAssertLessThan(LyricsSearchService.rankingIndex(of: .netease),
+                          LyricsSearchService.rankingIndex(of: .qqMusic))
+    }
+}

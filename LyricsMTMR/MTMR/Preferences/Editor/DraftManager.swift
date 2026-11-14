@@ -99,6 +99,9 @@ enum ThemeSupport {
     /// themes and saving never silently drops themes.
     static func ensureThemeSwitchLists(in items: [[String: Any]]) -> [[String: Any]] {
         let disk = discoverThemeFiles()
+        // Slots are the single source of truth: never invent switcher entries
+        // from theme files that are not one of the user's slots.
+        let slotIds = Set(SlotManager.shared.slots.map { $0.id })
         return items.map { item in
             guard (item["type"] as? String) == "themeSwitch" else { return item }
             var merged: [[String: Any]] = []
@@ -110,6 +113,9 @@ enum ThemeSupport {
                     guard !seen.contains(key) else { continue }
                     // Never keep a switcher entry pointing at a missing file.
                     guard presetExists(preset) else { continue }
+                    let stem = (preset as NSString).deletingPathExtension
+                    let isThemeFile = themeIndex(fromFileName: preset) != nil
+                    if !slotIds.isEmpty, isThemeFile, !slotIds.contains(stem) { continue }
                     seen.insert(key)
                     var entry = theme
                     if let label = entry["label"] as? String {
@@ -119,6 +125,7 @@ enum ThemeSupport {
                 }
             }
             for entry in disk {
+                guard slotIds.isEmpty || slotIds.contains(entry.name) else { continue }
                 let key = resolveThemeKey(entry.path)
                 guard !seen.contains(key) else { continue }
                 seen.insert(key)

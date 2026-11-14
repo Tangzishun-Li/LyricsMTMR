@@ -70,14 +70,11 @@ struct LyricsTab: View {
     @ObservedObject private var config = LyricsItemConfig.shared
     @StateObject private var matchManager = LyricsMatchManager()
 
-    @State private var selectedPlayers = AppSettings.selectedPlayerIds
     @State private var lyricsEnabled = AppSettings.lyricsEnabled
     @State private var filterEnabled = AppSettings.lyricsFilterEnabled
     @State private var filterModeRaw = AppSettings.lyricsFilterModeRaw
     @State private var filterKeysText = AppSettings.lyricsFilterKeys.joined(separator: ", ")
     @State private var enabledCategories: Set<String> = Set(AppSettings.lyricsFilterEnabledCategories)
-    @State private var archivedPlayers = AppSettings.archivedPlayerIds
-    @State private var showArchived = false
     @State private var desktopLyricsEnabled = AppSettings.desktopLyricsWindowEnabled
     @State private var desktopLyricsFontSize = AppSettings.desktopLyricsFontSize
     @State private var desktopLyricsMarqueeEnabled = AppSettings.desktopLyricsMarqueeEnabled
@@ -91,7 +88,7 @@ struct LyricsTab: View {
                 Deck.Header(title: SettingsTab.lyrics.title, subtitle: SettingsTab.lyrics.subtitle)
                 TouchBarPreview(config: config)
                 globalToggleSection
-                musicSourceSection
+                playerAutoMonitorSection
                 modeSection
                 scrollSection
                 colorSection
@@ -148,127 +145,37 @@ struct LyricsTab: View {
         }
     }
 
-    // MARK: - Music sources
+    // MARK: - Playback sources (R64: whitelist removed)
 
-    private var musicSourceSection: some View {
+    /// 音乐源白名单已废弃：MediaRemote 天然能识别任意播放器（含浏览器网页播放），
+    /// 手动勾选只会导致漏识别（不在名单里的 App 完全不出歌词），所以改为自动监听。
+    private var playerAutoMonitorSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center) {
-                Text(localized("音乐源", "Music Sources").uppercased())
-                    .font(Deck.sectionFont)
-                    .kerning(1.1)
-                    .foregroundStyle(Deck.textTertiary)
-                Spacer()
-                Button(allActivePlayersSelected ? localized("清空", "Clear All") : localized("全选", "Select All")) {
-                    let next = allActivePlayersSelected ? [] : activePlayers.map { $0.rawValue }
-                    selectedPlayers = next
-                    AppSettings.selectedPlayerIds = next
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                .foregroundStyle(Deck.accent)
-            }
-
+            Deck.SectionHeader(title: localized("播放来源", "Playback Sources"))
             Deck.Card {
-                VStack(spacing: 0) {
-                    ForEach(activePlayers, id: \.rawValue) { player in
-                        MusicSourceRow(player: player, isOn: playerBinding(player))
-                        if player.rawValue != activePlayers.last?.rawValue {
-                            Deck.RowDivider()
-                        }
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Deck.mint)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Deck.mint.opacity(0.14)))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(localized("自动监听所有播放器", "All players are monitored automatically"))
+                            .font(Deck.rowFont)
+                            .foregroundStyle(Deck.textPrimary)
+                        Text(localized(
+                            "通过系统「正在播放」识别任意播放器与浏览器网页播放，无需再手动选择音乐源；歌词源请在下方「搜索结果」里选默认源。",
+                            "Any player and browser playback is detected via Now Playing — no source list needed. Pick a default lyrics provider under Search Results below."))
+                            .font(Deck.captionFont)
+                            .foregroundStyle(Deck.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-            }
-
-            Text(localized("仅监听勾选的播放器；未勾选的播放器播放时不显示歌词", "Lyrics only appear for the players you enable"))
-                .font(Deck.captionFont)
-                .foregroundStyle(Deck.textTertiary)
-
-            if !archivedPlayerList.isEmpty {
-                archivedPlayersSection
+                .padding(.vertical, 5)
             }
         }
-    }
-
-    // MARK: - Archived players
-
-    private var archivedPlayersSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    showArchived.toggle()
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .rotationEffect(.degrees(showArchived ? 90 : 0))
-                    Image(systemName: "archivebox")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text(localized("已归档的播放器（\(archivedPlayerList.count)）", "Archived Players (\(archivedPlayerList.count))"))
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(Deck.textTertiary)
-            }
-            .buttonStyle(.plain)
-
-            if showArchived {
-                Deck.Card {
-                    VStack(spacing: 0) {
-                        ForEach(archivedPlayerList, id: \.rawValue) { player in
-                            ArchivedMusicSourceRow(
-                                player: player,
-                                isOn: playerBinding(player),
-                                onUnarchive: { unarchive(player) }
-                            )
-                            if player.rawValue != archivedPlayerList.last?.rawValue {
-                                Deck.RowDivider()
-                            }
-                        }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-
-                Text(localized(
-                    "这些播放器尚未在本机验证，已归档隐藏。取消归档后需重新测试歌词兼容性。",
-                    "These players haven't been verified on this machine and are archived. Un-archiving requires re-testing lyrics compatibility."
-                ))
-                .font(Deck.captionFont)
-                .foregroundStyle(Deck.textTertiary.opacity(0.85))
-            }
-        }
-    }
-
-    private var activePlayers: [MusicPlayer] {
-        MusicPlayer.allCases.filter { !archivedPlayers.contains($0.rawValue) }
-    }
-
-    private var archivedPlayerList: [MusicPlayer] {
-        MusicPlayer.allCases.filter { archivedPlayers.contains($0.rawValue) }
-    }
-
-    private var allActivePlayersSelected: Bool {
-        !activePlayers.isEmpty && activePlayers.allSatisfy { selectedPlayers.contains($0.rawValue) }
-    }
-
-    private func unarchive(_ player: MusicPlayer) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-            archivedPlayers.removeAll { $0 == player.rawValue }
-            AppSettings.archivedPlayerIds = archivedPlayers
-        }
-    }
-
-    private func playerBinding(_ player: MusicPlayer) -> Binding<Bool> {
-        Binding(
-            get: { selectedPlayers.contains(player.rawValue) },
-            set: { isOn in
-                if isOn {
-                    guard !selectedPlayers.contains(player.rawValue) else { return }
-                    selectedPlayers.append(player.rawValue)
-                } else {
-                    selectedPlayers.removeAll { $0 == player.rawValue }
-                }
-                AppSettings.selectedPlayerIds = selectedPlayers
-            })
     }
 
     private var modeSection: some View {
@@ -1197,122 +1104,6 @@ struct TouchBarPreview: View {
         case .jump:
             let steps = CGFloat(max(sample.count, 1))
             return floor(phase * steps) / steps
-        }
-    }
-}
-
-// MARK: - Music source row
-
-struct MusicSourceRow: View {
-    let player: MusicPlayer
-    @Binding var isOn: Bool
-
-    /// R60-a 安装态徽标（轨道 §4.2）：按 bundle id 探测安装态，未安装的
-    /// 播放器行尾加灰字「未安装」。开关仍可操作（预装后即生效），不做禁用。
-    private var isInstalled: Bool {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: player.rawValue) != nil
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: player.symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isOn ? Deck.accent : Deck.textTertiary)
-                .frame(width: 26, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isOn ? Deck.accent.opacity(0.14) : Color.white.opacity(0.05)))
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(player.displayName)
-                        .font(Deck.rowFont)
-                        .foregroundStyle(Deck.textPrimary)
-                    if !isInstalled {
-                        Text(localized("未安装", "Not Installed"))
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Deck.textTertiary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(
-                                Capsule().fill(Color.white.opacity(0.06)))
-                    }
-                }
-                Text(player.blurb)
-                    .font(Deck.captionFont)
-                    .foregroundStyle(Deck.textTertiary)
-            }
-            Spacer(minLength: 12)
-            Deck.Pill(isOn: $isOn)
-        }
-        .padding(.vertical, 5)
-    }
-}
-
-// MARK: - Archived music source row
-
-struct ArchivedMusicSourceRow: View {
-    let player: MusicPlayer
-    @Binding var isOn: Bool
-    let onUnarchive: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: player.symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Deck.textTertiary)
-                .frame(width: 26, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.white.opacity(0.04)))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(player.displayName)
-                    .font(Deck.rowFont)
-                    .foregroundStyle(Deck.textPrimary.opacity(0.6))
-                Text(player.blurb)
-                    .font(Deck.captionFont)
-                    .foregroundStyle(Deck.textTertiary.opacity(0.7))
-            }
-            Spacer(minLength: 8)
-            Deck.Pill(isOn: $isOn)
-            Button {
-                onUnarchive()
-            } label: {
-                Text(localized("取消归档", "Un-archive"))
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Deck.sky)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 5)
-    }
-}
-
-// MARK: - MusicPlayer presentation
-
-extension MusicPlayer {
-    var symbol: String {
-        switch self {
-        case .appleMusic: return "music.note"
-        case .spotify: return "play.circle.fill"
-        case .vox: return "waveform"
-        case .audirvana: return "hifispeaker.fill"
-        case .swinsian: return "music.note.list"
-        case .neteaseMusic: return "cloud.fill"
-        case .neteaseMusicNew: return "sparkles"
-        case .qqMusic: return "music.mic"
-        }
-    }
-
-    var blurb: String {
-        switch self {
-        case .appleMusic: return localized("系统自带音乐", "Built-in Music app")
-        case .spotify: return localized("流媒体", "Streaming")
-        case .vox: return localized("高保真播放", "Hi-fi player")
-        case .audirvana: return localized("发烧级播放", "Audiophile player")
-        case .swinsian: return localized("本地曲库", "Local library")
-        case .neteaseMusic: return localized("网易云音乐", "NetEase Cloud")
-        case .neteaseMusicNew: return localized("网易云音乐（新版）", "NetEase (new)")
-        case .qqMusic: return localized("QQ 音乐", "QQ Music")
         }
     }
 }

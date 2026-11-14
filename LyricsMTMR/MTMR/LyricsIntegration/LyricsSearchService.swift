@@ -22,7 +22,22 @@ class LyricsSearchService {
     private init() {}
 
     /// Tie-break order when quality is equal (mirrors LyricsProviderID case order).
-    private static let providerOrder: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu, .spotify, .subtitle, .custom]
+    /// Also the UI display order when the user has no preferred provider.
+    static let providerOrder: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu, .spotify, .subtitle, .custom]
+
+    /// The user's preferred provider (Settings → 歌词 → 搜索结果 → 默认歌词源).
+    /// `nil` = auto (word-level timing first).
+    static var preferredProvider: LyricsProviderID? {
+        AppSettings.lyricsPreferredProvider
+    }
+
+    /// Deterministic rank: preferred provider first, then the static order.
+    static func rankingIndex(of id: LyricsProviderID) -> Int {
+        if let preferred = preferredProvider {
+            if id == preferred { return -1 }
+        }
+        return providerOrder.firstIndex(of: id) ?? providerOrder.count
+    }
 
     /// Candidate count per provider, user-configurable (default 3).
     private static var candidateLimit: Int {
@@ -42,19 +57,16 @@ class LyricsSearchService {
         return nil
     }
 
-    private static func orderIndex(of id: LyricsProviderID) -> Int {
-        providerOrder.firstIndex(of: id) ?? providerOrder.count
-    }
-
     private static func hasWordTiming(_ result: LyricsFetchResult) -> Bool {
         result.candidate.hasWordTiming || result.lyrics.lines.contains { !$0.timetags.isEmpty }
     }
 
     /// Searches ALL registered lyrics providers concurrently and picks the
     /// best result when the user has not pinned a manual match:
-    /// 1. any provider with word-level timing (best karaoke experience);
-    /// 2. otherwise the provider of the currently playing app (line timing);
-    /// 3. otherwise the first provider with lyrics in `providerOrder`.
+    /// 1. the user's preferred provider (Settings → 歌词 → 默认歌词源), if any;
+    /// 2. otherwise any provider with word-level timing (best karaoke);
+    /// 3. otherwise the provider of the currently playing app (line timing);
+    /// 4. otherwise the first provider with lyrics in `providerOrder`.
     /// Translation/romaji/cover are borrowed from other providers when the
     /// winner lacks them. Archived players never gate this search — archiving
     /// only removes a player app from the engine's driver whitelist, it does
@@ -69,17 +81,19 @@ class LyricsSearchService {
                     do {
                         let candidates = try await provider.search(title: title, artist: artist, limit: Self.candidateLimit)
                         guard let top = candidates.first else {
-                            AppLog.debug("[\(provider.displayName)] runtime search: no candidates")
+                            AppLog.lyrics("[\(provider.displayName)] runtime search: no candidates")
                             return nil
                         }
                         let fetched = try await provider.fetch(for: top)
                         return ProviderOutcome(
-                            order: Self.orderIndex(of: provider.providerID),
+                            order: Self.rankingIndex(of: provider.providerID),
                             providerName: provider.displayName,
                             result: fetched
                         )
                     } catch {
-                        AppLog.debug("[\(provider.displayName)] runtime search failed: \(error)")
+                        // 用 lyrics 级别（不再是 DEBUG 编译期剔除），线上可直接看出
+                        // 哪家源挂了/超时，避免「酷狗挂了但日志里没有任何证据」。
+                        AppLog.lyrics("[\(provider.displayName)] runtime search failed: \(error)")
                         return nil
                     }
                 }
@@ -98,7 +112,11 @@ class LyricsSearchService {
 
         let chosen: ProviderOutcome
         let reason: String
-        if let wordTimed = outcomes.first(where: { Self.hasWordTiming($0.result) }) {
+        if let preferred = Self.preferredProvider,
+           let preferredOutcome = outcomes.first(where: { $0.result.candidate.provider == preferred }) {
+            chosen = preferredOutcome
+            reason = "user-preferred provider"
+        } else if let wordTimed = outcomes.first(where: { Self.hasWordTiming($0.result) }) {
             chosen = wordTimed
             reason = "word-level timing"
         } else if let playerProvider = Self.providerID(forPlayerBundleID: playerBundleID),

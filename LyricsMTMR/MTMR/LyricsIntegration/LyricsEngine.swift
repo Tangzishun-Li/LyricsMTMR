@@ -638,51 +638,9 @@ class LyricsEngine: NSObject, ObservableObject {
         let idString = parsed.bundleID.isEmpty ? "" : " (\(parsed.bundleID))"
         AppLog.info("MR_handle: → EngineTrackInfo「\(parsed.title.prefix(30))」— \(parsed.artist.prefix(20))\(idString) dur=\(parsed.duration) elap=\(elapsed) state=\(state)")
 
-        // ─── Whitelist filter: only allow selected players to trigger lyrics ───
-        let allowedPlayers = Set(AppSettings.selectedPlayerIds)
-        if !allowedPlayers.isEmpty,
-           !parsed.bundleID.isEmpty,
-           !allowedPlayers.contains(parsed.bundleID) {
-            if BrowserURLDetector.isBrowser(bundleID: parsed.bundleID) {
-                // Browser source: update title display only, skip lyrics search.
-                // The subtitle pipeline in searchLyrics() will handle it if enabled.
-                AppLog.info("MR_handle: browser「\(parsed.bundleID)」not in whitelist → display-only mode")
-                let displayOnly = EngineTrackInfo(
-                    title: parsed.title,
-                    artist: parsed.artist,
-                    album: parsed.album,
-                    artwork: parsed.artwork,
-                    duration: parsed.duration,
-                    playbackState: state,
-                    playbackTime: elapsed,
-                    bundleIdentifier: parsed.bundleID
-                )
-                let titleChanged = !parsed.title.isEmpty && parsed.title != trackInfo.title && parsed.title != lastTrackTitle
-                if titleChanged {
-                    lastTrackTitle = parsed.title
-                    trackInfo = displayOnly
-                    currentLyrics = nil
-                    currentLineIndex = nil
-                    if AppSettings.lyricsEnabled {
-                        searchLyrics(title: parsed.title, artist: parsed.artist)
-                    }
-                } else {
-                    trackInfo = displayOnly
-                    scheduleLineCheck()
-                }
-                return
-            } else {
-                // Unknown non-whitelisted source: ignore entirely
-                AppLog.info("MR_handle:「\(parsed.bundleID)」not in whitelist and not a browser → ignoring")
-                if trackInfo != .empty {
-                    trackInfo = .empty
-                    currentLyrics = nil
-                    currentLineIndex = nil
-                }
-                return
-            }
-        }
-
+        // R64: no player whitelist anymore — MediaRemote already tells us which
+        // app is playing, so every source is handled here. Browsers go through
+        // the subtitle pipeline in searchLyrics(), with a music-search fallback.
         updateTrackInfo(newInfo)
     }
 
@@ -924,8 +882,11 @@ class LyricsEngine: NSObject, ObservableObject {
                 }
                 return
             }
-            AppLog.lyrics("searchLyrics: browser detected but not a video site → skipping music search")
-            return
+            // 浏览器但没解析到视频页（普通音乐网页 / 原生不支持取 URL 的浏览器 /
+            // 非视频站点）：回退到常规音乐歌词搜索，而不是直接放弃。
+            // 用户反馈「设置-歌词-搜索结果里能看到当前歌，但 Touch Bar 歌词不显示」
+            // 就是这一条 return 挡掉的（Edge 播放网页音乐时）。
+            AppLog.lyrics("searchLyrics: browser detected but no video page → falling back to music lyrics search")
         }
 
         searchLyricsViaMusic(title: title, artist: artist)

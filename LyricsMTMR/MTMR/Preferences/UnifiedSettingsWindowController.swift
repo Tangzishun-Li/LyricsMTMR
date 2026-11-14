@@ -456,7 +456,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var searchKeywords: [String] {
         switch self {
         case .general: return ["通用", "General", "开机自启", "Start at Login", "启动", "语言", "界面语言", "Language", "黑名单", "Blacklist", "触觉反馈", "Haptic", "Control Strip", "滑动手势", "Gestures", "镜像窗口", "Mirror", "预览", "Preview"]
-        case .lyrics: return ["歌词", "Lyrics", "显示模式", "Display Mode", "卡拉OK", "Karaoke", "桌面歌词", "Desktop Lyrics", "滚动", "Marquee", "字体", "Font", "字号", "Size", "颜色", "Colors", "进度颜色", "Progress", "封面", "Artwork", "时间轴偏移", "Offset", "同步", "Sync", "歌词过滤", "Filter", "LRC", "lrcx", "歌词文件", "导入", "Import", "音乐源", "网易云", "NetEase", "QQ音乐", "QQ Music", "翻译", "Translation", "罗马音", "Romaji"]
+        case .lyrics: return ["歌词", "Lyrics", "显示模式", "Display Mode", "卡拉OK", "Karaoke", "桌面歌词", "Desktop Lyrics", "滚动", "Marquee", "字体", "Font", "字号", "Size", "颜色", "Colors", "进度颜色", "Progress", "封面", "Artwork", "时间轴偏移", "Offset", "同步", "Sync", "歌词过滤", "Filter", "LRC", "lrcx", "歌词文件", "导入", "Import", "音乐源", "歌词源", "默认歌词源", "首选", "网易云", "NetEase", "QQ音乐", "QQ Music", "翻译", "Translation", "罗马音", "Romaji"]
         case .slots: return ["槽位", "Slots", "配置", "Profile", "切换", "Switch", "归档", "Archive", "恢复", "Restore", "布局规则", "Layout Rules", "新建槽位", "New Slot"]
         case .editor: return ["编辑器", "Editor", "可视化", "Visual", "元素", "Element", "属性", "Properties", "检查器", "Inspector", "草稿", "Draft", "Touch Bar"]
         case .keyBindings: return ["键位", "Keys", "快捷键", "Shortcut", "绑定", "Binding", "keyCode", "组合键", "Combo"]

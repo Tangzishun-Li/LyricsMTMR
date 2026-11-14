@@ -16,6 +16,7 @@ struct LyricsMatchSection: View {
     @StateObject private var manager = LyricsMatchManager()
     @ObservedObject private var engine = LyricsEngine.shared
     @State private var candidateCount = AppSettings.lyricsCandidateCount
+    @State private var preferredProviderRaw = AppSettings.lyricsPreferredProviderRaw
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -25,6 +26,7 @@ struct LyricsMatchSection: View {
             )
 
             candidateCountCard
+            defaultSourceCard
             currentTrackCard
             searchResultsCard
             if manager.selectedCandidate != nil {
@@ -82,6 +84,51 @@ struct LyricsMatchSection: View {
         guard !title.isEmpty else { return }
         if manager.trackTitle != title || manager.trackArtist != artist {
             manager.search(trackTitle: title, trackArtist: artist)
+        }
+    }
+
+    // MARK: - Default Provider
+
+    /// 默认歌词源选择：自动搜索/手动匹配都优先使用它；失败/无结果自动回退。
+    private let selectableProviders: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu]
+
+    private var defaultSourceCard: some View {
+        Deck.Card {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Deck.accent)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Deck.accent.opacity(0.14))
+                    )
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(localized("默认歌词源", "Default Lyrics Source"))
+                        .font(Deck.rowFont)
+                        .foregroundStyle(Deck.textPrimary)
+                    Text(localized(
+                        "自动搜索与手动匹配优先使用该源；无结果时自动回退到其他源",
+                        "Auto search & matching prefer this source; falls back to others when it has no result"))
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                Picker("", selection: $preferredProviderRaw) {
+                    Text(localized("自动（逐字优先）", "Auto (word timing first)")).tag("auto")
+                    ForEach(selectableProviders, id: \.rawValue) { provider in
+                        Text(provider.displayName).tag(provider.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 168)
+            }
+            .padding(.vertical, 5)
+        }
+        .onChange(of: preferredProviderRaw) { _, newValue in
+            AppSettings.lyricsPreferredProviderRaw = newValue
         }
     }
 
@@ -158,7 +205,9 @@ struct LyricsMatchSection: View {
                         .padding(.vertical, 8)
                 } else {
                     let grouped = Dictionary(grouping: manager.candidates) { $0.provider }
-                    let orderedProviders: [LyricsProviderID] = [.netease, .qqMusic, .kugou, .migu, .spotify, .subtitle, .custom]
+                    let orderedProviders = LyricsSearchService.providerOrder.sorted {
+                        LyricsSearchService.rankingIndex(of: $0) < LyricsSearchService.rankingIndex(of: $1)
+                    }
                     ForEach(orderedProviders, id: \.self) { providerID in
                         if let items = grouped[providerID], !items.isEmpty {
                             providerGroup(providerID: providerID, items: items)
@@ -197,6 +246,14 @@ struct LyricsMatchSection: View {
                 Text(providerID.displayName)
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Deck.textTertiary)
+                if preferredProviderRaw == providerID.rawValue {
+                    Text(localized("默认", "Default"))
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Deck.accent.opacity(0.2)))
+                        .foregroundStyle(Deck.accent)
+                }
                 Text("· \(items.count)")
                     .font(.system(size: 10))
                     .foregroundStyle(Deck.textTertiary.opacity(0.7))

@@ -102,7 +102,10 @@ class SlotManager {
     }
 
     /// Scans the AppSupport root for theme*.json files and registers them as slots if not already present.
+    /// Only used for first-run bootstrap: once slots exist they are the single source of truth,
+    /// otherwise a stray theme file (left over from tests/refactors) silently becomes an extra slot.
     private func autoRegisterThemeFiles() {
+        guard slots.isEmpty else { return }
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: appSupportDir) else { return }
 
