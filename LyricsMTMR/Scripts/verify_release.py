@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
+import plistlib
 import os
 import re
 import sys
@@ -28,12 +30,14 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
+import zipfile
 
 REPO = os.environ.get("LYRICSMTMR_REPO", "Tangzishun-Li/LyricsMTMR")
 SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 
 results: list[tuple[bool, str, str]] = []
+args_require_dmg = False
 RETRIES = 3
 RETRY_DELAY = 2.0
 
@@ -137,6 +141,7 @@ def sparkle_items(xml_bytes: bytes) -> list[dict]:
                 "short_version": (item.findtext(f"{{{SPARKLE_NS}}}shortVersionString") or "").strip(),
                 "enclosure_url": enclosure.get("url", "") if enclosure is not None else "",
                 "signature": enclosure.get(f"{{{SPARKLE_NS}}}edSignature", "") if enclosure is not None else "",
+                "minimum_system": (item.findtext(f"{{{SPARKLE_NS}}}minimumSystemVersion") or "").strip(),
                 "length": enclosure.get("length", "") if enclosure is not None else "",
             }
         )
@@ -182,6 +187,16 @@ def verify_release(tag: str, download: bool) -> None:
     check(len(zip_names) > 0, "资产：存在 .zip 安装包", f"assets={sorted(assets)}" if not zip_names else zip_names[0])
     check(any(n.endswith(".zip.sha256") for n in assets), "资产：存在 .zip.sha256 校验文件")
     check("appcast.xml" in assets, "资产：存在 appcast.xml（自动更新入口）")
+    dmg_names = [n for n in assets if n.endswith(".dmg")]
+    if args_require_dmg:
+        check(bool(dmg_names), "资产：存在 .dmg 安装盘（发布要求）")
+        if dmg_names:
+            check(any(n.endswith(".dmg.sha256") for n in assets), "资产：存在 .dmg.sha256")
+            check(assets[dmg_names[0]].get("size", 0) > 1_000_000, "资产：dmg 非空",
+                  f"{assets[dmg_names[0]].get('size')} bytes")
+    elif dmg_names:
+        check(assets[dmg_names[0]].get("size", 0) > 1_000_000, "资产：dmg 非空",
+              f"{assets[dmg_names[0]].get('size')} bytes")
 
     if not zip_names or "appcast.xml" not in assets:
         # 没有资产时继续校验会连环报错，提前收敛
@@ -256,12 +271,45 @@ def verify_release(tag: str, download: bool) -> None:
                 return
             with open(path, "wb") as handle:
                 handle.write(payload)
+            check_app_plist(path, newest)
             digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
             size = os.path.getsize(path)
             check(size > 1_000_000, "安装包大小合理（>1MB）", f"{size} bytes")
             sha_asset = next(n for n in assets if n.endswith(".zip.sha256"))
             expected = fetch(assets[sha_asset]["browser_download_url"]).decode().split()[0].strip()
             check(digest == expected, "sha256 与 .sha256 资产一致", f"actual={digest[:16]}… expected={expected[:16]}…")
+
+
+def check_app_plist(zip_path: str, feed_item: dict) -> None:
+    """安装包内的 Info.plist 必须与 feed 声明一致——否则会出现"推送了装不动的更新"。"""
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            # 只认主 App 的 Info.plist：Sparkle 内部的 Updater.app 等也有同名文件
+            plist_name = next(
+                (name for name in archive.namelist()
+                 if name.count("/") == 2 and name.endswith(".app/Contents/Info.plist")),
+                None,
+            )
+            if not plist_name:
+                check(False, "安装包内含 Info.plist")
+                return
+            info = plistlib.loads(archive.read(plist_name))
+    except Exception as err:  # noqa: BLE001
+        check(False, "安装包可解压并读取 Info.plist", f"{type(err).__name__}: {err}")
+        return
+
+    app_short = str(info.get("CFBundleShortVersionString") or "")
+    app_build = str(info.get("CFBundleVersion") or "")
+    app_min = str(info.get("LSMinimumSystemVersion") or "")
+    check(app_short == feed_item["short_version"], "包内版本 == feed shortVersionString",
+          f"app={app_short} feed={feed_item['short_version']}")
+    check(app_build == feed_item["version"], "包内 build == feed sparkle:version",
+          f"app={app_build} feed={feed_item['version']}")
+    if feed_item.get("minimum_system"):
+        check(app_min == feed_item["minimum_system"], "包内最低系统 == feed minimumSystemVersion",
+              f"app={app_min} feed={feed_item['minimum_system']}")
+    else:
+        check(False, "feed 声明了 minimumSystemVersion")
 
 
 def verify_repo_appcast() -> None:
@@ -284,10 +332,13 @@ def verify_repo_appcast() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", default="latest", help="latest 或具体 tag（如 v0.3.5-preview）")
-    parser.add_argument("--download", action="store_true", help="下载安装包并校验 sha256")
+    parser.add_argument("--download", action="store_true", help="下载安装包并校验 sha256 / 包内 Info.plist")
+    parser.add_argument("--require-dmg", action="store_true", help="要求 release 附带 DMG（发布工作流使用）")
     parser.add_argument("--self-check", action="store_true", help="只校验仓库内 appcast.xml")
     parser.add_argument("--also-self-check", action="store_true", help="发布校验之后再校验仓库内 appcast.xml")
     args = parser.parse_args()
+    global args_require_dmg
+    args_require_dmg = args.require_dmg
 
     if args.self_check:
         verify_repo_appcast()

@@ -307,6 +307,8 @@
 		C1FFE2D5D43FA6A863EA94B7 /* WidgetAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEE2D5D43FA6A863EA94B7 /* WidgetAvailabilityTests.swift */; };
 		C0FFF92FD68ED580504A00CB /* MirrorSnapshotPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEF92FD68ED580504A00CB /* MirrorSnapshotPolicy.swift */; };
 		C1FF2C4BD2CF921CA8E9F07A /* MirrorSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE2C4BD2CF921CA8E9F07A /* MirrorSnapshotTests.swift */; };
+		C0FF42021662AA979F658B86 /* CredentialRedaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE42021662AA979F658B86 /* CredentialRedaction.swift */; };
+		C1FF8A2C1C8F29358088F075 /* CredentialRedactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE8A2C1C8F29358088F075 /* CredentialRedactionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -649,6 +651,8 @@
 		C1FEE2D5D43FA6A863EA94B7 /* WidgetAvailabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetAvailabilityTests.swift; sourceTree = "<group>"; };
 		C0FEF92FD68ED580504A00CB /* MirrorSnapshotPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirrorSnapshotPolicy.swift; sourceTree = "<group>"; };
 		C1FE2C4BD2CF921CA8E9F07A /* MirrorSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirrorSnapshotTests.swift; sourceTree = "<group>"; };
+		C0FE42021662AA979F658B86 /* CredentialRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialRedaction.swift; sourceTree = "<group>"; };
+		C1FE8A2C1C8F29358088F075 /* CredentialRedactionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialRedactionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -929,6 +933,7 @@
 				C1FED75E48D0250BF3610971 /* LicenseComplianceContractTests.swift */,
 				C1FEE2D5D43FA6A863EA94B7 /* WidgetAvailabilityTests.swift */,
 				C1FE2C4BD2CF921CA8E9F07A /* MirrorSnapshotTests.swift */,
+				C1FE8A2C1C8F29358088F075 /* CredentialRedactionTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1164,6 +1169,7 @@
 				C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */,
 				C0FED17BD18DC3ED821D87B3 /* WidgetAvailability.swift */,
 				C0FEF92FD68ED580504A00CB /* MirrorSnapshotPolicy.swift */,
+				C0FE42021662AA979F658B86 /* CredentialRedaction.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1549,6 +1555,7 @@
 				C0FF5A7DCE85F758969AA679 /* Deck.swift in Sources */,
 				C0FFD17BD18DC3ED821D87B3 /* WidgetAvailability.swift in Sources */,
 				C0FFF92FD68ED580504A00CB /* MirrorSnapshotPolicy.swift in Sources */,
+				C0FF42021662AA979F658B86 /* CredentialRedaction.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1607,6 +1614,7 @@
 				C1FFD75E48D0250BF3610971 /* LicenseComplianceContractTests.swift in Sources */,
 				C1FFE2D5D43FA6A863EA94B7 /* WidgetAvailabilityTests.swift in Sources */,
 				C1FF2C4BD2CF921CA8E9F07A /* MirrorSnapshotTests.swift in Sources */,
+				C1FF8A2C1C8F29358088F075 /* CredentialRedactionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

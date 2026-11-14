@@ -13,7 +13,7 @@
       <title>0.3.5 (494)</title>
       <sparkle:version>494</sparkle:version>
       <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
       <pubDate>Fri, 18 Sep 2026 04:32:24 +0000</pubDate>
       <enclosure
         url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.5-preview/LyricsMTMR-v0.3.5-preview-universal.zip"
@@ -25,13 +25,13 @@
       <title>0.3.4 (493)</title>
       <sparkle:version>493</sparkle:version>
       <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Sat, 14 Nov 2026 09:45:11 +0000</pubDate>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 14 Nov 2026 12:22:33 +0000</pubDate>
       <enclosure
         url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.4/LyricsMTMR-v0.3.4-universal.zip"
         type="application/octet-stream"
-        sparkle:edSignature="okrLlB21GK09nyLO7sMp+iQmc5EIFe9H8r6O54fidj6eIC5VV1ilUEyAcYEnWscFBq2IxbzhX25F1S0AU8B5DQ=="
-        length="7756459" />
+        sparkle:edSignature="O0FV4u1ZzEEVaUb9xAiXIeu2cThCZw8D7RsHJ/0sqw2b70Vo6IXFmf/6RUoRWFWGtdjyE2qq8Elz3xkBAKG4Dg=="
+        length="7756450" />
     </item>
   </channel>
 </rss>

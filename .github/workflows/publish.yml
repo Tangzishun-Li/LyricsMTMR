@@ -75,6 +75,21 @@ jobs:
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
           ls -lh "$ZIP" "$ZIP.sha256"
 
+      # 只有发布 release 时才做 DMG（日常 push/PR 只跑 build-test 的打包冒烟，不产出安装盘）
+      - name: Package DMG (drag-to-Applications)
+        run: |
+          set -euo pipefail
+          APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          DMG="LyricsMTMR-${TAG}.dmg"
+          STAGE=$(mktemp -d)
+          ditto "$APP" "$STAGE/LyricsMTMR.app"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "LyricsMTMR ${TAG}" -srcfolder "$STAGE" \
+            -ov -format UDZO "$DMG" >/dev/null
+          shasum -a 256 "$DMG" > "$DMG.sha256"
+          hdiutil imageinfo "$DMG" >/dev/null
+          ls -lh "$DMG" "$DMG.sha256"
+
       - name: Download Sparkle signing tools (2.1.0)
         run: |
           curl -fsSL -o /tmp/Sparkle-2.1.0.tar.xz \
@@ -90,6 +105,13 @@ jobs:
           APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
           SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
           BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+          # 必须与包内 LSMinimumSystemVersion 一致，否则会把更新推给装不动的旧系统
+          MIN_SYSTEM=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$APP/Contents/Info.plist")
+          case "$MIN_SYSTEM" in
+            [0-9]*.[0-9]*) : ;;
+            *) echo "ERROR: LSMinimumSystemVersion 非法：'$MIN_SYSTEM'" >&2; exit 1 ;;
+          esac
+          echo "minimumSystemVersion=$MIN_SYSTEM"
           ZIP="LyricsMTMR-${TAG}-universal.zip"
           test -n "$SPARKLE_PRIVATE_KEY" || { echo "ERROR: SPARKLE_PRIVATE_KEY secret is not set"; exit 1; }
           # 私钥文件：base64(96B) = expanded 私钥(64B) + 公钥(32B)，与 generate_keys -x 导出格式一致
@@ -120,7 +142,7 @@ jobs:
                 <pubDate>$(date -u +"%a, %d %b %Y %H:%M:%S +0000")</pubDate>
                 <sparkle:version>${BUILD}</sparkle:version>
                 <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
-                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+                <sparkle:minimumSystemVersion>${MIN_SYSTEM}</sparkle:minimumSystemVersion>
           ${PRERELEASE_MARK}
                 <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream" sparkle:edSignature="${EDSIG}" length="${LENGTH}"/>
               </item>
@@ -149,14 +171,15 @@ jobs:
         run: |
           set -euo pipefail
           ZIP="LyricsMTMR-${TAG}-universal.zip"
+          DMG="LyricsMTMR-${TAG}.dmg"
           PRERELEASE_MARK=""
           case "$TAG" in *-*) PRERELEASE_MARK="--prerelease" ;; esac
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release 已存在，补传/覆盖资产：$TAG"
-            gh release upload "$TAG" "$ZIP" "$ZIP.sha256" appcast.xml --clobber
+            gh release upload "$TAG" "$ZIP" "$ZIP.sha256" "$DMG" "$DMG.sha256" appcast.xml --clobber
           else
             echo "创建 release：$TAG"
-            gh release create "$TAG" "$ZIP" "$ZIP.sha256" appcast.xml \
+            gh release create "$TAG" "$ZIP" "$ZIP.sha256" "$DMG" "$DMG.sha256" appcast.xml \
               --title "$TAG" --generate-notes $PRERELEASE_MARK
           fi
           if [ -z "$PRERELEASE_MARK" ]; then
@@ -172,11 +195,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 LyricsMTMR/Scripts/verify_release.py --tag "$TAG" --download
+          python3 LyricsMTMR/Scripts/verify_release.py --tag "$TAG" --download --require-dmg
           if [ "${TAG}" != *-* ]; then
             # 正式版发布后，releases/latest 必须同步指向它；GitHub 有最终一致性，最多重试 6 次
             for attempt in 1 2 3 4 5 6; do
-              if python3 LyricsMTMR/Scripts/verify_release.py --tag latest; then
+              if python3 LyricsMTMR/Scripts/verify_release.py --tag latest --require-dmg; then
                 exit 0
               fi
               echo "latest 尚未指向新版本（attempt $attempt/6），10s 后重试…"

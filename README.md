@@ -4,7 +4,7 @@
 
 [![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Preview v0.3.5](https://img.shields.io/badge/preview-v0.3.5--preview-yellow)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
 
-[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 请选**带有 `.zip` 附件**的版本 · [**v0.3.5-preview**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview)
+[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 请选**带有 `.dmg` / `.zip` 附件**的版本 · [**v0.3.5-preview**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview)
 
 > 发版校验：`Scripts/verify_release.py` 会在每次发布后检查 feed / 资产 / sha256；仓库每天跑一次 `Release health`，坏掉的更新源会被立刻发现。
 
@@ -61,12 +61,17 @@
 
 ## 🚀 快速开始
 
+### 系统要求
+
+- macOS **15.0 或更高**（包内 `LSMinimumSystemVersion` 为准）
+- 带实体 Touch Bar 的 MacBook Pro（2016–2023）
+- 首次启动需授权「辅助功能」
+
 ### 方式一：下载 Release（推荐）
-1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases)，选**带 `.zip` 附件**的版本（没有附件的版本是历史空发布，装不了）
-2. 下载 `LyricsMTMR-vX.Y.Z-universal.zip`（通用二进制，Intel + Apple Silicon）
-3. 解压后把 `LyricsMTMR.app` 拖入「应用程序」文件夹
-4. 首次启动需在「系统设置 → 隐私与安全性 → 辅助功能」中授权 LyricsMTMR
-5. 项目未做 Apple 公证：首次打开若被拦截，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」
+1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases)，选带 `.dmg` 或 `.zip` 的版本（没有附件的版本是历史空发布，装不了）
+2. 下载 `LyricsMTMR-vX.Y.Z.dmg`（推荐，拖进 Applications 即可）或 `LyricsMTMR-vX.Y.Z-universal.zip`（通用二进制，Intel + Apple Silicon）
+3. 首次启动需在「系统设置 → 隐私与安全性 → 辅助功能」中授权 LyricsMTMR
+4. 项目未做 Apple 公证：首次打开若被拦截，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」
 
 ### 方式二：源码构建
 ```bash

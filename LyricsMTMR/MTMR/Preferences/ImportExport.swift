@@ -36,6 +36,8 @@ enum ImportExport {
                 showAlert(
                     message: localized("导出成功", "Export Successful"),
                     info: localized("配置已保存到：", "Profile saved to:") + "\n" + url.path
+                        + "\n\n" + localized("API Key / Token 等凭据不会写入导出文件，导入后请在设置中重新填写。",
+                                                "API keys and tokens are excluded from the export. Re-enter them after importing.")
                 )
             } catch {
                 showAlert(

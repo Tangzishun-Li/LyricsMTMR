@@ -15,11 +15,14 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
+import plistlib
 import sys
 import urllib.error
 import urllib.request
+import zipfile
 import xml.etree.ElementTree as ET
 
 REPO = os.environ.get("LYRICSMTMR_REPO", "Tangzishun-Li/LyricsMTMR")
@@ -53,7 +56,30 @@ def url_ok(url: str) -> bool:
         return False
 
 
-def collect() -> list[dict]:
+def inspect_artifact(entry: dict) -> None:
+    """读安装包内的 Info.plist，用真实值覆盖 appcast 里可能写错的字段。"""
+    try:
+        data = fetch(entry["asset_url"])
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            # 只认主 App 的 Info.plist：Sparkle 内部的 Updater.app 等也有同名文件
+            plist_name = next(
+                (name for name in archive.namelist()
+                 if name.count("/") == 2 and name.endswith(".app/Contents/Info.plist")),
+                None,
+            )
+            if not plist_name:
+                print(f"  ! {entry['tag']}: zip 内没有 Info.plist，保留 appcast 原值", file=sys.stderr)
+                return
+            info = plistlib.loads(archive.read(plist_name))
+        entry["minimumSystemVersion"] = str(info.get("LSMinimumSystemVersion") or entry["minimumSystemVersion"])
+        entry["shortVersion"] = str(info.get("CFBundleShortVersionString") or entry["shortVersion"])
+        entry["build"] = str(info.get("CFBundleVersion") or entry["version"])
+        print(f"  · {entry['tag']}: 实测 minSystem={entry['minimumSystemVersion']} version={entry['shortVersion']}")
+    except Exception as err:  # noqa: BLE001
+        print(f"  ! {entry['tag']}: 读取产物 Info.plist 失败（{err}），保留 appcast 原值", file=sys.stderr)
+
+
+def collect(inspect: bool = False) -> list[dict]:
     releases = api("/releases?per_page=100")
     entries: list[dict] = []
     for release in releases:
@@ -82,6 +108,8 @@ def collect() -> list[dict]:
         entries.append(
             {
                 "tag": release["tag_name"],
+                "minimumSystemVersion": item.findtext(f"{{{SPARKLE_NS}}}minimumSystemVersion") or "",
+                "asset_url": assets[asset_name]["browser_download_url"],
                 "title": item.findtext("title") or release["tag_name"],
                 "pubDate": item.findtext("pubDate") or "",
                 "version": int(item.findtext(f"{{{SPARKLE_NS}}}version") or 0),
@@ -91,7 +119,10 @@ def collect() -> list[dict]:
                 "length": enclosure.get("length", ""),
             }
         )
-    entries.sort(key=lambda e: e["version"], reverse=True)
+    if inspect:
+        for entry in entries:
+            inspect_artifact(entry)
+    entries.sort(key=lambda e: int(e.get("build") or e["version"]) if str(e.get("build") or e["version"]).isdigit() else e["version"], reverse=True)
     return entries
 
 
@@ -115,7 +146,8 @@ def render(entries: list[dict]) -> str:
             f"      <title>{entry['title']}</title>",
             f"      <sparkle:version>{entry['version']}</sparkle:version>",
             f"      <sparkle:shortVersionString>{entry['shortVersion']}</sparkle:shortVersionString>",
-            "      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>",
+            (f"      <sparkle:minimumSystemVersion>{entry['minimumSystemVersion']}</sparkle:minimumSystemVersion>"
+             if entry.get("minimumSystemVersion") else "      <!-- minimumSystemVersion 未知（历史 release 未标注） -->"),
             f"      <pubDate>{entry['pubDate']}</pubDate>",
             "      <enclosure",
             f'        url="{entry["enclosure_url"]}"',
@@ -132,10 +164,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-check-links", action="store_true")
+    parser.add_argument("--inspect-artifacts", action="store_true",
+                        help="下载每个安装包并读包内 Info.plist，纠正 appcast 中写错的版本/最低系统")
     parser.add_argument("--output", default="appcast.xml")
     args = parser.parse_args()
 
-    entries = collect()
+    entries = collect(inspect=args.inspect_artifacts)
     print(f"收集到 {len(entries)} 个真实可更新条目：")
     for entry in entries:
         status = "ok" if args.no_check_links or url_ok(entry["enclosure_url"]) else "broken"
