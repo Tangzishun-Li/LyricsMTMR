@@ -3,6 +3,9 @@ name: Build and Test
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -34,3 +37,23 @@ jobs:
             -derivedDataPath /tmp/LyricsMTMR-dd \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty -c && exit ${PIPESTATUS[0]}
+
+  # 结果度量：发版前就验证"这个 tag 打得出来、打出来能装"。
+  # 历史事故（v0.3.2~v0.3.4 空 release）在打 tag 之后才暴露，这一步把它提前到 main 上。
+  package-smoke:
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package smoke (archive + zip + Info.plist + Sparkle)
+        run: |
+          chmod +x LyricsMTMR/Scripts/package_smoke.sh
+          LyricsMTMR/Scripts/package_smoke.sh
+
+      - name: Verify repo appcast enclosures
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # 根 appcast.xml 是派生文件：任何一条 enclosure 打不开（历史上是 .dmg），这里就红。
+          python3 LyricsMTMR/Scripts/verify_release.py --self-check

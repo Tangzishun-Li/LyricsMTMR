@@ -1,0 +1,26 @@
+# 发布产物健康检查：不看"流程跑没跑"，只看"用户那端能不能拿到"。
+# 每天检查一次 releases/latest 的 zip/appcast/feed/enclosure/sha256，
+# 以及仓库根 appcast.xml 的 enclosure 是否可下载。
+# 失败时 GitHub 会给仓库所有者发失败通知——这就是"空 release / 404 更新源"的哨兵。
+name: Release health
+
+on:
+  schedule:
+    - cron: "17 1 * * *" # 每天 01:17 UTC = 09:17 北京时间
+  workflow_dispatch:
+  release:
+    types: [published, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify latest release + repo appcast
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 LyricsMTMR/Scripts/verify_release.py --tag latest --download
