@@ -1339,9 +1339,9 @@ struct ExportSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private var exportJSON: String {
-        let items = store.bindings.map { binding -> [String: Any] in
+        let items = CredentialRedaction.redacting(items: store.bindings.map { binding -> [String: Any] in
             KeyBindingStore.itemDict(from: binding)
-        }
+        })
         guard let data = try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted, .sortedKeys]),
               let str = String(data: data, encoding: .utf8)
         else { return "[]" }

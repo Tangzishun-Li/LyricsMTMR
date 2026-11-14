@@ -174,12 +174,21 @@ class SettingsSync {
            let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             itemsArray = arr
         }
-        let profile: [String: Any] = [
+        // 导出前脱敏：API Key / Token / 密码只应存在于 Keychain，绝不写进可分享的配置文件。
+        let hadCredentials = CredentialRedaction.containsCredentials(in: itemsArray)
+            || CredentialRedaction.containsCredentials(in: udDict)
+        itemsArray = CredentialRedaction.redacting(items: itemsArray)
+        udDict = CredentialRedaction.redacting(userDefaults: udDict)
+        var profile: [String: Any] = [
             "version": "1.0",
             "exportedAt": ISO8601DateFormatter().string(from: Date()),
             "userDefaults": udDict,
             "itemsJson": itemsArray,
         ]
+        if hadCredentials {
+            // 导入方据此提示"凭据需要重新填写"
+            profile["credentialsRedacted"] = true
+        }
         return try? JSONSerialization.data(withJSONObject: profile, options: [.prettyPrinted, .sortedKeys])
     }
 
