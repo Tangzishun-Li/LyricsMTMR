@@ -65,11 +65,46 @@ class BasicView: NSCustomTouchBarItem, NSGestureRecognizerDelegate {
     init(identifier: NSTouchBarItem.Identifier, items: [NSTouchBarItem], swipeItems: [SwipeItem]) {
         super.init(identifier: identifier)
         self.swipeItems = swipeItems
-        let views = items.compactMap { $0.view }
-        let stackView = NSStackView(views: views)
+
+        // Split left / flexible center / right so leftover bar width is absorbed
+        // by the center (or by gaps between side items) instead of a trailing void.
+        var leading: [NSView] = []
+        var center: NSView?
+        var trailing: [NSView] = []
+        var seenCenter = false
+        for item in items {
+            guard let itemView = item.view else { continue }
+            if item is ScrollViewItem {
+                center = itemView
+                seenCenter = true
+            } else if seenCenter {
+                trailing.append(itemView)
+            } else {
+                leading.append(itemView)
+            }
+        }
+
+        let centerHasContent = (items.first(where: { $0 is ScrollViewItem }) as? ScrollViewItem)?.hasContent ?? false
+        let arranged = Self.arrangedFillViews(leading: leading, center: center, trailing: trailing, centerHasContent: centerHasContent)
+        let stackView = NSStackView(views: arranged)
         stackView.spacing = 8
         stackView.orientation = .horizontal
-        view = stackView
+        stackView.alignment = .centerY
+        stackView.distribution = .fill
+
+        let root = NSView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        root.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(stackView)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            stackView.topAnchor.constraint(equalTo: root.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            root.widthAnchor.constraint(equalToConstant: Self.barContentWidth),
+            root.heightAnchor.constraint(equalToConstant: 30),
+        ])
+        view = root
 
         twofingers = NSPanGestureRecognizer(target: self, action: #selector(twofingersHandler(_:)))
         twofingers.numberOfTouchesRequired = 2
@@ -85,6 +120,55 @@ class BasicView: NSCustomTouchBarItem, NSGestureRecognizerDelegate {
         fourfingers.numberOfTouchesRequired = 4
         fourfingers.allowedTouchTypes = .direct
         view.addGestureRecognizer(fourfingers)
+    }
+
+    /// Hardware content width inside the 24cm / 1085pt bar.
+    ///
+    /// The system-tray item (our control-strip button) always owns the trailing
+    /// band — even with “隐藏 Control Strip” (`placement: 1`). Requesting the
+    /// full 1085pt slides the right cluster under that tray (exit clipped,
+    /// settings half-hidden). Reserve roughly one action button (~75pt) so the
+    /// rightmost widgets sit fully on-screen.
+    static var barContentWidth: CGFloat {
+        let logical = TouchBarSurfaceView.logicalWidth
+        if AppSettings.showControlStripState {
+            // Expanded Control Strip (volume/brightness/…) is much wider.
+            return max(480, logical - 280)
+        }
+        return max(480, logical - trailingTrayReserve)
+    }
+
+    /// Trailing reserve for the system-tray / collapsed control strip.
+    /// Measured on hardware: forcing 1085 clipped about one pomodoro-sized
+    /// action button; +15pt more so the right cluster clears the tray fully.
+    static let trailingTrayReserve: CGFloat = 90
+
+    /// Pure fill strategy (unit-testable): one flexible region, packed sides.
+    /// When the center is empty and there is no right cluster, spread the left
+    /// items themselves so sparse themes still occupy the full bar.
+    static func arrangedFillViews(leading: [NSView], center: NSView?, trailing: [NSView], centerHasContent: Bool) -> [NSView] {
+        if centerHasContent, let center {
+            return leading + [center] + trailing
+        }
+        if !trailing.isEmpty {
+            return leading + [makeFlexibleSpacer()] + trailing
+        }
+        guard leading.count > 1 else { return leading }
+        // Spread left cluster across the bar (no trailing pad).
+        var arranged: [NSView] = []
+        for (index, item) in leading.enumerated() {
+            if index > 0 { arranged.append(makeFlexibleSpacer()) }
+            arranged.append(item)
+        }
+        return arranged
+    }
+
+    private static func makeFlexibleSpacer() -> NSView {
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        spacer.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        spacer.widthAnchor.constraint(greaterThanOrEqualToConstant: 0).isActive = true
+        return spacer
     }
 
     required init?(coder _: NSCoder) { return nil }
