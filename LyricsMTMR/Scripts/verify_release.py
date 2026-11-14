@@ -286,13 +286,17 @@ def main() -> int:
     parser.add_argument("--tag", default="latest", help="latest 或具体 tag（如 v0.3.5-preview）")
     parser.add_argument("--download", action="store_true", help="下载安装包并校验 sha256")
     parser.add_argument("--self-check", action="store_true", help="只校验仓库内 appcast.xml")
+    parser.add_argument("--also-self-check", action="store_true", help="发布校验之后再校验仓库内 appcast.xml")
     args = parser.parse_args()
 
     if args.self_check:
         verify_repo_appcast()
     else:
         verify_release(args.tag, args.download)
-        verify_repo_appcast()
+        # 根 appcast 是仓库文件，可能还没随发布更新（修复历史空 release 时会这样），
+        # 所以默认不做这项检查，避免把"产物已修好但文档未合并"误判成发布失败。
+        if args.also_self_check:
+            verify_repo_appcast()
 
     failed = [r for r in results if not r[0]]
     network_only = bool(failed) and all("HTTP 0" in detail for _, _, detail in failed)

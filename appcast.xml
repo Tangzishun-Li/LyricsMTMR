@@ -8,179 +8,30 @@
     <description>Most recent changes with links to updates.</description>
     <language>zh</language>
 
+    <!-- 由 Scripts/rebuild_appcast.py 从真实 release 产物生成，请勿手改。 -->
     <item>
-      <title>Version 0.3.5-preview (494)</title>
+      <title>0.3.5 (494)</title>
       <sparkle:version>494</sparkle:version>
       <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <sparkle:prerelease/>
-      <pubDate>Thu, 18 Sep 2026 18:00:00 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3.5-preview — Mirror 镜像重构</h3>
-        <h4>变更</h4>
-        <ul>
-          <li>Mirror 镜像完全重构：基于 BarItemFactory 创建独立 widget 实例</li>
-          <li>Mirror 固定 24cm 宽度，匹配真实 Touch Bar 物理尺寸</li>
-          <li>Mirror 边框交互：鼠标静置渐变高亮 + 可拖拽移动窗口</li>
-          <li>Mirror 白底修复：强制 isBordered=false，匹配 Touch Bar 样式</li>
-        </ul>
-        <h4>已知问题</h4>
-        <ul>
-          <li>歌词等复杂组件在 mirror 中可能无法正常显示</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
+      <pubDate>Fri, 18 Sep 2026 04:32:24 +0000</pubDate>
       <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.5-preview/LyricsMTMR.dmg"
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.5-preview/LyricsMTMR-v0.3.5-preview-universal.zip"
         type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
+        sparkle:edSignature="jEo9H3Rig8vgLn97TC9eswTmWk1IoMVSMsxatI0R7heQM27J7rjTrbFyonXLikfMEYFBtU///7cbUpiOK2CwAQ=="
+        length="7899721" />
     </item>
-
     <item>
-      <title>Version 0.3.4 (493)</title>
+      <title>0.3.4 (493)</title>
       <sparkle:version>493</sparkle:version>
       <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Mon, 15 Sep 2026 12:00:00 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3.4 — 编辑器重构</h3>
-        <h4>新增</h4>
-        <ul>
-          <li>Touch Bar 镜像交互：三种模式（只读/可点击/编辑），支持单击/双击/长按手势</li>
-          <li>设置 > 通用 新增镜像模式选择器（只读/可点击/编辑）</li>
-          <li>编辑器 Palette 从水平滚动改为可折叠分组（18个分类），搜索时自动展开</li>
-          <li>ThemeSwitch 智能联动：创建/删除主题后自动更新所有主题的 themeSwitch 列表</li>
-          <li>主题重命名：主题管理菜单新增重命名功能</li>
-        </ul>
-        <h4>修复</h4>
-        <ul>
-          <li>股票 widget 补全：数据源选择(腾讯/东方财富)、文字宽度、图表模式、跑马灯显示</li>
-          <li>天气 widget 补全：API Key、数据源、单位、图标类型、城市代码、湿度、风速</li>
-          <li>音乐 widget 补全：刷新间隔、禁用跑马灯选项</li>
-          <li>展开 widget 补全：关闭按钮位置、卡片宽度比例</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
+      <pubDate>Sat, 14 Nov 2026 09:45:11 +0000</pubDate>
       <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.4/LyricsMTMR.dmg"
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.4/LyricsMTMR-v0.3.4-universal.zip"
         type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
+        sparkle:edSignature="okrLlB21GK09nyLO7sMp+iQmc5EIFe9H8r6O54fidj6eIC5VV1ilUEyAcYEnWscFBq2IxbzhX25F1S0AU8B5DQ=="
+        length="7756459" />
     </item>
-
-    <item>
-      <title>Version 0.3.3 (492)</title>
-      <sparkle:version>492</sparkle:version>
-      <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Sun, 15 Sep 2026 04:00:00 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3.3</h3>
-        <ul>
-          <li>通知中心横栏图标放大（32pt，Docker 风格）</li>
-          <li>文字区域动态填充整个 Touch Bar 宽度（800pt）</li>
-          <li>点击图标后文字区域展开，其他图标被挤到右侧</li>
-          <li>横栏消息每10秒自动刷新</li>
-          <li>堆叠图标去掉红点，仅在横栏内显示数量</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.3/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
-    <item>
-      <title>Version 0.3.2 (491)</title>
-      <sparkle:version>491</sparkle:version>
-      <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Sat, 14 Sep 2026 21:00:00 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3.2</h3>
-        <ul>
-          <li>新增 Touch Bar 通知中心：读取 macOS 系统通知数据库，显示未读通知</li>
-          <li>拆分按钮设计：左侧铃铛+badge，右侧堆叠 App 图标</li>
-          <li>Dock 风格横栏：点击图标展开消息文本框，固定宽度，平滑滚动</li>
-          <li>长按图标直接打开对应 App</li>
-          <li>文件监控替代轮询，零 CPU 开销</li>
-          <li>设置界面新增通知中心 Tab（应用过滤、刷新间隔等）</li>
-          <li>支持黑名单/白名单过滤模式</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.2/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
-    <item>
-      <title>Version 0.3.1 (490)</title>
-      <sparkle:version>490</sparkle:version>
-      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Sat, 13 Sep 2026 22:30:00 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3.1</h3>
-        <ul>
-          <li>关掉 App Sandbox，恢复亮度/音量/播放/上下首等媒体键控制</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.1/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
-    <item>
-      <title>Version 0.3 (489)</title>
-      <sparkle:version>489</sparkle:version>
-      <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Tue, 26 Aug 2026 11:02:08 +0800</pubDate>
-      <sparkle:releaseNotesLink><![CDATA[
-        <h3>v0.3</h3>
-        <ul>
-          <li>设置界面重构</li>
-          <li>歌词匹配引擎优化</li>
-          <li>新增自定义键位绑定</li>
-          <li>多项 bug 修复</li>
-        </ul>
-      ]]></sparkle:releaseNotesLink>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
-    <item>
-      <title>Version 0.2</title>
-      <sparkle:version>002</sparkle:version>
-      <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Tue, 26 Aug 2026 11:02:07 +0800</pubDate>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.2/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
-    <item>
-      <title>Version 0.1</title>
-      <sparkle:version>001</sparkle:version>
-      <sparkle:shortVersionString>0.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <pubDate>Tue, 26 Aug 2026 11:02:05 +0800</pubDate>
-      <enclosure
-        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.1/LyricsMTMR.dmg"
-        type="application/octet-stream"
-        length="0"
-        sparkle:edSignature="" />
-    </item>
-
   </channel>
 </rss>

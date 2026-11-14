@@ -163,8 +163,8 @@ jobs:
             gh release edit "$TAG" --latest
           fi
           echo "--- release 资产清单 ---"
-          gh release view "$TAG" --json tagName,isLatest,isPrerelease,assets \
-            --template '{{.tagName}} latest={{.isLatest}} prerelease={{.isPrerelease}}{{"\n"}}{{range .assets}}{{.name}} ({{.size}} bytes){{"\n"}}{{end}}'
+          gh release view "$TAG" --json tagName,isPrerelease,assets \
+            --template '{{.tagName}} prerelease={{.isPrerelease}}{{"\n"}}{{range .assets}}{{.name}} ({{.size}} bytes){{"\n"}}{{end}}'
 
       # 结果度量：不是"步骤成功"，而是"用户那端真的能拿到"。
       - name: Verify published release (feed / 资产 / sha256)

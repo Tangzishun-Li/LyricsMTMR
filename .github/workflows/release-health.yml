@@ -23,4 +23,4 @@ jobs:
       - name: Verify latest release + repo appcast
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 LyricsMTMR/Scripts/verify_release.py --tag latest --download
+        run: python3 LyricsMTMR/Scripts/verify_release.py --tag latest --download --also-self-check
