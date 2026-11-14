@@ -2,9 +2,11 @@
 
 > 在 MacBook Pro Touch Bar 上实时显示歌词 —— 将 [LyricsX](https://github.com/ddddxxx/LyricsX) 的歌词能力与 [MTMR](https://github.com/Toxblh/MTMR) 的 Touch Bar 组件体系合二为一的实验项目。
 
-[![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Latest v0.3.4](https://img.shields.io/badge/latest-v0.3.4-orange)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.4) [![Preview v0.3.5](https://img.shields.io/badge/preview-v0.3.5--preview-yellow)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
+[![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Preview v0.3.5](https://img.shields.io/badge/preview-v0.3.5--preview-yellow)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
 
-[**📥 下载最新版本 (v0.3.4)**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest) · [**v0.3.5-preview 预览版**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) · [**v0.2 预发布**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) · [**v0.1 正式**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1)
+[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 请选**带有 `.zip` 附件**的版本 · [**v0.3.5-preview**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview)
+
+> 发版校验：`Scripts/verify_release.py` 会在每次发布后检查 feed / 资产 / sha256；仓库每天跑一次 `Release health`，坏掉的更新源会被立刻发现。
 
 ---
 
@@ -60,10 +62,11 @@
 ## 🚀 快速开始
 
 ### 方式一：下载 Release（推荐）
-1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest)
-2. 下载对应 macOS 版本的 `.dmg`
-3. 拖入「应用程序」文件夹
+1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases)，选**带 `.zip` 附件**的版本（没有附件的版本是历史空发布，装不了）
+2. 下载 `LyricsMTMR-vX.Y.Z-universal.zip`（通用二进制，Intel + Apple Silicon）
+3. 解压后把 `LyricsMTMR.app` 拖入「应用程序」文件夹
 4. 首次启动需在「系统设置 → 隐私与安全性 → 辅助功能」中授权 LyricsMTMR
+5. 项目未做 Apple 公证：首次打开若被拦截，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」
 
 ### 方式二：源码构建
 ```bash
@@ -73,6 +76,7 @@ open LyricsMTMR/LyricsMTMR.xcodeproj   # 用 Xcode 构建并运行
 
 # 或使用命令行目标（脚本见 LyricsMTMR/Scripts/）：
 make build     # 构建
+make install   # 构建并安装到 /Applications（启动台打开的就是最新版）
 make test      # 回归测试
 make archive   # 打发布包
 ```
@@ -188,17 +192,27 @@ MTMR with LyricsX/                  # 仓库根
 - [docs/轮次速查.md](docs/轮次速查.md) —— 各轮次快速索引
 - [docs/设置项对照表_R60.md](docs/设置项对照表_R60.md) —— 设置项权威对照
 - [docs/轨道文本_R*.md](docs/) —— 各轮次轨道文本
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) —— 第三方组件与文件级许可映射（唯一口径）
+- [docs/未完成组件归档.md](docs/未完成组件归档.md) —— 114 个组件的成熟度分级与归档清单
+- [docs/架构债_Mirror第二套实例.md](docs/架构债_Mirror第二套实例.md) —— Mirror 无法显示歌词等有状态组件的根因与修复方案
+- [docs/调研_bar-control相似工作与可借鉴点.md](docs/调研_bar-control相似工作与可借鉴点.md) —— 同类项目调研
 
-## 🙏 致谢
+## 📜 许可与致谢
 
 本项目基于以下开源项目：
 
-- [LyricsX](https://github.com/ddddxxx/LyricsX) — 多平台歌词引擎
-- [MTMR](https://github.com/Toxblh/MTMR) — Touch Bar 组件体系
-- [SnapKit](https://github.com/SnapKit/SnapKit) — Auto Layout DSL
-- [MASShortcut](https://github.com/shpakovski/MASShortcut) — 全局快捷键管理
-- [Sparkle](https://github.com/sparkle-project/sparkle) — 应用更新框架
-- [Then](https://github.com/devxoul/Then) — Swift 语法糖
+| 组件 | 许可 | 说明 |
+| --- | --- | --- |
+| [MTMR](https://github.com/Toxblh/MTMR) | MIT | 基础工程与 Touch Bar 组件体系 |
+| [LyricsX](https://github.com/MxIris-LyricsX-Project/LyricsX)（早期 [ddddxxx](https://github.com/ddddxxx/LyricsX)） | **MPL-2.0** | 歌词引擎与逐字渲染；改编文件保留 MPL-2.0 |
+| [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) | MIT | CoreText/CoreGraphics 扩展 |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) | MIT 风格 | 自动更新框架 |
+
+- 本项目自有代码：**MIT**（见 [`LICENSE`](LICENSE)）
+- 完整的文件级许可映射、MPL-2.0 覆盖清单与分发义务：[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- MPL-2.0 全文：[`LICENSES/MPL-2.0.txt`](LICENSES/MPL-2.0.txt)
+
+> 更正说明：早期 `NOTICE.md` 与部分源码头曾写"GPL 2.0"，经核对上游实为 MPL-2.0 / MIT，已统一更正。
 
 ## ⚠️ 重要免责声明
 

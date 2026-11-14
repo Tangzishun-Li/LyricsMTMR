@@ -5,7 +5,7 @@
 //  Extracted from FrameworkToolbox/CoreGraphicsExt
 //  Original: https://github.com/Mx-Iris/FrameworkToolbox
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from FrameworkToolbox (MIT License). See THIRD_PARTY_NOTICES.md.
 //  See LICENSE file in the project root for full license information.
 //
 

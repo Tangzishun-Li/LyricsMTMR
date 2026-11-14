@@ -168,6 +168,21 @@ enum EditorSchema {
         paletteCategories.flatMap { $0.types }
     }
 
+    /// 组件库实际可新增的组件（过滤掉未完成/已归档，见 WidgetAvailability）。
+    /// - Parameter includingUnfinished: 对应设置项 `AppSettings.showUnfinishedWidgets`。
+    static func pickableCategories(includingUnfinished: Bool) -> [(label: String, types: [String])] {
+        paletteCategories.compactMap { category in
+            let types = category.types.filter {
+                WidgetAvailability.isPickable($0, includingUnfinished: includingUnfinished)
+            }
+            return types.isEmpty ? nil : (category.label, types)
+        }
+    }
+
+    static func pickableTypes(includingUnfinished: Bool) -> [String] {
+        pickableCategories(includingUnfinished: includingUnfinished).flatMap { $0.types }
+    }
+
     // MARK: Item schemas
 
 

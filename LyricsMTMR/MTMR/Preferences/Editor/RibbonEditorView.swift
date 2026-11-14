@@ -1858,11 +1858,13 @@ struct PaletteRibbon: View {
     @State private var searchText = ""
     @State private var expandedCategories: Set<String> = []
     @State private var paletteExpanded = false
+    @State private var showUnfinished = AppSettings.showUnfinishedWidgets
 
     private var filteredCategories: [(label: String, types: [String])] {
+        let base = EditorSchema.pickableCategories(includingUnfinished: showUnfinished)
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !query.isEmpty else { return EditorSchema.paletteCategories }
-        return EditorSchema.paletteCategories.compactMap { category in
+        guard !query.isEmpty else { return base }
+        return base.compactMap { category in
             let types = category.types.filter {
                 EditorSchema.schema(for: $0).displayName.lowercased().contains(query) || $0.lowercased().contains(query)
             }
@@ -1887,7 +1889,7 @@ struct PaletteRibbon: View {
                 .font(.system(size: 10))
                 .foregroundStyle(EditorColors.textTertiarySwift)
             Spacer()
-            Text("\(EditorSchema.supportedTypes.count) " + localized("个组件", "widgets"))
+            Text("\(EditorSchema.pickableTypes(includingUnfinished: showUnfinished).count) " + localized("个可用组件", "widgets available"))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(EditorColors.textTertiarySwift)
         }
@@ -1909,6 +1911,27 @@ struct PaletteRibbon: View {
             }
             .padding(10)
             .background(EditorColors.cardSwift, in: RoundedRectangle(cornerRadius: 8))
+
+            // 未完成组件默认折叠：114 个全量铺开会淹没主场景（见 docs/未完成组件归档.md）
+            HStack(spacing: 6) {
+                Toggle(isOn: $showUnfinished) {
+                    Text(localized("显示未完成组件", "Show unfinished widgets"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(EditorColors.textSecondarySwift)
+                }
+                .toggleStyle(.checkbox)
+                .onChange(of: showUnfinished) { _, value in
+                    AppSettings.showUnfinishedWidgets = value
+                }
+                Spacer()
+                if showUnfinished {
+                    Text("\(WidgetAvailability.experimental.count) " + localized("个未完成", "WIP"))
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(EditorColors.textTertiarySwift)
+                }
+            }
+            .padding(.horizontal, 2)
+
             ScrollView {
                 LazyVStack(spacing: 4) {
                     if filteredCategories.isEmpty {
@@ -2020,8 +2043,26 @@ struct PaletteChip: View {
         .frame(width: 50, height: 38)
         .background {
             RoundedRectangle(cornerRadius: 8)
-                .fill(hovering && isEnabled ? EditorColors.hoverFillSwift : Color.clear)
+                .fill(hovering && isEnabled
+                      ? EditorColors.hoverFillSwift
+                      : (WidgetAvailability.status(for: schema.type) == .stable
+                         ? Color.clear
+                         : EditorColors.accentSwift.opacity(0.08)))
         }
+        .overlay(
+            Group {
+                if let badge = WidgetAvailability.badge(for: schema.type) {
+                    Text(badge)
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundStyle(EditorColors.accentSwift)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 1)
+                        .background(EditorColors.accentSwift.opacity(0.14), in: Capsule())
+                        .offset(x: 16, y: -15)
+                }
+            }
+        )
+        .help(WidgetAvailability.badge(for: schema.type) ?? "")
         .contentShape(Rectangle())
         .onTapGesture {
             if isEnabled { action() }

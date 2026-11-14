@@ -79,6 +79,10 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
                     self?.onSelect?(id)
                 }
                 (item as? TBPollPausable)?.setPaused(paused)
+                // 快照兜底的组件不需要第二套实例自轮询，避免 Mirror 打开时负载翻倍
+                if MirrorSnapshotPolicy.shouldSnapshot(definition.type) {
+                    (item as? TBPollPausable)?.setPaused(true)
+                }
             }
             if let host = hosts[id], host.superview !== zones[zoneIndex].documentView {
                 host.removeFromSuperview()
@@ -187,6 +191,15 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
         var content = item.view
         if let popoverItem = item as? NSPopoverTouchBarItem {
             content = popoverItem.collapsedRepresentation
+        }
+        // 有状态组件（歌词 / upnext）：Mirror 的第二套实例拿不到可靠布局
+        // （issue #46）。Phase 1 最小修复：对实体栏同一个 item 的视图做 1Hz 快照，
+        // 先保证"看得见"；实时逐字滚动留给 Phase 2 的视图/数据拆分。
+        if MirrorSnapshotPolicy.shouldSnapshot(definition.type),
+           let liveItem = TouchBarController.shared.items[id],
+           let liveView = liveItem.view,
+           let snapshot = MirrorSnapshotView(source: liveView) {
+            content = snapshot
         }
         guard let content else { return nil }
         let host = DesktopBarItemHost(item: item, content: content, definition: definition)

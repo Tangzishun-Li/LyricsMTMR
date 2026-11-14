@@ -13,8 +13,8 @@
 //    字号走独立键（com.lyricsmtmr.desktopLyrics.fontSize），
 //    字体族/颜色复用 LyricsItemConfig（与 Touch Bar 歌词同源）。
 //
-//  This source code is licensed under GPL 2.0 (karaoke rendering adapted
-//  from LyricsX — see KaraokeLabel.swift header).
+//  Karaoke rendering adapted from LyricsX (MPL-2.0) — see KaraokeLabel.swift header.
+//  See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 
 import Cocoa
 import Combine

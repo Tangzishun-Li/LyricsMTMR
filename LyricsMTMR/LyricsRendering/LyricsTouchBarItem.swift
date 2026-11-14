@@ -13,7 +13,7 @@
 //  - Click to cycle: original → translation → romaji
 //  - Marquee / follow scrolling for long lines
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 //  See LICENSE file in the project root for full license information.
 //
 

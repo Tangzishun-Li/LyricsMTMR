@@ -1,30 +1,18 @@
 # Licensing
 
-This project (LyricsMTMR) is a fusion of two open-source projects:
+LyricsMTMR 是 MTMR（MIT）与 LyricsX（MPL-2.0）能力的整合工程。
 
-## MTMR (My TouchBar. My Rules.)
-- Original project: https://github.com/Toxblh/MTMR
-- License: **MIT**
-- All files in the project are originally MIT-licensed unless marked otherwise.
-- Modifications to MTMR files retain MIT license.
+- **本项目自有代码**：MIT（仓库根 `LICENSE`）。
+- **改编自 LyricsX 的文件**：MPL-2.0（文件级），清单与义务见仓库根
+  [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) §2。
+- **改编自 FrameworkToolbox 的文件**：MIT，见同文件 §3。
+- MPL-2.0 全文：[`LICENSES/MPL-2.0.txt`](../LICENSES/MPL-2.0.txt)。
 
-## LyricsX
-- Original project: https://github.com/MxIris-LyricsX-Project/LyricsX
-- License: **GPL 2.0**
-- The following files are derived from LyricsX and/or FrameworkToolbox, and are licensed under GPL 2.0:
+> 更正记录（2026-11）：本文件早期版本写"整体 GPL 2.0"，部分源码头写
+> "licensed under GPL 2.0"。经核对，LyricsX（[ddddxxx](https://github.com/ddddxxx/LyricsX)
+> 与 [MxIris fork](https://github.com/MxIris-LyricsX-Project/LyricsX)）与
+> FrameworkToolbox 的许可分别是 MPL-2.0 与 MIT，不存在 GPL 覆盖。错误标注已更正，
+> 以根目录 `THIRD_PARTY_NOTICES.md` 为唯一口径。
 
-  - `MTMR/LyricsRendering/KaraokeLabel.swift`
-  - `MTMR/LyricsRendering/LyricsTouchBarItem.swift`
-  - `MTMR/LyricsRendering/CoreTextExtensions.swift`
-  - `MTMR/LyricsRendering/CoreGraphicsExtensions.swift`
-  - `MTMR/LyricsRendering/CFStringTokenizerExtensions.swift`
-  - `MTMR/LyricsRendering/Then.swift`
-
-## New Code
-- `MTMR/Preferences/JSONEditorController.swift` - MIT (new code for LyricsMTMR)
-
-## GPL Compliance Note
-This project combines MIT-licensed and GPL 2.0-licensed code. 
-The GPL 2.0-licensed components (lyrics rendering engine) are used as a
-separate module within the application. As a combined work, the overall
-project is distributed under GPL 2.0 terms.
+分发二进制时，`THIRD_PARTY_NOTICES.md`、`LICENSES/MPL-2.0.txt` 与 `LICENSE`
+会随 App 打进 `Contents/Resources/`，由 CI 中的 `LicenseComplianceContractTests` 校验。

@@ -9,7 +9,7 @@
 //  Designed with GUI bindings in mind — all properties use @Published
 //  so they can be bound to controls in the settings GUI.
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 //  See LICENSE file in the project root for full license information.
 //
 
