@@ -13,7 +13,7 @@
 //  - Click to cycle: original → translation → romaji
 //  - Marquee / follow scrolling for long lines
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 //  See LICENSE file in the project root for full license information.
 //
 
@@ -79,8 +79,12 @@ class LyricsTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     private var lastAnimatedLyricsId: ObjectIdentifier?
     private var lastPlaybackState: PlaybackState?
 
-    override init(identifier: NSTouchBarItem.Identifier) {
-        self.config = LyricsItemConfig.shared
+    override convenience init(identifier: NSTouchBarItem.Identifier) {
+        self.init(identifier: identifier, config: .shared)
+    }
+
+    init(identifier: NSTouchBarItem.Identifier, config: LyricsItemConfig) {
+        self.config = config
         super.init(identifier: identifier)
         setupViews()
         setupSubscriptions()

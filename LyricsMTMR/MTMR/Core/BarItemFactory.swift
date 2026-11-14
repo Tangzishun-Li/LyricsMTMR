@@ -37,13 +37,16 @@ class BarItemFactory {
     private let actionResolver: BarItemActionResolver
     private let longActionResolver: BarItemLongActionResolver
     private let closureResolver: BarItemClosureResolver
+    private let usesSharedLyricsConfiguration: Bool
 
     init(actionResolver: @escaping BarItemActionResolver,
          longActionResolver: @escaping BarItemLongActionResolver,
-         closureResolver: @escaping BarItemClosureResolver) {
+         closureResolver: @escaping BarItemClosureResolver,
+         usesSharedLyricsConfiguration: Bool = true) {
         self.actionResolver = actionResolver
         self.longActionResolver = longActionResolver
         self.closureResolver = closureResolver
+        self.usesSharedLyricsConfiguration = usesSharedLyricsConfiguration
     }
 
     /// Core item creation — the type→widget switch (formerly
@@ -114,15 +117,15 @@ class BarItemFactory {
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
         case let .lyrics(style: _, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle):
-            let lyricsItem = LyricsTouchBarItem(identifier: identifier)
-            let config = LyricsItemConfig.shared
+            let config = usesSharedLyricsConfiguration
+                ? LyricsItemConfig.shared : LyricsItemConfig(copying: .shared)
             config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
             config.karaokeStyle = LyricsKaraokeStyle(rawValue: karaokeStyle) ?? .progressive
             config.showArtwork = showArtwork
             config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
             config.marqueeEnabled = marqueeEnabled
             config.marqueeStyle = LyricsMarqueeStyle(rawValue: marqueeStyle) ?? .marquee
-            lyricsItem.applyConfig(config)
+            let lyricsItem = LyricsTouchBarItem(identifier: identifier, config: config)
             barItem = lyricsItem
         case let .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode):
             barItem = StockBarItem(identifier: identifier, symbols: stocks, apiSource: apiSource, interval: refreshInterval, displayMode: displayMode, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)

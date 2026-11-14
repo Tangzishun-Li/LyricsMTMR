@@ -2,10 +2,16 @@
 //  SandboxConfigContractTests.swift
 //  LyricsMTMRTests
 //
-//  Round 56 (A): App Sandbox 启用与临时例外配置 — 安全合规维度。
+//  历史：R56 (A) 曾启用 App Sandbox 并登记本契约；随后 6eb7c14
+//  「fix(sandbox): 关闭 App Sandbox 恢复 HID 媒体键控制」把 sandbox 改回 false
+//  ——沙盒下 IOHIDPostEvent 被系统拦截，亮度/音量/播放等媒体键全部失效，且无
+//  IOKit 例外可加。产品不上架 App Store，沙盒无实际必要（见 CHANGELOG）。
+//  本文件据此改为锚定「非沙盒运行」契约，防止误开沙盒再次静默废掉 HID 媒体键。
 //
-//  契约（与《验证报告_第56轮_App_Sandbox启用与临时例外配置.md》一致）：
-//  - 启用契约：com.apple.security.app-sandbox 必须为 true；
+//  契约：
+//  - 决策契约：com.apple.security.app-sandbox 必须为 false；
+//  - 非沙盒能力契约：剪贴板 / 定位 / 通知 / Application Support 由普通进程权限
+//    直接支撑，无需 entitlement 覆盖（原「隐式能力」断言的反向锁定）；
 //  - 核心能力契约：network.client / automation.apple-events / device.audio-input /
 //    assets.music.read-write 必须启用（全仓审计覆盖网络、AppleScript、麦克风、音乐库）；
 //  - 临时例外契约：temporary-exception.apple-events 必须包含
@@ -14,8 +20,7 @@
 //    /usr/bin/perl（MediaRemoteAdapter）和 /usr/bin/screencapture（QuickScreenshot）；
 //  - 隐式能力契约：home-user-selected-read-write 必须为 true（NSOpenPanel/NSSavePanel
 //    用于 DockTabView / PropertyInspector / ImportExport）；
-//  - 反膨胀契约：entitlements 键数 ≤ 20（防止临时例外无限膨胀）；
-//  - 审计完整性契约：每个审计发现的访问类别至少有一条 entitlement 或临时例外覆盖。
+//  - 反膨胀契约：entitlements 键数 ≤ 20（防止临时例外无限膨胀）。
 //
 //  注：hosted 测试运行在开发者本机（构建 worktree 源码），#filePath 可解析
 //  仓库相对路径，直接读 entitlements plist 文件断言，不触碰任何真实用户数据。
@@ -70,12 +75,12 @@ class SandboxConfigContractTests: XCTestCase {
         XCTAssertFalse(dict.isEmpty, "entitlements 根必须是非空 dict")
     }
 
-    // MARK: - 启用契约
+    // MARK: - 决策契约（非沙盒运行）
 
-    func testAppSandboxEnabled() {
+    func testAppSandboxDisabledByDesign() {
         let dict = loadEntitlementsDict()
-        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, true,
-                       "App Sandbox 必须启用（com.apple.security.app-sandbox = true）")
+        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, false,
+                       "App Sandbox 必须保持关闭：沙盒下 IOHIDPostEvent 被封，HID 媒体键（亮度/音量/播放）全部失效（6eb7c14 / CHANGELOG）")
     }
 
     // MARK: - 核心能力契约
@@ -181,35 +186,16 @@ class SandboxConfigContractTests: XCTestCase {
                                  "entitlements 键数应 ≤ 20（当前 \(dict.count)，防止临时例外无限膨胀）")
     }
 
-    // MARK: - 声明 ↔ 代码双向契约（审计完整性）
+    // MARK: - 非沙盒能力覆盖（原「声明 ↔ 代码双向契约」的反向锁定）
 
-    func testPasteboardAccessCoveredBySandbox() {
-        // NSPasteboard 在 sandbox 内可用（不需要额外 entitlement），验证 sandbox=true 即覆盖
+    func testNonSandboxedSystemAPIsRequireNoEntitlements() {
+        // sandbox=false 时，NSPasteboard（7 文件）/ CLLocationManager（WeatherBarItem
+        // YandexWeatherBarItem）/ UNUserNotificationCenter（PomodoroBarItem）/
+        // ~/Library/Application Support/LyricsMTMR（15+ 文件）均由普通进程权限直接
+        // 支撑，无需 entitlement。此断言反向锁定：不得为这些能力重新开启沙盒。
         let dict = loadEntitlementsDict()
-        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, true,
-                       "剪贴板访问通过 sandbox=true 隐式覆盖（7 文件 NSPasteboard 调用）")
-    }
-
-    func testLocationAccessCoveredBySandbox() {
-        // CLLocationManager 在 sandbox 内可用（会触发系统权限弹窗），不需要额外 entitlement
-        let dict = loadEntitlementsDict()
-        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, true,
-                       "定位访问通过 sandbox=true + 系统弹窗覆盖（WeatherBarItem/YandexWeatherBarItem）")
-    }
-
-    func testNotificationsCoveredBySandbox() {
-        // UNUserNotificationCenter 在 sandbox 内可用，不需要额外 entitlement
-        let dict = loadEntitlementsDict()
-        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, true,
-                       "通知通过 sandbox=true 隐式覆盖（PomodoroBarItem）")
-    }
-
-    func testApplicationSupportDirectoryCoveredBySandbox() {
-        // ~/Library/Application Support/LyricsMTMR/ 在 sandbox 内映射到 app container，
-        // 不需要额外 entitlement
-        let dict = loadEntitlementsDict()
-        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, true,
-                       "Application Support 目录通过 sandbox 容器自动映射覆盖（15+ 文件）")
+        XCTAssertEqual(dict["com.apple.security.app-sandbox"] as? Bool, false,
+                       "非沙盒运行：剪贴板/定位/通知/Application Support 无需沙盒隐式覆盖")
     }
 
     func testNetworkServerDisabled() {

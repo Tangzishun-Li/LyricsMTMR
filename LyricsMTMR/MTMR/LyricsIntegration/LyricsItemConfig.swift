@@ -9,7 +9,7 @@
 //  Designed with GUI bindings in mind — all properties use @Published
 //  so they can be bound to controls in the settings GUI.
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 //  See LICENSE file in the project root for full license information.
 //
 
@@ -58,6 +58,24 @@ class LyricsItemConfig: NSObject, ObservableObject {
         super.init()
         loadPersisted()
         observeChanges()
+    }
+
+    /// Desktop bars share playback, but their preset must not overwrite the
+    /// physical bar's appearance or persisted settings.
+    init(copying source: LyricsItemConfig) {
+        super.init()
+        displayMode = source.displayMode
+        karaokeStyle = source.karaokeStyle
+        showArtwork = source.showArtwork
+        clickAction = source.clickAction
+        progressColor = source.progressColor
+        textColor = source.textColor
+        fontSize = source.fontSize
+        fontName = source.fontName
+        artworkSize = source.artworkSize
+        marqueeEnabled = source.marqueeEnabled
+        marqueeStyle = source.marqueeStyle
+        lyricsOffsetMs = source.lyricsOffsetMs
     }
 
     /// Watches every published property, persists the new values and tells

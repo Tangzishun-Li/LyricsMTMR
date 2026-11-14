@@ -15,6 +15,69 @@ import XCTest
 
 class BarItemFactoryTests: XCTestCase {
 
+    func testRepeatedPresetLoadsReplaceZoneMembership() throws {
+        let controller = TouchBarController.shared
+        let previousDefinitions = controller.itemDefinitions
+        let previousLeft = controller.leftIdentifiers
+        let previousCenter = controller.centerIdentifiers
+        let previousRight = controller.rightIdentifiers
+        defer {
+            controller.itemDefinitions = previousDefinitions
+            controller.leftIdentifiers = previousLeft
+            controller.centerIdentifiers = previousCenter
+            controller.rightIdentifiers = previousRight
+        }
+        let data = Data("""
+        [{"type":"staticButton","title":"L","align":"left"},
+         {"type":"staticButton","title":"C"},
+         {"type":"staticButton","title":"R","align":"right"}]
+        """.utf8)
+        let definitions = try XCTUnwrap(data.barItemDefinitions())
+        for _ in 0..<12 { controller.loadItemDefinitions(jsonItems: definitions) }
+        XCTAssertEqual(controller.itemDefinitions.count, 3)
+        XCTAssertEqual(controller.leftIdentifiers.count, 1)
+        XCTAssertEqual(controller.centerIdentifiers.count, 1)
+        XCTAssertEqual(controller.rightIdentifiers.count, 1)
+        controller.loadItemDefinitions(jsonItems: [])
+        XCTAssertTrue(controller.itemDefinitions.isEmpty)
+        XCTAssertTrue(controller.leftIdentifiers.isEmpty)
+        XCTAssertTrue(controller.centerIdentifiers.isEmpty)
+        XCTAssertTrue(controller.rightIdentifiers.isEmpty)
+    }
+
+    func testDesktopLyricsConfigurationDoesNotMutateSharedPreset() throws {
+        let shared = LyricsItemConfig.shared
+        let originalMode = shared.displayMode
+        let originalArtwork = shared.showArtwork
+        let factory = BarItemFactory(actionResolver: { _ in nil },
+                                     longActionResolver: { _ in nil },
+                                     closureResolver: { _ in nil },
+                                     usesSharedLyricsConfiguration: false)
+        let data = Data("""
+        [{"type":"lyrics","displayMode":"artwork","showArtwork":false}]
+        """.utf8)
+        let definition = try XCTUnwrap(data.barItemDefinitions()?.first)
+        let item = try factory.createItem(forIdentifier: .init("test.desktop.lyrics"), definition: definition)
+        XCTAssertTrue(item is LyricsTouchBarItem)
+        XCTAssertEqual(shared.displayMode, originalMode)
+        XCTAssertEqual(shared.showArtwork, originalArtwork)
+    }
+
+    func testIndependentLyricsConfigRetainsAppearanceWithoutSharingMutations() {
+        let source = LyricsItemConfig(copying: .shared)
+        source.fontSize = 21
+        source.artworkSize = 28
+        source.progressColor = .systemPink
+        let copy = LyricsItemConfig(copying: source)
+        XCTAssertEqual(copy.fontSize, 21)
+        XCTAssertEqual(copy.artworkSize, 28)
+        XCTAssertEqual(copy.progressColor, .systemPink)
+        copy.fontSize = 14
+        copy.showArtwork = !source.showArtwork
+        XCTAssertEqual(source.fontSize, 21)
+        XCTAssertNotEqual(copy.showArtwork, source.showArtwork)
+    }
+
     // MARK: - Helpers
 
     private let identifier = NSTouchBarItem.Identifier("test.baritem")

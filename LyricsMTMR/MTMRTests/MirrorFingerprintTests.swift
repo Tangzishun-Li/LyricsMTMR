@@ -203,4 +203,84 @@ class MirrorFingerprintTests: XCTestCase {
         mirror.syncFromTouchBar()
         XCTAssertFalse(mirror.contentDirty)
     }
+
+    func testOversizedPinnedZonesLeaveRoomForLyrics() {
+        let widths = TouchBarSurfaceView.zoneWidths(available: 1069, left: 900, right: 600, hasCenter: true)
+        XCTAssertGreaterThanOrEqual(widths[1], 299.99)
+        XCTAssertGreaterThan(widths[0], 0)
+        XCTAssertGreaterThan(widths[2], 0)
+        XCTAssertEqual(widths.reduce(0, +), 1069, accuracy: 0.01)
+    }
+
+    func testActualSurfaceKeepsLyricsAndPinnedRightVisible() throws {
+        let definitions = try XCTUnwrap(Data("""
+        [{"type":"staticButton","title":"Left","align":"left","width":650},
+         {"type":"lyrics"},
+         {"type":"staticButton","title":"Right","align":"right","width":450}]
+        """.utf8).barItemDefinitions())
+        let surface = TouchBarSurfaceView(frame: NSRect(x: 0, y: 0, width: 1097, height: 54))
+        defer { surface.dispose() }
+        surface.update(definitions: definitions)
+        surface.layoutSubtreeIfNeeded()
+        let zones = try XCTUnwrap(surface.subviews.first).subviews.compactMap { $0 as? NSScrollView }
+        XCTAssertEqual(zones.count, 3)
+        XCTAssertGreaterThanOrEqual(zones[1].frame.width, 299.99)
+        XCTAssertGreaterThan(zones[2].frame.width, 0)
+        XCTAssertLessThanOrEqual(zones[2].frame.maxX, 1085.01)
+        let lyrics = try XCTUnwrap(zones[1].documentView?.subviews.first)
+        XCTAssertEqual(lyrics.frame.width, 320, accuracy: 0.01)
+        XCTAssertEqual(lyrics.frame.height, 30, accuracy: 0.01)
+        XCTAssertGreaterThan(try XCTUnwrap(zones[0].documentView).frame.width, zones[0].frame.width)
+    }
+
+    func testUnchangedSurfaceReusesWidgetsAndRemovedItemsDetach() throws {
+        let definitions = try XCTUnwrap(Data("""
+        [{"type":"staticButton","title":"One"},{"type":"staticButton","title":"Two"}]
+        """.utf8).barItemDefinitions())
+        let surface = TouchBarSurfaceView(frame: NSRect(x: 0, y: 0, width: 1097, height: 54))
+        defer { surface.dispose() }
+        surface.update(definitions: definitions)
+        surface.layoutSubtreeIfNeeded()
+        let center = try XCTUnwrap(surface.subviews.first?.subviews[1] as? NSScrollView)
+        let first = try XCTUnwrap(center.documentView?.subviews.first)
+        let removed = try XCTUnwrap(center.documentView?.subviews.last)
+        surface.update(definitions: definitions)
+        XCTAssertTrue(center.documentView?.subviews.first === first)
+        surface.update(definitions: Array(definitions.prefix(1)))
+        XCTAssertTrue(center.documentView?.subviews.first === first)
+        XCTAssertNil(removed.superview)
+        surface.dispose()
+        XCTAssertTrue(center.documentView?.subviews.isEmpty == true)
+    }
+
+
+    func testDesktopMouseClicksRunHardwareActionWithoutDoubleTapLoss() throws {
+        let definitions = try XCTUnwrap(Data("[{\"type\":\"staticButton\",\"title\":\"Before\"}]".utf8).barItemDefinitions())
+        let id = NSTouchBarItem.Identifier("mouse-routing")
+        let original = CustomButtonTouchBarItem(identifier: id, title: "Live title")
+        var clicks = 0
+        original.actions.append(ItemAction(trigger: .singleTap) { clicks += 1 })
+        let surface = TouchBarSurfaceView(frame: NSRect(x: 0, y: 0, width: 1097, height: 54))
+        defer { surface.dispose() }
+        surface.update(definitions: definitions, identifiers: [id])
+        surface.synchronizeButtons(from: [id: original])
+        surface.layoutSubtreeIfNeeded()
+        let center = try XCTUnwrap(surface.subviews.first?.subviews[1] as? NSScrollView)
+        let host = try XCTUnwrap(center.documentView?.subviews.first)
+        let button = try XCTUnwrap(host.subviews.first as? NSButton)
+        XCTAssertEqual(button.attributedTitle.string, "Live title")
+        let location = host.convert(NSPoint(x: 8, y: 8), to: nil)
+        for clickCount in [1, 2] {
+            let down = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: location,
+                modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                eventNumber: clickCount, clickCount: clickCount, pressure: 1))
+            let up = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseUp, location: location,
+                modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                eventNumber: clickCount, clickCount: clickCount, pressure: 0))
+            host.mouseDown(with: down)
+            host.mouseUp(with: up)
+        }
+        XCTAssertEqual(clicks, 2, "A single-action widget must not drop the second click of a rapid pair")
+    }
+
 }

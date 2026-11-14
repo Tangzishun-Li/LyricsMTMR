@@ -24,6 +24,10 @@ struct QuickReplyMessage: Decodable {
 
 class QuickReplyBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
 
+    var desktopPresentation: ((NSView) -> Void)?
+    var desktopDismiss: (() -> Void)?
+    func desktopPopoverDidClose() { isShowing = false }
+
     private var messages: [QuickReplyMessage] = []
     private var fullViewIdentifier = NSTouchBarItem.Identifier("com.lyricsmtmr.quickReplyFull.".appending(UUID().uuidString))
     private var fullViewItem: NSCustomTouchBarItem?
@@ -73,13 +77,17 @@ class QuickReplyBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
     // MARK: - Show Reply Panel
 
     @objc private func showReplies() {
-        guard !isShowing else { return }
+        guard !isShowing || desktopPresentation != nil else { return }
         isShowing = true
         HapticFeedback.instance.tap(type: .medium)
 
         fullViewIdentifier = NSTouchBarItem.Identifier("com.lyricsmtmr.quickReplyFull.".appending(UUID().uuidString))
 
         let overlayView = buildOverlayView()
+        if let desktopPresentation {
+            desktopPresentation(overlayView)
+            return
+        }
         fullViewItem = NSCustomTouchBarItem(identifier: fullViewIdentifier)
         fullViewItem!.view = overlayView
 
@@ -98,6 +106,10 @@ class QuickReplyBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         guard isShowing else { return }
         isShowing = false
         HapticFeedback.instance.tap(type: .back)
+        if let desktopDismiss {
+            desktopDismiss()
+            return
+        }
         TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
     }
 

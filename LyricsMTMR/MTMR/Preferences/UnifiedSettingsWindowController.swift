@@ -285,12 +285,12 @@ class UnifiedSettingsWindowController: NSWindowController, NSWindowDelegate {
         alert.alertStyle = .warning
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            RibbonModel.editorHasUnsavedChanges = false
             NotificationCenter.default.post(name: RibbonModel.editorSaveRequested, object: nil)
-            hideWindow()
+            // Save failures keep the draft dirty and the error visible.
+            if !RibbonModel.editorHasUnsavedChanges { hideWindow() }
         case .alertSecondButtonReturn:
-            RibbonModel.editorHasUnsavedChanges = false
-            hideWindow()
+            NotificationCenter.default.post(name: RibbonModel.editorDiscardRequested, object: nil)
+            if !RibbonModel.editorHasUnsavedChanges { hideWindow() }
         default:
             break   // 取消：窗口保持可见
         }
@@ -596,58 +596,16 @@ enum Deck {
 extension Deck {
 
     struct Background: View {
-        @ObservedObject private var windowState = SettingsWindowState.shared
-        @State private var drifting = false
-
+        // Settings is a workspace: a static wash keeps depth without a
+        // perpetual animation / two blurred backing surfaces behind controls.
         var body: some View {
             LinearGradient(colors: [Deck.bgTop, Deck.bgBottom], startPoint: .top, endPoint: .bottom)
-                // OPT-3: blur input kept static — the animated opacity now
-                // sits *after* .blur(), so CoreAnimation renders the blurred
-                // texture once and only animates layer opacity per frame.
-                // Math-identical to animating the gradient alpha (gaussian
-                // blur is linear), but removes the per-frame blur recompute
-                // and its double backing store (~24-30MB while visible).
                 .overlay(alignment: .topTrailing) {
                     RadialGradient(
-                        colors: [Deck.accent, .clear],
-                        center: .center, startRadius: 0, endRadius: 360)
-                        .frame(width: 700, height: 700)
-                        .offset(x: 170, y: -230)
-                        .blur(radius: 5)
-                        .opacity(drifting ? 0.16 : 0.10)
+                        colors: [Deck.accent.opacity(0.08), .clear],
+                        center: .topTrailing, startRadius: 0, endRadius: 540)
                 }
-                .overlay(alignment: .bottomLeading) {
-                    RadialGradient(
-                        colors: [Deck.mint, .clear],
-                        center: .center, startRadius: 0, endRadius: 320)
-                        .frame(width: 620, height: 620)
-                        .offset(x: -170, y: 210)
-                        .blur(radius: 5)
-                        .opacity(drifting ? 0.06 : 0.10)
-                }
-                .onAppear { syncDrift() }
-                .onChange(of: windowState.isVisible) { _, _ in syncDrift() }
-        }
-
-        /// OPT-2: run the repeatForever drift only while the settings window is
-        /// visible. `withAnimation` has no `paused:` parameter like the
-        /// TimelineView-based Equalizer (:1113), so the equivalent is starting
-        /// the animation on visibility and cancelling it when hidden — off-screen
-        /// frames stop being rendered at all.
-        private func syncDrift() {
-            if windowState.isVisible {
-                withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
-                    drifting = true
-                }
-            } else {
-                // Snap back without animation — this cancels the running
-                // repeatForever so no frames are rendered while hidden.
-                var transaction = Transaction(animation: nil)
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    drifting = false
-                }
-            }
+                .allowsHitTesting(false)
         }
     }
 
@@ -1088,46 +1046,49 @@ extension Deck {
 
 // MARK: - Tab View Cache
 
-/// Keeps already-built settings tabs alive so switching never rebuilds a
-/// visited tab: revisits become an instant opacity swap instead of a full
-/// teardown + re-layout (and re-load) on the main thread. Built lazily on
-/// first visit; cleared wholesale when a profile is imported.
-///
-/// OPT-4: the cache is now LRU-bounded — the old unbounded dictionary kept
-/// every visited tab alive forever, so the whole 21-tab view tree stayed
-/// resident while the window was open. Only the most recently used tabs are
-/// retained; evicted tabs rebuild on their next visit (first-open cost is
-/// a few tens of ms, imperceptible).
-/// `internal` (was `private`) so MTMRTests can unit-test the LRU eviction
-/// semantics via `@testable import` (ITER-6); no logic change.
-final class SettingsTabCache {
-    /// How many tab views to keep alive after LRU eviction (plan: 3~5).
-    private let capacity = 4
-    private var views: [SettingsTab: AnyView] = [:]
-    /// Most-recently-used order, newest last; the newest entry is the
-    /// active tab and is therefore never evicted.
-    private var recency: [SettingsTab] = []
+/// Lazily retains a small working set of mounted tabs. The editor is pinned:
+/// its undo history, draft and selection must survive navigation and pressure.
+/// Cache mutations happen in event handlers, never during SwiftUI body building.
+final class SettingsTabCache: ObservableObject {
+    private struct Entry {
+        let view: AnyView
+        let identity = UUID()
+    }
 
-    func view(for tab: SettingsTab) -> AnyView? { views[tab] }
+    private let capacity: Int
+    private var entries: [SettingsTab: Entry] = [:]
+    private var recency: [SettingsTab] = []
+    @Published private(set) var tabs: [SettingsTab] = []
+
+    init(capacity: Int = 6) {
+        self.capacity = max(2, capacity)
+    }
+
+    func view(for tab: SettingsTab) -> AnyView? { entries[tab]?.view }
+    func identity(for tab: SettingsTab) -> UUID? { entries[tab]?.identity }
 
     func insert(_ view: AnyView, for tab: SettingsTab) {
-        views[tab] = view
+        entries[tab] = Entry(view: view)
         touch(tab)
         evictIfNeeded()
+        publishTabs()
     }
 
-    /// Marks `tab` as most-recently-used (call on selection change) and
-    /// trims the cache back to capacity.
     func markUsed(_ tab: SettingsTab) {
+        // A navigation request alone must not occupy a cache slot or evict
+        // a mounted view before its replacement has actually been created.
+        guard entries[tab] != nil else { return }
         touch(tab)
-        evictIfNeeded()
     }
 
-    /// Exposed for OPT-8 (memory-pressure handler) and profile import:
-    /// drops every cached tab so the next visit rebuilds from scratch.
-    func removeAll() {
-        views.removeAll()
-        recency.removeAll()
+    func removeAll(preserving preservedTabs: Set<SettingsTab> = []) {
+        entries = entries.filter { preservedTabs.contains($0.key) }
+        recency.removeAll { !preservedTabs.contains($0) }
+        publishTabs()
+    }
+
+    func trimForMemoryPressure(activeTab: SettingsTab) {
+        removeAll(preserving: [activeTab, .editor])
     }
 
     private func touch(_ tab: SettingsTab) {
@@ -1135,12 +1096,18 @@ final class SettingsTabCache {
         recency.append(tab)
     }
 
-    /// Evicts the least-recently-used entries until the cache fits within
-    /// capacity. The active tab is always the newest entry, so it survives.
     private func evictIfNeeded() {
-        while recency.count > capacity {
-            views.removeValue(forKey: recency.removeFirst())
+        while entries.count > capacity,
+              let oldest = recency.first(where: { $0 != .editor && $0 != recency.last }) {
+            recency.removeAll { $0 == oldest }
+            entries.removeValue(forKey: oldest)
         }
+    }
+
+    private func publishTabs() {
+        // Stable order and identity preserve the mounted SwiftUI state of
+        // every retained tab, including across sidebar visibility changes.
+        tabs = SettingsTab.allCases.filter { entries[$0] != nil }
     }
 }
 
@@ -1149,11 +1116,11 @@ final class SettingsTabCache {
 struct SettingsRootView: View {
     @State private var selection: SettingsTab = .general
     @Namespace private var navNamespace
-    @State private var refreshToken: UUID = UUID()
-    @State private var tabCache = SettingsTabCache()
+    @StateObject private var tabCache = SettingsTabCache()
+    @State private var hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
     @State private var sidebarVisible: Bool = true
     @State private var showingHiddenTabsManager: Bool = false
-    @ObservedObject private var windowState = SettingsWindowState.shared
+    private let windowState = SettingsWindowState.shared
 
     private let sidebarVisibilityKey = "settings.sidebar.visible"
 
@@ -1166,9 +1133,6 @@ struct SettingsRootView: View {
         HStack(spacing: 0) {
             if sidebarVisible {
                 sidebar
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .leading).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)))
             }
             content
         }
@@ -1186,46 +1150,37 @@ struct SettingsRootView: View {
         // window top — same coordinate space as the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
         .onReceive(NotificationCenter.default.publisher(for: .settingsProfileImported)) { _ in
-            // Invalidate cached tabs so every tab reloads from the imported
-            // profile; the active tab rebuilds immediately on next layout.
-            tabCache.removeAll()
-            refreshToken = UUID()
+            // Refresh imported preferences without throwing away an editor
+            // draft that the user has not saved yet.
+            tabCache.removeAll(preserving: RibbonModel.editorHasUnsavedChanges ? [.editor] : [])
+            hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+            ensureVisibleSelection()
+            activateTab(selection)
         }
         .onReceive(NotificationCenter.default.publisher(for: .settingsMemoryWarning)) { _ in
-            // OPT-8: system memory pressure — drop cached tab view
-            // hierarchies; the active tab stays, others rebuild on visit.
-            tabCache.removeAll()
+            tabCache.trimForMemoryPressure(activeTab: selection)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hiddenTabsDidChange)) { _ in
-            // 隐藏标签页设置变更，刷新视图
-            refreshToken = UUID()
-            // 如果当前选择的标签页被隐藏，切换到通用标签页
-            let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
-            if hiddenTabs.contains(selection.rawValue) && selection != .about {
-                selection = .general
-            }
+            hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
+            ensureVisibleSelection()
         }
         .onAppear {
-            // 确保初始选择的标签页是可见的
-            let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
-            if hiddenTabs.contains(selection.rawValue) && selection != .about {
-                selection = .general
-            }
+            ensureVisibleSelection()
+            activateTab(selection)
             SettingsWindowState.shared.activeTab = selection
             let saved = UserDefaults.standard.object(forKey: sidebarVisibilityKey) as? Bool
             sidebarVisible = saved ?? true
         }
         .onChange(of: selection) { _, newValue in
             SettingsWindowState.shared.activeTab = newValue
-            // OPT-4: keep the newly active tab at MRU and trim the cache.
-            tabCache.markUsed(newValue)
+            activateTab(newValue)
         }
         .onReceive(NotificationCenter.default.publisher(for: .editorFocusModeRequested)) { _ in
             // Hide sidebar
             sidebarVisible = false
             UserDefaults.standard.set(false, forKey: sidebarVisibilityKey)
             // Zoom window to maximum size (not fullscreen)
-            if let window = NSApp.keyWindow {
+            if let window = NSApp.keyWindow, !window.isZoomed {
                 window.performZoom(nil)
             }
         }
@@ -1243,9 +1198,7 @@ struct SettingsRootView: View {
                 sidebarVisible = true
                 UserDefaults.standard.set(true, forKey: sidebarVisibilityKey)
             }
-            withAnimation(.easeOut(duration: 0.12)) {
-                selection = tab
-            }
+            selection = tab
         }
         // r57-d ①兜底路径的二次投递：切到编辑器 tab 且其视图树重建完成后，
         // 把暂存的定位请求经冻结通知转给 PropertyInspector（编辑器未挂载时
@@ -1266,9 +1219,7 @@ struct SettingsRootView: View {
         // （EditorHostTab 发出；仅窗口内部路由用，非 §6 冻结契约）。
         .onReceive(NotificationCenter.default.publisher(for: .editorRequestSwitchToEditor)) { _ in
             if selection != .editor {
-                withAnimation(.easeOut(duration: 0.12)) {
-                    selection = .editor
-                }
+                selection = .editor
             } else {
                 // 编辑器 tab 已在前台（视图常驻）：直接重投暂存请求，立即定位。
                 if let pending = windowState.pendingNavigation {
@@ -1280,7 +1231,8 @@ struct SettingsRootView: View {
                 }
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: sidebarVisible)
+        // Resizing a live editor surface through every spring frame forces
+        // repeated AppKit layout. Sidebar changes use one final layout.
     }
 
     private var sidebarToggleButton: some View {
@@ -1335,9 +1287,18 @@ struct SettingsRootView: View {
                 .textFieldStyle(.plain)
                 .font(Deck.bodyFont)
                 .foregroundStyle(Deck.textPrimary)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Deck.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help(localized("清除搜索", "Clear Search"))
+            }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .background {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Deck.insetFill)
@@ -1379,13 +1340,24 @@ struct SettingsRootView: View {
             LazyVStack(spacing: 2) {
                 if searchText.isEmpty {
                     ForEach(SettingsGroup.allCases) { group in
-                        GroupSection(group: group, selection: $selection, namespace: navNamespace)
+                        GroupSection(group: group, selection: $selection, namespace: navNamespace,
+                                     hiddenTabs: hiddenTabs)
                     }
                     // R57-C ②: About 保持一级入口（规范 §1），不折叠进任何组。
                     NavItem(tab: .about, isSelected: selection == .about, namespace: navNamespace) {
                         selection = .about
                     }
                     .padding(.top, 6)
+                } else if matchingTabs.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(localized("没有匹配的设置", "No matching settings"))
+                            .foregroundStyle(Deck.textSecondary)
+                        Text(localized("试试“镜像”或“歌词”", "Try “Mirror” or “Lyrics”"))
+                            .foregroundStyle(Deck.textTertiary)
+                    }
+                    .font(Deck.captionFont)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
                 } else {
                     ForEach(matchingTabs, id: \.id) { tab in
                         NavItem(tab: tab, isSelected: selection == tab, namespace: navNamespace) {
@@ -1401,7 +1373,7 @@ struct SettingsRootView: View {
     /// R57-C ③: 搜索匹配 = 标题 + 副标题 + searchKeywords（22 tab 全覆盖）。
     /// 命中「更多设置」里的低频域时，搜索结果是它的等价直达路径，可达性不回退。
     private var matchingTabs: [SettingsTab] {
-        let q = searchText.lowercased()
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return SettingsTab.allCases.filter { tab in
             tab.title.lowercased().contains(q)
                 || tab.subtitle.lowercased().contains(q)
@@ -1451,57 +1423,41 @@ struct SettingsRootView: View {
                     .font(Deck.monoFont)
                     .foregroundStyle(Deck.textTertiary)
                 Spacer()
-                Deck.Equalizer(tint: Deck.textTertiary.opacity(0.85), barCount: 3, paused: !windowState.isVisible)
+                Text(localized("工作空间", "Workspace"))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Deck.textTertiary)
             }
         }
     }
 
     private var content: some View {
         ZStack {
-            ForEach(visibleTabs) { tab in
-                tabContainer(for: tab)
-                    .opacity(selection == tab ? 1 : 0)
-                    .allowsHitTesting(selection == tab)
-                    .accessibilityHidden(selection != tab)
-                    .zIndex(selection == tab ? 1 : 0)
+            ForEach(tabCache.tabs) { tab in
+                if let view = tabCache.view(for: tab) {
+                    view
+                        .id(tabCache.identity(for: tab))
+                        .opacity(selection == tab ? 1 : 0)
+                        .allowsHitTesting(selection == tab)
+                        .accessibilityHidden(selection != tab)
+                        .zIndex(selection == tab ? 1 : 0)
+                }
             }
         }
-        .id(refreshToken)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Fast crossfade — the old 0.34 s spring + move transition made
-        // switches feel laggy; a 0.12 s fade reads as instant and polished.
-        .animation(.easeOut(duration: 0.12), value: selection)
         .clipped()
     }
 
-    /// 过滤掉用户隐藏的标签页（不包括 about，about 始终可见）。
-    private var visibleTabs: [SettingsTab] {
-        let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
-        return SettingsTab.allCases.filter { tab in
-            tab == .about || !hiddenTabs.contains(tab.rawValue)
-        }
+    private func ensureVisibleSelection() {
+        guard hiddenTabs.contains(selection.rawValue), selection != .about else { return }
+        selection = SettingsTab.allCases.first { !hiddenTabs.contains($0.rawValue) } ?? .about
     }
 
-    /// Returns the cached tab view, building it on first visit only. Tabs
-    /// stay mounted once visited (within the OPT-4 LRU cap), so state
-    /// (scroll positions, edits, loaded data) survives switching and
-    /// revisits cost no rebuild at all.
-    @ViewBuilder
-    private func tabContainer(for tab: SettingsTab) -> some View {
-        if let cached = tabCache.view(for: tab) {
-            cached
-        } else if tab == selection {
-            buildAndCacheTab(tab)
+    private func activateTab(_ tab: SettingsTab) {
+        if tabCache.view(for: tab) == nil {
+            tabCache.insert(AnyView(buildTab(tab)), for: tab)
         } else {
-            Color.clear
+            tabCache.markUsed(tab)
         }
-    }
-
-    /// Builds the tab once and stores it in the cache so revisits are free.
-    private func buildAndCacheTab(_ tab: SettingsTab) -> some View {
-        let built = AnyView(buildTab(tab))
-        tabCache.insert(built, for: tab)
-        return built
     }
 
     @ViewBuilder
@@ -1551,15 +1507,21 @@ struct NavItem: View {
                     .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .rounded))
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(isSelected ? Color.white : (hovering ? Deck.textPrimary : Deck.textSecondary))
+            .foregroundStyle(isSelected ? Deck.textPrimary : (hovering ? Deck.textPrimary : Deck.textSecondary))
             .padding(.horizontal, 11)
             .padding(.vertical, 8.5)
             .background {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(Deck.accentGradient)
+                        .fill(Deck.accent.opacity(0.13))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .strokeBorder(Deck.accent.opacity(0.23), lineWidth: 1)
+                        }
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(Deck.accent).frame(width: 3, height: 16)
+                        }
                         .matchedGeometryEffect(id: "navPill", in: namespace)
-                        .shadow(color: Deck.accent.opacity(0.42), radius: 4.5, y: 1)
                 } else if hovering {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(Color.white.opacity(0.06))
@@ -1579,6 +1541,7 @@ struct GroupSection: View {
     let group: SettingsGroup
     @Binding var selection: SettingsTab
     let namespace: Namespace.ID
+    let hiddenTabs: Set<String>
 
     @State private var isExpanded: Bool = true
 
@@ -1586,10 +1549,12 @@ struct GroupSection: View {
 
     /// R57-C ②: 同步读取持久化的开合状态做初值——「更多设置」组从第一帧起
     /// 就是折叠的，不靠 onAppear 二次修正（避免首帧闪现整组平铺）。
-    init(group: SettingsGroup, selection: Binding<SettingsTab>, namespace: Namespace.ID) {
+    init(group: SettingsGroup, selection: Binding<SettingsTab>, namespace: Namespace.ID,
+         hiddenTabs: Set<String>) {
         self.group = group
         self._selection = selection
         self.namespace = namespace
+        self.hiddenTabs = hiddenTabs
         let saved = UserDefaults.standard.object(forKey: "group.expanded.\(group.rawValue)") as? Bool
         self._isExpanded = State(initialValue: saved ?? group.defaultExpanded)
     }
@@ -1640,14 +1605,14 @@ struct GroupSection: View {
 
     /// 过滤掉用户隐藏的标签页。
     private var visibleTabs: [SettingsTab] {
-        let hiddenTabs = Set(AppSettings.hiddenSettingsTabs)
-        return group.tabs.filter { !hiddenTabs.contains($0.rawValue) }
+        group.tabs.filter { !hiddenTabs.contains($0.rawValue) }
     }
 }
 
 // MARK: - Editor tab host (modern SwiftUI ribbon editor)
 
 struct EditorHostTab: View {
+    @ObservedObject private var windowState = SettingsWindowState.shared
     /// r57-d ①：「在编辑器中打开」菜单的数据源——编辑器同源数据（items.json）
     /// 的顶层 item 快照，菜单弹出时刷新。
     @State private var topLevelItems: [(index: Int, type: String, label: String)] = []
@@ -1655,23 +1620,25 @@ struct EditorHostTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             editorFocusHint
-            RibbonEditorView()
+            RibbonEditorView(isActive: windowState.activeTab == .editor && windowState.isOnScreen)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// Slim hint bar: suggests maximizing + hiding sidebar, with a one-tap focus button.
     private var editorFocusHint: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lightbulb")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Deck.accent.opacity(0.8))
-            Text(localized("放大并隐藏侧栏获得最佳编写效果", "Maximize and hide the sidebar for the best editing experience"))
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Deck.textTertiary)
-            Spacer()
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(localized("Touch Bar 编辑器", "Touch Bar Editor"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Deck.textPrimary)
+                Text(localized("编排组件，预览真实效果", "Arrange controls. Preview the real result."))
+                    .font(Deck.captionFont)
+                    .foregroundStyle(Deck.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
             // r57-d ①：设置 → 编辑器 item 级入口（需求指定位置：编辑器 tab 顶部按钮）
             openInEditorMenu
                 .padding(.trailing, 6)
@@ -1696,9 +1663,9 @@ struct EditorHostTab: View {
             .buttonStyle(.plain)
             .help(localized("窗口放到最大（不全屏）并隐藏侧栏", "Zoom the window (not fullscreen) and hide the sidebar"))
         }
-        .padding(.horizontal, 26)
-        .padding(.top, 34)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 24)
+        .padding(.top, 38)
+        .padding(.bottom, 14)
     }
 
     /// r57-d ①：枚举 items.json 顶层 item，「在编辑器中打开…」→ 携带 type/index

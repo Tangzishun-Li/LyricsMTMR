@@ -2,10 +2,8 @@ import XCTest
 import SwiftUI
 @testable import LyricsMTMR
 
-/// ITER-6: OPT-4 SettingsTabCache (UnifiedSettingsWindowController.swift) 单元测试。
-/// 该缓存为纯 LRU 容器（容量 4），与 SwiftUI 视图内容无关（AnyView 仅作占位），
-/// 可独立单测。覆盖：容量上限淘汰最旧、markUsed 提升 MRU、removeAll 清空
-/// （OPT-8 内存压力路径）、淘汰后可重建、未缓存 tab 返回 nil。
+/// Cache lifetime regressions: bounded working set, stable mounted identities,
+/// editor preservation, and selective eviction under memory pressure.
 class SettingsTabCacheTests: XCTestCase {
 
     private let aView = AnyView(Text("a"))
@@ -15,12 +13,12 @@ class SettingsTabCacheTests: XCTestCase {
     private let eView = AnyView(Text("e"))
 
     func testViewReturnsNilForUncachedTab() {
-        let cache = SettingsTabCache()
+        let cache = SettingsTabCache(capacity: 4)
         XCTAssertNil(cache.view(for: .about), "未访问过的 tab 不应有缓存")
     }
 
     func testCapacityFourEvictsOldest() {
-        let cache = SettingsTabCache()
+        let cache = SettingsTabCache(capacity: 4)
         cache.insert(aView, for: .general)
         cache.insert(bView, for: .lyrics)
         cache.insert(cView, for: .slots)
@@ -38,7 +36,7 @@ class SettingsTabCacheTests: XCTestCase {
     }
 
     func testMarkUsedPromotesToMRU() {
-        let cache = SettingsTabCache()
+        let cache = SettingsTabCache(capacity: 4)
         cache.insert(aView, for: .general)
         cache.insert(bView, for: .lyrics)
         cache.insert(cView, for: .slots)
@@ -54,21 +52,22 @@ class SettingsTabCacheTests: XCTestCase {
         XCTAssertNotNil(cache.view(for: .editor))
     }
 
-    func testMarkUsedOnUncachedTabTriggersEviction() {
-        let cache = SettingsTabCache()
+    func testMarkUsedOnUncachedTabDoesNotEvictMountedTabs() {
+        let cache = SettingsTabCache(capacity: 4)
         cache.insert(aView, for: .general)
         cache.insert(bView, for: .lyrics)
         cache.insert(cView, for: .slots)
         cache.insert(dView, for: .editor)
 
-        // markUsed 一个未缓存的 tab 也会计入 recency 并触发淘汰（最旧的 .general 出局）
         cache.markUsed(.about)
-        XCTAssertNil(cache.view(for: .general))
+        XCTAssertNotNil(cache.view(for: .general))
         XCTAssertNotNil(cache.view(for: .lyrics))
+        XCTAssertEqual(cache.tabs.count, 4)
+        XCTAssertNil(cache.view(for: .about))
     }
 
     func testEvictedTabCanBeReinserted() {
-        let cache = SettingsTabCache()
+        let cache = SettingsTabCache(capacity: 4)
         cache.insert(aView, for: .general)
         cache.insert(bView, for: .lyrics)
         cache.insert(cView, for: .slots)
@@ -81,18 +80,93 @@ class SettingsTabCacheTests: XCTestCase {
     }
 
     func testRemoveAllDropsEverything() {
-        let cache = SettingsTabCache()
+        let cache = SettingsTabCache(capacity: 4)
         cache.insert(aView, for: .general)
         cache.insert(bView, for: .lyrics)
         cache.insert(cView, for: .slots)
         cache.insert(dView, for: .editor)
         XCTAssertEqual(cache.view(for: .general) != nil, true)
 
-        // OPT-8 内存压力 / 导入配置时整体清空
+        // Explicit reset, e.g. importing a profile without unsaved edits.
         cache.removeAll()
         XCTAssertNil(cache.view(for: .general))
         XCTAssertNil(cache.view(for: .lyrics))
         XCTAssertNil(cache.view(for: .slots))
         XCTAssertNil(cache.view(for: .editor))
     }
+
+    func testEditorSurvivesNavigationBeyondCapacityWithSameIdentity() {
+        let cache = SettingsTabCache(capacity: 4)
+        cache.insert(dView, for: .editor)
+        let editorIdentity = cache.identity(for: .editor)
+        for tab in [SettingsTab.general, .lyrics, .slots, .keyBindings, .about, .weather] {
+            cache.insert(aView, for: tab)
+        }
+
+        XCTAssertNotNil(editorIdentity)
+        XCTAssertEqual(cache.identity(for: .editor), editorIdentity,
+                       "Switching settings must not recreate the editor's draft, selection or undo history")
+        XCTAssertEqual(cache.tabs.count, 4)
+        XCTAssertNotNil(cache.view(for: .weather), "The selected tab must also stay mounted")
+        XCTAssertNil(cache.view(for: .general))
+    }
+
+    func testMemoryPressureRetainsActiveTabAndEditorIdentities() {
+        let cache = SettingsTabCache(capacity: 4)
+        cache.insert(aView, for: .general)
+        cache.insert(dView, for: .editor)
+        cache.insert(bView, for: .lyrics)
+        let editorIdentity = cache.identity(for: .editor)
+        let activeIdentity = cache.identity(for: .lyrics)
+
+        cache.trimForMemoryPressure(activeTab: .lyrics)
+
+        XCTAssertEqual(Set(cache.tabs), [.editor, .lyrics])
+        XCTAssertEqual(cache.identity(for: .editor), editorIdentity)
+        XCTAssertEqual(cache.identity(for: .lyrics), activeIdentity)
+        XCTAssertNil(cache.view(for: .general))
+    }
+
+    func testMemoryPressureWithEditorActiveKeepsSingleEntry() {
+        let cache = SettingsTabCache(capacity: 4)
+        cache.insert(aView, for: .general)
+        cache.insert(dView, for: .editor)
+        let editorIdentity = cache.identity(for: .editor)
+
+        cache.trimForMemoryPressure(activeTab: .editor)
+
+        XCTAssertEqual(cache.tabs, [.editor])
+        XCTAssertEqual(cache.identity(for: .editor), editorIdentity)
+    }
+
+    func testSelectiveImportResetPreservesDirtyEditorOnly() {
+        let cache = SettingsTabCache(capacity: 4)
+        cache.insert(aView, for: .general)
+        cache.insert(dView, for: .editor)
+        let editorIdentity = cache.identity(for: .editor)
+        let oldGeneralIdentity = cache.identity(for: .general)
+
+        cache.removeAll(preserving: [.editor])
+        cache.insert(aView, for: .general)
+
+        XCTAssertEqual(cache.identity(for: .editor), editorIdentity)
+        XCTAssertNotEqual(cache.identity(for: .general), oldGeneralIdentity,
+                          "Imported preferences must remount so their local state reads the new values")
+    }
+
+    func testNavigationDoesNotChangeMountedOrderOrIdentities() {
+        let cache = SettingsTabCache(capacity: 4)
+        cache.insert(dView, for: .editor)
+        cache.insert(bView, for: .lyrics)
+        cache.insert(aView, for: .general)
+        let identities = cache.tabs.map { cache.identity(for: $0) }
+        let order = cache.tabs
+
+        cache.markUsed(.editor)
+        cache.markUsed(.general)
+
+        XCTAssertEqual(cache.tabs, order)
+        XCTAssertEqual(cache.tabs.map { cache.identity(for: $0) }, identities)
+    }
+
 }

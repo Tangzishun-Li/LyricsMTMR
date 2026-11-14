@@ -11,8 +11,11 @@ import SwiftUI
 struct GeneralTab: View {
 
     @State private var launchAtLogin = LaunchAtLoginController().launchAtLogin
-    @State private var showMirror = AppSettings.showMirrorWindow
-    @State private var mirrorMode: Int = 1  // 0=mirror, 1=live, 2=edit
+    @AppStorage("com.toxblh.mtmr.settings.showMirrorWindow") private var showMirror = false
+    @AppStorage("com.lyricsmtmr.mirror.interactionMode") private var mirrorMode = 1
+    @AppStorage("com.lyricsmtmr.mirror.followsTouchBar") private var mirrorFollowsTouchBar = true
+    @AppStorage("com.lyricsmtmr.mirror.presetPath") private var mirrorPresetPath = ""
+    @State private var mirrorPresetError: String?
     @State private var haptics = AppSettings.hapticFeedbackState
     @State private var gestures = AppSettings.multitouchGestures
     @State private var hideStrip = !AppSettings.showControlStripState
@@ -26,6 +29,7 @@ struct GeneralTab: View {
             VStack(alignment: .leading, spacing: 20) {
                 Deck.Header(title: SettingsTab.general.title, subtitle: SettingsTab.general.subtitle)
                 startupSection
+                mirrorSection
                 interactionSection
                 languageSection
                 blacklistSection
@@ -53,23 +57,6 @@ struct GeneralTab: View {
                         .onChange(of: launchAtLogin) { _, isOn in
                             LaunchAtLoginController().setLaunchAtLogin(isOn, for: Bundle.main.bundleURL)
                         }
-                    Deck.RowDivider()
-                    Deck.ToggleRow(
-                        title: localized("Touch Bar 镜像窗口", "Touch Bar Mirror Window"),
-                        subtitle: localized("在屏幕上预览 Touch Bar 内容", "Preview the Touch Bar on screen"),
-                        isOn: $showMirror)
-                        .onChange(of: showMirror) { _, isOn in
-                            AppSettings.showMirrorWindow = isOn
-                            if isOn {
-                                TouchBarMirrorWindowController.shared.show()
-                            } else {
-                                TouchBarMirrorWindowController.shared.hide()
-                            }
-                        }
-                    if showMirror {
-                        Deck.RowDivider()
-                        mirrorModeRow
-                    }
                 }
             }
         }
@@ -77,27 +64,108 @@ struct GeneralTab: View {
 
     // MARK: - Interaction
 
+    private var mirrorSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Deck.SectionHeader(title: localized("屏幕上的第二块 Touch Bar", "Your second Touch Bar"))
+            Deck.Card {
+                VStack(alignment: .leading, spacing: 14) {
+                    Deck.ToggleRow(
+                        title: localized("显示 Mirror", "Show Mirror"),
+                        subtitle: localized("用鼠标点按，用触控板滚动", "Click with a mouse, scroll with a trackpad"),
+                        isOn: $showMirror)
+                        .onChange(of: showMirror) { _, isOn in
+                            AppSettings.showMirrorWindow = isOn
+                            if isOn { TouchBarMirrorWindowController.shared.show() }
+                            else { TouchBarMirrorWindowController.shared.hide() }
+                        }
+                    Deck.RowDivider()
+                    Deck.LabeledRow(localized("预设来源", "Preset source")) {
+                        Deck.Segmented(options: [
+                            .init(id: "sync", label: localized("跟随 Touch Bar", "Follow Touch Bar"), symbol: "link"),
+                            .init(id: "independent", label: localized("独立预设", "Independent"), symbol: "rectangle.on.rectangle")
+                        ], selection: Binding(
+                            get: { mirrorFollowsTouchBar ? "sync" : "independent" },
+                            set: { source in
+                                mirrorFollowsTouchBar = source == "sync"
+                                AppSettings.mirrorFollowsTouchBar = mirrorFollowsTouchBar
+                                if !mirrorFollowsTouchBar && mirrorPresetPath.isEmpty {
+                                    mirrorPresetPath = TouchBarController.shared.lastPresetPath
+                                    AppSettings.mirrorPresetPath = mirrorPresetPath
+                                }
+                                TouchBarMirrorWindowController.shared.syncFromTouchBar()
+                            }))
+                    }
+                    if !mirrorFollowsTouchBar {
+                        HStack(spacing: 10) {
+                            Image(systemName: "doc.text").foregroundStyle(Deck.sky)
+                            Text(mirrorPresetPath.isEmpty ? localized("选择一份预设", "Choose a preset") : (mirrorPresetPath as NSString).lastPathComponent)
+                                .font(Deck.bodyFont)
+                                .foregroundStyle(Deck.textSecondary)
+                                .lineLimit(1)
+                                .help(mirrorPresetPath)
+                            Spacer()
+                            Button(localized("选择…", "Choose…"), action: chooseMirrorPreset)
+                                .buttonStyle(.bordered)
+                            Button {
+                                TouchBarMirrorWindowController.shared.syncFromTouchBar()
+                            } label: { Image(systemName: "arrow.clockwise") }
+                                .buttonStyle(.borderless)
+                                .help(localized("重新读取预设", "Reload preset"))
+                        }
+                    }
+                    mirrorModeRow
+                    Label(localized("拖动顶部把手移动窗口；各区域都支持横向滚动。", "Drag the top handle to move the window; scroll horizontally in each region."), systemImage: "hand.draw")
+                        .font(Deck.captionFont)
+                        .foregroundStyle(Deck.textTertiary)
+                }
+            }
+        }
+        .alert(localized("无法载入预设", "Unable to load preset"), isPresented: Binding(
+            get: { mirrorPresetError != nil }, set: { if !$0 { mirrorPresetError = nil } }
+        )) {
+            Button(localized("好", "OK")) { mirrorPresetError = nil }
+        } message: { Text(mirrorPresetError ?? "") }
+    }
+
+    private func chooseMirrorPreset() {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["json"]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: appSupportDirectory)
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            guard url.path.fileData?.barItemDefinitions() != nil else {
+                mirrorPresetError = localized("这份文件不是有效的 Touch Bar 预设。", "This file is not a valid Touch Bar preset.")
+                return
+            }
+            mirrorPresetPath = url.path
+            AppSettings.mirrorPresetPath = url.path
+            TouchBarMirrorWindowController.shared.syncFromTouchBar()
+        }
+    }
+
     /// Mirror interaction mode selector (Phase 2: 1-4R1).
     private var mirrorModeRow: some View {
         HStack {
-            Text(localized("镜像模式", "Mirror Mode"))
+            Text(localized("交互方式", "Interaction"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Deck.textPrimary)
             Spacer()
             Picker("", selection: $mirrorMode) {
-                Text(localized("只读", "Mirror")).tag(0)
-                Text(localized("可点击", "Live")).tag(1)
+                Text(localized("展示", "Display")).tag(0)
+                Text(localized("操作", "Interact")).tag(1)
                 Text(localized("编辑", "Edit")).tag(2)
             }
             .pickerStyle(.segmented)
             .frame(width: 200)
             .onChange(of: mirrorMode) { _, newMode in
                 let modes: [MirrorInteractionMode] = [.mirror, .live, .edit]
+                guard modes.indices.contains(newMode) else { return }
+                AppSettings.mirrorInteractionMode = newMode
                 TouchBarMirrorWindowController.shared.interactionMode = modes[newMode]
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
     }
 
     private var interactionSection: some View {

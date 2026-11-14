@@ -136,3 +136,63 @@ class WriteSideContractTests: XCTestCase {
         XCTAssertEqual(cpu["refreshInterval"] as? Int, 7, "index 命中的 item 应合并设置")
     }
 }
+
+
+/// Editor navigation and recovery must never publish an unfinished preset.
+final class EditorDraftIsolationTests: XCTestCase {
+    func testBrowsingContainersDoesNotMutateOrDirtyPreset() {
+        let model = RibbonModel()
+        let original: [[String: Any]] = [["type": "group", "title": "Tools"]]
+        model.load(original, from: "/tmp/editor-preset.json")
+        model.drillInto(index: 0)
+        model.navigateBack()
+        XCTAssertFalse(model.isDirty)
+        XCTAssertFalse(RibbonModel.editorHasUnsavedChanges)
+        XCTAssertNil(model.items.first?["items"], "Navigation must not inject a child array")
+    }
+
+    func testNestedEditsStayInRootAndUndoAfterNavigatingBack() {
+        let model = RibbonModel()
+        model.load([["type": "group", "items": [["type": "staticButton", "title": "Before"]]]], from: "")
+        model.drillInto(index: 0)
+        model.select(0)
+        model.updateProperty("title", "After")
+        model.navigateToRoot()
+        let edited = model.items[0]["items"] as? [[String: Any]]
+        XCTAssertEqual(edited?.first?["title"] as? String, "After")
+        model.undo()
+        let restored = model.items[0]["items"] as? [[String: Any]]
+        XCTAssertEqual(restored?.first?["title"] as? String, "Before")
+        XCTAssertEqual(model.items[0]["type"] as? String, "group", "Undo must not replace root with children")
+        model.redo()
+        let redone = model.items[0]["items"] as? [[String: Any]]
+        XCTAssertEqual(redone?.first?["title"] as? String, "After")
+        model.discardChanges()
+    }
+
+    func testDiscardRestoresSavedSnapshotWithoutWritingPreset() {
+        let model = RibbonModel()
+        let missingPath = NSTemporaryDirectory() + UUID().uuidString + ".json"
+        model.load([["type": "staticButton", "title": "Saved"]], from: missingPath)
+        model.select(0)
+        model.updateProperty("title", "Unsaved")
+        XCTAssertTrue(model.isDirty)
+        model.discardChanges()
+        XCTAssertEqual(model.items.first?["title"] as? String, "Saved")
+        XCTAssertFalse(model.isDirty)
+        XCTAssertFalse(RibbonModel.editorHasUnsavedChanges)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missingPath))
+    }
+
+    func testEveryZoneMoveCanBeUndoneSeparately() {
+        let model = RibbonModel()
+        model.load([["type": "staticButton", "title": "Move", "align": "left"]], from: "")
+        model.updatePropertyAtIndex(0, key: "align", value: "center")
+        model.updatePropertyAtIndex(0, key: "align", value: "right")
+        model.undo()
+        XCTAssertEqual(model.items[0]["align"] as? String, "center")
+        model.undo()
+        XCTAssertEqual(model.items[0]["align"] as? String, "left")
+        model.discardChanges()
+    }
+}

@@ -476,6 +476,9 @@ enum TBStore {
 /// presentSystemModal. Subclasses implement `buildOverlay()`.
 class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
 
+    var desktopPresentation: ((NSView) -> Void)?
+    var desktopDismiss: (() -> Void)?
+
     var fullViewIdentifier = NSTouchBarItem.Identifier("com.lyricsmtmr.overlay.".appending(UUID().uuidString))
     var fullViewItem: NSCustomTouchBarItem?
     var isShowing = false
@@ -512,6 +515,10 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
             isShowing = false
             return
         }
+        if let desktopPresentation, let view = fullViewItem?.view {
+            desktopPresentation(view)
+            return
+        }
         guard let bar = TouchBarController.shared.touchBar else { return }
         bar.delegate = self
         bar.defaultItemIdentifiers = [fullViewIdentifier]
@@ -526,7 +533,11 @@ class TBPopoverItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         guard isShowing else { return }
         isShowing = false
         HapticFeedback.instance.tap(type: .back)
-        dismissOverlayWithoutRebuild()
+        if let desktopDismiss {
+            desktopDismiss()
+        } else {
+            dismissOverlayWithoutRebuild()
+        }
         // Overlay-scoped resources (e.g. per-item timers) must stop here, not
         // wait for a rebuild to swap the item out: the funnel above can be
         // slow or fail to restore entirely, and a live timer keeps driving

@@ -44,7 +44,7 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
     // MARK: - Trigger
 
     @objc private func triggerTranslate() {
-        guard !isShowing else { return }
+        guard !isShowing || desktopPresentation != nil else { return }
 
         // 1) Clipboard wins: whatever the user just copied gets translated,
         //    short input shown dictionary-style ("word → 释义").
@@ -178,6 +178,10 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
 
     // MARK: - Overlay
 
+    var desktopPresentation: ((NSView) -> Void)?
+    var desktopDismiss: (() -> Void)?
+    func desktopPopoverDidClose() { isShowing = false }
+
     private func showOverlay(text: String, isTranslation: Bool) {
         isShowing = true
         HapticFeedback.instance.tap(type: .medium)
@@ -185,6 +189,10 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
         fullViewIdentifier = NSTouchBarItem.Identifier("com.lyricsmtmr.translateFull.".appending(UUID().uuidString))
 
         let overlayView = buildOverlayView(text: text, isTranslation: isTranslation)
+        if let desktopPresentation {
+            desktopPresentation(overlayView)
+            return
+        }
         fullViewItem = NSCustomTouchBarItem(identifier: fullViewIdentifier)
         fullViewItem!.view = overlayView
 
@@ -207,6 +215,10 @@ class LyricsTranslateBarItem: NSPopoverTouchBarItem, NSTouchBarDelegate {
     private func dismissOverlay() {
         guard isShowing else { return }
         isShowing = false
+        if let desktopDismiss {
+            desktopDismiss()
+            return
+        }
         TouchBarController.shared.reloadPreset(path: TouchBarController.shared.lastPresetPath)
     }
 

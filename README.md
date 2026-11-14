@@ -2,20 +2,21 @@
 
 > 在 MacBook Pro Touch Bar 上实时显示歌词 —— 将 [LyricsX](https://github.com/ddddxxx/LyricsX) 的歌词能力与 [MTMR](https://github.com/Toxblh/MTMR) 的 Touch Bar 组件体系合二为一的实验项目。
 
-[![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Latest v0.3](https://img.shields.io/badge/latest-v0.3-orange)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
+[![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Preview v0.3.5](https://img.shields.io/badge/preview-v0.3.5--preview-yellow)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
 
-[**📥 下载最新版本 (v0.3)**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest) · [**v0.2 预发布**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) · [**v0.1 正式**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1)
+[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 请选**带有 `.zip` 附件**的版本 · [**v0.3.5-preview**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview)
+
+> 发版校验：`Scripts/verify_release.py` 会在每次发布后检查 feed / 资产 / sha256；仓库每天跑一次 `Release health`，坏掉的更新源会被立刻发现。
 
 ---
 
 ## 截图速览
 
-<!-- 截图待补：docs/screenshots/ 目录下应放 2-3 张关键截图 -->
-<!-- 用户决策：截屏授权方式（自截 / screencapture 远程 / 占位图）尚待拍板 -->
+| 主设置窗口（通用 · 含 Mirror 配置） | Ribbon 编辑器（预览模式） |
+|---|---|
+| <img src="docs/images/mirror-editor-polish/settings.jpg" width="460" alt="设置窗口 · 通用页"> | <img src="docs/images/mirror-editor-polish/editor.jpg" width="460" alt="Ribbon 编辑器 · 预览模式"> |
 
-| 主设置窗口 | Touch Bar 镜像 | Ribbon 编辑器 |
-|---|---|---|
-| _（截图待补）_ | _（截图待补）_ | _（截图待补）_ |
+> 截图取自实际 SwiftUI / AppKit 视图；编辑器为示例布局，不代表当前音乐或预设内容。
 
 ## ✨ 功能特性
 
@@ -37,7 +38,8 @@
 - _（v0.2 之后）健康 / 智能家居（HomeKit）/ 快递 schema 化重构：相关 widget 已存在并接入设置面板，使用体验随实际配置而定_
 
 ### 🎨 布局与主题
-- **可视化 Ribbon 编辑器**：拖拽排列 Touch Bar 组件、实时预览、防误删确认、未保存提醒
+- **可视化 Ribbon 编辑器**：拖拽排列 Touch Bar 组件、真实原生组件实时预览（编辑 / 预览双模式）、防误删确认、未保存提醒、草稿自动保存
+- **屏幕上的第二块 Touch Bar（Mirror）**：把 Touch Bar 搬到桌面上——跟随实体栏或使用独立预设，支持展示 / 操作 / 编辑三种交互，鼠标点按、触控板滚动均可（[使用指南](#屏幕上的第二块-touch-barmirror)）
 - **Touch Bar 模拟器 / 镜像窗口**：在设置窗口内实时预览布局效果
 - **主题系统**：15 套预设主题（theme1–15）+ 完全自定义，Dock 图标主题联动
 - **应用专属主题（Per-app bar switching）**：为指定 App 绑定独立 Touch Bar 布局，切换应用自动换主题（[使用指南](#应用专属主题per-app-bar-switching)）
@@ -60,20 +62,24 @@
 ## 🚀 快速开始
 
 ### 方式一：下载 Release（推荐）
-1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases/latest)
-2. 下载对应 macOS 版本的 `.dmg`
-3. 拖入「应用程序」文件夹
+1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases)，选**带 `.zip` 附件**的版本（没有附件的版本是历史空发布，装不了）
+2. 下载 `LyricsMTMR-vX.Y.Z-universal.zip`（通用二进制，Intel + Apple Silicon）
+3. 解压后把 `LyricsMTMR.app` 拖入「应用程序」文件夹
 4. 首次启动需在「系统设置 → 隐私与安全性 → 辅助功能」中授权 LyricsMTMR
+5. 项目未做 Apple 公证：首次打开若被拦截，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」
 
 ### 方式二：源码构建
 ```bash
 git clone https://github.com/Tangzishun-Li/LyricsMTMR.git
 cd LyricsMTMR
-open LyricsMTMR.xcodeproj
-# 用 Xcode 构建并运行
-```
+open LyricsMTMR/LyricsMTMR.xcodeproj   # 用 Xcode 构建并运行
 
-> 详细构建说明见 [构建指南](docs/build-guide.md)（如不存在，请通过 Issue 反馈）
+# 或使用命令行目标（脚本见 LyricsMTMR/Scripts/）：
+make build     # 构建
+make install   # 构建并安装到 /Applications（启动台打开的就是最新版）
+make test      # 回归测试
+make archive   # 打发布包
+```
 
 ## 📖 使用指南
 
@@ -85,8 +91,17 @@ open LyricsMTMR.xcodeproj
 
 ### Ribbon 编辑器
 1. 打开「设置 → 编辑器」
-2. 拖拽左侧组件到 Touch Bar 预览区
-3. 调整顺序与属性，保存即可生效
+2. 上方为与 Mirror 共用的真实组件预览，可切换「编辑 / 预览」模式（预览模式可点击试用，不会自动保存）
+3. 从组件库浮层（按需展开）拖入组件，在下方编排条调整顺序与分区
+4. 调整属性后「保存」生效；「硬件试用」会临时应用到实体栏，结束后恢复原状态
+
+### 屏幕上的第二块 Touch Bar（Mirror）
+1. 打开「设置 → 通用 → 屏幕上的第二块 Touch Bar」，开启「显示 Mirror」
+2. 选择**预设来源**：「跟随 Touch Bar」与实体栏同布局同状态；「独立预设」使用单独 JSON，互不影响
+3. 选择**交互方式**：「展示」只读浏览 ·「操作」点击 / 双击 / 长按 / 滑块 ·「编辑」点击组件直达编辑器
+4. 拖动窗口顶部把手移动位置，双击把手回到底部居中；内容过长时左、中、右区域各自横向滚动（触控板横滑 / 鼠标滚轮均可）
+
+> 完整交互与实现说明见 [docs/Mirror与编辑器打磨.md](docs/Mirror与编辑器打磨.md)。
 
 ### 快捷键管理
 - 「设置 → 键位」中查看和修改全局快捷键
@@ -103,28 +118,46 @@ macOS 15.4+ 对 Touch Bar 系统 API 做了调整，LyricsMTMR 在该系统版�
 - 主题切换偶发失效
 - 部分 widget 数据刷新异常
 
-建议在 macOS 15.4+ 上使用最新 v0.3 版本以获得最佳兼容性。
+建议在 macOS 15.4+ 上使用最新版本（v0.3.4+）以获得最佳兼容性。
 
 ## 🧩 项目结构
 
 ```
-LyricsMTMR/
-├── LyricsMTMR/         # Xcode 项目
-│   ├── MTMR/            # 主程序源码
-│   │   ├── Items/       # Touch Bar 组件（widget）
-│   │   ├── Widgets/     # widget 分类（Life/Productivity/...）
-│   │   ├── Preferences/ # 设置面板
-│   │   └── Lyrics/      # 歌词引擎（来自 LyricsX）
-│   └── Resources/       # 资源文件
-├── docs/                # 文档
-├── examples/            # 预设与示例
-├── scripts/             # 构建与开发脚本
-└── README.md            # 本文件
+MTMR with LyricsX/                  # 仓库根
+├── LyricsMTMR/                     # Xcode 工程目录
+│   ├── LyricsMTMR.xcodeproj
+│   ├── MTMR/                       # 主程序源码
+│   │   ├── App/                    # 应用入口与全局设置
+│   │   ├── Core/                   # Touch Bar 控制器、BarItemFactory、滚动视图
+│   │   ├── Preferences/            # 设置窗口 + Editor（Ribbon 编辑器 / Mirror 模拟器）
+│   │   ├── Widgets/                # widget 分类（Media/Productivity/...）
+│   │   ├── LyricsIntegration/      # 歌词配置与 Touch Bar 歌词组件
+│   │   └── AppleScripts/           # AppleScript 桥接
+│   ├── LyricsRendering/            # 歌词渲染视图（来自 LyricsX）
+│   ├── MTMRTests/                  # 单元与契约测试（702 项）
+│   └── Scripts/                    # build / test / archive 脚本
+├── docs/                           # 文档、更新日志、截图
+├── examples/                       # 预设与示例
+├── scripts/                        # 仓库级开发工具（anchor-patrol 等）
+├── appcast.xml                     # Sparkle 更新源
+├── Makefile                        # make build / test / archive
+└── README.md                       # 本文件
 ```
 
 ## 📝 更新日志
 
-### v0.3（2026-08-26，当前）
+### v0.3.5（2026-09-18 预发布 · 09-22 桌面栏重构，当前）
+- **屏幕上的第二块 Touch Bar（Mirror）**：固定 24cm 宽度、边框与把手交互、白底修复；跟随实体栏 / 独立预设，展示 · 操作 · 编辑三态
+- **桌面 Touch Bar 重建**：真实原生组件渲染、左中右三区域独立滚动、鼠标点击 / 双击 / 长按与滑块适配、组件复用与歌词稳定宽度
+- **编辑器原生预览**：预览区与 Mirror 共用组件渲染器，组件库改为按需展开浮层，草稿串行后台保存，输入合并刷新
+- **通知中心**：面板重做 + 菜单栏入口；**Palette 打磨**：分组高度自适应、模拟器 1.25x 缩放 + 总折叠开关
+- 详细：见 [docs/Mirror与编辑器打磨.md](docs/Mirror与编辑器打磨.md) 与 [docs/CHANGELOG.md](docs/CHANGELOG.md)
+
+### v0.3.4（2026-09-14）
+- 设置界面内置编辑器重构 Phase 1-3：镜像交互三态、Palette 可折叠分组、属性检查器修复、主题重命名
+- 详细历史：见 [docs/CHANGELOG.md](docs/CHANGELOG.md#v034编辑器重构-phase-1-3)
+
+### v0.3（2026-08-26）
 - 营销版本号降档：v0.63 → 0.3，与新 Release tag 对齐
 - 工程 build 号：488 → 489（严格 +1）
 - 整体版本语义：v0.1 正式 / v0.2 预发布 / v0.3 当前
@@ -153,20 +186,33 @@ LyricsMTMR/
 ## 📚 文档索引
 
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) —— 完整更新日志
+- [docs/Mirror与编辑器打磨.md](docs/Mirror与编辑器打磨.md) —— 屏幕上第二块 Touch Bar（Mirror）与编辑器打磨
+- [docs/编辑器重构开发日志.md](docs/编辑器重构开发日志.md) —— 编辑器重构 Phase 0-3 全记录
+- [docs/编辑器Schema全量参考.md](docs/编辑器Schema全量参考.md) —— widget 参数（Schema）全量参考
 - [docs/轮次速查.md](docs/轮次速查.md) —— 各轮次快速索引
 - [docs/设置项对照表_R60.md](docs/设置项对照表_R60.md) —— 设置项权威对照
 - [docs/轨道文本_R*.md](docs/) —— 各轮次轨道文本
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) —— 第三方组件与文件级许可映射（唯一口径）
+- [docs/未完成组件归档.md](docs/未完成组件归档.md) —— 114 个组件的成熟度分级与归档清单
+- [docs/架构债_Mirror第二套实例.md](docs/架构债_Mirror第二套实例.md) —— Mirror 无法显示歌词等有状态组件的根因与修复方案
+- [docs/调研_bar-control相似工作与可借鉴点.md](docs/调研_bar-control相似工作与可借鉴点.md) —— 同类项目调研
 
-## 🙏 致谢
+## 📜 许可与致谢
 
 本项目基于以下开源项目：
 
-- [LyricsX](https://github.com/ddddxxx/LyricsX) — 多平台歌词引擎
-- [MTMR](https://github.com/Toxblh/MTMR) — Touch Bar 组件体系
-- [SnapKit](https://github.com/SnapKit/SnapKit) — Auto Layout DSL
-- [MASShortcut](https://github.com/shpakovski/MASShortcut) — 全局快捷键管理
-- [Sparkle](https://github.com/sparkle-project/sparkle) — 应用更新框架
-- [Then](https://github.com/devxoul/Then) — Swift 语法糖
+| 组件 | 许可 | 说明 |
+| --- | --- | --- |
+| [MTMR](https://github.com/Toxblh/MTMR) | MIT | 基础工程与 Touch Bar 组件体系 |
+| [LyricsX](https://github.com/MxIris-LyricsX-Project/LyricsX)（早期 [ddddxxx](https://github.com/ddddxxx/LyricsX)） | **MPL-2.0** | 歌词引擎与逐字渲染；改编文件保留 MPL-2.0 |
+| [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) | MIT | CoreText/CoreGraphics 扩展 |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) | MIT 风格 | 自动更新框架 |
+
+- 本项目自有代码：**MIT**（见 [`LICENSE`](LICENSE)）
+- 完整的文件级许可映射、MPL-2.0 覆盖清单与分发义务：[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- MPL-2.0 全文：[`LICENSES/MPL-2.0.txt`](LICENSES/MPL-2.0.txt)
+
+> 更正说明：早期 `NOTICE.md` 与部分源码头曾写"GPL 2.0"，经核对上游实为 MPL-2.0 / MIT，已统一更正。
 
 ## ⚠️ 重要免责声明
 

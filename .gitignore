@@ -105,3 +105,11 @@ scripts/
 examples/
 generate_registry_test.py
 appcast.xml
+
+# 本地安装脚本需要纳入版本管理（上面的 scripts/ 规则会误伤）
+!LyricsMTMR/Scripts/
+!LyricsMTMR/Scripts/install.sh
+
+# Python helper scripts (release tooling)
+__pycache__/
+*.pyc

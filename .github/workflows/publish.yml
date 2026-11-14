@@ -1,24 +1,59 @@
-# 仅版本标签触发：推送 v* 标签（如 v0.9）才构建 universal Release 包并上传到 GitHub Release。
-# 日常 push / PR 由 build-test.yml 负责（只测试+Debug 构建，不上传），不会误触发发布。
+# 发布工作流：推送 v* 标签 → 构建 universal 包 → 上传 zip/sha256/appcast → 校验产物。
+# 日常 push / PR 由 build-test.yml 负责（只测试+Debug 构建 + 打包冒烟），不会误触发发布。
+#
+# 结果度量：最后一步 verify_release.py 会真的去下载 feed、解析 appcast、请求 enclosure、
+# 比对 sha256。任何一项失败，这个 workflow 就是红的——历史上 v0.3.2~v0.3.4 的
+# "空 release" 事故，就是因为 upload 失败了却没人看。
+#
+# 修复历史空 release（如 v0.3.4）：
+#   gh workflow run publish.yml --ref main -f tag=v0.3.4
+# 它会用 main 上的最新工作流，重新构建该 tag 的产物并补传资产。
 name: Build universal release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要构建并发布的标签（如 v0.3.4），用于修复历史空 release"
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
   build-release:
     runs-on: macos-latest
     steps:
+      # 工作区 = 触发分支（提供本工作流与 Scripts/ 里的校验工具）。
+      # 目标 tag 单独检出到 worktree：这样"用 main 的新工作流修复历史旧 tag"才成立
+      # （v0.3.4 的代码树里没有 verify_release.py）。
       - uses: actions/checkout@v4
+
+      - name: Validate tag
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            v*) echo "TAG=$TAG" ;;
+            *) echo "ERROR: tag 必须以 v 开头，实际是 '$TAG'" >&2; exit 1 ;;
+          esac
+
+      - name: Checkout target tag into worktree
+        run: |
+          set -euo pipefail
+          git fetch --depth 1 origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          git worktree add "$RUNNER_TEMP/src" "${TAG}"
+          echo "SRC=$RUNNER_TEMP/src" >> "$GITHUB_ENV"
 
       - name: Build Archive (universal binary)
         run: |
-          cd LyricsMTMR
+          cd "$SRC/LyricsMTMR"
           xcodebuild archive \
             -project LyricsMTMR.xcodeproj \
             -scheme MTMR \
@@ -28,13 +63,14 @@ jobs:
             | xcpretty -c && exit ${PIPESTATUS[0]}
 
       - name: Verify universal binary
-        run: lipo -info LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR
+        run: lipo -info "$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR"
 
       - name: Package app (zip + sha256)
         run: |
-          APP="LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          set -euo pipefail
+          APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
           test -d "$APP" || { echo "APP not found at $APP"; exit 1; }
-          ZIP="LyricsMTMR-${GITHUB_REF_NAME}-universal.zip"
+          ZIP="LyricsMTMR-${TAG}-universal.zip"
           ditto -c -k --keepParent "$APP" "$ZIP"
           shasum -a 256 "$ZIP" > "$ZIP.sha256"
           ls -lh "$ZIP" "$ZIP.sha256"
@@ -50,10 +86,10 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          APP="LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          set -euo pipefail
+          APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
           SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
           BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
-          TAG="${GITHUB_REF_NAME}"
           ZIP="LyricsMTMR-${TAG}-universal.zip"
           test -n "$SPARKLE_PRIVATE_KEY" || { echo "ERROR: SPARKLE_PRIVATE_KEY secret is not set"; exit 1; }
           # 私钥文件：base64(96B) = expanded 私钥(64B) + 公钥(32B)，与 generate_keys -x 导出格式一致
@@ -63,23 +99,29 @@ jobs:
           chmod 600 "$KEYFILE"
           # 格式自检：SPARKLE_PRIVATE_KEY 必须是 base64(96B) Ed25519 私钥（scalar‖prefix 64B + 公钥 32B），
           # PEM 等错误格式在此直接报错退出，避免后续 sign_update/交叉自检报出看不出原因的失败。
-          # 校验逻辑抽到 .github/scripts/verify_sparkle_key.sh（ITER-18：publish 与 CI 冒烟共用，防双份逻辑漂移），
-          # run 步骤默认工作目录为 $GITHUB_WORKSPACE（仓库根），相对路径可直接引用。
           bash .github/scripts/verify_sparkle_key.sh "$KEYFILE"
           SIG_OUT=$(/tmp/sparkle210/bin/sign_update -f "$KEYFILE" "$ZIP")
           EDSIG=$(printf '%s' "$SIG_OUT" | sed -E 's/.*sparkle:edSignature="([^"]+)".*/\1/')
           LENGTH=$(printf '%s' "$SIG_OUT" | sed -E 's/.*length="([0-9]+)".*/\1/')
           test -n "$EDSIG" || { echo "ERROR: failed to parse edSignature from: $SIG_OUT"; exit 1; }
+          # 预发布版要带 <sparkle:prerelease/>，否则 Sparkle 会把 preview 推给正式版用户
+          PRERELEASE_MARK=""
+          case "$TAG" in *-*) PRERELEASE_MARK="    <sparkle:prerelease/>" ;; esac
           cat > appcast.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
             <channel>
               <title>LyricsMTMR</title>
+              <link>https://github.com/Tangzishun-Li/LyricsMTMR</link>
+              <description>Most recent changes with links to updates.</description>
+              <language>zh</language>
               <item>
                 <title>${SHORT} (${BUILD})</title>
                 <pubDate>$(date -u +"%a, %d %b %Y %H:%M:%S +0000")</pubDate>
                 <sparkle:version>${BUILD}</sparkle:version>
                 <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+          ${PRERELEASE_MARK}
                 <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream" sparkle:edSignature="${EDSIG}" length="${LENGTH}"/>
               </item>
             </channel>
@@ -99,11 +141,47 @@ jobs:
           fi
           echo "--- SUPublicEDKey matches SPARKLE_PRIVATE_KEY ---"
 
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            LyricsMTMR-v*-universal.zip
-            LyricsMTMR-v*-universal.zip.sha256
-            appcast.xml
-          generate_release_notes: true
+      # 用 gh CLI 代替第三方 action：失败信息可读、可重入（--clobber），
+      # 这是 v0.3.2~v0.3.4 上传步骤静默失败后的替代实现。
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ZIP="LyricsMTMR-${TAG}-universal.zip"
+          PRERELEASE_MARK=""
+          case "$TAG" in *-*) PRERELEASE_MARK="--prerelease" ;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release 已存在，补传/覆盖资产：$TAG"
+            gh release upload "$TAG" "$ZIP" "$ZIP.sha256" appcast.xml --clobber
+          else
+            echo "创建 release：$TAG"
+            gh release create "$TAG" "$ZIP" "$ZIP.sha256" appcast.xml \
+              --title "$TAG" --generate-notes $PRERELEASE_MARK
+          fi
+          if [ -z "$PRERELEASE_MARK" ]; then
+            gh release edit "$TAG" --latest
+          fi
+          echo "--- release 资产清单 ---"
+          gh release view "$TAG" --json tagName,isPrerelease,assets \
+            --template '{{.tagName}} prerelease={{.isPrerelease}}{{"\n"}}{{range .assets}}{{.name}} ({{.size}} bytes){{"\n"}}{{end}}'
+
+      # 结果度量：不是"步骤成功"，而是"用户那端真的能拿到"。
+      - name: Verify published release (feed / 资产 / sha256)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 LyricsMTMR/Scripts/verify_release.py --tag "$TAG" --download
+          if [ "${TAG}" != *-* ]; then
+            # 正式版发布后，releases/latest 必须同步指向它；GitHub 有最终一致性，最多重试 6 次
+            for attempt in 1 2 3 4 5 6; do
+              if python3 LyricsMTMR/Scripts/verify_release.py --tag latest; then
+                exit 0
+              fi
+              echo "latest 尚未指向新版本（attempt $attempt/6），10s 后重试…"
+              sleep 10
+            done
+            echo "ERROR: releases/latest 未指向 $TAG，自动更新入口不可用" >&2
+            exit 1
+          fi

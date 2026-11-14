@@ -6,7 +6,7 @@
 //  Original FrameworkToolbox: https://github.com/Mx-Iris/FrameworkToolbox
 //  Original LyricsX: https://github.com/MxIris-LyricsX-Project/LyricsX
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from FrameworkToolbox (MIT) and LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md.
 //  See LICENSE file in the project root for full license information.
 //
 

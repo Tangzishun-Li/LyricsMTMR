@@ -8,8 +8,8 @@
 //  §4.3 防回归锚点。homekit/package/wellness 三域的 UD 展示态字段收敛到
 //  SettingsSchema.domainFields 后，本测试锚定：
 //    1. 三新键存在且字段 id 集合逐一等于 §4.1 表（缺注册/多注册都算失败）；
-//    2. EditorSchema 计数不变（Phase2 只动域级注册，不碰 item 级元数据，
-//       152 条属性的 key/displayName/type 冻结契约不被波及）；
+//    2. EditorSchema 运行时属性总数锚点不被误改（Phase2 只动域级注册，不碰
+//       item 级元数据；v0.3.4 编辑器重构刻意新增 15 条后基线由 278 → 293）；
 //    3. wellness 两滑杆 range/step 与 §4.1 契约一致，防 §5 裁决漂移回退
 //       （R59-a 成果：readingGoal 5...100 step1、standupMinutes 5...90 step1）；
 //    4. 三域 AppSettings 键名往返保真（UserDefaults suite 隔离，仿
@@ -81,16 +81,19 @@ final class SchemaDomainMigrationContractTests: XCTestCase {
     // MARK: - §4.3-2：EditorSchema 计数不变（Phase2 不碰 item 级元数据）
 
     func testEditorSchemaPropertyCountUnchanged() {
-        // Phase2 各轮只增删 domainFields；item 级属性冻结禁改。
-        // 基线 278 = 148 条字面 ItemProperty + 65 个 std() 追加的 width/align
-        // ×2 + 其余字面项（97 类型求和，R60 收口实测值；简报「152 条」为
-        // 源码字面口径——不含 std() 运行时追加与去重后的实际条数）。
-        // 本断言锚定运行时总数：若有人误改 EditorSchema，此处计数漂移立即暴露。
+        // 冻结基线随「刻意新增」同步：R61 冻结 278，v0.3.4 编辑器重构
+        // （cc91dd7）新增 15 条 → 293：
+        //   music +2（refreshInterval / disableMarquee）
+        //   weather +8（api_key / apiSource / units / icon_type / cities /
+        //              showHumidity / showWind / refreshInterval）
+        //   stocks +3（apiSource / chartMode / textWidth）
+        //   popover +2（closePosition / cardWidthRatio）
+        // 本断言锚定运行时总数：非刻意的 item 级元数据改动会在此立即暴露。
         let total = EditorSchema.supportedTypes.reduce(0) { count, type in
             count + EditorSchema.schema(for: type).properties.count
         }
-        XCTAssertEqual(total, 278,
-                       "EditorSchema 运行时属性总数冻结为 278 条，Phase2 不得触碰 item 级元数据")
+        XCTAssertEqual(total, 293,
+                       "EditorSchema 运行时属性总数冻结为 293 条（v0.3.4 基线），非刻意改动须同步本锚点")
     }
 
     // MARK: - §4.3-3：wellness 滑杆 range/step 与 §4.1 一致

@@ -100,6 +100,11 @@ struct AppSettings {
     @UserDefault(key: "com.toxblh.mtmr.settings.hapticFeedback", defaultValue: true)
     static var hapticFeedbackState: Bool
     
+    /// 组件库是否显示 experimental/未完成组件（见 Core/WidgetAvailability.swift）。
+    /// 默认关闭：114 个组件全量铺开会淹没主场景；需要试用时在编辑器组件库里打开。
+    @UserDefault(key: "com.lyricsmtmr.widgets.showUnfinished", defaultValue: false)
+    static var showUnfinishedWidgets: Bool
+    
     @UserDefault(key: "com.toxblh.mtmr.settings.multitouchGestures", defaultValue: true)
     static var multitouchGestures: Bool
     
@@ -213,6 +218,15 @@ struct AppSettings {
 
     @UserDefault(key: "com.toxblh.mtmr.settings.showMirrorWindow", defaultValue: false)
     static var showMirrorWindow: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.mirror.followsTouchBar", defaultValue: true)
+    static var mirrorFollowsTouchBar: Bool
+
+    @UserDefault(key: "com.lyricsmtmr.mirror.presetPath", defaultValue: "")
+    static var mirrorPresetPath: String
+
+    @UserDefault(key: "com.lyricsmtmr.mirror.interactionMode", defaultValue: 1)
+    static var mirrorInteractionMode: Int
 
     // MARK: - Desktop Lyrics Window (round 51)
 

@@ -7,7 +7,7 @@
 //  If the URL points to a supported video site (Bilibili / YouTube), the
 //  subtitle pipeline is triggered instead of the music lyrics pipeline.
 //
-//  This source code is licensed under GPL 2.0.
+//  Derived from LyricsX (MPL-2.0). See THIRD_PARTY_NOTICES.md and LICENSES/MPL-2.0.txt.
 //
 
 import Foundation

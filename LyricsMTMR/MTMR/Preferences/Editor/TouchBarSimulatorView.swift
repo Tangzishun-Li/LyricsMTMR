@@ -2,402 +2,215 @@
 //  TouchBarSimulatorView.swift
 //  LyricsMTMR
 //
-//  Three-zone Touch Bar simulator: fixed left/right, elastic center.
-//  Replaces the flat TouchBarStrip with a physically accurate preview.
+//  Native Touch Bar preview plus an explicit arrangement rail. The preview
+//  shares Mirror's widget renderer; arrangement chips are editing controls.
 //
 
 import SwiftUI
-
-// MARK: - Physical constants
+import AppKit
 
 enum TouchBarMetrics {
-    /// Touch Bar physical dimensions: 24cm x 1.5cm
-    /// Converted to points: 24cm ≈ 9.45 inches, 1.5cm ≈ 0.59 inches
-    /// At 72 points/inch: width ≈ 680 points, height ≈ 42 points
-    /// Using exact values for 1:1 physical match
-    static let physicalWidth: CGFloat = 680
-    /// Physical height in points (1.5cm)
+    static let physicalWidth: CGFloat = 1085
     static let physicalHeight: CGFloat = 42
-    /// Minimum zone width so handles remain grabbable.
     static let minZoneWidth: CGFloat = 60
-    /// Bezel corner radius.
     static let cornerRadius: CGFloat = 6
-    /// Item pill height inside the bar.
-    static let pillHeight: CGFloat = 24
+    static let pillHeight: CGFloat = 30
 }
-
-// MARK: - Zone classification helper
 
 enum TouchBarZone: String, CaseIterable {
     case left, center, right
-
-    var label: String {
-        switch self {
-        case .left: return "L"
-        case .center: return "C"
-        case .right: return "R"
-        }
-    }
-
+    var label: String { rawValue.prefix(1).uppercased() }
     var fullName: String {
         switch self {
-        case .left: return localized("左区", "Left")
-        case .center: return localized("中区", "Center")
-        case .right: return localized("右区", "Right")
+        case .left: return localized("左侧固定", "Pinned left")
+        case .center: return localized("中间滚动", "Scrolling center")
+        case .right: return localized("右侧固定", "Pinned right")
         }
     }
 }
 
-/// Where a dragged pill will be inserted relative to the drop target.
-enum DropPosition: Equatable {
-    case before
-    case after
-}
-
-// MARK: - Simulator View
+enum DropPosition: Equatable { case before, after }
 
 struct TouchBarSimulatorView: View {
     @ObservedObject var model: RibbonModel
-
-    /// Fraction of total width allocated to center (0.2...0.8). Dragging handles adjusts this.
-    @State private var centerFraction: CGFloat = 0.55
+    var isActive: Bool = true
+    @State private var actualSize = false
     @State private var dragOverIndex: Int?
     @State private var dragOverPosition: DropPosition = .before
-    @State private var hoveredZone: TouchBarZone?
     @State private var zoneDropHover: TouchBarZone?
-    @State private var scrollOffset: CGFloat = 0
-    @State private var trashHovering = false
-
-    // MARK: Zone-split items
-
-    private var leftItems: [(index: Int, item: [String: Any])] {
-        model.activeItems.enumerated()
-            .filter { alignOf($0.element) == .left }
-            .map { ($0.offset, $0.element) }
-    }
-
-    private var centerItems: [(index: Int, item: [String: Any])] {
-        model.activeItems.enumerated()
-            .filter { alignOf($0.element) == .center }
-            .map { ($0.offset, $0.element) }
-    }
-
-    private var rightItems: [(index: Int, item: [String: Any])] {
-        model.activeItems.enumerated()
-            .filter { alignOf($0.element) == .right }
-            .map { ($0.offset, $0.element) }
-    }
-
-    private func alignOf(_ item: [String: Any]) -> TouchBarZone {
-        switch item["align"] as? String {
-        case "left": return .left
-        case "right": return .right
-        default: return .center
-        }
-    }
-
-    // MARK: Body
 
     var body: some View {
-        GeometryReader { geo in
-            let available = geo.size.width - 28 // outer padding
-            let baseScale = available / TouchBarMetrics.physicalWidth
-            // Allow up to 1.25x zoom for better visibility
-            let scale = min(baseScale, 1.25)
-            let barWidth = TouchBarMetrics.physicalWidth * scale
-            let barHeight = TouchBarMetrics.physicalHeight * scale
-            let needsScroll = barWidth > available
-
-            VStack(spacing: 6) {
-                // ── Touch Bar bezel ──
-                ZStack {
-                    // Outer shell
-                    RoundedRectangle(cornerRadius: TouchBarMetrics.cornerRadius + 2, style: .continuous)
-                        .fill(Color.black)
-                        .frame(width: barWidth + 10, height: barHeight + 10)
-                        .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
-
-                    // Screen
-                    RoundedRectangle(cornerRadius: TouchBarMetrics.cornerRadius, style: .continuous)
-                        .fill(Color(white: 0.06))
-                        .frame(width: barWidth, height: barHeight)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: TouchBarMetrics.cornerRadius, style: .continuous)
-                                .strokeBorder(Color(white: 0.18), lineWidth: 0.5)
-                        )
-
-                    // Three-zone content
-                    HStack(spacing: 0) {
-                        zoneView(.left, items: leftItems, scale: scale)
-                            .frame(width: barWidth * ((1 - centerFraction) / 2))
-
-                        dragHandle
-
-                        zoneView(.center, items: centerItems, scale: scale, isCenter: true)
-                            .frame(width: barWidth * centerFraction - 12)
-
-                        dragHandle
-
-                        zoneView(.right, items: rightItems, scale: scale)
-                            .frame(width: barWidth * ((1 - centerFraction) / 2))
-                    }
-                    .frame(width: barWidth - 4, height: barHeight - 4)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "touchbar")
+                    .foregroundStyle(EditorColors.mintSwift)
+                Text(localized("Touch Bar 预览", "Touch Bar Preview"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(EditorColors.textPrimarySwift)
+                Text(model.editorMode == .edit
+                     ? localized("点击选择组件", "Click to select a widget")
+                     : localized("点击操作 · 滚动浏览", "Click to interact · Scroll to browse"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                Spacer()
+                Button { actualSize.toggle() } label: {
+                    Label(actualSize ? localized("原始尺寸", "Actual size") : localized("适合窗口", "Fit to window"),
+                          systemImage: actualSize ? "1.magnifyingglass" : "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 10, weight: .medium))
                 }
-
-                // ── Scroll indicator (when window is narrow) ──
-                if needsScroll {
-                    scrollIndicator(available: available, barWidth: barWidth)
-                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EditorColors.textSecondarySwift)
             }
-            .frame(width: geo.size.width, height: geo.size.height)
-            .overlay(alignment: .bottomTrailing) {
-                if model.editorMode == .edit {
-                    trashCanView
-                        .padding(.trailing, 18)
-                        .padding(.bottom, 2)
+            if actualSize {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    nativePreview.frame(width: TouchBarSurfaceView.logicalWidth, height: 50)
                 }
+                .frame(height: 58)
+            } else {
+                nativePreview.frame(height: 50)
+            }
+            if let error = model.previewError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 10))
+                    .foregroundStyle(EditorColors.accentSwift)
+            }
+            if model.editorMode == .edit {
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(TouchBarZone.allCases, id: \.self) { zone in
+                        arrangementZone(zone)
+                    }
+                }
+                Text(localized("拖动下方组件调整顺序或分区 · 双击容器编辑子项", "Drag widgets to reorder or change zones · Double-click a container to edit its contents"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
             }
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 
-    // MARK: - Zone view
+    private var nativePreview: some View {
+        NativeTouchBarPreview(
+            definitions: model.previewDefinitions,
+            presetPath: model.currentThemePath,
+            selectedIndex: model.selectedIndex,
+            interactive: model.editorMode == .preview,
+            isActive: isActive,
+            onSelect: handleTap
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .strokeBorder(EditorColors.hairlineStrongSwift, lineWidth: 1))
+    }
 
-    private func zoneView(_ zone: TouchBarZone, items: [(index: Int, item: [String: Any])], scale: CGFloat, isCenter: Bool = false) -> some View {
-        ZStack {
-            // Zone background
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(isCenter ? Color(white: 0.10) : Color(white: 0.07))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .strokeBorder(
-                            zoneDropHover == zone ? EditorColors.accentSwift.opacity(0.7) : Color.clear,
-                            lineWidth: 1.5
-                        )
-                )
-
-            // Zone label (top-left, subtle)
-            VStack {
-                HStack {
-                    Text(hoveredZone == zone ? zone.fullName : zone.label)
-                        .font(.system(size: 7 * max(scale, 0.7), weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color(white: 0.3))
-                    Spacer()
-                }
-                .padding(.leading, 4)
-                .padding(.top, 2)
-                Spacer()
+    private func arrangementZone(_ zone: TouchBarZone) -> some View {
+        let entries = model.activeItems.enumerated().filter { alignOf($0.element) == zone }
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 4) {
+                Text(zone.fullName)
+                    .font(.system(size: 10, weight: .semibold))
+                Text("\(entries.count)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
             }
-
-            // Items
+            .foregroundStyle(zoneDropHover == zone ? EditorColors.accentSwift : EditorColors.textSecondarySwift)
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
-                    itemsHStack(items, zone: zone, scale: scale)
+                    HStack(spacing: 5) {
+                        if entries.isEmpty {
+                            Text(localized("拖入组件", "Drop a widget here"))
+                                .font(.system(size: 10))
+                                .foregroundStyle(EditorColors.textTertiarySwift)
+                                .frame(height: 26)
+                        }
+                        ForEach(entries, id: \.offset) { entry in
+                            arrangementItem(entry.element, index: entry.offset, zone: zone)
+                                .id(entry.offset)
+                        }
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 6)
                 }
                 .onChange(of: model.scrollAnchor) { _, anchor in
                     guard let anchor else { return }
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(anchor, anchor: .center)
-                    }
+                    withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(anchor, anchor: .center) }
                 }
             }
+            .frame(height: 38)
+            .background(EditorColors.cardSwift.opacity(0.65))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(zoneDropHover == zone ? EditorColors.accentSwift : EditorColors.hairlineSwift, lineWidth: 1))
+            .onDrop(of: [.text], delegate: ZoneDropDelegate(
+                zone: zone, model: model,
+                onHover: { zoneDropHover = $0 ? zone : nil }
+            ))
+        }
+        .frame(maxWidth: .infinity)
+    }
 
-            // Drop hint when hovering over the zone background
-            if zoneDropHover == zone {
-                Text(localized("松开插入本区", "Drop to append here"))
-                    .font(.system(size: 8 * max(scale, 0.7), weight: .semibold))
-                    .foregroundStyle(EditorColors.accentSwift)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background {
-                        Capsule().fill(EditorColors.accentSwift.opacity(0.15))
-                    }
-                    .allowsHitTesting(false)
+    private func arrangementItem(_ item: [String: Any], index: Int, zone: TouchBarZone) -> some View {
+        SimPill(item: item, index: index,
+                isSelected: model.isSelected(index), isMultiMode: model.selectedIndices.count > 1,
+                dropPosition: dragOverIndex == index ? dragOverPosition : nil,
+                isEditMode: true, isCenterZone: zone == .center, scale: 1.1,
+                onDelete: { model.delete(at: index) }, onTap: { handleTap(index) },
+                onCopy: { model.select(index); model.copySelected() },
+                onCut: { model.select(index); model.cutSelected() },
+                onMoveToZone: { model.updatePropertyAtIndex(index, key: "align", value: $0.rawValue) },
+                onDrillIn: { model.drillInto(index: index) })
+            .onDrag {
+                if !model.isSelected(index) { model.select(index) }
+                return NSItemProvider(object: "\(index)" as NSString)
             }
-        }
-        .onHover { hovering in
-            hoveredZone = hovering ? zone : nil
-        }
-        .onDrop(of: [.text], delegate: ZoneDropDelegate(
-            zone: zone,
-            model: model,
-            onHover: { hovering in zoneDropHover = hovering ? zone : nil }
-        ))
+            .onDrop(of: [.text], delegate: SimDropDelegate(
+                targetIndex: index, zone: zone, model: model, width: 90,
+                onHover: { dragOverIndex = $0 ? index : nil },
+                onInsertion: { dragOverPosition = $0 }
+            ))
     }
 
-    /// Rough rendered width of a pill used to decide before/after insertion
-    /// from the drop location.
-    private func estimatedPillWidth(_ item: [String: Any], scale: CGFloat) -> CGFloat {
-        let text: CGFloat
-        if let title = item["title"] as? String, !title.isEmpty {
-            text = CGFloat(title.count) * 5.5
-        } else {
-            text = 24
-        }
-        return (32 + text + 18) * max(scale, 0.7)
+    private func alignOf(_ item: [String: Any]) -> TouchBarZone {
+        TouchBarZone(rawValue: item["align"] as? String ?? "center") ?? .center
     }
-
-    private func itemsHStack(_ items: [(index: Int, item: [String: Any])], zone: TouchBarZone, scale: CGFloat) -> some View {
-        HStack(spacing: 3) {
-            if items.isEmpty {
-                Text(zone.fullName)
-                    .font(.system(size: 8 * max(scale, 0.7), weight: .medium))
-                    .foregroundStyle(Color(white: 0.2))
-            } else {
-                ForEach(items, id: \.index) { entry in
-                    SimPill(
-                        item: entry.item,
-                        index: entry.index,
-                        isSelected: model.isSelected(entry.index),
-                        isMultiMode: model.selectedIndices.count > 1,
-                        dropPosition: dragOverIndex == entry.index ? dragOverPosition : nil,
-                        isEditMode: model.editorMode == .edit,
-                        isCenterZone: zone == .center,
-                        scale: scale,
-                        onDelete: { model.delete(at: entry.index) },
-                        onTap: { handleTap(entry.index) },
-                        onCopy: {
-                            model.select(entry.index)
-                            model.copySelected()
-                        },
-                        onCut: {
-                            model.select(entry.index)
-                            model.cutSelected()
-                        },
-                        onMoveToZone: { newZone in moveToZone(entry.index, zone: newZone) },
-                        onDrillIn: { model.drillInto(index: entry.index) }
-                    )
-                    .id(entry.index)
-                    .onDrag {
-                        guard model.editorMode == .edit else { return NSItemProvider() }
-                        // Keep multi-selection: dragging one selected pill moves
-                        // the whole selection.
-                        if !model.isSelected(entry.index) {
-                            model.select(entry.index)
-                        }
-                        return NSItemProvider(object: "\(entry.index)" as NSString)
-                    }
-                    .onDrop(of: [.text], delegate: SimDropDelegate(
-                        targetIndex: entry.index,
-                        zone: zone,
-                        model: model,
-                        width: estimatedPillWidth(entry.item, scale: scale),
-                        onHover: { hovering in
-                            dragOverIndex = hovering ? entry.index : nil
-                            if !hovering { dragOverPosition = .before }
-                        },
-                        onInsertion: { position in
-                            if dragOverIndex == entry.index { dragOverPosition = position }
-                        }
-                    ))
-                }
-            }
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-    }
-
-    // MARK: - Drag handle between zones
-
-    private var dragHandle: some View {
-        Rectangle()
-            .fill(Color(white: 0.25))
-            .frame(width: 1)
-            .frame(maxHeight: .infinity)
-            .padding(.vertical, 4)
-            .overlay(
-        RoundedRectangle(cornerRadius: 2)
-                    .fill(Color(white: 0.35))
-                    .frame(width: 5, height: 16)
-            )
-            .contentShape(Rectangle().inset(by: -4))
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        let delta = value.translation.width / TouchBarMetrics.physicalWidth
-                        let newFraction = centerFraction - delta * 0.5
-                        centerFraction = min(max(newFraction, 0.2), 0.8)
-                    }
-            )
-            .onHover { hovering in
-                if hovering {
-                    NSCursor.resizeLeftRight.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
-    }
-
-    // MARK: - Scroll indicator
-
-    private func scrollIndicator(available: CGFloat, barWidth: CGFloat) -> some View {
-        let ratio = available / barWidth
-        return HStack(spacing: 4) {
-            Image(systemName: "arrow.left")
-                .font(.system(size: 7))
-                .foregroundStyle(Color(white: 0.3))
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color(white: 0.12))
-                        .frame(height: 4)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(EditorColors.accentSwift.opacity(0.5))
-                        .frame(width: geo.size.width * min(ratio, 1.0), height: 4)
-                        .offset(x: scrollOffset * (geo.size.width * (1 - min(ratio, 1.0))))
-                }
-            }
-            .frame(height: 4)
-            Image(systemName: "arrow.right")
-                .font(.system(size: 7))
-                .foregroundStyle(Color(white: 0.3))
-        }
-        .padding(.horizontal, 40)
-    }
-
-    // MARK: - Actions
 
     private func handleTap(_ index: Int) {
-        let cmdPressed = NSEvent.modifierFlags.contains(.command)
-        let shiftPressed = NSEvent.modifierFlags.contains(.shift)
+        guard index >= 0, index < model.activeItems.count else { return }
+        if NSEvent.modifierFlags.contains(.command) { model.toggleSelect(index) }
+        else if NSEvent.modifierFlags.contains(.shift) { model.rangeSelect(to: index) }
+        else { model.select(index) }
+    }
+}
 
-        if cmdPressed {
-            model.toggleSelect(index)
-        } else if shiftPressed {
-            model.rangeSelect(to: index)
-        } else {
-            model.select(index)
+private struct NativeTouchBarPreview: NSViewRepresentable {
+    let definitions: [BarItemDefinition]
+    let presetPath: String
+    let selectedIndex: Int?
+    let interactive: Bool
+    let isActive: Bool
+    let onSelect: (Int) -> Void
+
+    func makeNSView(context: Context) -> TouchBarSurfaceView {
+        TouchBarSurfaceView(frame: .zero)
+    }
+
+    func updateNSView(_ view: TouchBarSurfaceView, context: Context) {
+        view.presetPath = presetPath
+        view.isInteractive = interactive
+        view.onSelect = { identifier in
+            guard let index = Int(identifier.rawValue.replacingOccurrences(of: "editor-item-", with: "")) else { return }
+            onSelect(index)
         }
+        if isActive {
+            let identifiers = definitions.indices.map { NSTouchBarItem.Identifier("editor-item-\($0)") }
+            view.update(definitions: definitions, identifiers: identifiers)
+        }
+        view.selectedIdentifier = selectedIndex.map { NSTouchBarItem.Identifier("editor-item-\($0)") }
+        view.setPaused(!isActive)
     }
 
-    private func moveToZone(_ index: Int, zone: TouchBarZone) {
-        model.updatePropertyAtIndex(index, key: "align", value: zone.rawValue)
-    }
-
-    // MARK: - Trash can
-
-    private var trashCanView: some View {
-        Image(systemName: trashHovering ? "trash.fill" : "trash")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(trashHovering ? Color.red : Color(white: 0.3))
-            .frame(width: 34, height: 26)
-            .background {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(trashHovering ? Color.red.opacity(0.12) : Color(white: 0.08))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .strokeBorder(
-                                trashHovering ? Color.red.opacity(0.6) : Color(white: 0.2),
-                                lineWidth: trashHovering ? 1.5 : 0.5
-                            )
-                    )
-            }
-            .scaleEffect(trashHovering ? 1.15 : 1.0)
-            .onDrop(of: [.text], delegate: TrashDropDelegate(
-                model: model,
-                onHover: { hovering in trashHovering = hovering }
-            ))
-            .animation(.easeOut(duration: 0.12), value: trashHovering)
-            .help(localized("拖到此处删除", "Drag here to delete"))
+    static func dismantleNSView(_ view: TouchBarSurfaceView, coordinator: ()) {
+        view.dispose()
     }
 }
 
@@ -424,7 +237,7 @@ struct SimPill: View {
     private var type: String { item["type"] as? String ?? "unknown" }
     private var schema: ItemSchema { EditorSchema.schema(for: type) }
     private var hasChildren: Bool {
-        (item["items"] as? [[String: Any]])?.isEmpty == false
+        item["items"] != nil || schema.hasPopup
     }
 
     var body: some View {
@@ -545,10 +358,7 @@ struct SimPill: View {
     private var displayText: String {
         if let title = item["title"] as? String, !title.isEmpty { return title }
         switch type {
-        case "timeButton":
-            let fmt = item["formatTemplate"] as? String ?? "HH:mm"
-            let df = DateFormatter(); df.dateFormat = fmt
-            return df.string(from: Date())
+        case "timeButton": return schema.displayName
         case "stock":
             let stocks = item["stocks"] as? [String] ?? []
             return stocks.first ?? "Stock"
@@ -569,8 +379,8 @@ struct SimPill: View {
     }
 
     private var pillWidth: CGFloat? {
-        if let w = item["width"] as? Int { return CGFloat(min(w, 180)) * scale }
-        if let w = item["width"] as? Double { return CGFloat(min(w, 180)) * scale }
+        // Arrangement chips are labels, not a second approximation of the
+        // hardware geometry. Native widgets above are the actual preview.
         return nil
     }
 }
@@ -664,4 +474,3 @@ struct TrashDropDelegate: DropDelegate {
         return true
     }
 }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
