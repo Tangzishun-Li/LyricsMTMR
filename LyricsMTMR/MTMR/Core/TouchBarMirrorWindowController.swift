@@ -60,6 +60,10 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
         layer?.backgroundColor = NSColor.black.cgColor
         layer?.cornerRadius = 9
         layer?.masksToBounds = true
+        // 可访问性：Mirror 是一个整体容器，VoiceOver 读出角色与用途
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(localized("Touch Bar 镜像", "Touch Bar mirror"))
         canvas.wantsLayer = true
         addSubview(canvas)
         for zone in zones {

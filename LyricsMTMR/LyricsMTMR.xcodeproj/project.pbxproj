@@ -319,6 +319,8 @@
 		C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */; };
 		C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */; };
 		C0FF1AA7B2D6BA38632FB056 /* EditorPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE1AA7B2D6BA38632FB056 /* EditorPaletteView.swift */; };
+		C0FFB3868E187F099C1206E2 /* DiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEB3868E187F099C1206E2 /* DiagnosticsExporter.swift */; };
+		C1FF270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -673,6 +675,8 @@
 		C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigrationTests.swift; sourceTree = "<group>"; };
 		C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadmeWidgetCountTests.swift; sourceTree = "<group>"; };
 		C0FE1AA7B2D6BA38632FB056 /* EditorPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPaletteView.swift; sourceTree = "<group>"; };
+		C0FEB3868E187F099C1206E2 /* DiagnosticsExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsExporter.swift; sourceTree = "<group>"; };
+		C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsReportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -962,6 +966,7 @@
 				C1FE1B28C486A5E9A174A23F /* SnapshotTestSupport.swift */,
 				C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */,
 				C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */,
+				C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1031,6 +1036,7 @@
 				CA8F2B8E2FBF862D00D189D1 /* AppLog.swift */,
 				B09EB1E3207C082000D5C1E0 /* HapticFeedback.swift */,
 				36A778BD20A6C27100B38714 /* GeneralExtensions.swift */,
+				C0FEB3868E187F099C1206E2 /* DiagnosticsExporter.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -1591,6 +1597,7 @@
 				C0FFE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift in Sources */,
 				C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */,
 				C0FF1AA7B2D6BA38632FB056 /* EditorPaletteView.swift in Sources */,
+				C0FFB3868E187F099C1206E2 /* DiagnosticsExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1655,6 +1662,7 @@
 				C1FF1B28C486A5E9A174A23F /* SnapshotTestSupport.swift in Sources */,
 				C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */,
 				C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */,
+				C1FF270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -22,6 +22,7 @@ struct AboutTab: View {
                 pluginsCard
                 linksCard
                 disclaimerCard
+                diagnosticsCard
                 resetCard
             }
             .padding(.horizontal, 30)
@@ -29,6 +30,41 @@ struct AboutTab: View {
             .padding(.bottom, 28)
             .frame(maxWidth: 660)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Diagnostics
+
+    private var diagnosticsCard: some View {
+        Deck.Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "stethoscope")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Deck.accentDeep)
+                    Text(localized("导出诊断包", "Export Diagnostics"))
+                        .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
+                }
+                Text(localized(
+                    "生成一个文本文件：版本、macOS、Touch Bar 状态与最近 200 行日志。路径与密钥会自动脱敏，可直接贴进 issue。",
+                    "Creates a text file with version, macOS, Touch Bar state and the last 200 log lines. Paths and secrets are redacted; safe to paste into an issue."
+                ))
+                .font(Deck.captionFont).foregroundStyle(Deck.textTertiary)
+                Button {
+                    _ = DiagnosticsExporter.export()
+                } label: {
+                    Text(localized("导出…", "Export…"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16).padding(.vertical, 7)
+                        .background {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Deck.accentDeep)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(localized("导出诊断包", "Export diagnostics bundle")))
+            }
         }
     }
 

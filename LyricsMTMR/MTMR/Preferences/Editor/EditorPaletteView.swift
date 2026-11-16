@@ -43,6 +43,7 @@ struct PaletteRibbon: View {
             }
             .buttonStyle(.plain)
             .disabled(!isEnabled)
+            .accessibilityLabel(Text(localized("添加组件", "Add widget")))
             .popover(isPresented: $paletteExpanded, arrowEdge: .bottom) { paletteContent }
             Text(localized("从组件库添加，拖动组件安排位置", "Choose a widget, then drag it into place"))
                 .font(.system(size: 10))
