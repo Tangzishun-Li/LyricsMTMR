@@ -142,7 +142,11 @@ jobs:
           test -n "$EDSIG" || { echo "ERROR: failed to parse edSignature from: $SIG_OUT"; exit 1; }
           # 预发布版要带 <sparkle:prerelease/>，否则 Sparkle 会把 preview 推给正式版用户
           PRERELEASE_MARK=""
-          case "$TAG" in *-*) PRERELEASE_MARK="    <sparkle:prerelease/>" ;; esac
+          CHANNEL_MARK=""
+          case "$TAG" in
+            *-*) PRERELEASE_MARK="    <sparkle:prerelease/>"
+                 CHANNEL_MARK="    <sparkle:channel>beta</sparkle:channel>" ;;
+          esac
           cat > appcast.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -158,6 +162,7 @@ jobs:
                 <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
                 <sparkle:minimumSystemVersion>${MIN_SYSTEM}</sparkle:minimumSystemVersion>
           ${PRERELEASE_MARK}
+          ${CHANNEL_MARK}
                 <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream" sparkle:edSignature="${EDSIG}" length="${LENGTH}"/>
               </item>
             </channel>

@@ -304,7 +304,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
     private lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: true,
-        updaterDelegate: nil,
+        updaterDelegate: self,
         userDriverDelegate: nil
     )
 

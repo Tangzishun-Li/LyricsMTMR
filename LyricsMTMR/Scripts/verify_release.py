@@ -142,6 +142,7 @@ def sparkle_items(xml_bytes: bytes) -> list[dict]:
                 "enclosure_url": enclosure.get("url", "") if enclosure is not None else "",
                 "signature": enclosure.get(f"{{{SPARKLE_NS}}}edSignature", "") if enclosure is not None else "",
                 "minimum_system": (item.findtext(f"{{{SPARKLE_NS}}}minimumSystemVersion") or "").strip(),
+                "channel": (item.findtext(f"{{{SPARKLE_NS}}}channel") or "").strip(),
                 "length": enclosure.get("length", "") if enclosure is not None else "",
             }
         )
@@ -228,6 +229,12 @@ def verify_release(tag: str, download: bool) -> None:
     newest = max(items, key=lambda i: int(i["version"] or 0))
     check(bool(newest["short_version"]), "feed shortVersionString 非空", newest["short_version"])
     check(bool(newest["signature"]), "feed 含 edSignature（Sparkle 签名）")
+    expected_channel = "beta" if "-" in real_tag else ""
+    check(
+        newest.get("channel", "") == expected_channel,
+        "渠道与 tag 一致",
+        f"tag={real_tag} channel={newest.get('channel') or '(stable)'}",
+    )
     check(bool(newest["length"]), "feed 含安装包 length")
 
     # 2) 版本一致性：tag / appcast / 资产名 三处不能漂
