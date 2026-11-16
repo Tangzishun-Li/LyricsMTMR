@@ -24,6 +24,15 @@ enum WidgetAvailability {
         "packageTracker",   // 快递：依赖第三方查询接口，可用性随提供方变化
         "expenseTracker",   // 记账：BeeCount 同步链路尚未真机端到端验收
         "bilibiliFeed",     // B 站：抓取式数据源，接口变动即失效
+        // 娱乐/玩具向：能跑，但没有验收标准，也不承担主场景
+        "pixelPet",
+        "httpCodes",
+        "latexSymbols",
+        "colorConvert",
+        "base64Tool",
+        "jsonFormatter",
+        "hashCalc",
+        "uuidGen",
     ]
 
     /// 已归档：组件库不再提供新增入口，但旧预设仍可渲染。

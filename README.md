@@ -28,7 +28,7 @@
 - **多播放器支持**：Music、Spotify、Vox、Swinsian、Audirvana 等
 - _（v0.2 之后）浏览器视频字幕转歌词：YouTube / Bilibili 视频字幕接入（开发版功能，可用性未完全保证）_
 
-### 🧩 Widget 组件库（114 种）
+### 🧩 Widget 组件库（当前可用 85 种，另有 12 个实验/归档组件）
 - **系统监控**：CPU / 内存 / 磁盘 / 网络 / 电池 / 风扇
 - **音乐与媒体**：专辑封面、播放控制、音量、进度条
 - **效率工具**：天气、时钟、日历、节假日倒计时、备忘录、剪贴板
@@ -183,7 +183,7 @@ MTMR with LyricsX/                  # 仓库根
 
 ### v0.2（2026-08-09，预发布）
 - 首个对外预发布版本
-- 完整支持 114 种 Touch Bar widget
+- 完整支持 85 种可用组件（另有 12 个实验/归档组件，默认不进组件库）
 - 多平台歌词源整合（QQ 音乐 / 网易云 / 酷狗 / 咪咕）
 - 逐字卡拉 OK 高亮
 - 应用专属主题（Per-app bar switching）
@@ -209,7 +209,7 @@ MTMR with LyricsX/                  # 仓库根
 - [docs/设置项对照表_R60.md](docs/设置项对照表_R60.md) —— 设置项权威对照
 - [docs/轨道文本_R*.md](docs/) —— 各轮次轨道文本
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) —— 第三方组件与文件级许可映射（唯一口径）
-- [docs/未完成组件归档.md](docs/未完成组件归档.md) —— 114 个组件的成熟度分级与归档清单
+- [docs/未完成组件归档.md](docs/未完成组件归档.md) —— 组件的成熟度分级与归档清单
 - [docs/架构债_Mirror第二套实例.md](docs/架构债_Mirror第二套实例.md) —— Mirror 无法显示歌词等有状态组件的根因与修复方案
 - [docs/调研_bar-control相似工作与可借鉴点.md](docs/调研_bar-control相似工作与可借鉴点.md) —— 同类项目调研
 

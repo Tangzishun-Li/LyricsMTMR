@@ -317,6 +317,7 @@
 		C0FFE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */; };
 		C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */; };
 		C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */; };
+		C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -669,6 +670,7 @@
 		C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialStore.swift; sourceTree = "<group>"; };
 		C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigration.swift; sourceTree = "<group>"; };
 		C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigrationTests.swift; sourceTree = "<group>"; };
+		C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadmeWidgetCountTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -956,6 +958,7 @@
 				C1FE3A8C71AC4EA9C79C3764 /* SnapshotTests.swift */,
 				C1FE1B28C486A5E9A174A23F /* SnapshotTestSupport.swift */,
 				C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */,
+				C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1647,6 +1650,7 @@
 				C1FF3A8C71AC4EA9C79C3764 /* SnapshotTests.swift in Sources */,
 				C1FF1B28C486A5E9A174A23F /* SnapshotTestSupport.swift in Sources */,
 				C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */,
+				C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
