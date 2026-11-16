@@ -66,6 +66,18 @@ final class LyricsBarView: NSView, TBPollPausable {
     /// read-only constant so the Mirror contract tests can pin the boundary.
     let ownsPollingSource: Bool = false
 
+    /// Phase 2 测试缝：卡拉 OK 进度映射。实体栏与 Mirror 的两个 view 共用这一份
+    /// 纯函数、共用同一个 `LyricsEngine` tick，因此同一时刻算出的进度逐点相等，
+    /// 不会出现"两边各自读时钟导致差几帧"。
+    static func karaokeProgress(
+        timetags: [(TimeInterval, Int)],
+        linePosition: TimeInterval,
+        timeDelay: TimeInterval,
+        playbackTime: TimeInterval
+    ) -> [(TimeInterval, Int)] {
+        timetags.map { ($0.0 + linePosition - timeDelay - playbackTime, $0.1) }
+    }
+
     // MARK: - Views
 
     private let stackView = NSStackView()
@@ -300,9 +312,12 @@ final class LyricsBarView: NSView, TBPollPausable {
             if !line.timetags.isEmpty {
                 let position = track.playbackTime
                 let timeDelay = active.adjustedTimeDelay
-                let progress = line.timetags.map {
-                    ($0.0 + line.position - timeDelay - position, $0.1)
-                }
+                let progress = Self.karaokeProgress(
+                    timetags: line.timetags,
+                    linePosition: line.position,
+                    timeDelay: timeDelay,
+                    playbackTime: position
+                )
                 AppLog.lyrics("onLyricsUpdate: setting progressAnimation with \(progress.count) points, playbackTime=\(position), linePos=\(line.position)")
                 let style: KaraokeStyle = config.karaokeStyle == .jump ? .jump : .progressive
                 lyricsLabel.setProgressAnimation(color: config.progressColor, progress: progress, style: style)

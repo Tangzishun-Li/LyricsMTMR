@@ -77,6 +77,42 @@ final class MirrorDataSourceContractTests: XCTestCase {
         withExtendedLifetime((hardware, mirror)) {}
     }
 
+    // MARK: - 1b. Lyrics: 同帧对齐（两个 view 共用同一份进度映射）
+
+    func testKaraokeProgressMappingIsSharedAndFrameAligned() {
+        let timetags: [(TimeInterval, Int)] = [(0.0, 0), (0.4, 1), (0.9, 2), (1.4, 3)]
+        // 实体栏与 Mirror 在同一个 engine tick 上拿到完全一致的播放时间
+        let hardware = LyricsBarView.karaokeProgress(
+            timetags: timetags, linePosition: 1.0, timeDelay: 0.2, playbackTime: 2.0
+        )
+        let mirror = LyricsBarView.karaokeProgress(
+            timetags: timetags, linePosition: 1.0, timeDelay: 0.2, playbackTime: 2.0
+        )
+        XCTAssertEqual(hardware.count, mirror.count)
+        for (a, b) in zip(hardware, mirror) {
+            XCTAssertEqual(a.0, b.0, accuracy: 1e-9,
+                           "同一帧两个 view 的逐字进度必须逐点相等")
+            XCTAssertEqual(a.1, b.1)
+        }
+
+        // 下一个播放 tick（0.25s）整体平移 0.25s —— 不存在"各自计时而漂移"
+        let nextTick = LyricsBarView.karaokeProgress(
+            timetags: timetags, linePosition: 1.0, timeDelay: 0.2, playbackTime: 2.25
+        )
+        for (a, b) in zip(hardware, nextTick) {
+            XCTAssertEqual(a.0 - b.0, 0.25, accuracy: 1e-9)
+            XCTAssertEqual(a.1, b.1)
+        }
+    }
+
+    func testKaraokeProgressDoesNotOwnClock() {
+        // 纯函数：同样的输入永远同样的输出，与任何 view 实例/定时器无关
+        let timetags: [(TimeInterval, Int)] = [(0.0, 0), (1.0, 1)]
+        let a = LyricsBarView.karaokeProgress(timetags: timetags, linePosition: 0, timeDelay: 0, playbackTime: 5)
+        let b = LyricsBarView.karaokeProgress(timetags: timetags, linePosition: 0, timeDelay: 0, playbackTime: 5)
+        XCTAssertEqual(a.map { $0.0 }, b.map { $0.0 })
+    }
+
     // MARK: - 2. Lyrics: per-instance karaoke/marquee state
 
     /// Both instances animate their own marquee timer: pausing the hardware
