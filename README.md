@@ -1,20 +1,26 @@
 # LyricsMTMR
 
-> 在 MacBook Pro Touch Bar 上实时显示歌词 —— 将 [LyricsX](https://github.com/ddddxxx/LyricsX) 的歌词能力与 [MTMR](https://github.com/Toxblh/MTMR) 的 Touch Bar 组件体系合二为一的实验项目。
+**Touch Bar 上的 Now Playing 工作台：歌词是一等公民，其余组件是陪衬。**
 
-[![Release v0.1](https://img.shields.io/badge/release-v0.1-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.1) [![Pre-release v0.2](https://img.shields.io/badge/pre--release-v0.2-blue)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.2) [![Preview v0.3.5](https://img.shields.io/badge/preview-v0.3.5--preview-yellow)](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml)
+| 谁适合用 | 谁不适合 |
+| --- | --- |
+| 还在用 2016–2023 带实体 Touch Bar 的 MacBook Pro；写代码/听歌时想低头就看到逐字歌词与系统状态；愿意自己调布局的人 | 没有 Touch Bar 的 Mac（Mirror 只能模拟显示）；需要 Mac App Store 分发（沙盒关闭）；只想要一个"歌词插件"的人 |
 
-[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 请选**带有 `.dmg` / `.zip` 附件**的版本 · [**v0.3.5-preview**](https://github.com/Tangzishun-Li/LyricsMTMR/releases/tag/v0.3.5-preview)
+现在能做什么：**逐字卡拉 OK 歌词** · **当前可用 85 种组件**（另有 12 个实验/归档，默认不进组件库）· **屏幕上的第二块 Touch Bar** · 可视化拖拽编排。
 
-> 发版校验：`Scripts/verify_release.py` 会在每次发布后检查 feed / 资产 / sha256；仓库每天跑一次 `Release health`，坏掉的更新源会被立刻发现。
+[![Release](https://img.shields.io/badge/release-v0.3.6-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml) [![License](https://img.shields.io/badge/license-MIT%20%2B%20MPL--2.0-blue)](THIRD_PARTY_NOTICES.md)
 
----
+[**📥 下载（Releases）**](https://github.com/Tangzishun-Li/LyricsMTMR/releases) —— 优先选带 `.dmg` 附件的版本，拖进「应用程序」即可 · [**全部版本**](https://github.com/Tangzishun-Li/LyricsMTMR/releases)
+
+> 发版校验：`Scripts/verify_release.py` 会在每次发布后检查 feed / 资产 / sha256 / 包内最低系统；仓库每天跑一次 `Release health`，坏掉的更新源会被立刻发现。
 
 ## 截图速览
 
 | 主设置窗口（通用 · 含 Mirror 配置） | Ribbon 编辑器（预览模式） |
 |---|---|
 | <img src="docs/images/mirror-editor-polish/settings.jpg" width="460" alt="设置窗口 · 通用页"> | <img src="docs/images/mirror-editor-polish/editor.jpg" width="460" alt="Ribbon 编辑器 · 预览模式"> |
+
+<img src="docs/images/mirror-surface.png" width="720" alt="Mirror：屏幕上的第二块 Touch Bar（真实渲染）">
 
 > 截图取自实际 SwiftUI / AppKit 视图；编辑器为示例布局，不代表当前音乐或预设内容。
 
