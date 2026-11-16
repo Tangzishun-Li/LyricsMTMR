@@ -318,6 +318,7 @@
 		C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */; };
 		C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */; };
 		C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */; };
+		C0FF1AA7B2D6BA38632FB056 /* EditorPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE1AA7B2D6BA38632FB056 /* EditorPaletteView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -671,6 +672,7 @@
 		C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigration.swift; sourceTree = "<group>"; };
 		C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigrationTests.swift; sourceTree = "<group>"; };
 		C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadmeWidgetCountTests.swift; sourceTree = "<group>"; };
+		C0FE1AA7B2D6BA38632FB056 /* EditorPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPaletteView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -761,6 +763,7 @@
 				B7FC5E71D023A596427A70AB /* DraftManager.swift */,
 				8E4DC370193357532056A5E4 /* TouchBarSimulatorView.swift */,
 				A6DB90EFEEE348DF848F2161 /* VirtualKeyboardView.swift */,
+				C0FE1AA7B2D6BA38632FB056 /* EditorPaletteView.swift */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -1587,6 +1590,7 @@
 				C0FF530D1E3A5AE7CB6111F0 /* UpNextFeedStore.swift in Sources */,
 				C0FFE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift in Sources */,
 				C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */,
+				C0FF1AA7B2D6BA38632FB056 /* EditorPaletteView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
