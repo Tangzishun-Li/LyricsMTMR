@@ -10,10 +10,22 @@
 
     <!-- 由 Scripts/rebuild_appcast.py 从真实 release 产物生成，请勿手改。 -->
     <item>
+      <title>0.3.6 (496)</title>
+      <sparkle:version>496</sparkle:version>
+      <sparkle:shortVersionString>0.3.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 16 Nov 2026 05:46:45 +0000</pubDate>
+      <enclosure
+        url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.6/LyricsMTMR-v0.3.6-universal.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="cCSb/qwvKQjp7qJigK4uHzZMpHFnyPkqNEl+fdtrgvQ2exyZDwAD+UEnmEcVXva396s0OT05QnnY8vA/51YQCg=="
+        length="7999190" />
+    </item>
+    <item>
       <title>0.3.5 (494)</title>
       <sparkle:version>494</sparkle:version>
       <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <!-- minimumSystemVersion 未知（历史 release 未标注） -->
       <pubDate>Fri, 18 Sep 2026 04:32:24 +0000</pubDate>
       <enclosure
         url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.5-preview/LyricsMTMR-v0.3.5-preview-universal.zip"
@@ -26,12 +38,12 @@
       <sparkle:version>493</sparkle:version>
       <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <pubDate>Sat, 14 Nov 2026 12:22:33 +0000</pubDate>
+      <pubDate>Mon, 16 Nov 2026 05:07:38 +0000</pubDate>
       <enclosure
         url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/v0.3.4/LyricsMTMR-v0.3.4-universal.zip"
         type="application/octet-stream"
-        sparkle:edSignature="O0FV4u1ZzEEVaUb9xAiXIeu2cThCZw8D7RsHJ/0sqw2b70Vo6IXFmf/6RUoRWFWGtdjyE2qq8Elz3xkBAKG4Dg=="
-        length="7756450" />
+        sparkle:edSignature="tkWCg5DtE3XiMdCPE5piEGyg8gCpQ+bDpBz2jMCYhuB/fogaaQWqZ4jxUN8rYwYGVuLct/wiHC1rqk0bzE/MCA=="
+        length="7789818" />
     </item>
   </channel>
 </rss>
