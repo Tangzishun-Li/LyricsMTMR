@@ -1,0 +1,35 @@
+name: 功能建议
+description: 新组件、交互改进、性能与可访问性建议
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述场景，而不是直接给方案
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你设想的做法（可选）
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及区域
+      options:
+        - 歌词 / 播放
+        - 组件库 / 布局编辑器
+        - Mirror（第二块 Touch Bar）
+        - 设置 / 可访问性
+        - 发布 / 安装
+        - 其它
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我已确认这不是已有组件能覆盖的需求
+          required: true
