@@ -8,6 +8,39 @@
 
 ## 📝 更新日志
 
+### v0.3.6（2026-11-16 正式版）
+
+> 累计 14 个提交：安装盘与签名、发布可信化、许可收敛、组件成熟度、Mirror 快照、隐私脱敏、R64 歌词联动。
+
+#### 安装与分发
+
+- 发布流水线新增 DMG（`hdiutil UDZO` + `Applications` 软链 + `.dmg.sha256`），仅 release 时生成
+- 发布产物执行 `codesign --force --deep --sign -` ad-hoc 深度签名，`codesign --verify --deep --strict` 通过，DMG 不再被判“已损坏”
+- `appcast` 的 `minimumSystemVersion` 改为读取包内 `LSMinimumSystemVersion`（15.0），不再硬编码
+- 新增 `verify_release.py` / `package_smoke.sh` / `release-health.yml`，发布后校验 feed、资产、sha256、版本与最低系统
+
+#### 许可与合规
+
+- 19 个派生文件头的错误 GPL 声明更正为 MPL-2.0（LyricsX）/ MIT（FrameworkToolbox）
+- 新增 `THIRD_PARTY_NOTICES.md` 与 `LICENSES/MPL-2.0.txt`，三份法律文件随 App Resources 分发
+- `LicenseComplianceContractTests` 8 用例守约
+
+#### 组件与镜像
+
+- `WidgetAvailability` 引入 stable / experimental / archived，组件库默认隐藏未完成组件并显示角标
+- Mirror Phase 1：`MirrorSnapshotPolicy` + `MirrorSnapshotView`，为 lyrics / upnext 提供 1Hz 快照，第二实例暂停轮询
+- 组件库计数改为"当前可用 N 种"，与文档同步
+
+#### 隐私
+
+- 新增 `CredentialRedaction`：配置导出与绑定导出递归脱敏 apiKey/api_key/token/secret 等字段
+- 导出文件带 `credentialsRedacted` 标记，导入方提示重新填写；7 用例含端到端验证
+
+#### 歌词（R64）
+
+- 播放来源自动监听、默认歌词源、主题槽位权威化
+
+
 ### v0.3.4（编辑器重构 Phase 1-3）
 
 > 设置界面内置编辑器全面重构：Touch Bar 镜像交互、Palette 可折叠分组、PropertyInspector 字段修复、ThemeSwitch 智能联动、主题重命名。
