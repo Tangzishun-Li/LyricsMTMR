@@ -1,0 +1,8 @@
+{
+  "updated_at": "2026-11-16T14:44:55+0800",
+  "host": "macOS-15.8.3-arm64-arm-64bit-Mach-O",
+  "method": "Scripts/measure_idle.py：临时 HOME 启动默认预设，10s 预热，每 5s 采样 top(cpu,idlew)+ps(rss)，持续 60s。",
+  "cpu_avg_max": 3.0,
+  "rss_max_mb": 200.0,
+  "idlew_avg_max": 20.0
+}

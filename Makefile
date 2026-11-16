@@ -1,7 +1,7 @@
 # LyricsMTMR — convenience build targets
 # 用法：make build / make test / make archive / make install / make install-bump / make clean
 
-.PHONY: build test archive install install-bump clean smoke verify-release rebuild-appcast
+.PHONY: build test archive install install-bump clean smoke verify-release rebuild-appcast perf
 
 build:
 	./LyricsMTMR/Scripts/build.sh
@@ -34,3 +34,7 @@ verify-release:
 # 从真实 release 重写仓库根 appcast.xml（派生文件，不要手改）
 rebuild-appcast:
 	python3 LyricsMTMR/Scripts/rebuild_appcast.py --output appcast.xml
+
+# 默认预设空闲性能/能耗基线（超预算退出码 1）；--update-baseline 可重写阈值
+perf:
+	python3 LyricsMTMR/Scripts/measure_idle.py --build --json-out /tmp/lyricsmtmr-idle.json

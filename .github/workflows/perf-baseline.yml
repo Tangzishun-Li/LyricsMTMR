@@ -1,0 +1,28 @@
+# 计划板第 5 条：默认预设空闲性能/能耗基线。
+# 每周一跑一次 + 手动触发。超预算即 job 红（脚本退出码 1）。
+name: Idle performance baseline
+
+on:
+  schedule:
+    - cron: "23 2 * * 1" # 每周一 02:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  idle:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Measure idle budget (default preset, 60s)
+        run: python3 LyricsMTMR/Scripts/measure_idle.py --build --json-out "$RUNNER_TEMP/idle.json"
+
+      - name: Upload measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: idle-baseline
+          path: ${{ runner.temp }}/idle.json
+          if-no-files-found: warn
