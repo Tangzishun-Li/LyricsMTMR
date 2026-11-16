@@ -9,6 +9,9 @@
   "no Developer ID"，且在部分 macOS 上首次打开仍会被拦。
 - 仓库已准备：可选公证步骤（缺 secret 自动跳过）、Cask 配方、`packaging/update-cask.sh`。
 
+> 还需要在仓库 **Settings → Variables → Actions** 设置 `NOTARIZE=true`。
+> 工作流用仓库变量判断是否执行公证（GitHub 不允许在 `if` 里直接引用 secrets）。
+
 ## 公证需要的 secrets
 
 | Secret | 内容 |
