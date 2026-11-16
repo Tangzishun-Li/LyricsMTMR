@@ -1530,6 +1530,9 @@ struct NavItem: View {
             .contentShape(RoundedRectangle(cornerRadius: 9))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(tab.title))
+        .accessibilityValue(Text(isSelected ? localized("已选中", "Selected") : localized("未选中", "Not selected")))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.14), value: hovering)
     }
@@ -1582,6 +1585,8 @@ struct GroupSection: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(group.title))
+            .accessibilityValue(Text(isExpanded ? localized("已展开", "Expanded") : localized("已折叠", "Collapsed")))
             .onChange(of: isExpanded) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: expandKey)
             }

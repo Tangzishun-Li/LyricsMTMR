@@ -1207,6 +1207,8 @@ struct RibbonEditorView: View {
             }
             .buttonStyle(.plain)
             .disabled(!model.isDirty)
+            .accessibilityLabel(Text(localized("保存到当前主题", "Save to current theme")))
+            .accessibilityHint(Text(localized("快捷键 ⌘S", "Keyboard shortcut Command-S")))
             .help(localized("保存到当前主题 (⌘S)", "Save to current theme (⌘S)"))
         }
         .padding(.horizontal, 14)

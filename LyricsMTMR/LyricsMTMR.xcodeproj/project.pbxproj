@@ -323,6 +323,7 @@
 		C1FF270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */; };
 		C0FF66C70C852A05C982C459 /* CrashDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */; };
 		C1FFB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */; };
+		C1FF26F34F52C06F04757BC5 /* AccessibilityContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -681,6 +682,7 @@
 		C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsReportTests.swift; sourceTree = "<group>"; };
 		C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashDiagnostics.swift; sourceTree = "<group>"; };
 		C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashDiagnosticsTests.swift; sourceTree = "<group>"; };
+		C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityContractTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -972,6 +974,7 @@
 				C1FE845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift */,
 				C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */,
 				C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */,
+				C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1671,6 +1674,7 @@
 				C1FF845A8E9F58B308C2F72C /* ReadmeWidgetCountTests.swift in Sources */,
 				C1FF270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift in Sources */,
 				C1FFB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift in Sources */,
+				C1FF26F34F52C06F04757BC5 /* AccessibilityContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
