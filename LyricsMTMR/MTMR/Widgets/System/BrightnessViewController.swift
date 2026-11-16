@@ -31,6 +31,13 @@ class BrightnessViewController: NSCustomTouchBarItem, TBPollPausable {
 
         view = sliderItem
 
+        // 计划板第 10 条：亮度私有接口不可用时灰化，而不是让用户拖动一个无效滑块
+        if !CapabilityProbe.isAvailable(.coreBrightness) {
+            sliderItem.isEnabled = false
+            sliderItem.toolTip = localized("当前系统不支持亮度接口", "Brightness API unavailable on this system")
+            AppLog.warn("capability: BrightnessSystemClient 不可用，亮度滑块已禁用")
+        }
+
         pausableTimer.start()
     }
 

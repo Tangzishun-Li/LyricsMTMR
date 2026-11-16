@@ -45,6 +45,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // 再走首次配置加载（widget 初始化时只会看到 keyRef）。
             PresetCredentialMigration.migrateIfNeeded()
 
+            // 计划板第 10 条：先探测私有 API 能力，后续调用点据此降级。
+            CapabilityProbe.logSummary()
+
+            // 计划板第 8 条：异常退出检测（纯本地），上次不干净时异步提示导出诊断包。
+            let lastLaunchCrashed = CrashDiagnostics.beginSession()
+            if lastLaunchCrashed {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    CrashDiagnostics.promptIfUnclean(lastLaunchCrashed: true)
+                }
+            }
+
             // 启动恢复上次使用的主题（见 TouchBarController.reloadInitialConfig）。
             // 不再每次强制重置为 theme1 —— 那会让用户选中的槽位在每次重启/重构后“消失”。
             StartupSequence.run(
@@ -88,6 +99,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
+        CrashDiagnostics.markCleanExit()
         LyricsEngine.shared.shutdown()
         DesktopLyricsWindowController.shared.shutdown()
     }
@@ -292,7 +304,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Sparkle 2 updater — must be strongly retained for the lifetime of the app.
     private lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: true,
-        updaterDelegate: nil,
+        updaterDelegate: self,
         userDriverDelegate: nil
     )
 

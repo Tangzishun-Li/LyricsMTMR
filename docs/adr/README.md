@@ -17,6 +17,7 @@
 | [0008](0008-test-strategy.md) | 测试策略：策略枚举 + 契约 + GUI 护栏 | 已采纳 |
 | [0009](0009-serial-build-lock.md) | 全机构建串行锁 | 已采纳 |
 | [0010](0010-settings-schema-bridge.md) | 设置项 SchemaBridge 统一治理 | 进行中 |
+| [0011](0011-sandbox-off.md) | 保持 App Sandbox 关闭 | 已采纳 |
 
 ## 模板
 

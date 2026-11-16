@@ -1,0 +1,55 @@
+name: Bug 报告
+description: 界面异常、歌词不显示、Touch Bar 空白、崩溃等
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先导出诊断包再提交，能省掉一半来回：
+        **设置 → 关于 → 导出诊断包…**（路径与密钥已脱敏，可直接贴上来）
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 期望行为 vs 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 播放某首歌
+        2. 打开设置 → ...
+        3. 看到 ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / 构建号
+      description: 设置 → 关于 里可以看到
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 版本与机型
+      placeholder: macOS 15.8.3 / MacBookPro17,1
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断包内容
+      description: 粘贴「导出诊断包」生成的文本（可删减，但保留环境段）
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我已搜索过现有 issue
+          required: true
+        - label: 我已附上诊断包（或说明为什么没有）
+          required: false

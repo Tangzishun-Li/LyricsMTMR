@@ -11,6 +11,9 @@ import Cocoa
 import SwiftUI
 
 struct AboutTab: View {
+    @AppStorage(CrashDiagnostics.switchKey) private var recordCrashReports = false
+    @AppStorage(UsageSignal.enabledKey) private var usageSignalEnabled = false
+    @AppStorage(UpdateChannelPolicy.defaultsKey) private var updateChannel = "stable"
 
     var body: some View {
         ScrollView {
@@ -64,6 +67,65 @@ struct AboutTab: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(localized("导出诊断包", "Export diagnostics bundle")))
+
+                Toggle(isOn: $recordCrashReports) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("记录崩溃报告（仅本机）", "Record crash reports (local only)"))
+                            .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
+                        Text(localized(
+                            "开启后诊断包里会附带最近 7 天的崩溃摘要；默认关闭，且绝不联网上报。",
+                            "When on, the diagnostics bundle includes crash summaries from the last 7 days. Off by default and never uploaded."
+                        ))
+                        .font(Deck.captionFont).foregroundStyle(Deck.textTertiary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(localized("记录崩溃报告", "Record crash reports")))
+                .accessibilityHint(Text(localized("仅写入本机诊断包，不上传", "Stored locally for diagnostics only, never uploaded")))
+
+                Divider().background(Deck.hairline)
+
+                Toggle(isOn: Binding(
+                    get: { updateChannel == UpdateChannelPolicy.betaChannel },
+                    set: { updateChannel = $0 ? UpdateChannelPolicy.betaChannel : "stable" }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("加入预览版", "Join preview channel"))
+                            .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
+                        Text(localized(
+                            "开启后会收到带 -preview 的测试版本。关闭后不再收预览，但不会自动降级；回到稳定版请下载最新正式版 DMG。",
+                            "When on, preview builds are offered. Turning it off stops preview updates but does not downgrade; install the latest stable DMG to go back."
+                        ))
+                        .font(Deck.captionFont).foregroundStyle(Deck.textTertiary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(localized("加入预览版", "Join preview channel")))
+
+                Divider().background(Deck.hairline)
+
+                Toggle(isOn: $usageSignalEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("本地使用统计（仅本机）", "Local usage signal (this Mac only)"))
+                            .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
+                        Text(localized(
+                            "只统计组件被添加的次数与展示时长分桶，用于决定收敛哪些组件；不联网、无标识，关闭即清空。",
+                            "Counts how often widgets are added and how long they are shown, to guide pruning. No network, no identifiers; turning it off clears the data."
+                        ))
+                        .font(Deck.captionFont).foregroundStyle(Deck.textTertiary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(localized("本地使用统计", "Local usage signal")))
+                .accessibilityHint(Text(localized("关闭会清空已有统计", "Turning it off clears collected counts")))
+
+                Button(localized("清除使用统计", "Clear usage data")) {
+                    UsageSignal.clear()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(Deck.textSecondary)
+                .accessibilityLabel(Text(localized("清除使用统计", "Clear usage data")))
             }
         }
     }

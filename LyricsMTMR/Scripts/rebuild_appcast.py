@@ -109,6 +109,7 @@ def collect(inspect: bool = False) -> list[dict]:
             {
                 "tag": release["tag_name"],
                 "minimumSystemVersion": item.findtext(f"{{{SPARKLE_NS}}}minimumSystemVersion") or "",
+                "channel": item.findtext(f"{{{SPARKLE_NS}}}channel") or "",
                 "asset_url": assets[asset_name]["browser_download_url"],
                 "title": item.findtext("title") or release["tag_name"],
                 "pubDate": item.findtext("pubDate") or "",
@@ -148,6 +149,7 @@ def render(entries: list[dict]) -> str:
             f"      <sparkle:shortVersionString>{entry['shortVersion']}</sparkle:shortVersionString>",
             (f"      <sparkle:minimumSystemVersion>{entry['minimumSystemVersion']}</sparkle:minimumSystemVersion>"
              if entry.get("minimumSystemVersion") else "      <!-- minimumSystemVersion 未知（历史 release 未标注） -->"),
+            (f"      <sparkle:channel>{entry['channel']}</sparkle:channel>" if entry.get("channel") else ""),
             f"      <pubDate>{entry['pubDate']}</pubDate>",
             "      <enclosure",
             f'        url="{entry["enclosure_url"]}"',

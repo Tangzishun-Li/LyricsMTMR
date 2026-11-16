@@ -956,7 +956,10 @@ struct RibbonEditorView: View {
             Hairline()
 
             if model.editorMode == .edit {
-                PaletteRibbon(onAdd: { model.add(type: $0) })
+                PaletteRibbon(onAdd: { type in
+                    UsageSignal.recordAdd(type: type)
+                    model.add(type: type)
+                })
                     .background(EditorColors.sidebarSwift)
                 Hairline()
             }
@@ -1207,6 +1210,8 @@ struct RibbonEditorView: View {
             }
             .buttonStyle(.plain)
             .disabled(!model.isDirty)
+            .accessibilityLabel(Text(localized("保存到当前主题", "Save to current theme")))
+            .accessibilityHint(Text(localized("快捷键 ⌘S", "Keyboard shortcut Command-S")))
             .help(localized("保存到当前主题 (⌘S)", "Save to current theme (⌘S)"))
         }
         .padding(.horizontal, 14)

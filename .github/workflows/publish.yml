@@ -142,7 +142,11 @@ jobs:
           test -n "$EDSIG" || { echo "ERROR: failed to parse edSignature from: $SIG_OUT"; exit 1; }
           # 预发布版要带 <sparkle:prerelease/>，否则 Sparkle 会把 preview 推给正式版用户
           PRERELEASE_MARK=""
-          case "$TAG" in *-*) PRERELEASE_MARK="    <sparkle:prerelease/>" ;; esac
+          CHANNEL_MARK=""
+          case "$TAG" in
+            *-*) PRERELEASE_MARK="    <sparkle:prerelease/>"
+                 CHANNEL_MARK="    <sparkle:channel>beta</sparkle:channel>" ;;
+          esac
           cat > appcast.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -158,6 +162,7 @@ jobs:
                 <sparkle:shortVersionString>${SHORT}</sparkle:shortVersionString>
                 <sparkle:minimumSystemVersion>${MIN_SYSTEM}</sparkle:minimumSystemVersion>
           ${PRERELEASE_MARK}
+          ${CHANNEL_MARK}
                 <enclosure url="https://github.com/Tangzishun-Li/LyricsMTMR/releases/download/${TAG}/${ZIP}" type="application/octet-stream" sparkle:edSignature="${EDSIG}" length="${LENGTH}"/>
               </item>
             </channel>
@@ -176,6 +181,32 @@ jobs:
             exit 1
           fi
           echo "--- SUPublicEDKey matches SPARKLE_PRIVATE_KEY ---"
+
+      # 可选公证（计划板第 20 条）：缺证书 secret 时整段跳过，不影响现有 ad-hoc 流程。
+      - name: Notarize (optional, requires Developer ID secrets)
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN=$(mktemp -d)/build.keychain
+          security create-keychain -p "" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 -d > /tmp/cert.p12
+          security import /tmp/cert.p12 -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN" >/dev/null
+          APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          codesign --force --deep --options runtime --timestamp \
+            --sign "Developer ID Application" "$APP"
+          DMG="LyricsMTMR-${TAG}.dmg"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "$DMG"
+          spctl --assess --type open --context context:primary-signature -vv "$DMG" || true
 
       # 用 gh CLI 代替第三方 action：失败信息可读、可重入（--clobber），
       # 这是 v0.3.2~v0.3.4 上传步骤静默失败后的替代实现。

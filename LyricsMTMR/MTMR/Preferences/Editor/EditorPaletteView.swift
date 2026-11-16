@@ -149,6 +149,8 @@ struct PaletteCategoryGroup: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(label))
+            .accessibilityValue(Text(isExpanded ? localized("已展开", "Expanded") : localized("已折叠", "Collapsed")))
 
             // Widget chips (shown when expanded)
             if isExpanded {
@@ -224,6 +226,9 @@ struct PaletteChip: View {
         )
         .help(WidgetAvailability.badge(for: schema.type) ?? "")
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(schema.displayName))
+        .accessibilityHint(Text(localized("添加到 Touch Bar 预览", "Add to the Touch Bar preview")))
         .onTapGesture {
             if isEnabled { action() }
         }

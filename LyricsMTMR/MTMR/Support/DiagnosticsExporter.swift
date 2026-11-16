@@ -8,6 +8,12 @@ import Foundation
 enum DiagnosticsExporter {
     static let logLineLimit = 200
 
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter
+    }()
+
     struct Context {
         var appVersion: String
         var buildNumber: String
@@ -19,6 +25,9 @@ enum DiagnosticsExporter {
         var presetPath: String
         var widgetCount: Int
         var logLines: [String]
+        var crashReports: [CrashDiagnostics.Report]
+        var includeCrashReports: Bool
+        var usageSection: String? = nil
     }
 
     // MARK: - 脱敏
@@ -63,6 +72,25 @@ enum DiagnosticsExporter {
         lines.append("- 预设路径: \(redact(context.presetPath))")
         lines.append("- 组件库可用数量: \(context.widgetCount)")
         lines.append("")
+        if let usage = context.usageSection {
+            lines.append(usage)
+            lines.append("")
+        }
+        if context.includeCrashReports {
+            lines.append("## 最近崩溃（最多 \(CrashDiagnostics.maxReports) 条，已脱敏）")
+            lines.append("")
+            if context.crashReports.isEmpty {
+                lines.append("(近 7 天没有崩溃报告)")
+            } else {
+                for report in context.crashReports {
+                    lines.append("### \(report.name)（\(Self.dateFormatter.string(from: report.modified))）")
+                    lines.append("```")
+                    lines.append(contentsOf: report.summary.split(separator: "\n").map(String.init))
+                    lines.append("```")
+                }
+            }
+            lines.append("")
+        }
         lines.append("## 最近日志（最多 \(logLineLimit) 行，已脱敏）")
         lines.append("")
         lines.append("```")
@@ -91,7 +119,10 @@ enum DiagnosticsExporter {
             mirrorEnabled: UserDefaultsStore.current.bool(forKey: "com.toxblh.mtmr.settings.showMirrorWindow"),
             presetPath: SettingsSync.itemsFilePath,
             widgetCount: EditorSchema.pickableTypes(includingUnfinished: false).count,
-            logLines: recentLogLines()
+            logLines: recentLogLines(),
+            crashReports: CrashDiagnostics.reports(),
+            includeCrashReports: CrashDiagnostics.recordReportsEnabled,
+            usageSection: UsageSignal.diagnosticsSection()
         )
         return buildReport(context)
     }
