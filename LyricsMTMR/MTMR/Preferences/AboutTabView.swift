@@ -11,6 +11,7 @@ import Cocoa
 import SwiftUI
 
 struct AboutTab: View {
+    @AppStorage(CrashDiagnostics.switchKey) private var recordCrashReports = false
 
     var body: some View {
         ScrollView {
@@ -64,6 +65,21 @@ struct AboutTab: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(localized("导出诊断包", "Export diagnostics bundle")))
+
+                Toggle(isOn: $recordCrashReports) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(localized("记录崩溃报告（仅本机）", "Record crash reports (local only)"))
+                            .font(Deck.rowFont).foregroundStyle(Deck.textPrimary)
+                        Text(localized(
+                            "开启后诊断包里会附带最近 7 天的崩溃摘要；默认关闭，且绝不联网上报。",
+                            "When on, the diagnostics bundle includes crash summaries from the last 7 days. Off by default and never uploaded."
+                        ))
+                        .font(Deck.captionFont).foregroundStyle(Deck.textTertiary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(localized("记录崩溃报告", "Record crash reports")))
+                .accessibilityHint(Text(localized("仅写入本机诊断包，不上传", "Stored locally for diagnostics only, never uploaded")))
             }
         }
     }

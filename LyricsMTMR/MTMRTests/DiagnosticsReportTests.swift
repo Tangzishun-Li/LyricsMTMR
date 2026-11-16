@@ -15,7 +15,9 @@ final class DiagnosticsReportTests: XCTestCase {
             mirrorEnabled: true,
             presetPath: NSHomeDirectory() + "/Library/Application Support/LyricsMTMR/items.json",
             widgetCount: 85,
-            logLines: logLines
+            logLines: logLines,
+            crashReports: [],
+            includeCrashReports: true
         )
     }
 
