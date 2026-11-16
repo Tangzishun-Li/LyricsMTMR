@@ -2,50 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 计划板第 11 条：沙盒保持关闭（HID 媒体键 / 私有 Touch Bar 接口需要）。
+	     关闭状态下 temporary-exception.* 全部无效，已删除；决策见 docs/adr/0011-sandbox-off.md。 -->
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
-	<key>com.apple.security.application-groups</key>
-	<array/>
-	<key>com.apple.security.assets.music.read-write</key>
-	<true/>
+	<!-- AppleScript 控制 Music/Spotify 需要 -->
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- 噪声/频谱组件读取麦克风 -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
-	<key>com.apple.security.device.camera</key>
-	<false/>
-	<key>com.apple.security.device.microphone</key>
-	<false/>
+	<!-- 天气/歌词/股票等网络请求 -->
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<key>com.apple.security.network.server</key>
-	<false/>
-	<key>com.apple.security.temporary-exception.apple-events</key>
-	<array>
-		<string>com.apple.systemevents</string>
-		<string>com.apple.ActivityMonitor</string>
-		<string>com.apple.mail</string>
-		<string>com.apple.finder</string>
-		<string>com.apple.Terminal</string>
-	</array>
-	<key>com.apple.security.temporary-exception.files.home-user-selected-read-write</key>
-	<true/>
-	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
-	<array>
-		<string>/usr/bin/perl</string>
-		<string>/usr/bin/screencapture</string>
-		<string>/usr/bin/sips</string>
-		<string>/usr/bin/plutil</string>
-		<string>/usr/bin/mdls</string>
-		<string>/usr/bin/xattr</string>
-		<string>/usr/bin/open</string>
-		<string>/bin/bash</string>
-		<string>/bin/zsh</string>
-	</array>
-	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
-	<array>
-		<string>com.apple.CrashReporterSupportHelper</string>
-		<string>com.apple.ReportCrash</string>
-	</array>
 </dict>
 </plist>
