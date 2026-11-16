@@ -1,39 +1,41 @@
 # 架构债：Mirror 的"第二套 item 实例"
 
-> 状态：**Phase 1 最小修复已落地**（快照兜底，2026-11-14；对应 GitHub issue #46
+> 状态：**Phase 2 已实现**（共享数据源 + 每栏独立视图，2026-11-16；Phase 1 的
+> 1Hz 快照兜底已被替换并从工程中删除。对应 GitHub issue #46
 > "歌词等复杂小组件在 mirror 镜像中无法显示"）。
 > 严重度：P0（Mirror 是项目的差异功能之一，歌词在镜像里不可见等于招牌功能缺一半）。
 
-## 1. 现象
+## 1. 现象（历史）
 
 - Mirror 窗口里，按钮/时钟/电池等"无状态或自取数"的组件正常。
 - `lyrics`（KaraokeLabel 逐字）、`upnext`（App Scrubber）等**有状态/自带滚动视图**的组件不显示或显示为空。
 - 实体 Touch Bar 上同一组件正常。
 
-## 2. 当前实现（事实，带位置）
+## 2. 当前实现（Phase 2 事实，带位置）
 
 | 位置 | 事实 |
 | --- | --- |
-| `Core/TouchBarMirrorWindowController.swift:31` | Mirror 自己 `lazy var factory = BarItemFactory(... usesSharedLyricsConfiguration: false)`——**第二套工厂** |
-| 同文件 `update(definitions:)` | 按 definition 的 signature 做差量；每个 ID 新建 `NSTouchBarItem`，identifier 形如 `desktop.<UUID>.<原ID>` |
-| 同文件 `DesktopBarItemHost` | 把 `item.view` 掏出来当普通 NSView 用（popover 取 `collapsedRepresentation`），固定高度 30、宽度从约束/intrinsicSize 推 |
-| `MTMR/Widgets/.../UpNextScrubberTouchBarItem.swift:13` | item 自带 `NSBackgroundActivityScheduler` + `NSScrollView`，数据从事件源推 |
-| `LyricsRendering/LyricsTouchBarItem.swift:44` | item = `NSCustomTouchBarItem + TBPollPausable`，`view = stackView`（卡拉 OK 标签 + 封面），数据订阅 `LyricsEngine.shared`，另有 `marqueePauseGate` 受 `TouchBarVisibilityState.shared.isBarHidden` 初值影响 |
+| `LyricsRendering/LyricsBarView.swift` | **视图层**：`final class LyricsBarView: NSView, TBPollPausable`。负责 stackView（封面 + 卡拉 OK 标签 + 占位）构建、订阅 `LyricsEngine.shared`、逐字 karaoke、marquee/follow 滚动、`setPaused(_:)`、`applyConfig(_:)`。不持有任何调度器，数据源固定为共享 engine。 |
+| `LyricsRendering/LyricsTouchBarItem.swift` | **容器层**：`NSCustomTouchBarItem + TBPollPausable`，`view = barView`；`applyConfig`/`setPaused` 转发给 `LyricsBarView`；保留 `init(identifier:config:)`、`convenience init(identifier:)`、点击手势与 `LyricsClickAction` 切换（原文/翻译/音译）。 |
+| `MTMR/Widgets/Media/UpNextFeedStore.swift` | **数据层共享发布**：`UpNextFeedStore.shared` 持有 `[UpNextItem]`（Combine `CurrentValueSubject`），提供 `update(items:)`、`subscribe(_:)`、`subscriberCount`/`updateInvocations`（测试缝）。store 自身不拉数据、不建调度器。 |
+| `MTMR/Widgets/Media/ScrubberBarView.swift` | **视图层**：`final class ScrubberBarView: NSView, TBPollPausable`，持有 `NSScrollView` + item `NSStackView`（原 `reloadData`/`updateSize` 逻辑整体迁入），只订阅 `UpNextFeedStore`。 |
+| `MTMR/Widgets/Media/UpNextScrubberTouchBarItem.swift` | **容器层 + 唯一数据生产者**：保留 `NSBackgroundActivityScheduler` 与 `IUpNextSource` 事件源；每次拉取完成后 `UpNextFeedStore.shared.update(items:)`。**Mirror 不创建该 item**。 |
+| `MTMR/Core/TouchBarMirrorWindowController.swift` | **容器层**：`MirrorRenderPolicy.usesSharedView(for:)` 判定 `.lyrics` / `.upnext` 走共享视图分支；`makeHost` 对 `.lyrics` 直接 new `LyricsBarView(config:)`、对 `.upnext` 直接 new `ScrubberBarView(...)`；这两类不再创建第二个 `NSTouchBarItem`（因此不会产生第二套 scheduler/事件源/engine 订阅）。 |
+| `MTMR/Core/BarItemFactory.swift` | `lyricsConfig(from:shared:)` 提供实体栏与 Mirror 共用的 definition→`LyricsItemConfig` 映射（Mirror 传 `shared: false`，只拿副本、不写回 preset）。`BarItemFactory` 构造签名未变。 |
 
-根本问题：**item 同时是"视图容器 + 数据订阅者 + 定时器/调度器持有者"**。Mirror 需要"再来一份视图"，
-但这个设计只能通过"再来一个完整 item"实现，于是产生 6 处隐式耦合：
+Phase 2 后的三层边界（本次重构的核心结论）：
 
-1. 同一份数据被两套调度器各自拉取（轮询类组件在 Mirror 打开时负载翻倍）；
-2. 暂停语义分裂——实体栏的 `isBarHidden` 与 Mirror 的 `paused` 是两套状态，
-   `TBPauseGate(startPaused:)` 的初值在 Mirror 场景下可能是错的（实体栏隐藏时打开 Mirror）；
-3. 部分 item 的 `view` 在 init 后就绑定了自己的约束/尺寸（scrollView、卡拉 OK 标签），
-   被 `DesktopBarItemHost` 强行改父视图 + 固定高 30 后，布局可能塌成 0 宽；
-4. item 的 identifier 被 Mirror 改写为 `desktop.<UUID>.*`，任何按 identifier 分支的逻辑（主题切换、popover 定位）都会失配；
-5. popover 类 item（34 个 `TBPopoverItem` 子类）在 Mirror 里只能拿 `collapsedRepresentation`，展开行为需要另写一套；
-6. `usesSharedLyricsConfiguration: false` 说明作者已经踩过"共享配置"的坑，但用"复制一份配置"绕开，
-   数据源共享、视图不共享的边界并没有被定义清楚。
+1. **数据层**：`LyricsEngine.shared`（播放/歌词轮询唯一实例）与 `UpNextFeedStore.shared`（日历数据唯一发布点）。
+   轮询/调度只存在于 engine 与实体栏 upnext item，Mirror 侧无任何轮询入口。
+2. **视图层**：`LyricsBarView` / `ScrubberBarView` 只做"订阅 + 渲染 + 动画 + 暂停门"，
+   实例可任意多份，互不共享视图状态（KaraokeLabel 动画、marquee timer 各自独立）。
+3. **容器层**：实体栏 item（`LyricsTouchBarItem` / `UpNextScrubberTouchBarItem`）与 Mirror host
+   （`DesktopBarItemHost(item: nil, content: view, ...)`）各自持有一个视图实例；容器只负责生命周期、
+   暂停广播与点击手势，不再承担渲染。
 
-## 3. 候选根因（按可能性排序，待实测确认）
+于是 §1 的根因（item = 视图 + 数据订阅 + 定时器）被拆掉：Mirror 拿到的是"第二个视图"而不是"第二个 item"。
+
+## 3. 历史候选根因（Phase 1 前的排查记录，保留供追溯）
 
 | # | 假设 | 证据 | 验证方式 |
 | --- | --- | --- | --- |
@@ -42,59 +44,79 @@
 | C | 第二个 `LyricsTouchBarItem` 的 config 是副本，某些渲染开关没被 definition 覆盖 | `BarItemFactory` 对 lyrics 的 `LyricsItemConfig(copying: .shared)` | 打印 Mirror item 的 `config.displayMode/karakeStyle` 与实体栏对比 |
 | D | 事件源单例只服务一个消费者（upnext 类） | Scrubber 持有 `NSBackgroundActivityScheduler`，事件源可能注册在单例上 | 看 `IUpNextSource` 注册/去重逻辑 |
 
-> 结论：**不先拆"视图/数据"边界，逐个修只会按下葫芦浮起瓢。**
+> 结论：**不先拆"视图/数据"边界，逐个修只会按下葫芦浮起瓢。**（Phase 2 已按此结论落地）
 
-## 4. 修复方案（分三步，按风险从低到高）
+## 4. 修复方案（分步，按风险从低到高）
 
 ### Phase 0（0.5 天，最小可交付）
 给 Mirror 增加"诊断开关"：设置里一键打印每个 host 的 `content.frame`、`fittingSize`、
 item 类型、paused 状态到 `~/Library/Logs/LyricsMTMR/mirror-diagnose.log`。
 用真机跑一次，确认 §3 的 A/B/C 哪个命中。**没有这一步，后面都是猜。**
+（Phase 1 已用快照兜底绕过；诊断开关未单独落地。）
 
-### Phase 1（已实现，2026-11-14）—— 快照兜底
+### Phase 1（已实现 2026-11-14，Phase 2 后移除）—— 快照兜底
+- `MTMR/Core/MirrorSnapshotPolicy.swift`：`shouldSnapshot(.lyrics/.upnext)` +
+  `MirrorSnapshotView`（实体栏同 ID item 的 view 1Hz 快照，空白/无源显示占位）。
+- 第二套实例对这两类 `setPaused(true)`，避免重复轮询。
+- `MirrorSnapshotTests` 6 用例。
+- **已知限制**：1Hz 静态刷新（不是逐字滚动）；实体栏未创建过该 item 时无快照可拍。
+- **Phase 2 处理**：文件与测试已删除、pbxproj 注册已清理；镜像内改为同一数据源驱动的真实动画。
+
+### Phase 2（已实现 2026-11-16）—— 共享数据源 + 每栏独立视图
 
 落地内容：
-- `MTMR/Core/MirrorSnapshotPolicy.swift`
-  - `shouldSnapshot(.lyrics/.upnext)`：只对这两类有状态组件启用；
-  - `MirrorSnapshotView`：对实体栏同一个 item 的 `view` 做 1Hz 快照，空白/无源时显示占位文案；
-  - 第二套实例对这两类组件 `setPaused(true)`，避免 Mirror 打开时重复轮询。
-- `TouchBarMirrorWindowController.makeHost`：命中策略且能找到实体栏同 ID item 时，用快照视图替代第二实例视图；
-  找不到（如独立预设里没有对应硬件 item）时回退原路径，行为不变。
-- `MirrorSnapshotTests` 6 用例：策略映射、宽度钳制、快照非空白、空白检测、零尺寸拒绝、intrinsicSize 可用。
+- 数据层：`UpNextFeedStore.shared` 作为日历数据的唯一发布点；`LyricsEngine.shared` 保持唯一歌词数据源。
+- 视图层：`LyricsBarView`、`ScrubberBarView`（只订阅 + 渲染 + 动画，无 scheduler）。
+- 容器层：`LyricsTouchBarItem` / `UpNextScrubberTouchBarItem` 退化为薄容器；
+  `TouchBarMirrorWindowController.makeHost` 用 `MirrorRenderPolicy` 直接创建视图实例，
+  对 lyrics/upnext 不再创建第二套 item。
+- 测试：`MTMRTests/MirrorDataSourceContractTests.swift` 9 用例（共享 engine、双实例独立滚动、
+  暂停语义、store 扇出/订阅计数/不自行拉取、实体栏 item 唯一生产者、Mirror 路由策略、config 映射）。
+- 迁移顺序按原计划：先 lyrics（单数据源）→ 再 upnext（NSScrollView + store），其余 32 个
+  popover item 未迁（Phase 3 / 后续）。
 
-**已知限制**（Phase 2 解决）：1Hz 静态刷新，不是逐字滚动；实体栏未创建过该 item 时无快照可拍，走占位文案。
+验收对照：
+- Mirror 中歌词由 `LyricsEngine.shared` 的 0.25s tick 驱动，每个 `LyricsBarView` 自己跑
+  KaraokeLabel 30fps 扫描 + marquee timer，逐字滚动是实时的（不再是 1Hz 快照）。
+- upnext Mirror 视图在打开时同步拿到 store 快照，之后随实体栏 item 的 60s 拉取更新；
+  Mirror 打开不会新增 scheduler/EventKit 查询（`updateInvocations` 只随实体栏拉取 +1）。
+- 暂停语义：实体栏隐藏只暂停实体栏视图；Mirror 显隐独立经 `host.pausable?.setPaused(...)` 广播。
 
-（原计划如下，供 Phase 2 参考）
-对"有状态组件"（lyrics / upnext）在 Mirror 里**只复用一个 view**：
-- 不改 item 结构，先在 Mirror 侧对这两类做特殊处理——从实体栏的 `TouchBarController.items`
-  里取同 identifier 的 item，用它的 `view` 做 `snapshot`（`bitmapImageRepForCachingDisplay`）
-  或直接复用其 view 引用（需先 `removeFromSuperview` 并保证实体栏不可见时）。
-- 优点：不动渲染层，能立刻让 Mirror 里"看得见歌词"；
-- 缺点：快照不是实时的（可 1s 刷新），且实体栏可见时不能共用 view。
-- 验收：Mirror 中歌词随播放滚动（快照模式 ≥1Hz）、upnext 显示当前项、原有 114 组件的
-  Mirror 渲染不回归。
-
-### Phase 2（1–2 天，正解）
-把"视图"从 item 里拆出来，明确三条边界：
-1. **数据层**：`LyricsEngine.shared` 是唯一数据源，提供 `AsyncStream`/Combine publisher（已有）；
-2. **视图层**：新增 `LyricsBarView: NSView`（以及 upnext 的 `ScrubberBarView`），只订阅数据、不含调度器；
-3. **容器层**：实体栏 item 与 Mirror host 各自持有一个 view 实例，共享数据层、互不共享视图。
-   `BarItemFactory` 增加 `makeView(for:)` 与 `makeItem(for:)` 两条路径，item 内部只做 view 包装。
-- 迁移顺序：先 lyrics（单一数据源、无滚动）→ 再 upnext（带 NSScrollView）→ 其余 32 个 popover item 暂不迁。
-- 验收：Mirror 与实体栏同帧一致（差 ≤1 帧）；无重复轮询（用 `log stream` 数请求）；
-  `WidgetLeakTests` / 新增 `MirrorSharedDataSourceTests` 全绿。
+**残余风险（Phase 2 已知）**：
+1. 实体栏没有 upnext item（或 item 被销毁）时 store 为空：Mirror 显示本地化占位
+   `日历无日程 / No events`（`ScrubberBarView(showsEmptyPlaceholder: true)`），不会显示陈旧列表。
+2. 日历权限提示项（"点按授权"）在 Mirror 内只读展示——点击 action 绑定在实体栏 item 构建的
+   `UpNextItem` 上，Mirror host 把整个视图当无 action 内容处理，点按不会触发授权。后续可给
+   Mirror 的 upnext host 绑定 hint 的 singleTap action。
+3. 同一 preset 内出现多个硬件 `upnext` item 时，它们仍各自持有一个 scheduler（Phase 2 前既有行为）；
+   共享 store 以最后写入者为准。Mirror 本身不增加生产者。
+4. 歌词的 marquee 相位/暂停门在两个视图间独立（这是"各自动画"的设计而非缺陷）；
+   若要求严格同帧，需要把动画时钟也上移为共享状态（未做）。
+5. 若实体栏从未创建 lyrics item（例如纯桌面栏用户），Mirror 的 `LyricsBarView` 依然订阅 engine，
+   可正常显示；但 engine 本身的启停策略不在本卡范围。
 
 ### Phase 3（可选，产品面）
 Mirror 独立预设与"跟随实体栏"两种模式共用同一渲染路径后，
 可考虑让 Mirror 在没有 Touch Bar 的 Mac 上成为主界面（对标已归档的 Touch Bar Simulator）。
+延伸项：
+- 把其余 32 个 popover item 也拆成 view 层（`TBPopoverItem` 目前 Mirror 只取 collapsedRepresentation）；
+- Mirror upnext 的授权提示可点按；
+- 共享动画时钟（歌词 marquee 严格同帧）。
 
-## 5. 验收标准（修完必须全部满足）
+## 5. 验收标准（Phase 2 对照）
 
-- [ ] issue #46 关闭：lyrics + upnext 在 Mirror 中可见且随播放更新
-- [ ] 打开 Mirror 时，轮询类组件的请求次数不翻倍（`log stream` 实测）
-- [ ] 实体栏隐藏/显示、Mirror 显示/隐藏 8 次组合，无卡死、无 empty Mirror
-- [ ] 新增 `MirrorDataSourceContractTests` ≥6 用例，覆盖暂停语义与共享数据
-- [ ] 本文件 §2 的 6 处耦合在修复后逐条消失或写明"保留原因"
+- [x] issue #46 关闭路径：lyrics + upnext 在 Mirror 中可见且随播放更新（同一数据源、独立视图）
+- [x] 打开 Mirror 时轮询类组件请求不翻倍（Mirror 对这两类不再创建 item；测试断言 store 单次推送 / 视图零拉取）
+- [ ] 实体栏隐藏/显示、Mirror 显示/隐藏 8 次组合，无卡死、无 empty Mirror（仍需真机验收；本卡只有 headless 测试）
+- [x] 新增 `MirrorDataSourceContractTests` 9 用例，覆盖共享数据、暂停语义、唯一生产者与重定向策略
+- [x] 本文件 §2 的 6 处耦合在修复后逐条消失或写明"保留原因"：
+  1. 重复轮询 → 消失（Mirror 不建 item/scheduler，store 只发布）；
+  2. 暂停语义分裂 → 收敛为 `host.pausable` 单入口（item 或 view 二选一）；
+  3. item.view 被 host 改父视图 → 视图层自带约束（stackView 贴边），不再依赖 item 的隐式尺寸；
+  4. identifier 被改写 → 共享视图不走 identifier 分支（无 item）；
+  5. popover item → 未迁移（保留原因：Phase 2 范围只含 lyrics/upnext，见 Phase 3）；
+  6. `usesSharedLyricsConfiguration` 副本语义 → 保留，但映射收敛到 `BarItemFactory.lyricsConfig`，
+     Mirror 恒传 `shared: false`（只读副本）。
 
 ## 6. 关联
 

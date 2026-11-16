@@ -12,7 +12,9 @@ import EventKit
 
 class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     // Dependencies
-    private let scrollView = NSScrollView()
+    /// Mirror Phase 2：渲染（NSScrollView + 列表）搬进 `ScrubberBarView`，
+    /// 本 item 只保留调度器/事件源（唯一数据生产者）与视图容器身份。
+    private let feedView: ScrubberBarView
     let activity: NSBackgroundActivityScheduler // Update scheduler
     private var eventSources : [IUpNextSource] = []
     /// 当前展示项（round 30 起 internal：权限提示项断言的测试缝）。
@@ -32,8 +34,8 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     private var futureSearchCutoff: Double
     private var pastSearchCutoff: Double
     private var maxToShow: Int
-    private var widthConstraint: NSLayoutConstraint?
-    private var autoResize: Bool = false
+    /// 唯一生产者代次（Phase 2）。deinit 时通过 token 释放 store 生产者槽位。
+    private var producerToken: UInt64 = 0
     
     /// <#Description#>
     /// - Parameters:
@@ -56,7 +58,7 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
         pastSearchCutoff = from * 3600
         futureSearchCutoff = to * 3600
         self.maxToShow = maxToShow
-        self.autoResize = autoResize
+        feedView = ScrubberBarView(autoResize: autoResize)
         UpNextItem.df.dateFormat = "HH:mm"
         // Error handling
         if (maxToShow <= 0) {
@@ -64,7 +66,9 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
         }
         // Init super
         super.init(identifier: identifier)
-        view = scrollView
+        view = feedView
+        // Mirror Phase 2: this hardware item is the feed's only producer.
+        producerToken = UpNextFeedStore.shared.claimProducer()
         // Add event sources
         // Can optionally pass an update view callback to an event source to redraw element
         if let injected = eventSources {
@@ -87,6 +91,11 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
     
     deinit {
         activity.invalidate()
+        // Mirrors opened without a hardware UpNext item fall back to the empty
+        // placeholder instead of showing a stale list.
+        if producerToken != 0 {
+            UpNextFeedStore.shared.releaseProducer(token: producerToken)
+        }
     }
 
     // MARK: - 隐藏暂停（round 22）
@@ -149,27 +158,9 @@ class UpNextScrubberTouchBarItem: NSCustomTouchBarItem, TBPollPausable {
                 })
                 self.items.append(hint)
             }
-            self.reloadData()
-            self.updateSize()
-        }
-    }
-    
-    private func reloadData() {
-        let stackView = NSStackView(views: items.compactMap { $0.view })
-        stackView.spacing = 5
-        stackView.orientation = .horizontal
-        let visibleRect = self.scrollView.documentVisibleRect
-        self.scrollView.documentView = stackView
-        stackView.scroll(visibleRect.origin)
-    }
-    
-    func updateSize() {
-        if self.autoResize {
-            self.widthConstraint?.isActive = false
-            
-            let width = self.scrollView.documentView?.fittingSize.width ?? 0
-            self.widthConstraint = self.scrollView.widthAnchor.constraint(equalToConstant: width)
-            self.widthConstraint!.isActive = true
+            // Mirror Phase 2：唯一生产者把快照推给共享 store；实体栏 item 自己
+            // 的 `ScrubberBarView` 与 Mirror 的视图都只订阅。
+            UpNextFeedStore.shared.update(items: self.items)
         }
     }
 

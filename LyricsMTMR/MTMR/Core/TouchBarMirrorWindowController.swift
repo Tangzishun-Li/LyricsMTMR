@@ -4,6 +4,24 @@ enum MirrorInteractionMode: Int {
     case mirror = 0, live = 1, edit = 2
 }
 
+/// Mirror Phase 2 render policy: stateful widgets whose data source can be
+/// shared while each bar gets its own view instance.
+///
+/// `.lyrics` renders through `LyricsBarView` (subscribes to
+/// `LyricsEngine.shared`); `.upnext` renders through `ScrubberBarView`
+/// (subscribes to `UpNextFeedStore.shared`). For these types the Mirror never
+/// builds a second item — that would create a second scheduler/poller.
+enum MirrorRenderPolicy {
+    static func usesSharedView(for type: ItemType) -> Bool {
+        switch type {
+        case .lyrics, .upnext:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 /// Native widgets are laid out in the same coordinate space on the desktop and
 /// in the editor. Scaling happens after layout, never by compressing the items.
 final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
@@ -68,8 +86,7 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
             if signatures[id] != signature || hosts[id] == nil {
                 discard(id)
                 let itemID = NSTouchBarItem.Identifier("desktop.\(UUID().uuidString).\(id.rawValue)")
-                guard let item = createDesktopItem(identifier: itemID, definition: definition),
-                      let host = makeHost(item: item, definition: definition, id: id) else { continue }
+                guard let host = makeHost(itemID: itemID, definition: definition, id: id) else { continue }
                 hosts[id] = host
                 signatures[id] = signature
                 host.isInteractive = isInteractive
@@ -78,11 +95,9 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
                     self?.selectedIdentifier = id
                     self?.onSelect?(id)
                 }
-                (item as? TBPollPausable)?.setPaused(paused)
-                // 快照兜底的组件不需要第二套实例自轮询，避免 Mirror 打开时负载翻倍
-                if MirrorSnapshotPolicy.shouldSnapshot(definition.type) {
-                    (item as? TBPollPausable)?.setPaused(true)
-                }
+                // Phase 2: stateful widgets are driven by the shared data source,
+                // so there is no second item that could double the polling.
+                host.pausable?.setPaused(paused)
             }
             if let host = hosts[id], host.superview !== zones[zoneIndex].documentView {
                 host.removeFromSuperview()
@@ -186,22 +201,43 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
         }
     }
 
-    private func makeHost(item: NSTouchBarItem, definition: BarItemDefinition,
+    /// Builds the Mirror's item (or, for Phase 2 shared-view widgets, view).
+    ///
+    /// Stateful widgets (`.lyrics` / `.upnext`) intentionally do **not** get a
+    /// second item: an item would own a second scheduler/source and double the
+    /// polling when the Mirror is open. Instead the Mirror creates its own
+    /// `LyricsBarView` / `ScrubberBarView` instance that subscribes to the same
+    /// process-wide data source the hardware item uses.
+    private func makeHost(itemID: NSTouchBarItem.Identifier, definition: BarItemDefinition,
                           id: NSTouchBarItem.Identifier) -> DesktopBarItemHost? {
+        if MirrorRenderPolicy.usesSharedView(for: definition.type) {
+            guard let content = sharedView(for: definition) else { return nil }
+            return makeHost(item: nil, content: content, definition: definition, id: id)
+        }
+        guard let item = createDesktopItem(identifier: itemID, definition: definition) else { return nil }
         var content = item.view
         if let popoverItem = item as? NSPopoverTouchBarItem {
             content = popoverItem.collapsedRepresentation
         }
-        // 有状态组件（歌词 / upnext）：Mirror 的第二套实例拿不到可靠布局
-        // （issue #46）。Phase 1 最小修复：对实体栏同一个 item 的视图做 1Hz 快照，
-        // 先保证"看得见"；实时逐字滚动留给 Phase 2 的视图/数据拆分。
-        if MirrorSnapshotPolicy.shouldSnapshot(definition.type),
-           let liveItem = TouchBarController.shared.items[id],
-           let liveView = liveItem.view,
-           let snapshot = MirrorSnapshotView(source: liveView) {
-            content = snapshot
-        }
         guard let content else { return nil }
+        return makeHost(item: item, content: content, definition: definition, id: id)
+    }
+
+    /// One view instance per Mirror host instance; the data source stays shared.
+    private func sharedView(for definition: BarItemDefinition) -> NSView? {
+        switch definition.type {
+        case .lyrics:
+            guard let config = BarItemFactory.lyricsConfig(from: definition.type, shared: false) else { return nil }
+            return LyricsBarView(config: config)
+        case let .upnext(_, _, _, autoResize):
+            return ScrubberBarView(autoResize: autoResize, showsEmptyPlaceholder: true)
+        default:
+            return nil
+        }
+    }
+
+    private func makeHost(item: NSTouchBarItem?, content: NSView, definition: BarItemDefinition,
+                          id: NSTouchBarItem.Identifier) -> DesktopBarItemHost {
         let host = DesktopBarItemHost(item: item, content: content, definition: definition)
         host.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
         // Touch-only custom recognizers do not implement mouseUp. The host
@@ -303,12 +339,12 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
     func setPaused(_ paused: Bool) {
         self.paused = paused
         if paused { popover?.performClose(nil) }
-        hosts.values.forEach { ($0.item as? TBPollPausable)?.setPaused(paused) }
+        hosts.values.forEach { $0.pausable?.setPaused(paused) }
     }
     func refreshLayout() { needsLayout = true }
     private func discard(_ id: NSTouchBarItem.Identifier) {
         guard let host = hosts.removeValue(forKey: id) else { return }
-        (host.item as? TBPollPausable)?.setPaused(true)
+        host.pausable?.setPaused(true)
         (host.item as? BarItemDiscarding)?.barItemWillDiscard()
         host.removeFromSuperview()
         signatures.removeValue(forKey: id)
@@ -320,7 +356,7 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
     }
     deinit {
         for host in hosts.values {
-            (host.item as? TBPollPausable)?.setPaused(true)
+            host.pausable?.setPaused(true)
             (host.item as? BarItemDiscarding)?.barItemWillDiscard()
         }
     }
@@ -354,7 +390,12 @@ final class TouchBarHorizontalScrollView: NSScrollView {
 }
 
 private final class DesktopBarItemHost: NSView {
-    let item: NSTouchBarItem
+    /// Nil for Mirror Phase 2 shared-view widgets (lyrics/upnext): those have
+    /// no second item, only a view fed by the shared data source.
+    let item: NSTouchBarItem?
+    /// The pause target for this host: the item when present, otherwise the
+    /// view itself (`LyricsBarView` / `ScrubberBarView` conform to TBPollPausable).
+    let pausable: TBPollPausable?
     private let content: NSView
     private let explicitWidth: CGFloat?
     private let isLyrics: Bool
@@ -381,12 +422,18 @@ private final class DesktopBarItemHost: NSView {
         let constrained = content.constraints.first {
             $0.isActive && $0.firstAttribute == .width && $0.secondItem == nil && $0.relation == .equal
         }?.constant ?? 0
+        // Oversized content is fine: the zone viewport scrolls independently.
         return max(28, constrained, content.intrinsicContentSize.width, content.fittingSize.width)
     }
-    init(item: NSTouchBarItem, content: NSView, definition: BarItemDefinition) {
+    init(item: NSTouchBarItem?, content: NSView, definition: BarItemDefinition) {
         self.item = item
+        self.pausable = (item as? TBPollPausable) ?? (content as? TBPollPausable)
         self.content = content
-        self.isLyrics = item is LyricsTouchBarItem
+        if case .lyrics = definition.type {
+            self.isLyrics = true
+        } else {
+            self.isLyrics = item is LyricsTouchBarItem
+        }
         if case let .width(value)? = definition.additionalParameters[.width] { explicitWidth = value }
         else { explicitWidth = nil }
         super.init(frame: .zero)

@@ -49,6 +49,28 @@ class BarItemFactory {
         self.usesSharedLyricsConfiguration = usesSharedLyricsConfiguration
     }
 
+    /// Maps a `.lyrics` definition to its rendering config.
+    ///
+    /// Shared by the hardware item path (`createItem`, may mutate
+    /// `LyricsItemConfig.shared` so the preset drives the physical bar) and the
+    /// Mirror's `LyricsBarView` (always a copy — the Mirror must not persist or
+    /// mutate the hardware preset). Returns nil for non-lyrics types.
+    static func lyricsConfig(from type: ItemType, shared: Bool) -> LyricsItemConfig? {
+        guard case let .lyrics(style: _, displayMode: displayMode, karaokeStyle: karaokeStyle,
+                               showArtwork: showArtwork, clickAction: clickAction,
+                               marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle) = type else {
+            return nil
+        }
+        let config = shared ? LyricsItemConfig.shared : LyricsItemConfig(copying: .shared)
+        config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
+        config.karaokeStyle = LyricsKaraokeStyle(rawValue: karaokeStyle) ?? .progressive
+        config.showArtwork = showArtwork
+        config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
+        config.marqueeEnabled = marqueeEnabled
+        config.marqueeStyle = LyricsMarqueeStyle(rawValue: marqueeStyle) ?? .marquee
+        return config
+    }
+
     /// Core item creation — the type→widget switch (formerly
     /// `TouchBarController.createItemInternal`). Throws when the item type
     /// cannot be constructed; callers normally go through `createItemSafely`.
@@ -116,17 +138,13 @@ class BarItemFactory {
             barItem = SwipeItem(identifier: identifier, direction: direction, fingers: fingers, minOffset: minOffset, sourceApple: sourceApple, sourceBash: sourceBash)
         case let .upnext(from: from, to: to, maxToShow: maxToShow, autoResize: autoResize):
             barItem = UpNextScrubberTouchBarItem(identifier: identifier, interval: 60, from: from, to: to, maxToShow: maxToShow, autoResize: autoResize)
-        case let .lyrics(style: _, displayMode: displayMode, karaokeStyle: karaokeStyle, showArtwork: showArtwork, clickAction: clickAction, marqueeEnabled: marqueeEnabled, marqueeStyle: marqueeStyle):
-            let config = usesSharedLyricsConfiguration
-                ? LyricsItemConfig.shared : LyricsItemConfig(copying: .shared)
-            config.displayMode = LyricsDisplayMode(rawValue: displayMode) ?? .karaoke
-            config.karaokeStyle = LyricsKaraokeStyle(rawValue: karaokeStyle) ?? .progressive
-            config.showArtwork = showArtwork
-            config.clickAction = LyricsClickAction(rawValue: clickAction) ?? .original
-            config.marqueeEnabled = marqueeEnabled
-            config.marqueeStyle = LyricsMarqueeStyle(rawValue: marqueeStyle) ?? .marquee
-            let lyricsItem = LyricsTouchBarItem(identifier: identifier, config: config)
-            barItem = lyricsItem
+        case .lyrics:
+            // Mirror Phase 2: the Mirror's `LyricsBarView` maps the same
+            // definition through `lyricsConfig(from:shared:)`, so hardware and
+            // mirror render identical appearance from the shared engine.
+            let config = Self.lyricsConfig(from: item.type, shared: usesSharedLyricsConfiguration)
+                ?? LyricsItemConfig(copying: .shared)
+            barItem = LyricsTouchBarItem(identifier: identifier, config: config)
         case let .stock(stocks: stocks, apiSource: apiSource, displayMode: displayMode, refreshInterval: refreshInterval, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode):
             barItem = StockBarItem(identifier: identifier, symbols: stocks, apiSource: apiSource, interval: refreshInterval, displayMode: displayMode, textWidth: textWidth, chartWidth: chartWidth, showChart: showChart, chartMode: chartMode)
         case let .themeSwitch(themes: themes):
