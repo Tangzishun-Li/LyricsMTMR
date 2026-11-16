@@ -45,6 +45,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // 再走首次配置加载（widget 初始化时只会看到 keyRef）。
             PresetCredentialMigration.migrateIfNeeded()
 
+            // 计划板第 10 条：先探测私有 API 能力，后续调用点据此降级。
+            CapabilityProbe.logSummary()
+
             // 计划板第 8 条：异常退出检测（纯本地），上次不干净时异步提示导出诊断包。
             let lastLaunchCrashed = CrashDiagnostics.beginSession()
             if lastLaunchCrashed {

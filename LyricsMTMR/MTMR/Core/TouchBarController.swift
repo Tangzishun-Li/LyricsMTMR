@@ -877,6 +877,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     }
 
     @objc func setupControlStripPresence() {
+        // 计划板第 10 条：能力不可用时不去碰私有 DFR 接口，避免白屏/崩溃
+        guard CapabilityProbe.isAvailable(.controlStripTray) else {
+            AppLog.warn("capability: Control Strip 不可用，跳过托盘项注册")
+            return
+        }
         DFRSystemModalShowsCloseBoxWhenFrontMost(false)
         let item = NSCustomTouchBarItem(identifier: .controlStripItem)
         item.view = NSButton(image: #imageLiteral(resourceName: "StatusImage"), target: self, action: #selector(presentTouchBar))

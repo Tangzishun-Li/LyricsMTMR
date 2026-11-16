@@ -324,6 +324,8 @@
 		C0FF66C70C852A05C982C459 /* CrashDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */; };
 		C1FFB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */; };
 		C1FF26F34F52C06F04757BC5 /* AccessibilityContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */; };
+		C0FFF3818752CD403D789A84 /* CapabilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */; };
+		C1FF7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -683,6 +685,8 @@
 		C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashDiagnostics.swift; sourceTree = "<group>"; };
 		C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashDiagnosticsTests.swift; sourceTree = "<group>"; };
 		C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityContractTests.swift; sourceTree = "<group>"; };
+		C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityProbe.swift; sourceTree = "<group>"; };
+		C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityProbeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -975,6 +979,7 @@
 				C1FE270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift */,
 				C1FEB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift */,
 				C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */,
+				C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1046,6 +1051,7 @@
 				36A778BD20A6C27100B38714 /* GeneralExtensions.swift */,
 				C0FEB3868E187F099C1206E2 /* DiagnosticsExporter.swift */,
 				C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */,
+				C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -1608,6 +1614,7 @@
 				C0FF1AA7B2D6BA38632FB056 /* EditorPaletteView.swift in Sources */,
 				C0FFB3868E187F099C1206E2 /* DiagnosticsExporter.swift in Sources */,
 				C0FF66C70C852A05C982C459 /* CrashDiagnostics.swift in Sources */,
+				C0FFF3818752CD403D789A84 /* CapabilityProbe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1675,6 +1682,7 @@
 				C1FF270EBCC37F4F18630A06 /* DiagnosticsReportTests.swift in Sources */,
 				C1FFB40ECB6412730D9A2EC4 /* CrashDiagnosticsTests.swift in Sources */,
 				C1FF26F34F52C06F04757BC5 /* AccessibilityContractTests.swift in Sources */,
+				C1FF7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
