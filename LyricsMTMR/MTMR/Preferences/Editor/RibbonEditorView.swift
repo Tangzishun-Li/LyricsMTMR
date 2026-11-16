@@ -956,7 +956,10 @@ struct RibbonEditorView: View {
             Hairline()
 
             if model.editorMode == .edit {
-                PaletteRibbon(onAdd: { model.add(type: $0) })
+                PaletteRibbon(onAdd: { type in
+                    UsageSignal.recordAdd(type: type)
+                    model.add(type: type)
+                })
                     .background(EditorColors.sidebarSwift)
                 Hairline()
             }

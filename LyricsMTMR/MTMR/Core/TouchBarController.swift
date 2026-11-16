@@ -237,6 +237,27 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     private(set) var lastPresetPath = ""
     var jsonItems: [BarItemDefinition] = []
     var itemDefinitions: [NSTouchBarItem.Identifier: BarItemDefinition] = [:]
+
+    /// 计划板第 18 条：把 ItemType 收敛成稳定名字（与 items.json 的 type 字段一致）。
+    func typeName(of type: ItemType) -> String {
+        switch type {
+        case .lyrics: return "lyrics"
+        case .upnext: return "upnext"
+        case .weather: return "weather"
+        case .stock: return "stock"
+        case .music: return "music"
+        case .battery: return "battery"
+        case .cpu: return "cpu"
+        case .network: return "network"
+        case .timeButton: return "timeButton"
+        case .staticButton: return "staticButton"
+        case .deepseekBalance: return "deepseekBalance"
+        case .usage: return "usage"
+        case .pomodoro: return "pomodoro"
+        case .dock: return "dock"
+        default: return String(describing: type).split(separator: "(").first.map(String.init) ?? "unknown"
+        }
+    }
     var items: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
     var leftIdentifiers: [NSTouchBarItem.Identifier] = []
     var centerIdentifiers: [NSTouchBarItem.Identifier] = []
@@ -894,7 +915,11 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
         DFRElementSetControlStripPresenceForIdentifier(.controlStripItem, showMtmrButtonOnControlStrip)
     }
 
+    /// 计划板第 18 条：本次 bar 可见的开始时间（仅使用信号开启时使用）
+    private var visibleSince: Date?
+
     @objc private func presentTouchBar() {
+        if visibleSince == nil { visibleSince = Date() }
         // Round 23: settle the process-wide visibility state before the
         // resume broadcast, so freshly created items and the rebuild paths
         // can query "is the bar actually on screen".
@@ -911,6 +936,13 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
     /// `internal` (not `private`) since round 27 so GlobalHiddenStateTests
     /// can drive the empty-bar vs. content-bar dismiss contract directly.
     @objc func dismissTouchBar() {
+        if let since = visibleSince {
+            UsageSignal.recordVisibleSeconds(
+                Date().timeIntervalSince(since),
+                types: itemDefinitions.values.map { typeName(of: $0.type) }
+            )
+            visibleSince = nil
+        }
         let hasItems = touchBarContainsAnyItems()
         // Round 23: settle the process-wide visibility state before the
         // pause broadcast (see presentTouchBar).

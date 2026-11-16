@@ -27,6 +27,7 @@ enum DiagnosticsExporter {
         var logLines: [String]
         var crashReports: [CrashDiagnostics.Report]
         var includeCrashReports: Bool
+        var usageSection: String? = nil
     }
 
     // MARK: - 脱敏
@@ -71,6 +72,10 @@ enum DiagnosticsExporter {
         lines.append("- 预设路径: \(redact(context.presetPath))")
         lines.append("- 组件库可用数量: \(context.widgetCount)")
         lines.append("")
+        if let usage = context.usageSection {
+            lines.append(usage)
+            lines.append("")
+        }
         if context.includeCrashReports {
             lines.append("## 最近崩溃（最多 \(CrashDiagnostics.maxReports) 条，已脱敏）")
             lines.append("")
@@ -116,7 +121,8 @@ enum DiagnosticsExporter {
             widgetCount: EditorSchema.pickableTypes(includingUnfinished: false).count,
             logLines: recentLogLines(),
             crashReports: CrashDiagnostics.reports(),
-            includeCrashReports: CrashDiagnostics.recordReportsEnabled
+            includeCrashReports: CrashDiagnostics.recordReportsEnabled,
+            usageSection: UsageSignal.diagnosticsSection()
         )
         return buildReport(context)
     }

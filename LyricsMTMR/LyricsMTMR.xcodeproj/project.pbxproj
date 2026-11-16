@@ -329,6 +329,8 @@
 		C0FF3080B36F120178EB938A /* ItemDecodingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE3080B36F120178EB938A /* ItemDecodingSupport.swift */; };
 		C0FF69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */; };
 		C0FF9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */; };
+		C0FFC1884FD55334E6ACA704 /* UsageSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEC1884FD55334E6ACA704 /* UsageSignal.swift */; };
+		C1FFB91F66E0A3943DD9528E /* UsageSignalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FEB91F66E0A3943DD9528E /* UsageSignalTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -693,6 +695,8 @@
 		C0FE3080B36F120178EB938A /* ItemDecodingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDecodingSupport.swift; sourceTree = "<group>"; };
 		C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckDesignSystem.swift; sourceTree = "<group>"; };
 		C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyBindingSheets.swift; sourceTree = "<group>"; };
+		C0FEC1884FD55334E6ACA704 /* UsageSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSignal.swift; sourceTree = "<group>"; };
+		C1FEB91F66E0A3943DD9528E /* UsageSignalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSignalTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -986,6 +990,7 @@
 				C1FE26F34F52C06F04757BC5 /* AccessibilityContractTests.swift */,
 				C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */,
 				C1FED9A42D045FB648B1D268 /* EntitlementsContractTests.swift */,
+				C1FEB91F66E0A3943DD9528E /* UsageSignalTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1058,6 +1063,7 @@
 				C0FEB3868E187F099C1206E2 /* DiagnosticsExporter.swift */,
 				C0FE66C70C852A05C982C459 /* CrashDiagnostics.swift */,
 				C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */,
+				C0FEC1884FD55334E6ACA704 /* UsageSignal.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -1627,6 +1633,7 @@
 				C0FF3080B36F120178EB938A /* ItemDecodingSupport.swift in Sources */,
 				C0FF69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift in Sources */,
 				C0FF9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift in Sources */,
+				C0FFC1884FD55334E6ACA704 /* UsageSignal.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1695,6 +1702,7 @@
 				C1FF26F34F52C06F04757BC5 /* AccessibilityContractTests.swift in Sources */,
 				C1FF7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift in Sources */,
 				C1FFD9A42D045FB648B1D268 /* EntitlementsContractTests.swift in Sources */,
+				C1FFB91F66E0A3943DD9528E /* UsageSignalTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
