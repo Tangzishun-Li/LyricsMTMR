@@ -208,6 +208,8 @@ MTMR with LyricsX/                  # 仓库根
 - [docs/轮次速查.md](docs/轮次速查.md) —— 各轮次快速索引
 - [docs/设置项对照表_R60.md](docs/设置项对照表_R60.md) —— 设置项权威对照
 - [docs/轨道文本_R*.md](docs/) —— 各轮次轨道文本
+- [docs/adr/README.md](docs/adr/README.md) —— 架构决策记录（10 条关键取舍）
+- [ROADMAP.md](ROADMAP.md) —— 阶段路线与顺序原则（任务队列在 .dsh/plan-board.md）
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) —— 第三方组件与文件级许可映射（唯一口径）
 - [docs/未完成组件归档.md](docs/未完成组件归档.md) —— 组件的成熟度分级与归档清单
 - [docs/架构债_Mirror第二套实例.md](docs/架构债_Mirror第二套实例.md) —— Mirror 无法显示歌词等有状态组件的根因与修复方案
