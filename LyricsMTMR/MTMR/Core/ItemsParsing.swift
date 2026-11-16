@@ -1758,6 +1758,9 @@ enum GeneralParameter {
     case title(_: String)
     case matchAppId(_: String)
     case divider(_: Bool)
+    /// 预设里的凭据引用：`keyRef` 指向 SecretsManager 的服务名（APIService.rawValue）。
+    /// 明文 apiKey 迁移到 SecretsManager 后，items.json 只保留这个引用。
+    case keyRef(_: String)
 }
 
 struct GeneralParameters: Decodable {
@@ -1772,6 +1775,7 @@ struct GeneralParameters: Decodable {
         case title
         case matchAppId
         case divider
+        case keyRef
     }
 
     init(from decoder: Decoder) throws {
@@ -1807,6 +1811,10 @@ struct GeneralParameters: Decodable {
 
         if let divider = try container.decodeIfPresent(Bool.self, forKey: .divider) {
             result[.divider] = .divider(divider)
+        }
+
+        if let keyRef = try container.decodeIfPresent(String.self, forKey: .keyRef), !keyRef.isEmpty {
+            result[.keyRef] = .keyRef(keyRef)
         }
 
         parameters = result

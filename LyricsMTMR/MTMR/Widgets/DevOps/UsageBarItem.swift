@@ -14,11 +14,21 @@ struct ProviderConfig: Decodable {
     let provider: String   // "deepseek" | "longcat" | "bailian"
     let apiKey: String
     let baseURL: String?   // optional, for custom endpoints
+    /// 计划板第 6 条：迁移后 items.json 只保留引用，密钥在凭据存储里。
+    let apiKeyRef: String?
 
     private enum CodingKeys: String, CodingKey {
         case provider
         case apiKey = "api_key"
         case baseURL = "base_url"
+        case apiKeyRef = "api_key_ref"
+    }
+
+    /// 显式 key 优先，其次按 `api_key_ref` 从凭据存储取。
+    var resolvedAPIKey: String {
+        if !apiKey.isEmpty { return apiKey }
+        guard let ref = apiKeyRef, !ref.isEmpty else { return "" }
+        return PresetCredentialStoreFactory.shared.retrieve(ref)
     }
 }
 
@@ -317,18 +327,18 @@ class UsageProviderFactory {
     static func createProvider(from config: ProviderConfig) -> UsageProvider? {
         switch config.provider.lowercased() {
         case "deepseek":
-            return DeepSeekUsageProvider(apiKey: config.apiKey, baseURL: config.baseURL)
+            return DeepSeekUsageProvider(apiKey: config.resolvedAPIKey, baseURL: config.baseURL)
         case "longcat":
-            return LongcatUsageProvider(apiKey: config.apiKey, baseURL: config.baseURL)
+            return LongcatUsageProvider(apiKey: config.resolvedAPIKey, baseURL: config.baseURL)
         case "bailian":
-            return BailianUsageProvider(apiKey: config.apiKey, baseURL: config.baseURL)
+            return BailianUsageProvider(apiKey: config.resolvedAPIKey, baseURL: config.baseURL)
         case "mimo":
-            return MIMOUsageProvider(apiKey: config.apiKey, baseURL: config.baseURL)
+            return MIMOUsageProvider(apiKey: config.resolvedAPIKey, baseURL: config.baseURL)
         case "openai", "openai-compat":
             // 通用 OpenAI 兼容提供商
             return OpenAICompatibleUsageProvider(
                 providerName: config.provider,
-                apiKey: config.apiKey,
+                apiKey: config.resolvedAPIKey,
                 baseURL: config.baseURL ?? "https://api.openai.com",
                 billingEndpoint: "/v1/dashboard/billing/usage"
             )
@@ -337,7 +347,7 @@ class UsageProviderFactory {
             if let baseURL = config.baseURL, !baseURL.isEmpty {
                 return OpenAICompatibleUsageProvider(
                     providerName: config.provider,
-                    apiKey: config.apiKey,
+                    apiKey: config.resolvedAPIKey,
                     baseURL: baseURL,
                     billingEndpoint: "/v1/dashboard/billing/usage"
                 )

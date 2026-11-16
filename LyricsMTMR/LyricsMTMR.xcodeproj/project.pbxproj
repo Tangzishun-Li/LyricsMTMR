@@ -314,6 +314,9 @@
 		C1FF3EF5457EAB3F0EDA0002 /* StartupSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE3EF5457EAB3F0EDA0002 /* StartupSmokeTests.swift */; };
 		C1FF3A8C71AC4EA9C79C3764 /* SnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE3A8C71AC4EA9C79C3764 /* SnapshotTests.swift */; };
 		C1FF1B28C486A5E9A174A23F /* SnapshotTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE1B28C486A5E9A174A23F /* SnapshotTestSupport.swift */; };
+		C0FFE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */; };
+		C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */; };
+		C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -663,6 +666,9 @@
 		C1FE3EF5457EAB3F0EDA0002 /* StartupSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSmokeTests.swift; sourceTree = "<group>"; };
 		C1FE3A8C71AC4EA9C79C3764 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		C1FE1B28C486A5E9A174A23F /* SnapshotTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTestSupport.swift; sourceTree = "<group>"; };
+		C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialStore.swift; sourceTree = "<group>"; };
+		C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigration.swift; sourceTree = "<group>"; };
+		C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetCredentialMigrationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -949,6 +955,7 @@
 				C1FE3EF5457EAB3F0EDA0002 /* StartupSmokeTests.swift */,
 				C1FE3A8C71AC4EA9C79C3764 /* SnapshotTests.swift */,
 				C1FE1B28C486A5E9A174A23F /* SnapshotTestSupport.swift */,
+				C1FE7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1185,6 +1192,8 @@
 				C0FE8EB65E61A6DC27F0B11A /* DesktopLyricsWindowController.swift */,
 				C0FED17BD18DC3ED821D87B3 /* WidgetAvailability.swift */,
 				C0FE42021662AA979F658B86 /* CredentialRedaction.swift */,
+				C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */,
+				C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1573,6 +1582,8 @@
 				C0FF8061A982D3C529093E26 /* LyricsBarView.swift in Sources */,
 				C0FF43C1E421ABB1A4DB2532 /* ScrubberBarView.swift in Sources */,
 				C0FF530D1E3A5AE7CB6111F0 /* UpNextFeedStore.swift in Sources */,
+				C0FFE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift in Sources */,
+				C0FF2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1635,6 +1646,7 @@
 				C1FF3EF5457EAB3F0EDA0002 /* StartupSmokeTests.swift in Sources */,
 				C1FF3A8C71AC4EA9C79C3764 /* SnapshotTests.swift in Sources */,
 				C1FF1B28C486A5E9A174A23F /* SnapshotTestSupport.swift in Sources */,
+				C1FF7C55FB9B52A353E7D59C /* PresetCredentialMigrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

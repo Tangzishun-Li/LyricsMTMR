@@ -41,6 +41,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // everything not needed for the Touch Bar / status-bar first frame
         // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
+            // 计划板第 6 条：先把 items.json 里的明文 API Key 迁到凭据存储，
+            // 再走首次配置加载（widget 初始化时只会看到 keyRef）。
+            PresetCredentialMigration.migrateIfNeeded()
+
             // 启动恢复上次使用的主题（见 TouchBarController.reloadInitialConfig）。
             // 不再每次强制重置为 theme1 —— 那会让用户选中的槽位在每次重启/重构后“消失”。
             StartupSequence.run(

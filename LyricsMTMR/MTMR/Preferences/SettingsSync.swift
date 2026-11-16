@@ -30,6 +30,9 @@ class SettingsSync {
     /// 单测隔离用，避免污染用户配置。@testable 可见即可。
     static var itemsJSONPathOverride: String?
 
+    /// 只读入口：凭据迁移等非预设读写逻辑需要知道当前 items.json 在哪。
+    static var itemsFilePath: String { itemsJSONPath }
+
     private static var itemsJSONPath: String {
         if let itemsJSONPathOverride { return itemsJSONPathOverride }
         // 测试进程绝不写用户真实 items.json（主题/布局的活配置），用临时目录。

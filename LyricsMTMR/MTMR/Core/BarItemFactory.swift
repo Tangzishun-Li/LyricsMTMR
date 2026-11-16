@@ -112,7 +112,8 @@ class BarItemFactory {
                 barItem = BrightnessViewController(identifier: identifier, refreshInterval: interval)
             }
         case let .weather(interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind):
-            barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: api_key, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
+            let resolvedKey = PresetCredentialResolution.resolvedKey(explicit: api_key, definition: item)
+            barItem = WeatherBarItem(identifier: identifier, interval: interval, units: units, api_key: resolvedKey, icon_type: icon_type, apiSource: apiSource, cities: cities, showHumidity: showHumidity, showWind: showWind)
         case let .yandexWeather(interval: interval):
             barItem = YandexWeatherBarItem(identifier: identifier, interval: interval)
         case let .currency(interval: interval, from: from, to: to, full: full):
@@ -152,7 +153,8 @@ class BarItemFactory {
         case let .usage(providers: providers, refreshInterval: interval, displayMode: displayMode, widgetWidth: width):
             barItem = UsageBarItem(identifier: identifier, providers: providers, interval: interval, displayMode: displayMode, widgetWidth: width)
         case let .deepseekBalance(apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval):
-            barItem = DeepseekBalanceBarItem(identifier: identifier, apiKey: apiKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval)
+            let resolvedKey = PresetCredentialResolution.resolvedKey(explicit: apiKey, definition: item)
+            barItem = DeepseekBalanceBarItem(identifier: identifier, apiKey: resolvedKey, displayMode: displayMode, showRemaining: showRemaining, refreshInterval: interval)
         case let .expandable(items: items, closePosition: closePos, cardWidthRatio: ratio):
             let pos = ExpandableCardItem.ClosePosition(rawValue: closePos) ?? .left
             barItem = ExpandableCardItem(identifier: identifier, items: items, closePosition: pos, cardWidthRatio: ratio)
