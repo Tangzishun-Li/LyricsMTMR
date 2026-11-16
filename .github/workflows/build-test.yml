@@ -57,3 +57,35 @@ jobs:
         run: |
           # 根 appcast.xml 是派生文件：任何一条 enclosure 打不开（历史上是 .dmg），这里就红。
           python3 LyricsMTMR/Scripts/verify_release.py --self-check
+
+  # 计划板第 4 条：启动冒烟 + 关键界面快照。
+  # 单独 job：GUI 用例需要真实的 App 测试宿主与窗口，和纯逻辑用例分开跑更快定位。
+  gui-smoke:
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Startup smoke + snapshot tests
+        env:
+          SNAPSHOTS_ARTIFACTS_DIR: ${{ runner.temp }}/snapshots
+        run: |
+          cd LyricsMTMR
+          xcodebuild test \
+            -project LyricsMTMR.xcodeproj \
+            -scheme UnitTests \
+            -configuration Debug \
+            -derivedDataPath /tmp/LyricsMTMR-gui \
+            CODE_SIGNING_ALLOWED=NO \
+            -destination 'platform=macOS' \
+            -only-testing:LyricsMTMRTests/StartupSmokeTests \
+            -only-testing:LyricsMTMRTests/SnapshotTests \
+            | xcpretty -c && exit ${PIPESTATUS[0]}
+
+      - name: Upload snapshot diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diff
+          path: ${{ runner.temp }}/snapshots
+          if-no-files-found: ignore
