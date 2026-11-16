@@ -184,7 +184,8 @@ jobs:
 
       # 可选公证（计划板第 20 条）：缺证书 secret 时整段跳过，不影响现有 ad-hoc 流程。
       - name: Notarize (optional, requires Developer ID secrets)
-        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        # GitHub 不允许在 if 里直接读 secrets；用仓库变量 NOTARIZE 控制是否启用
+        if: ${{ vars.NOTARIZE == 'true' }}
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
