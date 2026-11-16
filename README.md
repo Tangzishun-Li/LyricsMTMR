@@ -71,7 +71,9 @@
 1. 访问 [Releases 页面](https://github.com/Tangzishun-Li/LyricsMTMR/releases)，选带 `.dmg` 或 `.zip` 的版本（没有附件的版本是历史空发布，装不了）
 2. 下载 `LyricsMTMR-vX.Y.Z.dmg`（推荐，拖进 Applications 即可）或 `LyricsMTMR-vX.Y.Z-universal.zip`（通用二进制，Intel + Apple Silicon）
 3. 首次启动需在「系统设置 → 隐私与安全性 → 辅助功能」中授权 LyricsMTMR
-4. 项目未做 Apple 公证：首次打开若被拦截，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」
+4. 发布包做了 **ad-hoc 深度签名**（含 Sparkle 等嵌套框架），但**未做 Apple 公证**：
+   首次打开会提示“未识别的开发者”，右键 App →「打开」，或到「系统设置 → 隐私与安全性」点「仍要打开」。
+   若提示“已损坏”，说明你下到的旧版本（v0.3.4 之前）没有签名，请改用最新 Release。
 
 ### 方式二：源码构建
 ```bash
