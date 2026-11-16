@@ -326,6 +326,9 @@
 		C0FFF3818752CD403D789A84 /* CapabilityProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */; };
 		C1FF7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */; };
 		C1FFD9A42D045FB648B1D268 /* EntitlementsContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FED9A42D045FB648B1D268 /* EntitlementsContractTests.swift */; };
+		C0FF3080B36F120178EB938A /* ItemDecodingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE3080B36F120178EB938A /* ItemDecodingSupport.swift */; };
+		C0FF69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */; };
+		C0FF9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -687,6 +690,9 @@
 		C0FEF3818752CD403D789A84 /* CapabilityProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityProbe.swift; sourceTree = "<group>"; };
 		C1FE7E0B23E84CDE5F6869CF /* CapabilityProbeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityProbeTests.swift; sourceTree = "<group>"; };
 		C1FED9A42D045FB648B1D268 /* EntitlementsContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementsContractTests.swift; sourceTree = "<group>"; };
+		C0FE3080B36F120178EB938A /* ItemDecodingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDecodingSupport.swift; sourceTree = "<group>"; };
+		C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckDesignSystem.swift; sourceTree = "<group>"; };
+		C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyBindingSheets.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1105,6 +1111,8 @@
 				C0FE5A7BCE85F758969AA679 /* Components/SettingsSchemaBridge.swift */,
 				C0FE5A7CCE85F758969AA679 /* Components/SettingsRefreshAdvisor.swift */,
 				C0FE5A7DCE85F758969AA679 /* Deck.swift */,
+				C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */,
+				C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -1221,6 +1229,7 @@
 				C0FE42021662AA979F658B86 /* CredentialRedaction.swift */,
 				C0FEE8D99EB975BCC9830AD2 /* PresetCredentialStore.swift */,
 				C0FE2CCDFB74596A0EBD2FA4 /* PresetCredentialMigration.swift */,
+				C0FE3080B36F120178EB938A /* ItemDecodingSupport.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1615,6 +1624,9 @@
 				C0FFB3868E187F099C1206E2 /* DiagnosticsExporter.swift in Sources */,
 				C0FF66C70C852A05C982C459 /* CrashDiagnostics.swift in Sources */,
 				C0FFF3818752CD403D789A84 /* CapabilityProbe.swift in Sources */,
+				C0FF3080B36F120178EB938A /* ItemDecodingSupport.swift in Sources */,
+				C0FF69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift in Sources */,
+				C0FF9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
