@@ -20,7 +20,7 @@ trap 'rm -rf "$WORK"' EXIT
 fail() { echo "[FAIL] $*" >&2; exit 1; }
 pass() { echo "[PASS] $*"; }
 
-echo "== 1/6 archive（unsigned, universal）"
+echo "== 1/7 archive（unsigned, universal）"
 rm -rf "$ARCHIVE"
 # 本机构建必须过全机串行锁（docs/构建资源护栏.md）；CI 没有该脚本时直接跑。
 if [ -f ../scripts/build-with-lock.sh ]; then
@@ -39,13 +39,19 @@ fi
 test -d "$APP" || fail "archive 里没有 $APP"
 pass "archive 产物存在"
 
-echo "== 2/6 通用二进制"
+echo "== 2/7 通用二进制"
 lipo -info "$BIN" | tee "$WORK/lipo.txt"
 grep -q arm64 "$WORK/lipo.txt" || fail "缺少 arm64 架构"
 grep -q x86_64 "$WORK/lipo.txt" || fail "缺少 x86_64 架构"
 pass "arm64 + x86_64"
 
-echo "== 3/6 Sparkle 与关键资源"
+echo "== 3/7 ad-hoc 深度签名（与发布流程一致）"
+# 只 linker-signed 的 bundle 带隔离属性下载后会被判“已损坏/无法验证”；发布前先签一次
+codesign --force --deep --sign - --timestamp=none "$APP" >/dev/null 2>&1 || fail "ad-hoc 签名失败"
+codesign --verify --deep --strict "$APP" || fail "深度签名校验失败（嵌套框架未签）"
+pass "bundle 签名有效（adhoc）"
+
+echo "== 4/7 Sparkle 与关键资源"
 test -d "$APP/Contents/Frameworks/Sparkle.framework" || fail "Sparkle.framework 未嵌入（自动更新会失效）"
 pass "Sparkle.framework 已嵌入"
 for res in "Contents/Resources/items.json"; do
@@ -53,7 +59,7 @@ for res in "Contents/Resources/items.json"; do
 done
 pass "默认预设 items.json 已打包"
 
-echo "== 4/6 Info.plist 关键字段"
+echo "== 5/7 Info.plist 关键字段"
 SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null || true)
 BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist" 2>/dev/null || true)
 FEED=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$APP/Contents/Info.plist" 2>/dev/null || true)
@@ -64,7 +70,7 @@ KEY=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP/Contents/Info.plis
 [[ ${#KEY} -eq 44 ]] || fail "SUPublicEDKey 长度应为 44（base64 Ed25519 公钥）：'$KEY'"
 pass "版本 $SHORT ($BUILD)，feed=$FEED，EdDSA 公钥在位"
 
-echo "== 5/6 打包 zip 并校验结构"
+echo "== 6/7 打包 zip 并校验结构"
 ZIP="$WORK/smoke.zip"
 ditto -c -k --keepParent "$APP" "$ZIP"
 unzip -tq "$ZIP" >/dev/null || fail "zip 损坏"
@@ -75,7 +81,7 @@ SIZE=$(stat -f%z "$ZIP")
 [ "$SIZE" -gt 1000000 ] || fail "zip 太小（$SIZE bytes），可能漏打资源"
 pass "zip 结构正常（$((SIZE / 1024 / 1024)) MB）"
 
-echo "== 6/6 版本号 ↔ tag（打 tag 时才有）"
+echo "== 7/7 版本号 ↔ tag（打 tag 时才有）"
 if [ -n "${GITHUB_REF_NAME:-}" ]; then
   TAG_VERSION=$(printf '%s' "$GITHUB_REF_NAME" | sed -E 's/^v//; s/-.*$//')
   case "$SHORT" in

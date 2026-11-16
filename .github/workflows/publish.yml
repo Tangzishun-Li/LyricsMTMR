@@ -65,6 +65,20 @@ jobs:
       - name: Verify universal binary
         run: lipo -info "$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app/Contents/MacOS/LyricsMTMR"
 
+      # 归档出来的 .app 只有 linker-signed 的主二进制，嵌套的 Sparkle.framework 与
+      # 整个 bundle 并没有有效签名。带隔离属性下载后，macOS 会把这种包判成
+      # “已损坏/无法验证开发者”，DMG 双击也打不开。先做一次 ad-hoc 深度签名，
+      # 让 codesign --verify --deep --strict 通过；Gatekeeper 仍会提示“未识别的开发者”，
+      # 但可以右键打开（真正的免提示需要 Developer ID + 公证，见 docs/发布流程与产物校验.md）。
+      - name: Ad-hoc deep sign app bundle
+        run: |
+          set -euo pipefail
+          APP="$SRC/LyricsMTMR/Release/LyricsMTMR.xcarchive/Products/Applications/LyricsMTMR.app"
+          codesign --force --deep --sign - --timestamp=none "$APP"
+          codesign --verify --deep --strict --verbose=1 "$APP"
+          echo "--- 签名信息 ---"
+          codesign -dv "$APP" 2>&1 | grep -E "Identifier|Format|flags|Signature" || true
+
       - name: Package app (zip + sha256)
         run: |
           set -euo pipefail
