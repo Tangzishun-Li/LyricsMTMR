@@ -54,10 +54,10 @@ pass "bundle 签名有效（adhoc）"
 echo "== 4/7 Sparkle 与关键资源"
 test -d "$APP/Contents/Frameworks/Sparkle.framework" || fail "Sparkle.framework 未嵌入（自动更新会失效）"
 pass "Sparkle.framework 已嵌入"
-for res in "Contents/Resources/items.json"; do
+for res in "Contents/Resources/items1.json"; do
   test -e "$APP/$res" || fail "缺少资源 $res"
 done
-pass "默认预设 items.json 已打包"
+pass "默认预设 items1.json 已打包"
 
 echo "== 5/7 Info.plist 关键字段"
 SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" 2>/dev/null || true)
