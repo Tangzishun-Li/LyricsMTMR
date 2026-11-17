@@ -359,6 +359,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case package, calendar, homekit, ai
     // P2
     case expense, dock, notification, systemMonitor, wellness, lifestyle, tools
+    // 组件目录（计划板外：组件种类管理）
+    case catalog
 
     var id: String { rawValue }
 
@@ -391,6 +393,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("健康", "Wellness")
         case .lifestyle: return localized("生活", "Lifestyle")
         case .tools: return localized("快捷工具", "Tools")
+        case .catalog: return localized("组件目录", "Widget Catalog")
         }
     }
 
@@ -418,6 +421,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return localized("久坐、阅读与呼吸", "Posture, reading & breathing")
         case .lifestyle: return localized("外卖、穿衣与宠物", "Food, outfit & pet")
         case .tools: return localized("剪贴板、哈希与窗口", "Clipboard, hash & windows")
+        case .catalog: return localized("所有组件的默认样式与实时预览", "Every widget at its default size, live")
         }
     }
 
@@ -445,6 +449,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .wellness: return "heart"
         case .lifestyle: return "takeoutbag.and.cup.and.straw"
         case .tools: return "wrench.and.screwdriver"
+        case .catalog: return "square.grid.2x2"
         }
     }
 
@@ -476,6 +481,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .systemMonitor: return ["系统监控", "Monitor", "CPU", "网络", "Network", "温度", "Temp", "单位", "Unit", "核心", "Cores", "历史图表", "History Chart", "上传下载", "Upload Download", "刷新率", "Refresh Rate"]
         case .wellness: return ["健康", "Wellness", "久坐", "Posture", "站会", "Standup", "阅读", "Reading", "呼吸", "Breathing", "生日", "Birthday", "4-7-8"]
         case .lifestyle: return ["生活", "Lifestyle", "外卖", "Food", "美团", "饿了么", "UberEats", "穿衣", "Outfit", "城市", "City", "像素宠物", "Pixel Pet", "宠物", "Pet", "猫", "Cat", "狗", "Dog", "兔", "Bunny"]
+        case .catalog: return ["组件目录", "Widget Catalog", "组件", "小组件", "预览", "默认样式", "样式", "组件库"]
         case .tools: return ["快捷工具", "Tools", "剪贴板", "Clipboard", "哈希", "Hash", "sha256", "正则", "Regex", "快捷回复", "Quick Replies", "音量律动", "Audio Spectrum", "频谱", "麦克风", "Mic", "延迟测试", "Latency", "测速", "窗口布局", "Window Layout", "左半", "右半", "居中", "全屏"]
         }
     }
@@ -515,7 +521,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
     /// → 折叠进「更多设置」；general/lyrics/slots/editor/keyBindings/services/about 保持一级。
     var tabs: [SettingsTab] {
         switch self {
-        case .common: return [.general, .lyrics, .slots, .editor, .keyBindings, .services]
+        case .common: return [.general, .lyrics, .slots, .editor, .catalog, .keyBindings, .services]
         case .data: return [.stock, .weather, .calendar, .package, .rss]
         case .more: return [.pomodoro, .ai, .homekit, .expense, .dock, .notification, .systemMonitor, .wellness, .lifestyle, .tools]
         }
@@ -949,6 +955,7 @@ struct SettingsRootView: View {
         case .lyrics: LyricsTab()
         case .slots: SlotsTab()
         case .editor: EditorHostTab()
+        case .catalog: WidgetCatalogView()
         case .keyBindings: KeyBindingTab()
         case .services: ServicesTab()
         case .about: AboutTab()

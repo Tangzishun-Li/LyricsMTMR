@@ -209,6 +209,23 @@ struct AppSettings {
     @UserDefault(key: "com.lyricsmtmr.ui.settings.hiddenTabs", defaultValue: [])
     static var hiddenSettingsTabs: [String]
 
+    /// 「几乎归档」的设置页：外卖/穿搭/宠物（lifestyle）与健康（wellness）。
+    /// 默认折叠，用户仍可在「隐藏标签页管理」里重新启用。
+    static let archivedSettingsTabIds = ["lifestyle", "wellness"]
+
+    private static let archivedTabsSeededKey = "com.lyricsmtmr.ui.settings.archivedTabsSeeded.v1"
+
+    /// 启动时一次性把上面两个页面加进隐藏列表（不覆盖用户已有的取舍）。
+    static func seedArchivedSettingsTabsIfNeeded(defaults: UserDefaults = UserDefaultsStore.current) {
+        guard !defaults.bool(forKey: archivedTabsSeededKey) else { return }
+        var hidden = defaults.stringArray(forKey: "com.lyricsmtmr.ui.settings.hiddenTabs") ?? []
+        for id in archivedSettingsTabIds where !hidden.contains(id) {
+            hidden.append(id)
+        }
+        defaults.set(hidden, forKey: "com.lyricsmtmr.ui.settings.hiddenTabs")
+        defaults.set(true, forKey: archivedTabsSeededKey)
+    }
+
     /// 外卖平台白名单（生活 Tab 多选）。
     @UserDefault(key: "com.lyricsmtmr.ui.lifestyle.foodPlatforms", defaultValue: [])
     static var lifestyleFoodPlatforms: [String]

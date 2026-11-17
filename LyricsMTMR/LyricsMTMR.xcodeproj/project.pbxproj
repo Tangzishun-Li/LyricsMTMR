@@ -335,6 +335,8 @@
 		C1FFCFFF141328523069EBE1 /* UpdateChannelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FECFFF141328523069EBE1 /* UpdateChannelTests.swift */; };
 		C0FF909330F73F9D0EB26A99 /* PresetFileMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE909330F73F9D0EB26A99 /* PresetFileMigration.swift */; };
 		C1FF3359049E5FA71A075E7A /* PresetFileMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE3359049E5FA71A075E7A /* PresetFileMigrationTests.swift */; };
+		C0FF7EA43D6D27499A76CADB /* WidgetCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE7EA43D6D27499A76CADB /* WidgetCatalogView.swift */; };
+		C1FF98DB2676DA953943C0CA /* WidgetCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FE98DB2676DA953943C0CA /* WidgetCatalogTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -705,6 +707,8 @@
 		C1FECFFF141328523069EBE1 /* UpdateChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChannelTests.swift; sourceTree = "<group>"; };
 		C0FE909330F73F9D0EB26A99 /* PresetFileMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetFileMigration.swift; sourceTree = "<group>"; };
 		C1FE3359049E5FA71A075E7A /* PresetFileMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetFileMigrationTests.swift; sourceTree = "<group>"; };
+		C0FE7EA43D6D27499A76CADB /* WidgetCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCatalogView.swift; sourceTree = "<group>"; };
+		C1FE98DB2676DA953943C0CA /* WidgetCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetCatalogTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -996,6 +1000,7 @@
 				C1FEB91F66E0A3943DD9528E /* UsageSignalTests.swift */,
 				C1FECFFF141328523069EBE1 /* UpdateChannelTests.swift */,
 				C1FE3359049E5FA71A075E7A /* PresetFileMigrationTests.swift */,
+				C1FE98DB2676DA953943C0CA /* WidgetCatalogTests.swift */,
 			);
 			path = MTMRTests;
 			sourceTree = "<group>";
@@ -1127,6 +1132,7 @@
 				C0FE5A7DCE85F758969AA679 /* Deck.swift */,
 				C0FE69CCE9A1D7CF738A0829 /* DeckDesignSystem.swift */,
 				C0FE9FFEE82666ABB6AFCCD6 /* KeyBindingSheets.swift */,
+				C0FE7EA43D6D27499A76CADB /* WidgetCatalogView.swift */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -1656,6 +1662,7 @@
 				C0FFC1884FD55334E6ACA704 /* UsageSignal.swift in Sources */,
 				C0FF05B8C5D0A512B8A0F9B8 /* UpdateChannelPolicy.swift in Sources */,
 				C0FF909330F73F9D0EB26A99 /* PresetFileMigration.swift in Sources */,
+				C0FF7EA43D6D27499A76CADB /* WidgetCatalogView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1727,6 +1734,7 @@
 				C1FFB91F66E0A3943DD9528E /* UsageSignalTests.swift in Sources */,
 				C1FFCFFF141328523069EBE1 /* UpdateChannelTests.swift in Sources */,
 				C1FF3359049E5FA71A075E7A /* PresetFileMigrationTests.swift in Sources */,
+				C1FF98DB2676DA953943C0CA /* WidgetCatalogTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

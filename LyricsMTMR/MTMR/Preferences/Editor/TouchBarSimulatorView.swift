@@ -40,6 +40,14 @@ struct TouchBarSimulatorView: View {
     @State private var zoneDropHover: TouchBarZone?
 
     var body: some View {
+        GeometryReader { geo in
+            content
+                .onAppear { windowWidth = geo.size.width }
+                .onChange(of: geo.size.width) { _, newValue in windowWidth = newValue }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "touchbar")
@@ -69,6 +77,12 @@ struct TouchBarSimulatorView: View {
             } else {
                 nativePreview.frame(height: 50)
             }
+            if !actualSize, let hint = previewSizeHint {
+                Label(hint, systemImage: "rectangle.compress.vertical")
+                    .font(.system(size: 10))
+                    .foregroundStyle(EditorColors.textTertiarySwift)
+                    .accessibilityLabel(Text(hint))
+            }
             if let error = model.previewError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.system(size: 10))
@@ -88,6 +102,20 @@ struct TouchBarSimulatorView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
     }
+
+    /// 当前窗口宽度不足以展示"1:1 展开"的预览时给一句说明，而不是让用户以为组件变窄了。
+    private var previewSizeHint: String? {
+        guard let width = windowWidth else { return nil }
+        // 编辑器左右内边距 + 侧栏等合计约 380pt；剩下的宽度小于物理条长就提示
+        let available = width - 380
+        guard available < TouchBarMetrics.physicalWidth else { return nil }
+        return localized(
+            "窗口较窄：预览已按比例缩小（点「原始尺寸」可横向滚动查看）。",
+            "Narrow window: preview is scaled down. Use \"Actual size\" to scroll at 1:1."
+        )
+    }
+
+    @State private var windowWidth: CGFloat?
 
     private var nativePreview: some View {
         NativeTouchBarPreview(
@@ -195,6 +223,8 @@ private struct NativeTouchBarPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ view: TouchBarSurfaceView, context: Context) {
+        view.magnifiesToFill = true
+        view.editorPreviewMode = true
         view.presetPath = presetPath
         view.isInteractive = interactive
         view.onSelect = { identifier in

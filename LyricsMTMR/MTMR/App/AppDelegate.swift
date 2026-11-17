@@ -41,6 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // everything not needed for the Touch Bar / status-bar first frame
         // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
+            // 生活/健康设置页默认折叠（用户可在隐藏标签页管理里恢复）
+            AppSettings.seedArchivedSettingsTabsIfNeeded()
+
             // 主预设改名：items.json → items1.json（老用户启动时一次性迁移，原文件留 Backups）
             PresetFileMigration.migrateIfNeeded(
                 appSupportDir: appSupportDirectory,

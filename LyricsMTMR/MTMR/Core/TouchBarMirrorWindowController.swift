@@ -39,6 +39,10 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
     var onSelect: ((NSTouchBarItem.Identifier) -> Void)?
     var onPresetRequested: ((String) -> Void)?
     var presetPath: String?
+    /// 编辑器预览允许在空间富余时放大（镜像窗口仍保持 ≤1 倍，避免物理尺寸失真）。
+    var magnifiesToFill = false
+    /// 编辑器预览专用：普通按钮排版更接近硬件（最小宽度而非被压窄）。
+    var editorPreviewMode = false
     var isInteractive = true {
         didSet { hosts.values.forEach { $0.isInteractive = isInteractive } }
     }
@@ -171,7 +175,8 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
 
     override func layout() {
         super.layout()
-        let scale = min(1, max(0.01, (bounds.width - 12) / Self.logicalWidth))
+        let maxScale: CGFloat = magnifiesToFill ? 1.6 : 1
+        let scale = min(maxScale, max(0.01, (bounds.width - 12) / Self.logicalWidth))
         canvas.frame = NSRect(x: (bounds.width - Self.logicalWidth * scale) / 2,
                               y: (bounds.height - Self.logicalHeight * scale) / 2,
                               width: Self.logicalWidth * scale, height: Self.logicalHeight * scale)
@@ -243,6 +248,9 @@ final class TouchBarSurfaceView: NSView, NSPopoverDelegate {
     private func makeHost(item: NSTouchBarItem?, content: NSView, definition: BarItemDefinition,
                           id: NSTouchBarItem.Identifier) -> DesktopBarItemHost {
         let host = DesktopBarItemHost(item: item, content: content, definition: definition)
+        if editorPreviewMode, item is CustomButtonTouchBarItem {
+            host.minimumContentWidth = 44
+        }
         host.identifier = NSUserInterfaceItemIdentifier(id.rawValue)
         // Touch-only custom recognizers do not implement mouseUp. The host
         // translates desktop clicks, multi-clicks and holds into the same actions.
@@ -420,14 +428,16 @@ private final class DesktopBarItemHost: NSView {
             layer?.borderColor = NSColor(srgbRed: 1, green: 0.56, blue: 0.34, alpha: 1).cgColor
         }
     }
+    /// 编辑器预览里普通按钮的最小宽度（硬件上不会窄于这个量级）。
+    var minimumContentWidth: CGFloat = 0
     var preferredWidth: CGFloat {
-        if let explicitWidth { return max(1, explicitWidth) }
+        if let explicitWidth { return max(minimumContentWidth, max(1, explicitWidth)) }
         if isLyrics { return 320 }
         let constrained = content.constraints.first {
             $0.isActive && $0.firstAttribute == .width && $0.secondItem == nil && $0.relation == .equal
         }?.constant ?? 0
         // Oversized content is fine: the zone viewport scrolls independently.
-        return max(28, constrained, content.intrinsicContentSize.width, content.fittingSize.width)
+        return max(28, minimumContentWidth, constrained, content.intrinsicContentSize.width, content.fittingSize.width)
     }
     init(item: NSTouchBarItem?, content: NSView, definition: BarItemDefinition) {
         self.item = item
