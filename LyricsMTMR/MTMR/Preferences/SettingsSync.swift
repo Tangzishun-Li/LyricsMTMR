@@ -39,9 +39,9 @@ class SettingsSync {
         if UserDefaultsStore.isRunningUnderTests {
             let dir = NSTemporaryDirectory() + "/LyricsMTMR-testhost"
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-            return dir + "/items.json"
+            return dir + "/items1.json"
         }
-        return appSupportDir + "/items.json"
+        return appSupportDir + "/items1.json"
     }
     private static var defaultPresetPath: String {
         Bundle.main.path(forResource: "defaultPreset", ofType: "json") ?? ""

@@ -343,7 +343,7 @@ final class RibbonModel: ObservableObject {
             refreshPreview()
             return true
         }
-        let isItems = (themePath as NSString).lastPathComponent == "items.json"
+        let isItems = (themePath as NSString).lastPathComponent == standardConfigFileName
         var ok = ThemeSupport.write(items: synced, to: themePath)
         if !isItems {
             ok = ThemeSupport.write(items: synced, to: ThemeSupport.itemsJSONPath()) && ok
@@ -1492,7 +1492,7 @@ struct RibbonEditorView: View {
         }
         .disabled(model.currentThemePath.isEmpty || model.isDirty || model.isEditingMirrorPreset)
         Button(localized("刷新预设列表", "Refresh presets")) { scanThemes() }
-        if !model.isEditingMirrorPreset && !model.currentThemePath.isEmpty && (model.currentThemePath as NSString).lastPathComponent != "items.json" {
+        if !model.isEditingMirrorPreset && !model.currentThemePath.isEmpty && (model.currentThemePath as NSString).lastPathComponent != standardConfigFileName {
             Button(localized("删除当前预设…", "Delete current preset…"), role: .destructive) { confirmDeleteTheme = true }
         }
     }
@@ -1578,7 +1578,7 @@ struct RibbonEditorView: View {
     private func deleteCurrentTheme() {
         let path = model.currentThemePath
         let name = (path as NSString).lastPathComponent
-        guard !path.isEmpty, name != "items.json" else { return }
+        guard !path.isEmpty, name != standardConfigFileName else { return }
         do {
             try FileManager.default.removeItem(atPath: path)
         } catch {
@@ -1606,7 +1606,7 @@ struct RibbonEditorView: View {
         }
 
         if entries.isEmpty {
-            entries.append(ThemeEntry(id: "items", name: "items.json", path: itemsPath))
+            entries.append(ThemeEntry(id: "items", name: standardConfigFileName, path: itemsPath))
         }
 
         if !model.currentThemePath.isEmpty && !entries.contains(where: { $0.path == model.currentThemePath }) {

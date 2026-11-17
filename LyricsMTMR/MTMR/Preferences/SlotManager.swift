@@ -33,7 +33,7 @@ class SlotManager {
     private let appSupportDir = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
     private var slotsDir: String { appSupportDir + "/slots" }
     private var slotIndexPath: String { appSupportDir + "/slot-index.json" }
-    private var activeConfigPath: String { appSupportDir + "/items.json" }
+    private var activeConfigPath: String { appSupportDir + "/items1.json" }
     private var archiveDir: String { appSupportDir + "/archive" }
 
     private(set) var slots: [SlotInfo] = []

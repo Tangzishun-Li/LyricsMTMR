@@ -6,7 +6,7 @@
 | --- | --- |
 | 还在用 2016–2023 带实体 Touch Bar 的 MacBook Pro；写代码/听歌时想低头就看到逐字歌词与系统状态；愿意自己调布局的人 | 没有 Touch Bar 的 Mac（Mirror 只能模拟显示）；需要 Mac App Store 分发（沙盒关闭）；只想要一个"歌词插件"的人 |
 
-现在能做什么：**逐字卡拉 OK 歌词** · **当前可用 85 种组件**（另有 12 个实验/归档，默认不进组件库）· **屏幕上的第二块 Touch Bar** · 可视化拖拽编排。
+现在能做什么：**逐字卡拉 OK 歌词** · **当前可用 75 种组件**（另有 22 个实验/归档，默认不进组件库）· **屏幕上的第二块 Touch Bar** · 可视化拖拽编排。
 
 [![Release](https://img.shields.io/badge/release-v0.3.6-brightgreen)](https://github.com/Tangzishun-Li/LyricsMTMR/releases) [![CI](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml/badge.svg)](https://github.com/Tangzishun-Li/LyricsMTMR/actions/workflows/build-test.yml) [![License](https://img.shields.io/badge/license-MIT%20%2B%20MPL--2.0-blue)](THIRD_PARTY_NOTICES.md)
 
@@ -34,7 +34,7 @@
 - **多播放器支持**：Music、Spotify、Vox、Swinsian、Audirvana 等
 - _（v0.2 之后）浏览器视频字幕转歌词：YouTube / Bilibili 视频字幕接入（开发版功能，可用性未完全保证）_
 
-### 🧩 Widget 组件库（当前可用 85 种，另有 12 个实验/归档组件）
+### 🧩 Widget 组件库（当前可用 75 种，另有 22 个实验/归档组件）
 - **系统监控**：CPU / 内存 / 磁盘 / 网络 / 电池 / 风扇
 - **音乐与媒体**：专辑封面、播放控制、音量、进度条
 - **效率工具**：天气、时钟、日历、节假日倒计时、备忘录、剪贴板
@@ -189,7 +189,7 @@ MTMR with LyricsX/                  # 仓库根
 
 ### v0.2（2026-08-09，预发布）
 - 首个对外预发布版本
-- 完整支持 85 种可用组件（另有 12 个实验/归档组件，默认不进组件库）
+- 完整支持 75 种可用组件（另有 22 个实验/归档组件，默认不进组件库）
 - 多平台歌词源整合（QQ 音乐 / 网易云 / 酷狗 / 咪咕）
 - 逐字卡拉 OK 高亮
 - 应用专属主题（Per-app bar switching）

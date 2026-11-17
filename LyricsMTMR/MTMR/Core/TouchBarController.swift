@@ -18,7 +18,8 @@ struct ExactItem {
 }
 
 let appSupportDirectory = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
-let standardConfigPath = appSupportDirectory.appending("/items.json")
+let standardConfigFileName = "items1.json"
+let standardConfigPath = appSupportDirectory.appending("/" + standardConfigFileName)
 
 extension ItemType {
     var identifierBase: String {
@@ -766,7 +767,7 @@ class TouchBarController: NSObject, NSTouchBarDelegate {
             reloadPreset(path: indexedPath)
             return
         }
-        AppLog.appEvent("reloadInitialConfig: theme\(index + 1).json missing → falling back to theme1/items.json")
+        AppLog.appEvent("reloadInitialConfig: theme\(index + 1).json missing → falling back to theme1/items1.json")
         let theme1Path = appSupportDirectory + "/theme1.json"
         if FileManager.default.fileExists(atPath: theme1Path) {
             reloadPreset(path: theme1Path)

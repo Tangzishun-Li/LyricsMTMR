@@ -18,7 +18,7 @@ enum ThemeSupport {
     }
 
     static func itemsJSONPath() -> String {
-        appSupportDir + "/items.json"
+        appSupportDir + "/items1.json"
     }
 
     /// "theme5.json"/"theme5" → 4 (0-based index), nil otherwise.
@@ -362,7 +362,7 @@ final class DraftManager {
         try? data.write(to: URL(fileURLWithPath: themePath))
 
         // Also write to items.json (the active config)
-        let itemsPath = themesDir + "/items.json"
+        let itemsPath = themesDir + "/items1.json"
         try? data.write(to: URL(fileURLWithPath: itemsPath))
 
         TouchBarController.shared.reloadStandardConfig()
@@ -376,7 +376,7 @@ final class DraftManager {
         try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
 
         if activate {
-            let itemsPath = themesDir + "/items.json"
+            let itemsPath = themesDir + "/items1.json"
             try? data.write(to: URL(fileURLWithPath: itemsPath))
             TouchBarController.shared.reloadStandardConfig()
         }

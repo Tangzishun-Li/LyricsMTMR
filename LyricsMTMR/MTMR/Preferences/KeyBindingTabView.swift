@@ -382,7 +382,7 @@ struct KeyBindingTabView: View {
 
     private func loadCurrentItems() {
         let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first! + "/MTMR"
-        let itemsPath = appSupport + "/items.json"
+        let itemsPath = appSupport + "/items1.json"
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: itemsPath)),
               let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
         else { return }
@@ -918,7 +918,7 @@ struct ExportSheet: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack {
-                Text(localized("导出绑定为 items.json", "Export as items.json"))
+                Text(localized("导出为预设格式", "Export as preset"))
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(EditorColors.textPrimarySwift)
                 Spacer()

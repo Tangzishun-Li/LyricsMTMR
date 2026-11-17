@@ -41,6 +41,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // everything not needed for the Touch Bar / status-bar first frame
         // moved to the next runloop tick or a utility queue.
         if !isUnderTest {
+            // 主预设改名：items.json → items1.json（老用户启动时一次性迁移，原文件留 Backups）
+            PresetFileMigration.migrateIfNeeded(
+                appSupportDir: appSupportDirectory,
+                backupDir: appSupportDirectory.appending("/Backups")
+            )
+
             // 计划板第 6 条：先把 items.json 里的明文 API Key 迁到凭据存储，
             // 再走首次配置加载（widget 初始化时只会看到 keyRef）。
             PresetCredentialMigration.migrateIfNeeded()
@@ -211,7 +217,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func openPreferences(_: Any?) {
         let appSupportDirectory = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first!.appending("/LyricsMTMR")
-        let presetPath = appSupportDirectory.appending("/items.json")
+        let presetPath = standardConfigPath
         NSWorkspace.shared.openJSONFileWithLightweightEditor(presetPath)
     }
 

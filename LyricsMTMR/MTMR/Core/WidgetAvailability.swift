@@ -25,7 +25,6 @@ enum WidgetAvailability {
         "expenseTracker",   // 记账：BeeCount 同步链路尚未真机端到端验收
         "bilibiliFeed",     // B 站：抓取式数据源，接口变动即失效
         // 娱乐/玩具向：能跑，但没有验收标准，也不承担主场景
-        "pixelPet",
         "httpCodes",
         "latexSymbols",
         "colorConvert",
@@ -33,6 +32,13 @@ enum WidgetAvailability {
         "jsonFormatter",
         "hashCalc",
         "uuidGen",
+        // 办公/校园：能跑但未验收
+        "printerStatus",
+        "standupTimer",
+        "readingProgress",
+        "citationGen",
+        "paperProgress",
+        "paperTags",
     ]
 
     /// 已归档：组件库不再提供新增入口，但旧预设仍可渲染。
@@ -40,6 +46,13 @@ enum WidgetAvailability {
     /// 收录标准：功能确认不可用，或需要按新接口整体重做。
     static let archived: Set<String> = [
         "homekitScene",     // 智能家居：HomeKit 授权 + 场景配置未验收
+        // 外卖/穿搭/宠物 + 健康：代码已移到 Widgets/Archived/，不进组件库也不进默认预设；
+        // 旧预设仍能解析渲染（只读兼容）。
+        "foodDelivery",
+        "weatherOutfit",
+        "pixelPet",
+        "breathingGuide",
+        "postureReminder",
     ]
 
     static func status(for type: String) -> WidgetStatus {

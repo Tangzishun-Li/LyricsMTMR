@@ -397,7 +397,7 @@ struct StockTab: View {
         var list: [ThemeStockSummary] = []
         let activeSlotID = SlotManager.shared.activeSlotId
 
-        let activePath = Self.appSupportDir + "/items.json"
+        let activePath = Self.appSupportDir + "/items1.json"
         if let array = SettingsSync.loadPresetFile(at: activePath) {
             let stocks = array.enumerated().filter { ($0.element["type"] as? String) == "stock" }
             list.append(ThemeStockSummary(
@@ -514,7 +514,7 @@ struct StockTab: View {
     private func commit(_ array: [[String: Any]]) {
         SettingsSync.savePresetFile(array, at: selectedPath)
         reloadAll()
-        if selectedPath == Self.appSupportDir + "/items.json" {
+        if selectedPath == Self.appSupportDir + "/items1.json" {
             SettingsSync.postGlobalConfigChanged(domain: "stock", key: "config", newValue: ["stocks": stockItems])
             // R60-c：编辑目标是激活配置 → stock 域可热更新（Advisor 去抖 reload）；
             // 非激活主题无需 reload，也不亮横幅（切回该主题时自然生效）。

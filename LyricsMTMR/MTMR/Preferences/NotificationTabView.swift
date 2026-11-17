@@ -253,7 +253,7 @@ struct NotificationTab: View {
             try? data.write(to: URL(fileURLWithPath: override))
         } else {
             let path = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
-                .first!.appending("/LyricsMTMR/items.json")
+                .first!.appending("/LyricsMTMR/items1.json")
             try? data.write(to: URL(fileURLWithPath: path))
         }
     }
@@ -267,7 +267,7 @@ struct NotificationTab: View {
             try? data.write(to: URL(fileURLWithPath: override))
         } else {
             let path = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true)
-                .first!.appending("/LyricsMTMR/items.json")
+                .first!.appending("/LyricsMTMR/items1.json")
             try? data.write(to: URL(fileURLWithPath: path))
         }
     }
